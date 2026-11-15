@@ -11,7 +11,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - **三种显示模式**
   - 团块（写实）：每个残基一颗发光团块。
   - 结构示意：α 螺旋、β 折叠箭头、卷曲细管。二级结构取自作者沉积的 PDB 注释（`_struct_conf` / `_struct_sheet_range`）。
-  - 简化示意：每条链或每个结构域用一个光滑几何体（椭球、花瓣、棒）表示，DNA 画成轴线管；带部件标注和点击讲解。
+  - 简化示意（每个部件可单独勾选）：按期刊示意图的画法——环状寡聚体画成鼓，长螺旋画成弯管，球状亚基 / 结构域画成由真实坐标拟合的叶片，DNA 画成轴线管；另有低分辨率分子表面和插画画风（浅底平涂 + 描边）；带部件标注和点击讲解。
 - **相互作用动画**
   - ATP 合酶（6ZPO）：H⁺ 驱动 c 环转动；三条 β 链按真实构象依次经历开放 → 松弛 → 紧密；ATP/ADP/Pi/Mg²⁺ 的位置取自晶体结构，并随口袋开合移动（Boyer 结合变构机制）。
   - 鞭毛马达：H⁺ 经定子驱动转子。
@@ -46,7 +46,7 @@ python -m http.server 8765
 |---|---|---|
 | ATP 合酶 | 6ZPO | Spikes, Montgomery & Walker (2020) *PNAS* 117, 23519 |
 | 鞭毛马达 | 7CGO | Tan et al. (2021) *Cell* 184, 2665 |
-| 鞭毛马达 C 环 | 8YJT | 见 RCSB 条目 8YJT |
+| 鞭毛马达 C 环 | 8YJT | Tan, Zhang, Zhou et al. (2024) *Cell Res.* 34, 788 |
 | 鞭毛马达定子 | 6YKM | Santiveri et al. (2020) *Cell* 183, 244 |
 | 鞭毛丝 | 1UCU | Yonekura, Maki-Yonekura & Namba (2003) *Nature* 424, 643 |
 | 钾通道 KcsA | 1BL8 | Doyle et al. (1998) *Science* 280, 69 |
