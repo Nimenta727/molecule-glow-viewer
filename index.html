@@ -1,0 +1,1836 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分子光影查看器</title>
+<style>
+  :root{--bg:#000;--panel:rgba(12,14,22,.80);--line:rgba(255,255,255,.09);--text:#e8ecf4;--dim:#8d96a8;--acc:#e07ad8;--acc2:#7fb6f5}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,"Microsoft YaHei",sans-serif;overflow:hidden}
+  #stage{position:fixed;inset:0}
+  #panel{position:fixed;top:12px;left:12px;width:310px;max-height:calc(100% - 24px);overflow:auto;background:var(--panel);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:12px;padding:12px 14px;scrollbar-width:thin;transition:transform .25s}
+  #panel.hidden{transform:translateX(-340px)}
+  h1{font-size:15px;margin:0 0 8px;letter-spacing:.5px}
+  h2{font-size:11px;letter-spacing:1.2px;color:var(--dim);margin:14px 0 6px;border-top:1px solid var(--line);padding-top:10px;font-weight:600}
+  .row{display:flex;align-items:center;gap:8px;margin:5px 0}
+  .row label{flex:0 0 92px;color:var(--dim)}
+  .row input[type=range]{flex:1;accent-color:var(--acc)}
+  .row output{flex:0 0 38px;text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
+  input[type=text],select{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font:inherit}
+  input[type=text]{flex:1;text-transform:uppercase}
+  button{background:linear-gradient(135deg,#c95fc4,#6f8ff0);border:0;color:#fff;border-radius:7px;padding:6px 12px;font:inherit;cursor:pointer}
+  button.ghost{background:rgba(255,255,255,.07);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:wait}
+  .presets{display:flex;flex-wrap:wrap;gap:5px}
+  .presets button{background:rgba(255,255,255,.07);border:1px solid var(--line);padding:4px 8px;font-size:12px}
+  .presets button:hover{border-color:var(--acc)}
+  .chk{display:flex;align-items:center;gap:6px;margin:4px 0;color:var(--dim);cursor:pointer}
+  .chk input{accent-color:var(--acc)}
+  #legend .ent,#legend .hdr{display:grid;grid-template-columns:14px 1fr 18px 18px 18px;gap:5px;align-items:center;margin:3px 0;font-size:12px}
+  #legend .hdr{font-size:10.5px;color:var(--dim)}
+  #legend .sw{width:13px;height:13px;border-radius:50%;box-shadow:0 0 8px currentColor}
+  #legend .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #legend input{accent-color:var(--acc2);margin:0}
+  #status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 16px;color:var(--dim);transition:opacity .4s;pointer-events:none;white-space:nowrap}
+  #caption{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);max-width:min(860px,90vw);text-align:center;color:#dfe6f5;font-size:14px;line-height:1.6;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
+  #caption .cnt{display:block;color:#ffe680;font-size:13px;margin-top:2px;font-variant-numeric:tabular-nums}
+  #title{position:fixed;top:16px;right:18px;text-align:right;pointer-events:none;max-width:45%}
+  #title .id{font-size:22px;font-weight:600;letter-spacing:2px;background:linear-gradient(90deg,#f08ae6,#8fc0ff);-webkit-background-clip:text;color:transparent}
+  #title .t{color:var(--dim);font-size:12px}
+  #toggle{position:fixed;bottom:14px;left:12px}
+  #drop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(10,12,30,.7);border:3px dashed var(--acc);font-size:20px;z-index:9}
+  #drop.on{display:flex}
+  .sub{color:var(--dim);font-size:11.5px}
+  #help{color:var(--dim);font-size:11.5px;margin-top:8px}
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lab{position:absolute;transform:translate(-50%,-100%);pointer-events:auto;cursor:pointer;white-space:nowrap;
+       padding:3px 9px 4px;border-radius:10px;background:rgba(8,10,20,.62);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(4px);
+       color:#eef2ff;font-size:13px;line-height:1.3;text-shadow:0 0 6px #000}
+  .lab b{display:block;font-weight:600}.lab i{display:block;font-style:normal;font-size:11px;color:#b9c3dc}
+  .lab::after{content:"";position:absolute;left:50%;top:100%;width:1px;height:16px;background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0))}
+  .lab.on{border-color:#ffe680}
+  #infoCard{position:fixed;right:18px;bottom:110px;width:min(360px,80vw);padding:14px 16px;border-radius:14px;background:rgba(10,12,24,.86);
+       border:1px solid rgba(255,255,255,.16);color:#e6ebf7;font-size:13.5px;line-height:1.7;display:none;backdrop-filter:blur(6px)}
+  #infoCard h3{margin:0 0 6px;font-size:16px}#infoCard .x{position:absolute;right:10px;top:6px;cursor:pointer;color:#9aa6c4;font-size:18px}
+  #infoCard .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="title"><div class="id" id="tId">—</div><div class="t" id="tName"></div></div>
+<div id="caption"></div>
+<div id="labels"></div>
+<div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
+<div id="drop">松开鼠标导入结构文件（.cif / .pdb）</div>
+
+<div id="panel">
+  <h1>分子光影查看器</h1>
+  <div class="row"><input type="text" id="pdb" value="6ZPO" maxlength="12" spellcheck="false"><button id="load">加载</button></div>
+  <div class="row"><button class="ghost" id="fileBtn">导入本地文件</button><input type="file" id="file" accept=".cif,.mmcif,.pdb,.ent" hidden><span class="sub">或把文件拖进窗口</span></div>
+  <div class="sub">输入任意 PDB 编号，直接从 RCSB 下载（含小分子）</div>
+  <h2>预设</h2>
+  <div class="presets" id="presets"></div>
+
+  <h2>过程动画</h2>
+  <label class="chk"><input type="checkbox" id="procOn" checked>显示相互作用过程（质子 / 离子 / ATP 合成）</label>
+  <div class="row"><label>转子转速</label><input type="range" id="spin" min="0" max="3" step="0.02" value="0.6"><output></output></div>
+  <div class="row"><label>构象变化</label><input type="range" id="morph" min="0" max="1" step="0.01" value="0"><output></output></div>
+  <label class="chk"><input type="checkbox" id="morphAuto" checked>自动往返播放构象变化</label>
+  <div class="row"><label>热运动</label><input type="range" id="jitter" min="0" max="1" step="0.02" value="0.25"><output></output></div>
+  <label class="chk"><input type="checkbox" id="pause">暂停（空格）</label>
+  <label class="chk"><input type="checkbox" id="autoRot">相机自动环绕</label>
+
+  <h2>小分子</h2>
+  <label class="chk"><input type="checkbox" id="ligOn" checked>显示小分子（配体、核苷酸、离子、脂质）</label>
+  <div class="row"><label>小分子大小</label><input type="range" id="ligScale" min="0.8" max="4" step="0.05" value="2.6"><output></output></div>
+  <div class="row"><label>结合位点闪光</label><input type="range" id="hot" min="0" max="1.5" step="0.05" value="0.6"><output></output></div>
+
+  <h2>外观</h2>
+  <div class="row"><label>显示模式</label><select id="repMode"><option value="blob">团块（写实）</option><option value="cartoon">结构示意（螺旋 / 折叠）</option><option value="shape">简化示意（几何形状 + 讲解）</option></select></div>
+  <div class="row"><label>简化程度</label><select id="shapeDetail"><option value="chain">每条链一个形状</option><option value="domain">按结构域</option></select></div>
+  <label class="chk"><input type="checkbox" id="labelsOn">显示标注与讲解（点标签看详细说明）</label>
+  <label class="chk"><input type="checkbox" id="shellOn" checked>结构示意模式显示外形轮廓</label>
+  <div class="row"><label>配色</label><select id="colorMode"><option value="entity">按蛋白种类</option><option value="chain">按链</option><option value="rainbow">彩虹（N→C）</option></select></div>
+  <div class="row"><label>色板</label><select id="palette"><option value="neon">霓虹（参考图）</option><option value="pastel">粉彩</option><option value="goodsell">古德塞尔</option></select></div>
+  <div class="row"><label>团块大小</label><input type="range" id="blob" min="1.5" max="8" step="0.1" value="4.6"><output></output></div>
+  <div class="row"><label>团块起伏</label><input type="range" id="lumpy" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+  <div class="row"><label>辉光</label><input type="range" id="bloom" min="0" max="2" step="0.05" value="0.35"><output></output></div>
+  <div class="row"><label>边缘光</label><input type="range" id="rim" min="0" max="1.5" step="0.05" value="0.55"><output></output></div>
+  <div class="row"><label>自发光</label><input type="range" id="glow" min="0" max="0.5" step="0.01" value="0.05"><output></output></div>
+  <div class="row"><label>曝光</label><input type="range" id="exposure" min="0.3" max="2" step="0.05" value="0.88"><output></output></div>
+  <div class="row"><label>饱和度</label><input type="range" id="sat" min="0.5" max="2" step="0.02" value="1.3"><output></output></div>
+  <div class="row"><label>对比度</label><input type="range" id="con" min="0.7" max="1.6" step="0.02" value="1.12"><output></output></div>
+  <div class="row"><label>画质</label><select id="quality"><option value="high">高（独显）</option><option value="medium">中</option><option value="low">低（核显/无显卡）</option></select></div>
+  <div class="sub" id="fpsOut">帧率：—</div>
+  <label class="chk"><input type="checkbox" id="ao" checked>环境光遮蔽（立体感）</label>
+  <label class="chk"><input type="checkbox" id="dof" checked>景深（对焦旋转中心）</label>
+  <div class="row"><label>景深强度</label><input type="range" id="dofAmt" min="0" max="1" step="0.02" value="0.35"><output></output></div>
+
+  <h2>膜</h2>
+  <label class="chk"><input type="checkbox" id="memOn">显示脂双层膜</label>
+  <div class="row"><label>膜 1 位置</label><input type="range" id="mem1" min="-1" max="1" step="0.005" value="0"><output></output></div>
+  <label class="chk"><input type="checkbox" id="mem2On">第二层膜</label>
+  <div class="row"><label>膜 2 位置</label><input type="range" id="mem2" min="-1" max="1" step="0.005" value="0.3"><output></output></div>
+  <div class="row"><label>膜半径</label><input type="range" id="memR" min="0.8" max="3" step="0.05" value="1.6"><output></output></div>
+
+  <h2>剖切</h2>
+  <div class="row"><label>剖切位置</label><input type="range" id="cut" min="-1.05" max="1.05" step="0.01" value="1.05"><output></output></div>
+  <div class="row"><label>剖切对象</label><select id="cutWhat"><option value="mem">只切膜</option><option value="all">全部</option></select></div>
+
+  <h2>组成（显示 / 旋转 / 剖开）</h2>
+  <div id="legend"></div>
+
+  <h2>其他</h2>
+  <div class="row"><label>主轴</label><select id="axisMode"><option value="long">最长轴竖直</option><option value="sym">对称轴竖直（环/通道）</option><option value="short">最短轴竖直</option><option value="native">原始坐标</option></select></div>
+  <label class="chk"><input type="checkbox" id="assembly" checked>生物学组装体（assembly 1）</label>
+  <div class="row"><button class="ghost" id="shot">截图 PNG</button><button class="ghost" id="resetCam">重置视角</button></div>
+  <div class="row"><button class="ghost" id="aimCut">剖面对准当前视角</button></div>
+  <div id="help">左键旋转 · 右键平移 · 滚轮缩放 · H 隐藏面板 · 空格暂停</div>
+</div>
+<button class="ghost" id="toggle">☰ 面板</button>
+<div id="status">准备中…</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { Pass } from 'three/addons/postprocessing/Pass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+/* =============================================================================
+   1. PRESETS  (every structure is downloaded live from RCSB)
+   Fields are documented in references/parameters.md. Keyword matching is a
+   case-insensitive "name contains"; when several keys match, the FIRST key wins,
+   so list longer / more specific keys first. A key may also be a regex string "/.../".
+   ============================================================================= */
+const PRESETS = {
+  'ATP 合酶（合成 ATP）': {
+    id: '6ZPO', axisFrom: ['subunit C1', 'subunit beta'], blob: 4.4,
+    spin: ['subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1'],
+    ghost: ['subunit alpha', 'subunit beta'],
+    membranes: [{ at: 'subunit C1', offset: 0 }], memR: 1.2, cut: 0.0, cutWhat: 'mem',
+    process: 'atpSynthase',
+    colors: { 'subunit alpha': '#e64fc8', 'subunit beta': '#5b9dff', 'subunit gamma': '#e3e7f2', 'subunit delta': '#e3e7f2', 'subunit epsilon': '#e3e7f2',
+              'subunit C1': '#3fc864', '/subunit a$/': '#2448e8', 'subunit O': '#ff9a50', 'B1': '#ff9a50', '/subunit d,/': '#ff9a50', 'factor 6': '#ff9a50', 'inhibitor': '#f5e07a' },
+    camera: { az: -0.55, el: 0.12, dist: 1.05 },
+    /* teaching notes: key (same matching rules as colors) -> [label, one-line role, longer explanation] */
+    notes: {
+      'subunit alpha': ['α 亚基 ×3', 'F1 头部，非催化', '与 β 交替排成 α3β3 六聚体（F1 头部）。α 也结合核苷酸，但它的位点不催化，主要起结构和调节作用。催化位点位于 α/β 交界、以 β 为主。'],
+      'subunit beta': ['β 亚基 ×3', '催化位点：合成 ATP', '三个 β 同一时刻处在三种不同构象：开放（空）、松弛（结合 ADP + Pi）、紧密（ADP + Pi 合成 ATP）。γ 每转 120°，三个 β 依次换一种构象——这就是 Boyer 的“结合变构机制”。本动画中 β 的形状来自 6ZPO 三条 β 链的真实构象。'],
+      'subunit gamma': ['γ 亚基', '中心柄（转子）', '细长的 γ 插在 α3β3 中央，形状不对称。它转动时依次顶住不同的 β，迫使 β 改变构象，把转动的机械能变成化学能。'],
+      'subunit delta': ['δ 亚基', '中心柄', '与 γ、ε 一起组成中心柄，把 c 环的转动传到 F1 头部。'],
+      'subunit epsilon': ['ε 亚基', '中心柄', '中心柄的一部分，连接 γ 与 c 环。'],
+      'subunit C1': ['c 环（c8）', '膜内转子，运 H⁺', '8 个 c 亚基围成的环嵌在线粒体内膜里。每个 c 亚基中部有一个谷氨酸（Glu58）可接受一个 H⁺。H⁺ 顺浓度梯度流过时推动 c 环转动：转一圈运 8 个 H⁺、产生 3 个 ATP（约 2.7 H⁺/ATP）。'],
+      '/subunit a$/': ['a 亚基', '定子：H⁺ 半通道', 'a 亚基紧贴 c 环，提供两个错开的半通道：H⁺ 从膜间隙一侧进入、结合到 c 亚基上，随 c 环转近一圈后从另一个半通道释放到基质。a 亚基上保守的精氨酸防止 H⁺ 直接“短路”。'],
+      'subunit O': ['OSCP', '外周柄顶端', 'OSCP 像帽子扣在 α3β3 顶部，把头部固定在外周柄上，使它不跟着 γ 一起转——否则无法产生相对转动。'],
+      'B1': ['b 亚基', '外周柄（定子臂）', '长螺旋从膜内一直伸到 F1 头部，与 d、F6 组成外周柄，像定子臂一样把 α3β3 固定住。'],
+      '/subunit d,/': ['d 亚基', '外周柄', '外周柄组成部分。'],
+      'factor 6': ['F6', '外周柄', '外周柄组成部分。'],
+      'inhibitor': ['IF1', '抑制蛋白', 'IF1 抑制 ATP 合酶反向水解 ATP（例如缺氧时防止浪费 ATP）。'],
+    },
+  },
+  '鞭毛马达': {
+    id: '7CGO', axis: 'long', up: 'hook protein', blob: 5.0, horizontal: true,
+    spin: ['rod', 'hook', 'M-ring', 'MS ring', 'FliE', 'FliP', 'FliQ', 'FliR', 'C 环', 'flagellin', '鞭毛丝', 'Dc loop'],
+    membranes: [{ at: 'M-ring', offset: 18 }, { at: 'L-ring', offset: 0 }],
+    memR: 1.3, cut: 0.0, cutWhat: 'mem', process: 'flagellarMotor',
+    components: [
+      { id: '8YJT', label: 'C 环（FliG/FliM/FliN）', axis: 'short', anchor: 'M-ring', side: 'below', gap: -40 },
+      { id: '6YKM', label: '定子 MotA/MotB', axis: 'long', anchor: 'M-ring', side: 'at', dy: 10, arrange: { kind: 'ring', n: 11, radius: 215 }, spin: false },
+      { id: '1UCU', label: '鞭毛丝（鞭毛蛋白）', axis: 'native', anchor: 'hook protein', side: 'above', gap: 0, arrange: { kind: 'helix', n: 130, rise: 4.7, twist: 65.8 } },
+    ],
+    colors: { 'C 环': '#d93fbf', '定子': '#3fc864', '鞭毛丝': '#e9ecf5', 'hook protein': '#e64fc8', 'M-ring': '#6aa8ff', 'MS ring': '#6aa8ff',
+              'L-ring': '#2448e8', 'P-ring': '#3a64ff', 'rod': '#b8c8ff', 'FliE': '#b8c8ff', 'Dc loop': '#b8c8ff', 'FliP': '#ff9a50', 'FliQ': '#ff9a50', 'FliR': '#ff9a50' },
+    camera: { az: -0.75, el: 0.22, dist: 1.3 },
+    notes: {
+      '定子': ['定子 MotA/MotB ×11', '利用 H⁺ 流产生力矩', '每个定子是 MotA5B2 复合物，MotB 锚定在细胞壁（肽聚糖）上。H⁺ 经 MotA/MotB 通道流入细胞，使 MotA 五聚体转动，像齿轮一样拨动 C 环。'],
+      'C 环': ['C 环（FliG/FliM/FliN）', '转子 + 换向开关', '位于胞质侧的大环。FliG 与定子接触接受力矩；CheY-P 结合 FliM 后 C 环构象改变，使电机由逆时针（前进）切换为顺时针（翻滚）。'],
+      'M-ring': ['MS 环', '膜内转子基座', 'FliF 组成的环嵌在内膜中，与 C 环相连，一起转动。'],
+      'MS ring': ['MS 环', '膜内转子基座', 'FliF 组成的环嵌在内膜中，与 C 环相连，一起转动。'],
+      'L-ring': ['L 环', '外膜轴承', '嵌在外膜（LPS 层）中，像轴承一样让杆在其中转动。'],
+      'P-ring': ['P 环', '肽聚糖层轴承', '位于细胞壁肽聚糖层，与 L 环一起组成轴承。'],
+      'rod': ['杆', '传动轴', '把转子的转动穿过细胞壁传到外面的钩。'],
+      'hook protein': ['钩', '柔性万向节', '弯曲的短管，把转动传给鞭毛丝，同时允许方向改变。'],
+      '鞭毛丝': ['鞭毛丝', '螺旋桨', '由上万个鞭毛蛋白组装成的长螺旋管，转动时推动细菌前进。'],
+      'FliP': ['输出装置', '组装鞭毛的输出通道', 'FliP/FliQ/FliR 组成输出门，把鞭毛蛋白从中央通道送到顶端组装。'],
+    } },
+  '钾离子通道（K⁺ 通过）': { id: '1BL8', axis: 'sym', blob: 3.6, colorMode: 'chain', membranes: [{ at: '', offset: 0 }], memR: 2.6, cut: 0.0, process: 'ionChannel',
+    camera: { az: -0.5, el: 0.12, dist: 1.5 },
+    notes: { '': ['KcsA 四聚体', 'K⁺ 选择性通道', '四个相同亚基围成中央孔。每个亚基有外螺旋、内螺旋和一段短的孔螺旋；孔螺旋后的 TVGYG 序列的羰基氧排成选择性过滤器，恰好替代 K⁺ 的水合壳，所以 K⁺ 能快速通过而更小的 Na⁺ 不能。'] } },
+  '腺苷酸激酶（开合）': { id: '4AKE', states: ['4AKE', '1AKE'], chains: ['A'], colorMode: 'rainbow', axis: 'long', blob: 4.4, assembly: false,
+    caption: '腺苷酸激酶：底物结合后 LID 与 NMP 结构域向核心闭合（4AKE 张开 ⇄ 1AKE 闭合，抑制剂 Ap5A 占据活性位点）',
+    notes: { '': ['腺苷酸激酶', 'ATP + AMP ⇌ 2 ADP', '由 CORE、LID（盖住 ATP）和 NMP 结合域三部分组成。底物结合后 LID 与 NMP 域像两扇门一样向核心关闭，排除水并把两个底物对准，完成磷酸基团转移；产物释放时再打开。按“简化程度：按结构域”可看到三个结构域分开显示。'] },
+    camera: { az: -0.6, el: 0.2, dist: 1.3 } },
+  'GroEL 伴侣蛋白': { id: '1AON', axis: 'sym', blob: 4.0, spin: ['GROES'] },
+  '核糖体': { id: '4YBB', axis: 'native', blob: 3.8 },
+  '核小体': { id: '1KX5', axis: 'native', blob: 3.6 },
+  '蛋白酶体': { id: '5LE5', axis: 'long', blob: 3.8 },
+  '病毒衣壳 HK97': { id: '2FT1', axis: 'native', blob: 3.8, assembly: true },
+};
+
+const PALETTES = {
+  neon:     ['#e64fc8', '#5b9dff', '#3fc864', '#2448e8', '#f2f2f7', '#3fd0c0', '#ff9a50', '#9b7bff', '#f5e07a', '#ff5a6a', '#46b4ff', '#b8f05a'],
+  pastel:   ['#f6a6c8', '#a6d8f6', '#b8eab0', '#c9b6f2', '#f8e3a3', '#9ee3d6', '#f7bfa0', '#d0d6e0', '#f2a6a6', '#a6b8f6'],
+  goodsell: ['#e8a75c', '#7aa6d9', '#e57872', '#9cc77a', '#c79ad6', '#e6d27a', '#6fc4bd', '#d98fb0', '#b0b8c8', '#f0c090'],
+};
+
+/* element style for small molecules: colour, ball radius (A, before "小分子大小"), covalent radius */
+const ELEMENTS = {
+  C: ['#d9dee9', 0.58, 0.76], N: ['#4f7dff', 0.58, 0.71], O: ['#ff3b4e', 0.58, 0.66], P: ['#ff9a1f', 0.75, 1.07],
+  S: ['#ffe14d', 0.55, 1.05], H: ['#ffffff', 0.25, 0.31], MG: ['#6dff9a', 0.9, 0], K: ['#b98cff', 1.2, 0], NA: ['#8ca6ff', 0.9, 0],
+  CA: ['#dfe6ff', 1.0, 0], ZN: ['#9db0c8', 0.8, 0], FE: ['#ff8c3d', 0.8, 1.3], CL: ['#7dff7d', 0.9, 0], MN: ['#c87dff', 0.8, 0],
+  CU: ['#ffb070', 0.8, 0], F: ['#9dff9d', 0.4, 0.57], BR: ['#c8641e', 0.6, 1.2], I: ['#9d4dff', 0.7, 1.39], SE: ['#ffa53d', 0.55, 1.2],
+};
+const elStyle = (el) => ELEMENTS[el] || ['#ff7dff', 0.5, 0.8];
+const IGNORE_LIGANDS = new Set(['HOH', 'WAT', 'DOD', 'UNX', 'UNL']);
+
+/* ----------------------------------------------------------------------------- utils */
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status');
+let statusTimer;
+function status(msg, keep) {
+  statusEl.textContent = msg; statusEl.style.opacity = 1;
+  clearTimeout(statusTimer);
+  if (!keep) statusTimer = setTimeout(() => statusEl.style.opacity = 0, 4000);
+}
+const cache = new Map();
+async function fetchText(url, opts) {
+  const key = url + (opts ? JSON.stringify(opts) : '');
+  if (cache.has(key)) return cache.get(key);
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
+  const t = await r.text(); cache.set(key, t); return t;
+}
+const kwMatch = (name, key) => {
+  if (key.startsWith('/') && key.lastIndexOf('/') > 0) { const i = key.lastIndexOf('/'); return new RegExp(key.slice(1, i), key.slice(i + 1) || 'i').test(name); }
+  return name.toLowerCase().includes(key.toLowerCase());
+};
+const findKey = (obj, name) => obj && Object.keys(obj).find(k => kwMatch(name, k));
+
+/* ----------------------------------------------------------------------------- mmCIF / PDB parsing */
+const tokenize = (line) => line.match(/'[^']*'|"[^"]*"|\S+/g)?.map(t => (t[0] === "'" || t[0] === '"') ? t.slice(1, -1) : t) || [];
+
+/* read every row of the _atom_site loop -> array of objects (only the columns we need) */
+function parseAtomSite(text) {
+  const lines = text.split(/\r?\n/);
+  let i = lines.findIndex(l => l.startsWith('_atom_site.'));
+  if (i < 0) return [];
+  const cols = [];
+  for (; i < lines.length && lines[i].startsWith('_atom_site.'); i++) cols.push(lines[i].trim().slice(11));
+  const ix = (n) => cols.indexOf(n);
+  const C = { g: ix('group_PDB'), el: ix('type_symbol'), an: ix('label_atom_id'), comp: ix('label_comp_id'), asym: ix('label_asym_id'),
+    ent: ix('label_entity_id'), seq: ix('label_seq_id'), aseq: ix('auth_seq_id'), x: ix('Cartn_x'), y: ix('Cartn_y'), z: ix('Cartn_z'), m: ix('pdbx_PDB_model_num') };
+  const rows = []; let model0 = null;
+  for (; i < lines.length; i++) {
+    const L = lines[i];
+    if (L.startsWith('#') || L.startsWith('loop_') || L.startsWith('_')) break;
+    if (!L.trim()) continue;
+    const t = tokenize(L);
+    if (C.m >= 0) { if (model0 === null) model0 = t[C.m]; else if (t[C.m] !== model0) continue; }
+    rows.push({ g: t[C.g], el: (t[C.el] || '').toUpperCase(), an: t[C.an], comp: t[C.comp], asym: t[C.asym], ent: t[C.ent],
+      seq: parseInt(t[C.seq]) || 0, poly: (parseInt(t[C.seq]) || 0) > 0, aseq: C.aseq >= 0 ? t[C.aseq] : '', x: +t[C.x], y: +t[C.y], z: +t[C.z] });
+  }
+  return rows;
+}
+function parsePDB(text) {
+  const rows = [];
+  for (const L of text.split(/\r?\n/)) {
+    if (L.startsWith('ENDMDL')) break;
+    const rec = L.slice(0, 6).trim();
+    if (rec !== 'ATOM' && rec !== 'HETATM') continue;
+    const an = L.slice(12, 16).trim(), comp = L.slice(17, 20).trim(), ch = L.slice(21, 22).trim() || 'A';
+    let el = L.slice(76, 78).trim().toUpperCase(); if (!el) el = an.replace(/[^A-Z]/gi, '').slice(0, 1).toUpperCase();
+    rows.push({ g: rec, el, an, comp, asym: ch, ent: ch, poly: rec === 'HETATM' && an === 'CA' && el === 'C', seq: parseInt(L.slice(22, 26)) || 0, aseq: L.slice(22, 27).trim(),
+      x: +L.slice(30, 38), y: +L.slice(38, 46), z: +L.slice(46, 54) });
+  }
+  return rows;
+}
+/* split atom rows into residue blobs (CA / P) and ligand molecules */
+function rowsToEntry(rows, entities) {
+  const atoms = [], ligMap = new Map();
+  for (const r of rows) {
+    if (r.g === 'ATOM') {
+      if ((r.an === 'CA' && r.el !== 'CA') || r.an === 'P')
+        atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq || parseInt(r.aseq) || 0, na: r.an === 'P' });
+    } else if (r.g === 'HETATM' && !IGNORE_LIGANDS.has(r.comp)) {
+      if (r.el === 'H' || r.el === 'D') continue;
+      if (r.poly) {   // modified residue inside a chain (MSE, M3L, SEP ...): one blob at its CA
+        if (r.an === 'CA') atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq, na: false });
+        continue;
+      }
+      const key = r.asym + '|' + r.comp + '|' + r.aseq;
+      if (!ligMap.has(key)) ligMap.set(key, { comp: r.comp, asym: r.asym, atoms: [] });
+      ligMap.get(key).atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), el: r.el, name: r.an });
+    }
+  }
+  if (entities) for (const a of atoms) if (!entities[a.ent]) entities[a.ent] = { name: '实体 ' + a.ent };
+  return { atoms, ligands: [...ligMap.values()] };
+}
+
+/* secondary structure as DEPOSITED by the authors (mmCIF header: _struct_conf HELX_*, _struct_sheet_range).
+   Sets a.ss = 0 coil / 1 helix / 2 strand on every residue; the schematic mode uses it instead of guessing.
+   Entries without annotation (cryo-EM models often lack sheets, local files, AlphaFold) fall back to assignSS(). */
+function applyDepositedSS(atoms, text) {
+  if (!text) return false;
+  const ranges = [];
+  for (const r of parseLoop(text, '_struct_conf')) if (/^HELX/.test(r.conf_type_id || '')) ranges.push([r.beg_label_asym_id, +r.beg_label_seq_id, +r.end_label_seq_id, 1]);
+  for (const r of parseLoop(text, '_struct_sheet_range')) ranges.push([r.beg_label_asym_id, +r.beg_label_seq_id, +r.end_label_seq_id, 2]);
+  if (!ranges.length) return false;
+  const by = new Map(); for (const g of ranges) { if (!by.has(g[0])) by.set(g[0], []); by.get(g[0]).push(g); }
+  for (const a of atoms) {
+    if (a.na) continue;
+    a.ss = 0;
+    for (const [, b, e, c] of by.get(a.asym) || []) if (a.seq >= b && a.seq <= e) { a.ss = c; break; }
+  }
+  return true;
+}
+/* ----------------------------------------------------------------------------- RCSB download */
+async function fetchMeta(id) {
+  const q = `{ entry(entry_id:"${id}"){ struct{title}
+    polymer_entities{ rcsb_polymer_entity{pdbx_description} rcsb_polymer_entity_container_identifiers{entity_id asym_ids} entity_poly{type} }
+    nonpolymer_entities{ nonpolymer_comp{chem_comp{id name}} rcsb_nonpolymer_entity_container_identifiers{entity_id asym_ids} }
+    assemblies{ pdbx_struct_assembly_gen{asym_id_list oper_expression}
+      pdbx_struct_oper_list{id matrix_1_1 matrix_1_2 matrix_1_3 matrix_2_1 matrix_2_2 matrix_2_3 matrix_3_1 matrix_3_2 matrix_3_3 vector_1 vector_2 vector_3} } } }`;
+  const t = await fetchText('https://data.rcsb.org/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+  const j = JSON.parse(t);
+  if (!j.data || !j.data.entry) throw new Error(`找不到 PDB 条目 ${id}`);
+  return j.data.entry;
+}
+function parseOperExpr(expr) {
+  const groups = expr.includes('(') ? expr.match(/\(([^)]+)\)/g).map(g => g.slice(1, -1)) : [expr];
+  const expand = (g) => g.split(',').flatMap(p => {
+    const m = p.match(/^(\d+)-(\d+)$/);
+    if (m) { const a = []; for (let k = +m[1]; k <= +m[2]; k++) a.push(String(k)); return a; }
+    return [p.trim()];
+  });
+  let combos = [[]];
+  for (const g of groups) { const ids = expand(g); combos = combos.flatMap(c => ids.map(id => [...c, id])); }
+  return combos;
+}
+const operMatrix = (o) => new THREE.Matrix4().set(o.matrix_1_1, o.matrix_1_2, o.matrix_1_3, o.vector_1, o.matrix_2_1, o.matrix_2_2, o.matrix_2_3, o.vector_2,
+  o.matrix_3_1, o.matrix_3_2, o.matrix_3_3, o.vector_3, 0, 0, 0, 1);
+
+/* Load one PDB entry -> {id, title, entities, atoms (residue blobs), ligands (molecules)} */
+async function loadEntry(id, useAssembly, withLigands = true) {
+  const lid = id.toLowerCase();
+  status(`下载 ${id} …`, true);
+  const ms = (q) => `https://models.rcsb.org/v1/${lid}/atoms?${q}&encoding=cif&copy_all_categories=false`;
+  const meta = await fetchMeta(id.toUpperCase());
+  const ligEnts = withLigands ? (meta.nonpolymer_entities || []).filter(n => !IGNORE_LIGANDS.has(n.nonpolymer_comp.chem_comp.id)) : [];
+  const header = fetchText(`https://files.rcsb.org/header/${id.toUpperCase()}.cif`).catch(() => '');   // struct_conf / struct_sheet_range
+  const texts = await Promise.all([
+    fetchText(ms('label_atom_id=CA')), fetchText(ms('label_atom_id=P')).catch(() => ''),
+    ...ligEnts.slice(0, 12).map(n => fetchText(ms('label_entity_id=' + n.rcsb_nonpolymer_entity_container_identifiers.entity_id)).catch(() => '')),
+  ]);
+  const entities = {};
+  for (const e of meta.polymer_entities || []) {
+    const ci = e.rcsb_polymer_entity_container_identifiers;
+    entities[ci.entity_id] = { name: e.rcsb_polymer_entity.pdbx_description || ('entity ' + ci.entity_id), type: e.entity_poly?.type || '' };
+  }
+  const rows = texts.flatMap(t => t ? parseAtomSite(t) : []).filter(r => r.g === 'ATOM' || r.poly ? (r.an === 'CA' && r.el !== 'CA') || r.an === 'P' : true);
+  let { atoms, ligands } = rowsToEntry(rows, entities);
+  applyDepositedSS(atoms, await header);
+  const asm = meta.assemblies && meta.assemblies[0];
+  if (useAssembly && asm && asm.pdbx_struct_assembly_gen) {
+    const opers = {}; for (const o of asm.pdbx_struct_oper_list) opers[o.id] = operMatrix(o);
+    const outA = [], outL = [];
+    for (const g of asm.pdbx_struct_assembly_gen) {
+      const asyms = new Set(g.asym_id_list), combos = parseOperExpr(g.oper_expression), ident = combos.length === 1;
+      combos.forEach((combo, ci) => {
+        const M = new THREE.Matrix4(); for (const oid of combo) M.multiply(opers[oid] || new THREE.Matrix4());
+        const tf = (p) => ident ? p.clone() : p.clone().applyMatrix4(M), suf = ident ? '' : '_' + ci;
+        for (const a of atoms) if (asyms.has(a.asym)) outA.push({ ...a, p: tf(a.p), asym: a.asym + suf });
+        for (const L of ligands) if (asyms.has(L.asym)) outL.push({ ...L, asym: L.asym + suf, atoms: L.atoms.map(x => ({ ...x, p: tf(x.p) })) });
+      });
+    }
+    if (outA.length) { atoms = outA; ligands = outL; }
+  }
+  const names = {}; for (const n of meta.nonpolymer_entities || []) names[n.nonpolymer_comp.chem_comp.id] = n.nonpolymer_comp.chem_comp.name;
+  for (const L of ligands) L.fullName = names[L.comp] || L.comp;
+  return { id: id.toUpperCase(), title: meta.struct?.title || '', entities, atoms, ligands };
+}
+
+/* local file (.cif / .pdb) -> same shape as loadEntry */
+function entryFromFile(name, text) {
+  const isCif = /_atom_site\./.test(text);
+  const rows = isCif ? parseAtomSite(text) : parsePDB(text);
+  const entities = {};
+  if (isCif) {   // entity names from the _entity loop when present
+    const lines = text.split(/\r?\n/); let i = lines.findIndex(l => l.startsWith('_entity.')); const cols = [];
+    for (; i >= 0 && i < lines.length && lines[i].startsWith('_entity.'); i++) cols.push(lines[i].trim().slice(8));
+    const iid = cols.indexOf('id'), idesc = cols.indexOf('pdbx_description');
+    if (iid >= 0 && idesc >= 0 && cols.length > 1) for (; i < lines.length && !lines[i].startsWith('#'); i++) { const t = tokenize(lines[i]); if (t.length >= cols.length) entities[t[iid]] = { name: t[idesc] }; }
+  } else for (const r of rows) entities[r.ent] = { name: '链 ' + r.ent };
+  const { atoms, ligands } = rowsToEntry(rows, entities);
+  for (const L of ligands) L.fullName = L.comp;
+  return { id: name.replace(/\.[^.]+$/, ''), title: '本地文件 ' + name, entities, atoms, ligands };
+}
+
+/* generic mmCIF category reader (loop_ or key-value form) -> array of {column: value} */
+function parseLoop(text, prefix) {
+  const lines = text.split(/\r?\n/), out = [];
+  let i = lines.findIndex(l => l.startsWith(prefix + '.'));
+  if (i < 0) return out;
+  if (!(i > 0 && lines[i - 1].trim() === 'loop_')) {
+    const o = {}; for (; i < lines.length && lines[i].startsWith(prefix + '.'); i++) { const t = tokenize(lines[i]); o[t[0].slice(prefix.length + 1)] = t[1]; }
+    return [o];
+  }
+  const cols = []; for (; i < lines.length && lines[i].startsWith(prefix + '.'); i++) cols.push(lines[i].trim().slice(prefix.length + 1));
+  let buf = [];
+  for (; i < lines.length; i++) {
+    const L = lines[i]; if (L.startsWith('#') || L.startsWith('loop_') || L.startsWith('_')) break;
+    buf.push(...tokenize(L));
+    while (buf.length >= cols.length) { const o = {}; cols.forEach((c, k) => o[c] = buf[k]); out.push(o); buf = buf.slice(cols.length); }
+  }
+  return out;
+}
+/* small-molecule template from the RCSB Chemical Component Dictionary: ideal coordinates + ATOM NAMES + bonds.
+   Atom names let us fit the template exactly onto a ligand in a crystal structure (fitPose). Falls back to the ideal SDF. */
+const templates = {};
+async function getTemplate(comp) {
+  if (templates[comp]) return templates[comp];
+  let atoms = [], bonds = [];
+  try {
+    const t = await fetchText(`https://files.rcsb.org/ligands/view/${comp}.cif`);
+    const num = (v, w) => (v && v !== '?' && v !== '.') ? +v : +w;
+    atoms = parseLoop(t, '_chem_comp_atom').filter(r => (r.type_symbol || '').toUpperCase() !== 'H').map(r => ({ name: r.atom_id, el: r.type_symbol.toUpperCase(),
+      p: new THREE.Vector3(num(r.pdbx_model_Cartn_x_ideal, r.model_Cartn_x), num(r.pdbx_model_Cartn_y_ideal, r.model_Cartn_y), num(r.pdbx_model_Cartn_z_ideal, r.model_Cartn_z)) }));
+    if (!atoms.length || atoms.some(a => !isFinite(a.p.x))) throw new Error('no ideal coordinates');
+    const idx = new Map(atoms.map((a, i) => [a.name, i])), ord = { SING: 1, DOUB: 2, TRIP: 3, AROM: 1 };
+    bonds = parseLoop(t, '_chem_comp_bond').filter(b => idx.has(b.atom_id_1) && idx.has(b.atom_id_2)).map(b => [idx.get(b.atom_id_1), idx.get(b.atom_id_2), ord[b.value_order] || 1]);
+  } catch (e) {
+    console.warn('CCD cif failed, using SDF', comp, e);
+    const t = await fetchText(`https://files.rcsb.org/ligands/view/${comp}_ideal.sdf`);
+    const L = t.split(/\r?\n/), na = parseInt(L[3].slice(0, 3)), nb = parseInt(L[3].slice(3, 6)), all = [];
+    for (let i = 0; i < na; i++) { const r = L[4 + i]; all.push({ p: new THREE.Vector3(+r.slice(0, 10), +r.slice(10, 20), +r.slice(20, 30)), el: r.slice(31, 34).trim().toUpperCase(), name: '' }); }
+    const keep = all.map(a => a.el !== 'H'), idx = []; let k = 0; for (const f of keep) idx.push(f ? k++ : -1);
+    atoms = all.filter((a, i) => keep[i]);
+    for (let i = 0; i < nb; i++) { const r = L[4 + na + i]; const a = +r.slice(0, 3) - 1, b = +r.slice(3, 6) - 1, o = +r.slice(6, 9); if (keep[a] && keep[b]) bonds.push([idx[a], idx[b], o]); }
+  }
+  const c = new THREE.Vector3(); atoms.forEach(a => c.add(a.p)); c.multiplyScalar(1 / atoms.length); atoms.forEach(a => a.p.sub(c));
+  const byName = Object.fromEntries(atoms.map(a => [a.name, a.p]));
+  return (templates[comp] = { comp, atoms, bonds, byName });
+}
+/* rigid pose {q, t} that puts template atoms onto same-named target atoms: world = q * p + t (null if < 3 names match) */
+function fitPose(tpl, target) {
+  const m = new Map(target.map(x => [x.name, x.p])), A = [], B = [];
+  for (const a of tpl.atoms) if (a.name && m.has(a.name)) { A.push(m.get(a.name)); B.push(a.p); }
+  if (A.length < 3) return null;
+  const f = superpose(A, B);
+  return { q: f.q.clone(), t: f.ca.clone().sub(f.cb.clone().applyQuaternion(f.q)) };
+}
+
+/* ----------------------------------------------------------------------------- geometry helpers */
+function jacobi(A) {   // symmetric n x n -> {values, vectors (columns)}
+  const n = A.length, a = A.map(r => r.slice()), v = A.map((r, i) => r.map((_, j) => +(i === j)));
+  for (let sweep = 0; sweep < 60; sweep++) {
+    let off = 0; for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += a[p][q] * a[p][q];
+    if (off < 1e-18) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(a[p][q]) < 1e-14) continue;
+      const th = (a[q][q] - a[p][p]) / (2 * a[p][q]), t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1)), c = 1 / Math.sqrt(t * t + 1), s = t * c;
+      for (let k = 0; k < n; k++) { const kp = a[k][p], kq = a[k][q]; a[k][p] = c * kp - s * kq; a[k][q] = s * kp + c * kq; }
+      for (let k = 0; k < n; k++) { const pk = a[p][k], qk = a[q][k]; a[p][k] = c * pk - s * qk; a[q][k] = s * pk + c * qk; }
+      for (let k = 0; k < n; k++) { const kp = v[k][p], kq = v[k][q]; v[k][p] = c * kp - s * kq; v[k][q] = s * kp + c * kq; }
+    }
+  }
+  return { values: a.map((r, i) => r[i]), vectors: v };
+}
+function pca(points) {
+  const c = new THREE.Vector3(); for (const p of points) c.add(p); c.multiplyScalar(1 / points.length);
+  const M = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (const p of points) { const d = [p.x - c.x, p.y - c.y, p.z - c.z]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) M[i][j] += d[i] * d[j]; }
+  const { values, vectors } = jacobi(M);
+  const order = [0, 1, 2].sort((i, j) => values[i] - values[j]);
+  return { centre: c, values: order.map(i => values[i]), axes: order.map(i => new THREE.Vector3(vectors[0][i], vectors[1][i], vectors[2][i]).normalize()) };
+}
+/* returns a function that maps raw coordinates into the viewer frame (chosen axis -> +Y, centre -> origin) */
+function orientTransform(points, mode) {
+  const { centre, values, axes } = pca(points);
+  if (mode === 'native') return { q: new THREE.Quaternion(), centre };
+  let axis = mode === 'short' ? axes[0] : axes[2];
+  if (mode === 'sym') {   // symmetry axis = the eigenvalue that differs most from the other two
+    const d0 = Math.abs(values[0] - (values[1] + values[2]) / 2) / values[2], d2 = Math.abs(values[2] - (values[0] + values[1]) / 2) / values[2];
+    axis = d0 > d2 ? axes[0] : axes[2];
+  }
+  return { q: new THREE.Quaternion().setFromUnitVectors(axis, new THREE.Vector3(0, 1, 0)), centre };
+}
+function applyTf(entry, tf) {
+  const f = (p) => p.sub(tf.centre).applyQuaternion(tf.q);
+  for (const a of entry.atoms) { f(a.p); if (a.p2) f(a.p2); }
+  for (const L of entry.ligands) for (const x of L.atoms) f(x.p);
+}
+/* Horn quaternion superposition: rotation+translation that best maps B onto A */
+function superpose(A, B) {
+  const ca = new THREE.Vector3(), cb = new THREE.Vector3();
+  A.forEach(p => ca.add(p)); B.forEach(p => cb.add(p)); ca.multiplyScalar(1 / A.length); cb.multiplyScalar(1 / B.length);
+  let Sxx = 0, Sxy = 0, Sxz = 0, Syx = 0, Syy = 0, Syz = 0, Szx = 0, Szy = 0, Szz = 0;
+  for (let i = 0; i < A.length; i++) {
+    const a = A[i].clone().sub(ca), b = B[i].clone().sub(cb);
+    Sxx += b.x * a.x; Sxy += b.x * a.y; Sxz += b.x * a.z; Syx += b.y * a.x; Syy += b.y * a.y; Syz += b.y * a.z; Szx += b.z * a.x; Szy += b.z * a.y; Szz += b.z * a.z;
+  }
+  const N = [[Sxx + Syy + Szz, Syz - Szy, Szx - Sxz, Sxy - Syx], [Syz - Szy, Sxx - Syy - Szz, Sxy + Syx, Szx + Sxz],
+             [Szx - Sxz, Sxy + Syx, -Sxx + Syy - Szz, Syz + Szy], [Sxy - Syx, Szx + Sxz, Syz + Szy, -Sxx - Syy + Szz]];
+  const { values, vectors } = jacobi(N);
+  const i = values.indexOf(Math.max(...values));
+  const q = new THREE.Quaternion(vectors[1][i], vectors[2][i], vectors[3][i], vectors[0][i]).normalize();
+  const f = (p) => p.clone().sub(cb).applyQuaternion(q).add(ca);
+  f.q = q; f.ca = ca; f.cb = cb;   // exposed for fitPose
+  return f;
+}
+const polar = (r, phi, y) => new THREE.Vector3(r * Math.cos(phi), y, r * Math.sin(phi));
+const ease = (t) => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+
+/* ----------------------------------------------------------------------------- renderer + lights + post */
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.88;
+renderer.localClippingEnabled = true;
+$('stage').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.12;
+
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 1, 1e6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.autoRotateSpeed = 0.6;
+
+/* lighting recipe (matches the reference): strong top key, no fill from below (undersides fall to black),
+   cool back rim + magenta side kicker for coloured edges */
+scene.add(new THREE.HemisphereLight(0x9fb7ff, 0x000000, 0.12));
+const key = new THREE.DirectionalLight(0xffffff, 3.2); key.position.set(0.35, 1.0, 0.45); scene.add(key);
+const rimL = new THREE.DirectionalLight(0x8fb4ff, 2.4); rimL.position.set(-0.6, 0.5, -1.0); scene.add(rimL);
+const kick = new THREE.DirectionalLight(0xff7ae0, 1.2); kick.position.set(1.0, 0.1, -0.6); scene.add(kick);
+
+/* overlay scene: process objects (animated ATP/ADP/Pi, H+, K+) are drawn AFTER ambient occlusion and depth of field,
+   on top of the proteins ("X-ray"), so molecules buried in a binding pocket stay visible and are not blackened by AO */
+const overlay = new THREE.Scene();
+overlay.environment = scene.environment; overlay.environmentIntensity = 0.3;
+overlay.add(new THREE.HemisphereLight(0x9fb7ff, 0x000000, 0.3));
+{ const k2 = new THREE.DirectionalLight(0xffffff, 2.0); k2.position.set(0.35, 1.0, 0.45); overlay.add(k2);
+  const r2 = new THREE.DirectionalLight(0x8fb4ff, 1.5); r2.position.set(-0.6, 0.5, -1.0); overlay.add(r2); }
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+let aoPass = null;
+try {
+  const { GTAOPass } = await import('three/addons/postprocessing/GTAOPass.js');
+  aoPass = new GTAOPass(scene, camera, innerWidth, innerHeight);
+  aoPass.blendIntensity = 1.0;
+  composer.addPass(aoPass);
+} catch (e) { console.warn('GTAO unavailable', e); }
+const bokeh = new BokehPass(scene, camera, { focus: 1000, aperture: 0.00002, maxblur: 0.01 });
+composer.addPass(bokeh);
+/* AO and depth-of-field render the scene themselves; hide the translucent outline shells during those renders */
+function hideShellsDuring(pass) {
+  if (!pass) return;
+  const r = pass.render.bind(pass);
+  pass.render = (...a) => {
+    const sh = []; world.traverse(x => { if (x.userData.shell && x.visible) { sh.push(x); x.visible = false; } });
+    r(...a); sh.forEach(x => x.visible = true);
+  };
+}
+hideShellsDuring(aoPass); hideShellsDuring(bokeh);
+/* RenderPass.clearDepth in r160 clears the PREVIOUS target, so clear the depth of readBuffer ourselves */
+class ClearDepthPass extends Pass { constructor() { super(); this.needsSwap = false; }
+  render(r, w, read) { r.setRenderTarget(read); r.clearDepth(); } }
+composer.addPass(new ClearDepthPass());
+const overlayPass = new RenderPass(overlay, camera); overlayPass.clear = false;
+composer.addPass(overlayPass);
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.45, 0.75);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+/* final colour grade: saturation, contrast, vignette, fine grain */
+const grade = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uSat: { value: 1.3 }, uCon: { value: 1.12 }, uVig: { value: 0.45 }, uGrain: { value: 0.018 }, uT: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uSat, uCon, uVig, uGrain, uT; varying vec2 vUv;
+    float rnd(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233)) + uT) * 43758.5453); }
+    void main(){ vec4 c = texture2D(tDiffuse, vUv); float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      c.rgb = mix(vec3(l), c.rgb, uSat); c.rgb = (c.rgb - 0.5) * uCon + 0.5;
+      c.rgb *= 1.0 - uVig * smoothstep(0.3, 0.85, distance(vUv, vec2(0.5)));
+      c.rgb += (rnd(vUv * 1000.0) - 0.5) * uGrain; gl_FragColor = vec4(max(c.rgb, 0.0), c.a); }`,
+});
+composer.addPass(grade);
+
+/* ----------------------------------------------------------------------------- materials */
+const U = { uTime: { value: 0 }, uJitter: { value: 0.25 }, uRim: { value: 0.55 }, uGlow: { value: 0.05 }, uLumpy: { value: 0.5 },
+  uHot: { value: 0.6 }, uMorph: { value: 0 }, uUpView: { value: new THREE.Vector3(0, 1, 0) }, uCutA: { value: new THREE.Vector4(0, 0, 0, -1) }, uCutB: { value: new THREE.Vector4(0, 0, 0, -1) } };
+const cutPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e9);
+const noPlanes = [];
+/* "剖开" parts: a WEDGE (default ±62 deg around the view direction at load time) is removed. The wedge is FIXED to the
+   model, so nothing appears/disappears while the user orbits the camera; "剖面对准当前视角" re-aims it.
+   Blob materials test the blob centre in the vertex shader (uCutA/uCutB); cartoon meshes use two clipping planes
+   with clipIntersection (removed only where BOTH planes clip). */
+const wedgePlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0), 1e9), new THREE.Plane(new THREE.Vector3(1, 0, 0), 1e9)];
+const planesFor = (g) => $('cutWhat').value === 'all' ? [cutPlane] : noPlanes;
+function aimCut(halfDeg = 62, margin = 4) {
+  const ax = new THREE.Vector3(0, 1, 0).applyQuaternion(world.quaternion);
+  const d = camera.position.clone().sub(world.position); d.addScaledVector(ax, -d.dot(ax));
+  if (d.lengthSq() < 1) return;
+  d.normalize();
+  const half = THREE.MathUtils.degToRad(halfDeg);
+  const m1 = d.clone().applyAxisAngle(ax, half - Math.PI / 2), m2 = d.clone().applyAxisAngle(ax, Math.PI / 2 - half);
+  U.uCutA.value.set(m1.x, m1.y, m1.z, -margin); U.uCutB.value.set(m2.x, m2.y, m2.z, -margin);
+  wedgePlanes[0].set(m1.clone().negate(), margin); wedgePlanes[1].set(m2.clone().negate(), margin);
+}
+
+function blobMaterial(opts = {}) {   // opts.cutaway: wedge cutaway; opts.shell: 'depth' | 'color' (outline shell of the schematic mode)
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: opts.roughness ?? 0.3, metalness: 0,
+    clearcoat: 1.0, clearcoatRoughness: 0.12, sheen: 0.08, sheenRoughness: 0.5, sheenColor: new THREE.Color(0xffffff) });
+  /* outline shell = two passes over the same enlarged blobs: 1) depth only, 2) colour with depthFunc <=, so only the
+     OUTERMOST surface is drawn once (no build-up into fog); alpha comes from the Fresnel term -> glowing silhouette */
+  if (opts.shell === 'depth') { m.colorWrite = false; m.transparent = true; }
+  if (opts.shell === 'color') { m.transparent = true; m.depthWrite = false; m.depthFunc = THREE.LessEqualDepth; m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; }
+  m.customProgramCacheKey = () => 'blob-' + (opts.shell || '');
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U, { uCutOn: { value: opts.cutaway ? 1 : 0 } });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        uniform float uTime, uJitter, uLumpy, uMorph, uCutOn; uniform vec4 uCutA, uCutB;
+        attribute float aHot; attribute vec3 aDelta; varying float vHot;
+        float h1(float n){ return fract(sin(n) * 43758.5453); }`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        float iid = float(gl_InstanceID);
+        vec3 sq = vec3(1.0 + uLumpy*0.35*(h1(iid*1.3)-0.5), 1.0 + uLumpy*0.35*(h1(iid*2.1)-0.5), 1.0 + uLumpy*0.35*(h1(iid*3.7)-0.5));
+        transformed *= sq * (1.0 + uLumpy*0.18*sin(position.x*5.0+iid)*sin(position.y*4.0+iid*.7));
+        float isc = max(length(instanceMatrix[0].xyz), 1e-3);
+        transformed += uJitter*0.35*vec3(sin(uTime*2.3+iid*1.7), sin(uTime*1.9+iid*2.9), sin(uTime*2.7+iid*0.6));
+        transformed += aDelta * uMorph / isc;
+        vec3 cw = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        if (uCutOn > 0.5 && dot(uCutA.xyz, cw) + uCutA.w > 0.0 && dot(uCutB.xyz, cw) + uCutB.w > 0.0) transformed = vec3(0.0);   // whole-blob wedge cutaway
+        vHot = aHot;`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uRim, uGlow, uHot, uTime; uniform vec3 uUpView; varying float vHot;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        #ifdef USE_INSTANCING_COLOR
+          vec3 baseC = vColor.rgb;
+        #else
+          vec3 baseC = diffuse.rgb;
+        #endif
+        float fres = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 2.6);
+        float up = saturate(dot(normal, uUpView) * 0.5 + 0.5);
+        float front = gl_FrontFacing ? 1.0 : 0.0;   // back faces = inside of a cut blob: dark, no rim
+        diffuseColor.rgb *= mix(0.3, 1.0, front);
+        totalEmissiveRadiance += baseC * (uGlow * up + front * uRim * fres * (0.25 + 1.1 * up));
+        totalEmissiveRadiance += baseC * vHot * uHot * (0.55 + 0.45 * sin(uTime * 3.0));`)
+      .replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        ${opts.shell === 'color' ? `{ float fr = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.2);
+          gl_FragColor = vec4(baseC * (0.12 + 1.5 * fr), 0.025 + 0.42 * fr); }` : ''}`);
+  };
+  return m;
+}
+/* schematic (cartoon) material: vertex colours + the same top-lit rim emission as the blobs */
+function cartoonMaterial() {
+  const m = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.15, side: THREE.DoubleSide });
+  m.customProgramCacheKey = () => 'cartoon';
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uRim, uGlow; uniform vec3 uUpView;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec3 baseC = vColor.rgb;
+        float fres = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.6);
+        float up = saturate(dot(normal, uUpView) * 0.5 + 0.5);
+        totalEmissiveRadiance += baseC * (uGlow * up + uRim * fres * (0.25 + 1.1 * up));`);
+  };
+  return m;
+}
+function ligandMaterial(boost = 1) {
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.15 });
+  m.customProgramCacheKey = () => 'ligand' + boost;   // different boost = different shader
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uRim, uTime;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        #ifdef USE_INSTANCING_COLOR
+          vec3 baseC = vColor.rgb;
+        #else
+          vec3 baseC = diffuse.rgb;
+        #endif
+        float fres = pow(1.0 - saturate(dot(normal, normalize(vViewPosition))), 2.2);
+        totalEmissiveRadiance += baseC * ${(0.22 * boost).toFixed(3)} * (1.0 + 0.35 * sin(uTime * 2.0)) + baseC * uRim * fres * 1.4;`);
+  };
+  return m;
+}
+/* every blob geometry must carry aHot / aDelta (shader attributes) */
+function withAttrs(geo, n, hot, delta) {
+  geo.setAttribute('aHot', new THREE.InstancedBufferAttribute(hot || new Float32Array(n), 1));
+  geo.setAttribute('aDelta', new THREE.InstancedBufferAttribute(delta || new Float32Array(n * 3), 3));
+  return geo;
+}
+
+/* ----------------------------------------------------------------------------- scene state */
+const world = new THREE.Group(); scene.add(world);
+const procRoot = new THREE.Group(); overlay.add(procRoot);   // follows world's transform every frame
+let groups = [];          // protein parts: {name, color, fixed, atoms, spin, visible, ghost, mesh}
+let ligGroups = [];       // static small molecules per chemical component: {comp, name, mols, visible, objs, state}
+let membraneObjs = [];
+let model = null, current = null, proc = null;
+let theta = 0;            // rotor angle (rad)
+
+function sphereGeo(n) {
+  const q = $('quality').value;
+  const d = q === 'low' ? 0 : q === 'medium' ? (n > 60000 ? 0 : 1) : (n > 600000 ? 0 : n > 150000 ? 1 : 2);
+  return new THREE.IcosahedronGeometry(1, d);
+}
+function applyQuality(rebuild = true) {
+  const q = $('quality').value;
+  const pr = q === 'high' ? Math.min(devicePixelRatio, 2) : q === 'medium' ? 1 : 0.6;
+  renderer.setPixelRatio(pr); renderer.setSize(innerWidth, innerHeight); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+  if (aoPass) aoPass.enabled = q !== 'low' && $('ao').checked;
+  bokeh.enabled = q !== 'low' && $('dof').checked;
+  if (rebuild && groups.length) { rebuildMeshes(); rebuildMembranes(); applyCut(); }
+}
+
+/* one InstancedMesh of residue blobs. scaleMul > 1 + shell = outline shell of the schematic mode */
+function blobInstances(g, colorOf, material, scaleMul = 1, detail) {
+  const atoms = g.atoms, n = atoms.length;
+  const hot = new Float32Array(n), delta = new Float32Array(n * 3);
+  atoms.forEach((a, i) => { hot[i] = a.hot || 0; if (a.p2) { delta[i * 3] = a.p2.x - a.p.x; delta[i * 3 + 1] = a.p2.y - a.p.y; delta[i * 3 + 2] = a.p2.z - a.p.z; } });
+  const geo = detail === undefined ? sphereGeo(n) : new THREE.IcosahedronGeometry(1, detail);
+  const mesh = new THREE.InstancedMesh(withAttrs(geo, n, hot, delta), material, n);
+  const r = +$('blob').value * scaleMul;
+  const scaleOf = (a) => r * (a.rf ??= 0.85 + 0.3 * Math.random()) * (a.na ? 1.25 : 1);   // a.rf: fixed random size per residue
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), col = new THREE.Color();
+  atoms.forEach((a, i) => {
+    m.compose(a.p, q, s.setScalar(scaleOf(a))); mesh.setMatrixAt(i, m);
+    col.set(colorOf ? colorOf(a) : g.color); col.offsetHSL(0, 0, ((a.rf - 1) / 0.3) * 0.06);
+    mesh.setColorAt(i, col);
+  });
+  mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; mesh.frustumCulled = false;
+  mesh.userData.scaleOf = scaleOf;   // used by applyBlends (per-chain conformational change)
+  return mesh;
+}
+function buildGroup(g, colorOf) {
+  const mat = blobMaterial({ cutaway: g.ghost });
+  mat.clippingPlanes = planesFor(g);
+  const grp = new THREE.Group(); grp.add(blobInstances(g, colorOf, mat));
+  return grp;
+}
+
+/* ----------------------------------------------------------------------------- schematic (cartoon) representation
+   Only CA (and P) are downloaded, so secondary structure is assigned from CA geometry (P-SEA-like):
+   helix  : d(i,i+3) ~ 5.1 A and d(i,i+4) ~ 6.2 A for >= 5 residues
+   strand : extended (d(i-1,i+1) > 6.1, d(i-1,i+2) > 8.6) AND a non-local extended partner within 5.6 A, >= 3 residues
+   Geometry: one continuous swept tube per chain fragment; the cross-section changes with SS:
+   coil = thin round tube, helix = thick rod along the helix axis, strand = flat ribbon with arrow head.
+   Extra coordinate sets (alternative conformations, morph state 2) become morph targets of the same mesh. */
+function chainFragments(atoms) {
+  const by = new Map(); atoms.forEach((a, i) => { if (!by.has(a.asym)) by.set(a.asym, []); by.get(a.asym).push(i); });
+  const frags = [];
+  for (const [asym, ids] of by) {
+    ids.sort((i, j) => atoms[i].seq - atoms[j].seq);
+    let cur = [ids[0]];
+    for (let k = 1; k < ids.length; k++) {
+      const a = atoms[ids[k - 1]], b = atoms[ids[k]];
+      if (a.p.distanceTo(b.p) > (a.na ? 8.5 : 4.4)) { frags.push({ asym, idx: cur }); cur = []; }
+      cur.push(ids[k]);
+    }
+    frags.push({ asym, idx: cur });
+  }
+  return frags;
+}
+function dropShortRuns(I, ss, v, minLen) {
+  let st = -1;
+  for (let k = 0; k <= I.length; k++) {
+    const on = k < I.length && ss[I[k]] === v;
+    if (on && st < 0) st = k;
+    if (!on && st >= 0) { if (k - st < minLen) for (let j = st; j < k; j++) ss[I[j]] = 0; st = -1; }
+  }
+}
+function assignSS(atoms, frags) {
+  const ss = new Uint8Array(atoms.length), cand = [], P = (i) => atoms[i].p;
+  /* chains with deposited annotation (a.ss from applyDepositedSS) use it; the CA-geometry rule only fills the rest */
+  const annotated = new Set(atoms.filter(a => a.ss > 0).map(a => a.asym));
+  if (annotated.size) atoms.forEach((a, i) => { if (annotated.has(a.asym)) ss[i] = a.ss; });
+  const guess = (i) => !annotated.has(atoms[i].asym);
+  for (const f of frags) {
+    const I = f.idx, n = I.length; if (!n || atoms[I[0]].na || !guess(I[0])) continue;
+    for (let k = 0; k + 4 < n; k++) {
+      const d3 = P(I[k]).distanceTo(P(I[k + 3])), d4 = P(I[k]).distanceTo(P(I[k + 4]));
+      if (Math.abs(d3 - 5.1) < 0.7 && Math.abs(d4 - 6.2) < 0.9) for (let j = 0; j <= 4; j++) ss[I[k + j]] = 1;
+    }
+    dropShortRuns(I, ss, 1, 5);
+    for (let k = 1; k + 1 < n; k++) {
+      if (ss[I[k]]) continue;
+      const d2 = P(I[k - 1]).distanceTo(P(I[k + 1])), d3 = k + 2 < n ? P(I[k - 1]).distanceTo(P(I[k + 2])) : 10;
+      if (d2 > 6.1 && d3 > 8.6) cand.push(I[k]);
+    }
+  }
+  const cell = 6, grid = new Map(), key = (x, y, z) => x + ',' + y + ',' + z;
+  for (const i of cand) { const p = P(i), k = key(Math.floor(p.x / cell), Math.floor(p.y / cell), Math.floor(p.z / cell)); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i); }
+  for (const i of cand) {
+    if (!guess(i)) continue;
+    const p = P(i), gx = Math.floor(p.x / cell), gy = Math.floor(p.y / cell), gz = Math.floor(p.z / cell);
+    let found = false;
+    for (let dx = -1; dx <= 1 && !found; dx++) for (let dy = -1; dy <= 1 && !found; dy++) for (let dz = -1; dz <= 1 && !found; dz++) {
+      for (const j of grid.get(key(gx + dx, gy + dy, gz + dz)) || [])
+        if (j !== i && (atoms[j].asym !== atoms[i].asym || Math.abs(atoms[j].seq - atoms[i].seq) > 3) && p.distanceTo(P(j)) < 5.6) { found = true; break; }
+    }
+    if (found) ss[i] = 2;
+  }
+  for (const f of frags) if (guess(f.idx[0])) dropShortRuns(f.idx, ss, 2, 3);
+  return ss;
+}
+/* sweep one fragment: X = positions (Vector3[]), ss codes, S samples per residue, M points per ring.
+   Returns ring positions (Float32Array, N*M*3) and the residue index of every ring (for colours). */
+function sweepFragment(X, ss, na, S, M) {
+  const n = X.length;
+  const Q = X.map((p, k) => {
+    if (ss[k] === 1) { const c = new THREE.Vector3(); let m = 0; for (let j = k - 2; j <= k + 2; j++) if (j >= 0 && j < n && ss[j] === 1) { c.add(X[j]); m++; } return c.multiplyScalar(1 / m); }
+    if (ss[k] === 2 && k > 0 && k < n - 1) return X[k].clone().multiplyScalar(0.5).addScaledVector(X[k - 1], 0.25).addScaledVector(X[k + 1], 0.25);
+    return X[k].clone();
+  });
+  const prof = (k) => na ? [1.5, 1.5] : ss[k] === 1 ? [2.1, 2.1] : ss[k] === 2 ? [1.7, 0.45] : [0.7, 0.7];
+  const arrowEnd = (k) => ss[k] === 2 && (k === n - 1 || ss[k + 1] !== 2);
+  const W = new Array(n).fill(null); let prevB = null;
+  for (let k = 0; k < n; k++) {
+    if (ss[k] !== 2) { prevB = null; continue; }
+    const b = X[Math.max(0, k - 1)].clone().add(X[Math.min(n - 1, k + 1)]).sub(X[k].clone().multiplyScalar(2));
+    if (b.lengthSq() < 1e-6) continue;
+    if (prevB && b.dot(prevB) < 0) b.negate();
+    prevB = b;
+    const t = Q[Math.min(n - 1, k + 1)].clone().sub(Q[Math.max(0, k - 1)]).normalize();
+    W[k] = new THREE.Vector3().crossVectors(t, b).normalize();
+  }
+  const curve = n > 2 ? new THREE.CatmullRomCurve3(Q, false, 'catmullrom', 0.5) : null;
+  const N = (n - 1) * S + 1, pts = [], tans = [];
+  for (let s = 0; s < N; s++) { const u = s / S; pts.push(curve ? curve.getPoint(u / (n - 1)) : Q[0].clone().lerp(Q[1], u)); }
+  let lastT = new THREE.Vector3(0, 1, 0);
+  for (let s = 0; s < N; s++) {
+    const t = pts[Math.min(N - 1, s + 1)].clone().sub(pts[Math.max(0, s - 1)]);
+    if (t.lengthSq() < 1e-10) t.copy(lastT); else t.normalize();
+    tans.push(t); lastT = t;
+  }
+  const nrm = new THREE.Vector3(0, 1, 0); if (Math.abs(tans[0].y) > 0.9) nrm.set(1, 0, 0);
+  const pos = new Float32Array(N * M * 3), res = new Int32Array(N), ey = new THREE.Vector3();
+  for (let s = 0; s < N; s++) {
+    const u = s / S, r = Math.min(Math.floor(u), n - 2), f = u - r, t = tans[s];
+    res[s] = f < 0.5 ? r : r + 1;
+    nrm.addScaledVector(t, -nrm.dot(t)); if (nrm.lengthSq() < 1e-8) nrm.set(t.y, -t.x, 0); nrm.normalize();
+    let A, B;
+    if (ss[r] === 2 && arrowEnd(r + 1)) { A = 2.7 * (1 - f) + 0.25 * f; B = 0.45; }
+    else { const p0 = prof(r), p1 = prof(r + 1), e = f * f * (3 - 2 * f); A = p0[0] + (p1[0] - p0[0]) * e; B = p0[1] + (p1[1] - p0[1]) * e; }
+    const wa = W[r], wb = W[r + 1];
+    if ((ss[r] === 2 || ss[r + 1] === 2) && (wa || wb)) {
+      const w = (wa && wb) ? wa.clone().lerp(wb, f) : (wa || wb).clone();
+      w.addScaledVector(t, -w.dot(t)); if (w.lengthSq() > 1e-8) nrm.copy(w.normalize());
+    }
+    ey.crossVectors(t, nrm).normalize();
+    for (let j = 0; j < M; j++) {
+      const ang = 2 * Math.PI * j / M, c = Math.cos(ang) * A, sn = Math.sin(ang) * B, o = (s * M + j) * 3;
+      pos[o] = pts[s].x + nrm.x * c + ey.x * sn; pos[o + 1] = pts[s].y + nrm.y * c + ey.y * sn; pos[o + 2] = pts[s].z + nrm.z * c + ey.z * sn;
+    }
+  }
+  return { pos, res };
+}
+function buildCartoon(g, colorOf) {
+  const qual = $('quality').value, S = qual === 'low' ? 2 : qual === 'medium' ? 3 : 4, M = qual === 'low' ? 6 : qual === 'medium' ? 8 : 10;
+  const atoms = g.atoms, frags = g.frags || (g.frags = chainFragments(atoms)), ss = g.ss || (g.ss = assignSS(atoms, frags));
+  const keys = g.confKeys || [], hasP2 = atoms.some(a => a.p2);
+  const sets = [(a) => a.p, ...keys.map(k => (a) => a.alts?.[k] || a.p), ...(hasP2 ? [(a) => a.p2 || a.p] : [])];
+  const byChain = new Map();
+  for (const f of frags) { if (f.idx.length < 2) continue; if (!byChain.has(f.asym)) byChain.set(f.asym, []); byChain.get(f.asym).push(f); }
+  const grp = new THREE.Group(), mat = cartoonMaterial(), col = new THREE.Color();
+  const cat = (arrs) => { const o = new Float32Array(arrs.reduce((s, x) => s + x.length, 0)); let k = 0; for (const x of arrs) { o.set(x, k); k += x.length; } return o; };
+  for (const [asym, fl] of byChain) {
+    const posArrs = sets.map(() => []), idx = [], colors = []; let base = 0;
+    for (const f of fl) {
+      const fss = f.idx.map(i => ss[i]), na = atoms[f.idx[0]].na; let res;
+      sets.forEach((get, si) => { const o = sweepFragment(f.idx.map(i => get(atoms[i])), fss, na, S, M); posArrs[si].push(o.pos); if (!si) res = o.res; });
+      const N = res.length;
+      for (let s = 0; s < N; s++) { col.set(colorOf ? colorOf(atoms[f.idx[res[s]]]) : g.color); for (let j = 0; j < M; j++) colors.push(col.r, col.g, col.b); }
+      for (let s = 0; s < N - 1; s++) for (let j = 0; j < M; j++) { const a = base + s * M + j, b = base + s * M + (j + 1) % M; idx.push(a, a + M, b, b, a + M, b + M); }
+      base += N * M;
+    }
+    const geo = new THREE.BufferGeometry(), P0 = cat(posArrs[0]);
+    geo.setAttribute('position', new THREE.BufferAttribute(P0, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    if (sets.length > 1) {
+      geo.morphTargetsRelative = true; geo.morphAttributes.position = []; geo.morphAttributes.normal = [];
+      const N0 = geo.attributes.normal.array;
+      for (let si = 1; si < sets.length; si++) {
+        const Pi = cat(posArrs[si]), tmp = new THREE.BufferGeometry();
+        tmp.setAttribute('position', new THREE.BufferAttribute(Pi, 3)); tmp.setIndex(idx); tmp.computeVertexNormals();
+        const N1 = tmp.attributes.normal.array;
+        geo.morphAttributes.position.push(new THREE.BufferAttribute(Pi.map((v, k) => v - P0[k]), 3));
+        geo.morphAttributes.normal.push(new THREE.BufferAttribute(N1.map((v, k) => v - N0[k]), 3));
+        tmp.dispose();
+      }
+    }
+    const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false;
+    mesh.userData = { cartoon: true, asym, keys, p2Index: hasP2 ? sets.length - 2 : -1 };
+    grp.add(mesh);
+  }
+  if ($('shellOn').checked) for (const kind of ['depth', 'color']) {
+    const m = blobMaterial({ cutaway: g.ghost, shell: kind });
+    const sh = blobInstances(g, colorOf, m, 1.45, qual === 'high' ? 2 : 1);
+    sh.userData.shell = true; sh.renderOrder = kind === 'depth' ? 1 : 2;
+    grp.add(sh);
+  }
+  return grp;
+}
+/* ----------------------------------------------------------------------------- simplified schematic ("简化示意")
+   The way papers and textbooks draw complexes: atomic detail is blurred away and every chain (or domain) becomes ONE
+   smooth solid fitted to its residues. Fit = PCA of the CA/P cloud: semi-axis_i = sqrt(5 * variance_i) + 1.5 A (a solid
+   ellipsoid with the same second moments); the third moment along the long axis tapers it into an egg / petal (wide end
+   where the mass is). Nucleic acids become a chain of short capsules (12 nt each) so DNA still wraps visibly.
+   Shapes are recomputed from the current coordinates when a process blends conformations or a 2-state morph plays. */
+function shapeClusters(g) {
+  const atoms = g.atoms, frags = g.frags || (g.frags = chainFragments(atoms));
+  const per = $('shapeDetail').value === 'domain' ? 160 : 420, out = [];
+  // merge fragments of one chain that are close (missing loops), keep far-apart pieces separate
+  for (const f of frags) {
+    const I = f.idx; if (!I.length) continue;
+    if (atoms[I[0]].na) continue;   // nucleic acids: drawn as an axis tube by naTubes()
+    const last = out.length && out[out.length - 1];
+    if (last && !last.na && atoms[last[0]].asym === f.asym && atoms[last[last.length - 1]].p.distanceTo(atoms[I[0]].p) < 20) { last.push(...I); continue; }
+    out.push(I.slice());
+  }
+  const res = [];
+  for (const I of out) {
+    if (atoms[I[0]].na || I.length < 2) { if (I.length >= 2) res.push(I); continue; }
+    const k = Math.max(1, Math.round(I.length / per));
+    if (k === 1) { res.push(I); continue; }
+    // k-means on CA positions, seeded by sequence chunks (domains are mostly sequence-contiguous)
+    const C = []; for (let j = 0; j < k; j++) { const ch = I.slice(Math.floor(j * I.length / k), Math.floor((j + 1) * I.length / k)); C.push(ch.reduce((s, i) => s.add(atoms[i].p), new THREE.Vector3()).multiplyScalar(1 / ch.length)); }
+    let lab = new Array(I.length).fill(0);
+    for (let it = 0; it < 10; it++) {
+      lab = I.map(i => { let b = 0, bd = 1e18; C.forEach((c, j) => { const d = c.distanceToSquared(atoms[i].p); if (d < bd) { bd = d; b = j; } }); return b; });
+      C.forEach((c, j) => { const m = I.filter((_, t) => lab[t] === j); if (m.length) c.copy(m.reduce((s, i) => s.add(atoms[i].p), new THREE.Vector3()).multiplyScalar(1 / m.length)); });
+    }
+    for (let j = 0; j < k; j++) { const m = I.filter((_, t) => lab[t] === j); if (m.length >= 6) res.push(m); }
+  }
+  /* long curved pieces (peripheral stalk helices, filaments) would become one fat ellipsoid that hides everything:
+     split them along the sequence until each piece is a reasonably straight rod */
+  const out2 = [], stack = res.slice();
+  while (stack.length) {
+    const I = stack.pop();
+    if (atoms[I[0]].na || I.length < 16) { out2.push(I); continue; }
+    const f = fitShape(I.map(i => atoms[i].p), false);
+    if (f.sy > 2.6 * f.sx && f.sx > 7) { const h = I.length >> 1; stack.push(I.slice(0, h), I.slice(h)); } else out2.push(I);
+  }
+  return out2;
+}
+const _up = new THREE.Vector3(0, 1, 0);
+function fitShape(P, na) {   // P: Vector3[] -> {centre, q, sx, sy, sz, taper}
+  const { centre, values, axes } = pca(P), n = P.length;
+  const ax = axes[2].clone(), mid = axes[1].clone(), sm = new THREE.Vector3().crossVectors(ax, mid);
+  const sd = (v) => Math.sqrt(Math.max(v, 0) / n);
+  let skew = 0; for (const p of P) { const t = p.clone().sub(centre).dot(ax); skew += t * t * t; }
+  skew /= n * Math.pow(Math.max(sd(values[2]), 1e-3), 3);
+  const pad = na ? 4.5 : 1.5, mn = na ? 4.5 : 4;
+  const sy = Math.max(mn, Math.sqrt(5) * sd(values[2]) + pad), sx = Math.max(mn, Math.sqrt(5) * sd(values[1]) + pad), sz = Math.max(mn, Math.sqrt(5) * sd(values[0]) + pad);
+  const M = new THREE.Matrix4().makeBasis(mid, ax, sm);
+  return { centre, q: new THREE.Quaternion().setFromRotationMatrix(M), sx, sy, sz, taper: na ? 0 : THREE.MathUtils.clamp(-skew * 0.22, -0.3, 0.3) };
+}
+function shapeMaterial(cutaway) {
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.18, sheen: 0.15, sheenRoughness: 0.6, sheenColor: new THREE.Color(0xffffff) });
+  m.customProgramCacheKey = () => 'shape-' + !!cutaway;
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U, { uCutOn: { value: cutaway ? 1 : 0 } });
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute float aTaper; uniform float uCutOn; uniform vec4 uCutA, uCutB;`)
+      .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+        objectNormal = normalize(vec3(objectNormal.x, objectNormal.y - aTaper * (position.x * objectNormal.x + position.z * objectNormal.z), objectNormal.z));`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        transformed.xz *= 1.0 + aTaper * position.y;           // egg / petal taper along the long axis
+        vec3 cw = (modelMatrix * instanceMatrix * vec4(0,0,0,1)).xyz;
+        if (uCutOn > 0.5 && dot(uCutA.xyz, cw) + uCutA.w > 0.0 && dot(uCutB.xyz, cw) + uCutB.w > 0.0) transformed = vec3(0.0);`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+        uniform float uRim, uGlow; uniform vec3 uUpView;`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec3 baseC = vColor.rgb;
+        float fres = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.4);
+        float up = saturate(dot(normal, uUpView) * 0.5 + 0.5);
+        totalEmissiveRadiance += baseC * (0.06 + uGlow * up + uRim * fres * (0.3 + 1.0 * up));`);
+  };
+  return m;
+}
+const SHAPE_GEO = new THREE.SphereGeometry(1, 48, 32);
+function buildShapes(g, colorOf) {
+  const clusters = shapeClusters(g), n = clusters.length;
+  const geo = SHAPE_GEO.clone(); geo.setAttribute('aTaper', new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, n)), 1));
+  const mesh = new THREE.InstancedMesh(geo, shapeMaterial(g.ghost), Math.max(1, n)); mesh.count = n;
+  const col = new THREE.Color();
+  clusters.forEach((I, k) => {
+    const mid = g.atoms[I[Math.floor(I.length / 2)]];
+    col.set(colorOf ? colorOf(mid) : g.color); mesh.setColorAt(k, col);
+  });
+  if (n) mesh.instanceColor.needsUpdate = true;
+  mesh.frustumCulled = false; mesh.userData = { shapes: true, clusters };
+  updateShapes(g, mesh, (a) => a.p);
+  const grp = new THREE.Group(); grp.add(mesh);
+  for (const t of naTubes(g, colorOf)) grp.add(t);
+  return grp;
+}
+/* nucleic acid in the simplified mode: averaging the P trace over one helical turn (+-5 nt) gives the double-helix AXIS;
+   a smooth 9 A tube along it = the usual "DNA as a tube" drawing (two strands of a duplex overlap into one tube) */
+function naTubes(g, colorOf) {
+  const out = [], atoms = g.atoms;
+  for (const f of g.frags || []) {
+    const I = f.idx; if (!I.length || !atoms[I[0]].na || I.length < 6) continue;
+    const pts = I.map((_, k) => { const c = new THREE.Vector3(); let m = 0; for (let j = Math.max(0, k - 5); j <= Math.min(I.length - 1, k + 5); j++) { c.add(atoms[I[j]].p); m++; } return c.multiplyScalar(1 / m); });
+    const curve = new THREE.CatmullRomCurve3(pts), geo = new THREE.TubeGeometry(curve, Math.max(8, I.length * 2), 9, 20, false);
+    geo.setAttribute('aTaper', new THREE.InstancedBufferAttribute(new Float32Array(1), 1));
+    const m = new THREE.InstancedMesh(geo, shapeMaterial(g.ghost), 1);
+    m.setMatrixAt(0, new THREE.Matrix4()); m.setColorAt(0, new THREE.Color(colorOf ? colorOf(atoms[I[I.length >> 1]]) : g.color));
+    m.frustumCulled = false; out.push(m);
+  }
+  return out;
+}
+function updateShapes(g, mesh, pos) {
+  const { clusters } = mesh.userData, m = new THREE.Matrix4(), s = new THREE.Vector3(), ta = mesh.geometry.attributes.aTaper;
+  clusters.forEach((I, k) => {
+    const f = fitShape(I.map(i => pos(g.atoms[i])), g.atoms[I[0]].na);
+    mesh.setMatrixAt(k, m.compose(f.centre, f.q, s.set(f.sx, f.sy, f.sz))); ta.array[k] = f.taper;
+  });
+  mesh.instanceMatrix.needsUpdate = true; ta.needsUpdate = true;
+}
+
+/* ----------------------------------------------------------------------------- teaching labels ("标注与讲解")
+   One label per part (largest parts first, max 16), anchored on the outside of the part, following rotation.
+   Text comes from the preset's notes {key: [name, one-line role, explanation]}; otherwise entity name + size. */
+let labels = [];
+function rebuildLabels() {
+  const box = $('labels'); box.innerHTML = ''; labels = []; $('infoCard').style.display = 'none';
+  if (!$('labelsOn').checked || !groups.length) return;
+  const notes = current?.notes || {}, total = groups.reduce((s, g) => s + g.atoms.length, 0);
+  const cands = groups.filter(g => g.visible && g.atoms.length).map(g => ({ g, nk: findKey(notes, g.name) }))
+    .filter(x => x.nk !== undefined && x.nk !== null || x.g.atoms.length / total > 0.01)
+    .sort((a, b) => b.g.atoms.length - a.g.atoms.length).slice(0, 16);
+  for (const { g, nk } of cands) {
+    const c = g.atoms.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / g.atoms.length);
+    let dir = new THREE.Vector3(c.x, 0, c.z); if (dir.length() < 8) dir.set(1, 0, 0); dir.normalize();
+    let best = g.atoms[0], bv = -1e9; for (const a of g.atoms) { const v = a.p.clone().sub(c).dot(dir) + 0.25 * (a.p.y - c.y); if (v > bv) { bv = v; best = a; } }
+    const note = nk != null ? notes[nk] : null;
+    const chains = new Set(g.atoms.map(a => a.asym)).size;
+    const nm = note ? note[0] : g.name.length > 34 ? g.name.slice(0, 32) + '…' : g.name;
+    const sub = note ? note[1] : `${chains > 1 ? chains + ' 条链 · ' : ''}${g.atoms.length.toLocaleString()} 个残基`;
+    const el = document.createElement('div'); el.className = 'lab'; el.innerHTML = `<b></b><i></i>`;
+    el.querySelector('b').textContent = nm; el.querySelector('i').textContent = sub;
+    el.onclick = () => {
+      labels.forEach(l => l.el.classList.remove('on')); el.classList.add('on');
+      $('infoT').innerHTML = `<span class="sw" style="background:${g.fixed && $('palette').value === 'neon' ? g.fixed : g.color}"></span>`; $('infoT').append(nm);
+      $('infoB').textContent = note ? note[2] : `${g.name}。${chains} 条链，${g.atoms.length.toLocaleString()} 个残基。（预设里加 notes 可写讲解）`;
+      $('infoCard').style.display = 'block';
+    };
+    box.appendChild(el); labels.push({ el, g, anchor: best.p.clone().addScaledVector(dir, 6) });
+  }
+}
+const _lv = new THREE.Vector3();
+function updateLabels() {
+  if (!labels.length) return;
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  for (const L of labels) {
+    if (!L.g.mesh || !L.g.visible) { L.el.style.display = 'none'; continue; }
+    L.g.mesh.updateMatrixWorld(); _lv.copy(L.anchor).applyMatrix4(L.g.mesh.matrixWorld).project(camera);
+    if (_lv.z > 1 || Math.abs(_lv.x) > 1.1 || Math.abs(_lv.y) > 1.1) { L.el.style.display = 'none'; continue; }
+    L.el.style.display = ''; L.el.style.left = ((_lv.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - _lv.y) / 2 * h - 16) + 'px';
+  }
+}
+
+/* per-chain conformational blending (set by processes via ctx.setChainBlend): blob instances are moved on the CPU,
+   cartoon chains use morph-target weights */
+const _m4 = new THREE.Matrix4(), _q0 = new THREE.Quaternion(), _v0 = new THREE.Vector3(), _s0 = new THREE.Vector3();
+function applyBlends(g) {
+  const keys = g.confKeys || [];
+  g.mesh.traverse(x => {
+    if (x.isInstancedMesh && x.userData.scaleOf) {
+      g.atoms.forEach((a, i) => {
+        const b = a.alts && g.blend[a.asym]; if (!b) return;
+        _v0.copy(a.alts[b[0]] || a.p).lerp(a.alts[b[1]] || a.p, b[2]);
+        x.setMatrixAt(i, _m4.compose(_v0, _q0, _s0.setScalar(x.userData.scaleOf(a))));
+      });
+      x.instanceMatrix.needsUpdate = true;
+    } else if (x.userData.shapes) {
+      updateShapes(g, x, (a) => { const b = a.alts && g.blend[a.asym]; return b ? _v0.copy(a.alts[b[0]] || a.p).lerp(a.alts[b[1]] || a.p, b[2]).clone() : a.p; });
+    } else if (x.userData.cartoon && x.morphTargetInfluences) {
+      const b = g.blend[x.userData.asym]; if (!b) return;
+      const infl = x.morphTargetInfluences; for (let i = 0; i < keys.length; i++) infl[i] = 0;
+      const i0 = keys.indexOf(b[0]), i1 = keys.indexOf(b[1]);
+      if (i0 >= 0) infl[i0] += 1 - b[2]; if (i1 >= 0) infl[i1] += b[2];
+    }
+  });
+}
+
+/* ----------------------------------------------------------------------------- small molecules */
+const SPH = new THREE.IcosahedronGeometry(1, 2), CYL = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+function bondsOf(atoms) {   // distance-based bonds for structure ligands
+  const out = [];
+  for (let i = 0; i < atoms.length; i++) for (let j = i + 1; j < atoms.length; j++) {
+    const ri = elStyle(atoms[i].el)[2], rj = elStyle(atoms[j].el)[2];
+    if (!ri || !rj) continue;
+    if (atoms[i].p.distanceTo(atoms[j].p) < ri + rj + 0.45) out.push([i, j, 1]);
+  }
+  return out;
+}
+/* ball-and-stick for many molecules at once (static ligands). mols: [{atoms, bonds?, centre}] -> Group */
+function buildMolecules(mols, scale, carbon) {   // carbon: optional colour override for C atoms (tells ATP from ADP)
+  const balls = [], sticks = [];
+  for (const M of mols) {
+    const c = M.centre, P = (p) => p.clone().sub(c).multiplyScalar(scale).add(c);
+    const bonds = M.bonds || bondsOf(M.atoms);
+    M.atoms.forEach(a => balls.push([P(a.p), a.el]));
+    for (const [i, j, o] of bonds) sticks.push([P(M.atoms[i].p), P(M.atoms[j].p), o, M.atoms[i].el, M.atoms[j].el]);
+  }
+  const grp = new THREE.Group();
+  const bm = new THREE.InstancedMesh(SPH, ligandMaterial(), Math.max(1, balls.length));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  const elCol = (el) => (carbon && el === 'C') ? carbon : elStyle(el)[0];
+  balls.forEach(([p, el], i) => { const st = elStyle(el); s.setScalar(st[1] * scale); m.compose(p, q.identity(), s); bm.setMatrixAt(i, m); bm.setColorAt(i, col.set(elCol(el))); });
+  bm.count = balls.length; grp.add(bm);
+  if (sticks.length) {
+    const sm = new THREE.InstancedMesh(CYL, ligandMaterial(), sticks.length * 2);
+    let k = 0;
+    for (const [a, b, o, ea, eb] of sticks) {   // two half-bonds, each in its atom's colour
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      for (const [from, el] of [[a, ea], [b, eb]]) {
+        const d = mid.clone().sub(from), len = d.length();
+        q.setFromUnitVectors(up, d.clone().normalize());
+        s.set(0.24 * scale * (o > 1 ? 1.3 : 1), len, 0.24 * scale * (o > 1 ? 1.3 : 1));
+        m.compose(from.clone().add(mid).multiplyScalar(0.5), q, s); sm.setMatrixAt(k, m); sm.setColorAt(k++, col.set(elCol(el)));
+      }
+    }
+    grp.add(sm);
+  }
+  grp.traverse(o => { if (o.isInstancedMesh) { o.instanceMatrix.needsUpdate = true; if (o.instanceColor) o.instanceColor.needsUpdate = true; o.frustumCulled = false; } });
+  return grp;
+}
+/* one movable molecule from an ideal template (for animations) */
+const MOL_CARBON = { ATP: '#ffb300', ADP: '#00c8ff', GTP: '#ffb300', GDP: '#00c8ff' };   // story colours for animated molecules
+function makeMol(tpl, xray = true, carbon = MOL_CARBON[tpl.comp]) {
+  const g = buildMolecules([{ atoms: tpl.atoms, bonds: tpl.bonds, centre: new THREE.Vector3() }], +$('ligScale').value, carbon);
+  if (xray) g.traverse(o => { if (o.isMesh) o.material = ligandMaterial(1.6); });   // brighter; lives in the overlay scene
+  g.visible = false; procRoot.add(g); return g;
+}
+const PARTICLE_GEO = new THREE.IcosahedronGeometry(1, 2);
+function makeParticle(color, radius) {
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.3, roughness: 0.3 });
+  const p = new THREE.Mesh(PARTICLE_GEO, mat); p.scale.setScalar(radius); procRoot.add(p); return p;
+}
+function makeFlash(color) {
+  const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+  const f = new THREE.Mesh(PARTICLE_GEO, mat); f.visible = false; procRoot.add(f); return f;
+}
+
+/* ----------------------------------------------------------------------------- tiny animation runner */
+let anims = [];
+/* anim(obj, dur, step(u, dt) -> true to finish early, next() called when done; obj removed if no next) */
+function anim(obj, dur, step, next) { anims.push({ obj, t: 0, dur, step, next }); }
+function tickAnims(dt) {
+  for (let i = anims.length - 1; i >= 0; i--) {
+    const a = anims[i]; a.t += dt;
+    const u = a.dur ? Math.min(1, a.t / a.dur) : a.t;
+    const done = a.step(u, dt) === true || (a.dur && u >= 1);
+    if (done) { anims.splice(i, 1); if (a.next) a.next(); else if (a.obj) a.obj.parent?.remove(a.obj); }
+  }
+}
+
+/* =============================================================================
+   2. PROCESSES  - interaction animations. Each: { caption, async setup(ctx), update(ctx, dt) }.
+   ctx: theta (rotor angle), dTheta, speed, atomsOf(regex), ligands, membraneY[], template(comp),
+        makeMol(tpl), makeParticle(color, r), makeFlash(color), anim(...), counters{}, hideLigand(L)
+   Coordinates are in the viewer frame (main axis = +Y, Angstrom). Rotor parts rotate by theta
+   about +Y; a point at polar angle phi moves to phi - theta (Three.js Y rotation).
+   ============================================================================= */
+const PROCESSES = {
+  atpSynthase: {
+    caption: 'H⁺ 顺浓度梯度经 a 亚基（深蓝）进入 c 环（绿）→ c 环与中心柄 γ（白）旋转 → γ 每转 120°，三个 β 亚基（蓝）依次变构：开放（空）→ 松弛（结合 ADP + Pi）→ 紧密（合成 ATP，闪光）→ 开放（释放 ATP）。β 的形状来自 6ZPO 三条 β 链的真实构象，核苷酸与 Mg²⁺ 位置取自晶体结构（结合变构机制）',
+    async setup(ctx) {
+      const c = ctx.atomsOf(/subunit c1/i), a = ctx.atomsOf(/subunit a$/i);
+      if (!c.length) throw new Error('找不到 c 环');
+      const rads = c.map(x => Math.hypot(x.p.x, x.p.z)).sort((x, y) => x - y);
+      this.rc = rads[Math.floor(rads.length * 0.9)];
+      this.yc = c.reduce((s, x) => s + x.p.y, 0) / c.length;
+      const ac = a.length ? a.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / a.length) : polar(this.rc + 20, 0, this.yc);
+      this.phiA = Math.atan2(ac.z, ac.x);
+      // ---- the three beta chains
+      const bg = ctx.partGroups(/subunit beta/i)[0]; if (!bg) throw new Error('找不到 β 亚基');
+      const chains = [...new Set(bg.atoms.map(x => x.asym))].slice(0, 3);
+      if (chains.length < 3) throw new Error('β 亚基少于 3 条链');
+      const res = Object.fromEntries(chains.map(k => [k, bg.atoms.filter(x => x.asym === k)]));
+      const bySeq = Object.fromEntries(chains.map(k => [k, new Map(res[k].map(x => [x.seq, x]))]));
+      const cen = (arr) => arr.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / arr.length);
+      const ang = Object.fromEntries(chains.map(k => { const q = cen(res[k]); return [k, Math.atan2(q.z, q.x)]; }));
+      const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x));
+      // next(k): the chain at phi_k + 120 deg. A rotor turn of +120 deg makes chain k take the conformation next(k) had.
+      const next = Object.fromEntries(chains.map(k => [k, chains.filter(j => j !== k).sort((i, j) => Math.abs(wrap(ang[i] - ang[k] - 2 * Math.PI / 3)) - Math.abs(wrap(ang[j] - ang[k] - 2 * Math.PI / 3)))[0]]));
+      // ---- catalytic nucleotides (+ Mg) -> nearest beta chain
+      const nuc = ctx.ligands.filter(L => /^(ATP|ADP|ANP|AGS|ACP)$/.test(L.comp));
+      const near = (p, arr) => arr.reduce((m, x) => Math.min(m, x.p.distanceTo(p)), 1e9);
+      const others = ctx.allAtoms.filter(x => !/subunit beta/i.test(x.part));
+      const site = {};
+      for (const L of nuc) {
+        const dB = chains.map(k => near(L.centre, res[k])), k = chains[dB.indexOf(Math.min(...dB))];
+        if (Math.min(...dB) < near(L.centre, others) && !site[k]) { site[k] = { L }; ctx.hideLigand(L); }
+      }
+      for (const L of ctx.ligands.filter(L => L.comp === 'MG')) for (const k in site)
+        if (site[k].L.atoms.some(x => x.p.distanceTo(L.atoms[0].p) < 4.5)) { site[k].mg = L.atoms[0].p.clone(); ctx.hideLigand(L); }
+      const filled = chains.filter(k => site[k]);
+      if (!filled.length) throw new Error('β 亚基上没有核苷酸');
+      // open chain E = the empty one (beta_E); roles along the cycle: open -> loose -> tight
+      const E = chains.find(k => !site[k]) || chains[0];
+      this.role = { [E]: 'open', [next[E]]: 'loose', [next[next[E]]]: 'tight' };
+      // ---- T[k][s]: superposition placing chain s onto chain k using the N-terminal barrel + nucleotide-binding domain
+      const seqs = res[chains[0]].map(x => x.seq), s0 = Math.min(...seqs), s1 = Math.max(...seqs), cutSeq = s0 + 0.62 * (s1 - s0);
+      const T = {};
+      for (const k of chains) { T[k] = {}; for (const s2 of chains) {
+        const pr = res[k].filter(x => x.seq < cutSeq && bySeq[s2].has(x.seq));
+        T[k][s2] = superpose(pr.map(x => x.p), pr.map(x => bySeq[s2].get(x.seq).p));
+      } }
+      for (const k of chains) for (const x of res[k]) {
+        x.alts = {};
+        for (const s2 of chains) { const y = bySeq[s2].get(x.seq); x.alts[s2] = s2 === k ? x.p.clone() : y ? T[k][s2](y.p) : x.p.clone(); }
+      }
+      ctx.setConformations(bg, chains);
+      // ---- ligand poses in every (site k, conformation s)
+      const [tATP, tADP, tPi] = await Promise.all(['ATP', 'ADP', 'PO4'].map(ctx.template));
+      const apply = (Tf, pose) => ({ q: Tf.q.clone().multiply(pose.q), t: pose.t.clone().sub(Tf.cb).applyQuaternion(Tf.q).add(Tf.ca) });
+      const ofPose = (pose, p) => p.clone().applyQuaternion(pose.q).add(pose.t);
+      const local = {};   // poses of each conformation s in chain s's own frame
+      for (const s2 of chains) {
+        let src = s2; while (!site[src]) src = next[src];
+        const crys = site[src].L.atoms;
+        let pa = fitPose(tATP, crys), pd = fitPose(tADP, crys), mg = site[src].mg;
+        if (!pa || !pd) throw new Error('核苷酸原子名匹配失败');
+        if (src !== s2) {   // empty pocket: carry the ligand over with a LOCAL pocket superposition src -> s2
+          const pocket = res[src].filter(x => crys.some(y => y.p.distanceTo(x.p) < 11) && bySeq[s2].has(x.seq));
+          const F = superpose(pocket.map(x => bySeq[s2].get(x.seq).p), pocket.map(x => x.p));
+          pa = apply(F, pa); pd = apply(F, pd); mg = mg && F(mg);
+        }
+        const PG = ofPose(pa, tATP.byName.PG), PB = ofPose(pa, tATP.byName.PB);
+        local[s2] = { atp: pa, adp: pd, mg, pi: PG, piOut: PG.clone().addScaledVector(PG.clone().sub(PB).normalize(), 3.0) };
+      }
+      this.sites = chains.map(k => {
+        const P = {};
+        for (const s2 of chains) { const Tf = T[k][s2], L0 = local[s2];
+          P[s2] = { atp: apply(Tf, L0.atp), adp: apply(Tf, L0.adp), mg: L0.mg && Tf(L0.mg), pi: Tf(L0.pi), piOut: Tf(L0.piOut) }; }
+        const S = P[k].atp.t.clone(), D = new THREE.Vector3(S.x, 0, S.z).normalize();
+        return { k, P, S, D, atp: ctx.makeMol(tATP), adp: ctx.makeMol(tADP), pi: ctx.makeMol(tPi), mg: ctx.makeParticle(0x7dff8a, 1.6),
+          flash: ctx.makeFlash(0xfff1a8), lastSynth: null };
+      });
+      this.bg = bg; this.next = next; this.chains = chains;
+      ctx.markHot(this.sites.map(s => s.S), 8);
+      this.lastK = Math.floor(ctx.theta / (Math.PI / 4));
+      ctx.counters.ATP = 0; ctx.counters['H⁺'] = 0;
+    },
+    update(ctx, dt) {
+      const k8 = Math.floor(ctx.theta / (Math.PI / 4));
+      for (; this.lastK < k8; this.lastK++) this.spawnProton(ctx);
+      const step = ctx.theta / (2 * Math.PI / 3), n = Math.floor(step), f = step - n, nn = ((n % 3) + 3) % 3;
+      const w = ease((f - 0.25) / 0.6);   // protein conformational change during the middle of each 120 deg step
+      const _q = new THREE.Quaternion(), _p = new THREE.Vector3();
+      for (const s of this.sites) {
+        let c0 = s.k; for (let i = 0; i < nn; i++) c0 = this.next[c0];
+        const c1 = this.next[c0], role = this.role[c0];
+        ctx.setChainBlend(this.bg, s.k, c0, c1, w);
+        const A = s.P[c0], B = s.P[c1];
+        const pose = (key, o, sc, extra) => {   // ligand follows the closing / opening pocket
+          _q.copy(A[key].q).slerp(B[key].q, w); _p.copy(A[key].t).lerp(B[key].t, w); if (extra) _p.add(extra);
+          o.quaternion.copy(_q); o.position.copy(_p); o.visible = sc > 0.02; o.scale.setScalar(Math.max(sc, 0.001));
+        };
+        const mgAt = (sc, extra) => { const m0 = A.mg || B.mg, m1 = B.mg || A.mg; if (!m0) { s.mg.visible = false; return; }
+          s.mg.position.copy(m0).lerp(m1, w); if (extra) s.mg.position.add(extra); s.mg.visible = sc > 0.02; s.mg.scale.setScalar(1.6 * Math.max(sc, 0.001)); };
+        const piAt = (p, sc) => { s.pi.position.copy(p); s.pi.visible = sc > 0.02; s.pi.scale.setScalar(Math.max(sc, 0.001)); s.pi.rotation.y += dt * 0.8; };
+        const out = s.D.clone().multiplyScalar(42).add(new THREE.Vector3(0, 26, 0));
+        s.flash.visible = false;
+        if (role === 'loose') {             // loose -> tight: pocket closes, Pi docks onto ADP, ATP is made at the end
+          const piPos = A.piOut.clone().lerp(B.pi, w);
+          if (f < 0.88) { pose('adp', s.adp, 1); piAt(piPos, 1); s.atp.visible = false; }
+          else { pose('atp', s.atp, 1); s.adp.visible = false; s.pi.visible = false;
+            if (s.lastSynth !== n) { s.lastSynth = n; ctx.counters.ATP++; } }
+          mgAt(1);
+          const fl = Math.max(0, 1 - Math.abs(f - 0.88) / 0.08);
+          if (fl > 0) { s.flash.visible = true; s.flash.position.copy(B.pi); s.flash.scale.setScalar(3 + 4 * fl); s.flash.material.opacity = fl * 0.5; }
+        } else if (role === 'tight') {      // tight -> open: pocket opens, ATP (with Mg) leaves
+          const go = ease((f - 0.45) / 0.5), fade = 1 - ease((f - 0.8) / 0.2);
+          pose('atp', s.atp, fade, out.clone().multiplyScalar(go)); mgAt(fade, out.clone().multiplyScalar(go));
+          s.adp.visible = false; s.pi.visible = false;
+        } else {                            // open -> loose: ADP + Pi (+ Mg) diffuse in and bind
+          const come = 1 - ease((f - 0.05) / 0.6), app = ease((f - 0.05) / 0.15);
+          const from = out.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.4).multiplyScalar(come);
+          pose('adp', s.adp, app, from); mgAt(app, from);
+          const piCome = 1 - ease((f - 0.15) / 0.65);
+          piAt(A.piOut.clone().lerp(B.piOut, w).add(from.clone().multiplyScalar(piCome / Math.max(come, 1e-3) * (come > 1e-3 ? 1 : 0)).add(new THREE.Vector3(0, -10 * piCome, 0))), ease((f - 0.15) / 0.15));
+          s.atp.visible = false;
+        }
+      }
+    },
+    spawnProton(ctx) {
+      const p = ctx.makeParticle(0xfff27a, 3.2), rc = this.rc, yc = this.yc, phiIn = this.phiA - 0.35;
+      const A = polar(rc + 34, phiIn - 0.25, yc - 58), B = polar(rc + 3, phiIn, yc - 2);
+      ctx.counters['H⁺']++;
+      ctx.anim(p, 1.1, (u) => { p.position.copy(A).lerp(B, ease(u)); }, () => {
+        const th0 = ctx.theta;
+        ctx.anim(p, null, () => {                     // ride the c ring for 7/8 of a turn
+          const d = ctx.theta - th0; p.position.copy(polar(rc + 3, phiIn - d, yc - 2));
+          return d > Math.PI * 1.75;
+        }, () => {
+          const E0 = p.position.clone(), phiE = Math.atan2(E0.z, E0.x), E1 = polar(rc + 30, phiE - 0.3, yc + 62);
+          ctx.anim(p, 1.3, (u) => { p.position.copy(E0).lerp(E1, ease(u)); p.scale.setScalar(3.2 * (1 - ease((u - 0.6) / 0.4)) + 0.01); });
+        });
+      });
+    },
+  },
+
+  flagellarMotor: {
+    caption: 'H⁺ 从周质经定子 MotA/MotB（绿）流入胞质 → 定子推动 C 环（粉）→ 转子（杆、钩、鞭毛丝）旋转',
+    async setup(ctx) {
+      const st = ctx.atomsOf(/定子/);
+      this.ys = st.length ? st.reduce((s, x) => s + x.p.y, 0) / st.length : (ctx.membraneY[0] || 0);
+      this.n = 11; this.R = 215; this.lastK = Math.floor(ctx.theta / (2 * Math.PI / 44));
+      ctx.counters['H⁺'] = 0;
+      ctx.markHot(Array.from({ length: this.n }, (_, k) => polar(this.R, 2 * Math.PI * k / this.n, this.ys)));
+    },
+    update(ctx) {
+      const k = Math.floor(ctx.theta / (2 * Math.PI / 44));
+      for (; this.lastK < k; this.lastK++) {
+        const phi = 2 * Math.PI * Math.floor(Math.random() * this.n) / this.n + (Math.random() - 0.5) * 0.06, ys = this.ys;
+        const p = ctx.makeParticle(0xfff27a, 3.2); ctx.counters['H⁺']++;
+        const P0 = polar(this.R + 18, phi, ys + 70), P1 = polar(this.R, phi, ys + 18), P2 = polar(this.R, phi, ys - 22), P3 = polar(this.R + 25, phi + 0.04, ys - 80);
+        ctx.anim(p, 0.9, (u) => p.position.copy(P0).lerp(P1, ease(u)),
+          () => ctx.anim(p, 0.9, (u) => p.position.copy(P1).lerp(P2, u),
+            () => ctx.anim(p, 1.0, (u) => { p.position.copy(P2).lerp(P3, ease(u)); p.scale.setScalar(3.2 * (1 - ease((u - 0.5) / 0.5)) + 0.01); })));
+      }
+    },
+  },
+
+  ionChannel: {
+    caption: 'K⁺（紫）排成单列，脱去水合层，依次跳过选择性过滤器的 4 个结合位点穿过通道',
+    async setup(ctx) {
+      const ys = ctx.allAtoms.map(a => a.p.y); this.top = Math.max(...ys) + 25; this.bot = Math.min(...ys) - 25;
+      this.filter = this.top - 25 - (this.top - this.bot - 50) * 0.22;   // filter near one end of the pore
+      this.t = 0; ctx.counters['K⁺'] = 0;
+      ctx.markHot([0, 1, 2, 3].map(i => new THREE.Vector3(0, this.filter - i * 3.4, 0)), 9);
+    },
+    update(ctx, dt) {
+      this.t += dt * Math.max(0.05, ctx.speed / 0.6);
+      if (this.t > 1.0) {
+        this.t = 0;
+        const p = ctx.makeParticle(0xb98cff, 2.8), bot = this.bot, top = this.top, F = this.filter;
+        const stops = [bot, F - 14, F - 10.2, F - 6.8, F - 3.4, F, top];
+        let i = 0;
+        const hop = () => { if (i >= stops.length - 1) { p.parent?.remove(p); return; }
+          const a = stops[i], b = stops[i + 1]; i++;
+          ctx.anim(p, i === 1 ? 1.6 : i === stops.length - 1 ? 1.4 : 0.55, (u) => { p.position.set(Math.sin(u * 9) * 0.3, a + (b - a) * ease(u), 0);
+            if (i === stops.length - 1) p.scale.setScalar(2.8 * (1 - ease((u - 0.5) / 0.5)) + 0.01); }, hop); };
+        hop();
+        ctx.counters['K⁺']++;
+      }
+    },
+  },
+};
+
+/* ----------------------------------------------------------------------------- component placement */
+function placeComponent(comp, atoms, ligands) {
+  const ys = atoms.map(a => a.p.y), ymin = Math.min(...ys), ymax = Math.max(...ys);
+  const ak = Object.keys(model.entityStats).find(k => kwMatch(k, comp.anchor || ''));
+  const anc = ak && model.entityStats[ak];
+  let dy = comp.dy || 0;
+  if (anc) {
+    if (comp.side === 'below') dy += anc.min - ymax - (comp.gap || 0);
+    else if (comp.side === 'above') dy += anc.max - ymin + (comp.gap || 0);
+    else dy += anc.mean - (ymin + ymax) / 2;
+  }
+  const arr = comp.arrange || { kind: 'single' };
+  const copies = arr.kind === 'ring' ? arr.n : arr.kind === 'helix' ? arr.n : 1;
+  const tf = (k) => {
+    if (arr.kind === 'ring') { const ang = 2 * Math.PI * k / arr.n, c = Math.cos(ang), s = Math.sin(ang);
+      return (p) => { const x = p.x + arr.radius; return new THREE.Vector3(x * c - p.z * s, p.y + dy, x * s + p.z * c); }; }
+    if (arr.kind === 'helix') { const ang = THREE.MathUtils.degToRad(arr.twist * k), c = Math.cos(ang), s = Math.sin(ang);
+      return (p) => new THREE.Vector3(p.x * c - p.z * s, p.y + arr.rise * k + dy, p.x * s + p.z * c); }
+    return (p) => p.clone().add(new THREE.Vector3(0, dy, 0));
+  };
+  const outA = [], outL = [];
+  for (let k = 0; k < copies; k++) { const f = tf(k);
+    for (const a of atoms) outA.push({ ...a, asym: a.asym + '_' + k, p: f(a.p) });
+    for (const L of ligands) outL.push({ ...L, atoms: L.atoms.map(x => ({ ...x, p: f(x.p) })) }); }
+  return { atoms: outA, ligands: outL };
+}
+function nativeZtoY(entry) {
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 1, 0));
+  for (const a of entry.atoms) a.p.applyQuaternion(q);
+  for (const L of entry.ligands) for (const x of L.atoms) x.p.applyQuaternion(q);
+}
+
+/* =============================================================================
+   3. LOAD A SCENE
+   ============================================================================= */
+let loadSeq = 0;
+class Stale extends Error {}
+async function loadScene(cfg) {
+  const my = ++loadSeq, live = () => { if (my !== loadSeq) throw new Stale(); };   // a newer loadScene cancels this one
+  $('load').disabled = true;
+  try {
+    clearScene();
+    current = cfg;
+    const useAsm = cfg.assembly ?? $('assembly').checked;
+    const main = cfg.local || await loadEntry(cfg.id, useAsm); live();
+    const keepChains = (e) => { if (!cfg.chains) return e; const ok = (c) => cfg.chains.includes(c.split('_')[0]);
+      e.atoms = e.atoms.filter(a => ok(a.asym)); e.ligands = e.ligands.filter(L => ok(L.asym) || L.atoms.some(x => e.atoms.some(a => a.p.distanceTo(x.p) < 6))); return e; };
+    keepChains(main);
+    if (!main.atoms.length) throw new Error('该结构没有可用的 CA/P 坐标');
+    // ---- conformational states (morph): superpose state B onto A by matched residues
+    if (cfg.states && cfg.states.length > 1) {
+      const B = keepChains(await loadEntry(cfg.states[1], useAsm)); live();
+      const key = (a) => a.asym + '|' + a.seq, mapB = new Map(B.atoms.map(a => [key(a), a]));
+      const pairs = main.atoms.filter(a => mapB.has(key(a)));
+      if (pairs.length >= 3) {
+        const f = superpose(pairs.map(a => a.p), pairs.map(a => mapB.get(key(a)).p));
+        for (const a of pairs) a.p2 = f(mapB.get(key(a)).p);
+        for (const L of B.ligands) { L.atoms.forEach(x => x.p = f(x.p)); L.state = 1; main.ligands.push(L); }
+        main.ligands.forEach(L => L.state = L.state || 0);
+        status(`构象 ${cfg.states[0]} ⇄ ${cfg.states[1]}：匹配 ${pairs.length} 个残基`);
+      }
+    }
+    // ---- orientation
+    const mode = cfg.axis || $('axisMode').value;
+    const partAtoms = (kw) => main.atoms.filter(a => kwMatch(main.entities[a.ent]?.name || '', kw));
+    const centroid = (arr) => arr.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / arr.length);
+    const [fa, fb] = cfg.axisFrom ? [partAtoms(cfg.axisFrom[0]), partAtoms(cfg.axisFrom[1])] : [[], []];
+    if (fa.length && fb.length) {   // spin axis passes through the centroid of part A and points to part B (e.g. c-ring -> F1 head)
+      const cA = centroid(fa), dir = centroid(fb).sub(cA).normalize();
+      applyTf(main, { centre: cA, q: new THREE.Quaternion().setFromUnitVectors(dir, new THREE.Vector3(0, 1, 0)) });
+      const ys = main.atoms.map(a => a.p.y);
+      applyTf(main, { centre: new THREE.Vector3(0, (Math.min(...ys) + Math.max(...ys)) / 2, 0), q: new THREE.Quaternion() });
+    } else applyTf(main, orientTransform(main.atoms.map(a => a.p), mode));
+    if (cfg.up && !cfg.axisFrom) {
+      const ups = main.atoms.filter(a => kwMatch(main.entities[a.ent]?.name || '', cfg.up));
+      if (ups.length && ups.reduce((s, a) => s + a.p.y, 0) / ups.length < 0)
+        applyTf(main, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
+    }
+    const pts = main.atoms.map(a => a.p), fc = new THREE.Vector3(); pts.forEach(p => fc.add(p)); fc.multiplyScalar(1 / pts.length);
+    const focus = { centre: fc, radius: Math.max(...pts.map(p => p.distanceTo(fc))) };
+    // ---- parts by entity
+    const byEnt = new Map();
+    for (const a of main.atoms) { const nm = main.entities[a.ent]?.name || ('entity ' + a.ent); a.part = nm; if (!byEnt.has(nm)) byEnt.set(nm, []); byEnt.get(nm).push(a); }
+    model = { entityStats: {}, focus };
+    for (const [nm, arr] of byEnt) { const ys = arr.map(a => a.p.y); model.entityStats[nm] = { min: Math.min(...ys), max: Math.max(...ys), mean: ys.reduce((s, v) => s + v, 0) / ys.length }; }
+    const parts = [...byEnt.entries()].map(([nm, arr]) => ({ name: nm, atoms: arr }));
+    let ligands = main.ligands.slice();
+    // ---- components (other PDB entries placed relative to the main one)
+    for (const comp of cfg.components || []) {
+      try {
+        status(`下载组件 ${comp.id} …`, true);
+        const c = await loadEntry(comp.id, true); live();
+        if (comp.axis === 'native') nativeZtoY(c); else applyTf(c, orientTransform(c.atoms.map(a => a.p), comp.axis || 'long'));
+        if (comp.flip) applyTf(c, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
+        const placed = placeComponent(comp, c.atoms, c.ligands);
+        placed.atoms.forEach(a => a.part = comp.label || comp.id);
+        parts.push({ name: comp.label || comp.id, atoms: placed.atoms, comp });
+        ligands.push(...placed.ligands);
+      } catch (e) { if (e instanceof Stale) throw e; console.warn(e); status(`组件 ${comp.id} 加载失败：${e.message}`); }
+    }
+    let rmax = 0, mainR = 0;
+    for (const p of parts) for (const a of p.atoms) { rmax = Math.max(rmax, a.p.length()); mainR = Math.max(mainR, Math.hypot(a.p.x, a.p.z)); }
+    Object.assign(model, { radius: rmax, mainR, allAtoms: parts.flatMap(p => p.atoms) });
+    world.rotation.set(0, 0, cfg.horizontal ? -Math.PI / 2 : 0); world.updateMatrixWorld(true);
+    // ---- colours & groups
+    parts.sort((a, b) => b.atoms.length - a.atoms.length);
+    const nChains = new Set(parts.flatMap(p => p.atoms.map(a => a.asym))).size;
+    $('colorMode').value = cfg.colorMode || (parts.length <= 2 && nChains > 6 ? 'chain' : 'entity');
+    if (cfg.blob) { $('blob').value = cfg.blob; syncOut($('blob')); }
+    const pal = PALETTES[$('palette').value];
+    parts.forEach((part, i) => {
+      const fk = findKey(cfg.colors, part.name);
+      const spin = part.comp?.spin === false ? false : (cfg.spin || []).some(k => kwMatch(part.name, k));
+      const ghost = (cfg.ghost || []).some(k => kwMatch(part.name, k));
+      groups.push({ name: part.name, color: pal[i % pal.length], fixed: fk ? cfg.colors[fk] : null, atoms: part.atoms, spin, ghost, visible: true, mesh: null });
+    });
+    // ---- small molecules
+    for (const L of ligands) { L.centre = L.atoms.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / L.atoms.length); L.hidden = false; }
+    model.ligands = ligands;
+    // ---- membranes
+    if (cfg.membranes) {
+      $('memOn').checked = true;
+      const pos = cfg.membranes.map(mb => { const k = Object.keys(model.entityStats).find(n => kwMatch(n, mb.at || '')); return ((k ? model.entityStats[k].mean : 0) + (mb.offset || 0)) / model.radius; });
+      $('mem1').value = pos[0] ?? 0; $('mem2On').checked = pos.length > 1; $('mem2').value = pos[1] ?? 0.3;
+    } else { $('memOn').checked = false; $('mem2On').checked = false; }
+    $('memR').value = cfg.memR || 1.6;
+    $('cut').value = cfg.cut ?? 1.05; if (cfg.cutWhat) $('cutWhat').value = cfg.cutWhat;
+    document.querySelectorAll('input[type=range]').forEach(syncOut);
+    // ---- process (interaction animation)
+    proc = null; $('caption').innerHTML = '';
+    const P = cfg.process && PROCESSES[cfg.process];
+    if (P) {
+      const pr = Object.create(P); pr.ctx = makeCtx();   // activate only after async setup finished
+      try { await pr.setup(pr.ctx); live(); proc = pr; } catch (e) { if (e instanceof Stale) throw e; console.warn(e); status('过程动画初始化失败：' + e.message); }
+    }
+    $('morph').value = 0; U.uMorph.value = 0;
+    markHotFromLigands();
+    rebuildMeshes(); rebuildLigands(); rebuildMembranes(); applyCut();
+    const cap = cfg.caption || (P && P.caption) || '';
+    $('caption').innerHTML = cap ? `${cap}<span class="cnt" id="cnt"></span>` : '';
+    $('tId').textContent = (cfg.states ? cfg.states.join(' ⇄ ') : main.id) + ((cfg.components || []).length ? ' + ' + cfg.components.map(c => c.id).join(' + ') : '');
+    $('tName').textContent = cfg.name || main.title;
+    renderLegend(); rebuildLabels();
+    resetCamera(cfg.camera); aimCut();
+    const total = groups.reduce((s, g) => s + g.atoms.length, 0);
+    status(`完成：${total.toLocaleString()} 个残基团块，${ligands.length} 个小分子`);
+  } catch (e) { if (e instanceof Stale) return; console.error(e); status('出错：' + e.message, true); }
+  $('load').disabled = false;
+}
+
+function makeCtx() {
+  const ctx = {
+    get theta() { return theta; }, get speed() { return +$('spin').value; },
+    get ligands() { return model.ligands; }, get allAtoms() { return model.allAtoms; },
+    membraneY: [], counters: {},
+    atomsOf: (re) => model.allAtoms.filter(a => re.test(a.part)),
+    template: getTemplate, makeMol, makeParticle, makeFlash, anim,
+    hideLigand: (L) => { L.hidden = true; },
+    partGroups: (re) => groups.filter(g => re.test(g.name)),
+    /* alternative conformations: process sets a.alts = {key: Vector3} on the residues, then calls this (before meshes are built) */
+    setConformations: (g, keys) => { g.confKeys = keys; g.blend = {}; },
+    setChainBlend: (g, asym, from, to, w) => { g.blend[asym] = [from, to, w]; },
+    get ligScale() { return +$('ligScale').value; },
+    markHot: (points, radius = 10) => { for (const a of model.allAtoms) if (points.some(p => a.p.distanceTo(p) < radius + 4)) a.hot = 1; },
+  };
+  if ($('memOn').checked) { ctx.membraneY.push(+$('mem1').value * model.radius); if ($('mem2On').checked) ctx.membraneY.push(+$('mem2').value * model.radius); }
+  return ctx;
+}
+
+/* residues within ~8 A of a visible ligand pulse ("结合位点闪光") */
+function markHotFromLigands() {
+  const cell = 8, grid = new Map();
+  for (const L of model.ligands) if (!L.hidden && L.atoms.length < 400) for (const x of L.atoms) {
+    const k = `${Math.floor(x.p.x / cell)},${Math.floor(x.p.y / cell)},${Math.floor(x.p.z / cell)}`;
+    if (!grid.has(k)) grid.set(k, []); grid.get(k).push(x.p);
+  }
+  for (const a of model.allAtoms) {
+    if (a.hot) continue;
+    const gx = Math.floor(a.p.x / cell), gy = Math.floor(a.p.y / cell), gz = Math.floor(a.p.z / cell);
+    outer: for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const arr = grid.get(`${gx + dx},${gy + dy},${gz + dz}`); if (!arr) continue;
+      for (const p of arr) if (a.p.distanceTo(p) < 8) { a.hot = 1; break outer; }
+    }
+  }
+}
+
+function clearScene() {
+  proc = null;
+  for (const g of groups) if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
+  groups = [];
+  for (const lg of ligGroups) world.remove(lg.obj);
+  ligGroups = [];
+  for (const o of membraneObjs) { world.remove(o); o.geometry.dispose(); o.material.dispose(); }
+  membraneObjs = [];
+  anims = [];
+  while (procRoot.children.length) procRoot.remove(procRoot.children[0]);
+  theta = 0;
+}
+
+function colourFn(g, gi) {
+  const mode = $('colorMode').value, pal = PALETTES[$('palette').value];
+  if (mode === 'entity') return null;
+  if (mode === 'chain') {
+    const ids = [...new Set(g.atoms.map(a => a.asym))];
+    const map = new Map(ids.map((id, i) => [id, new THREE.Color(pal[(i + gi) % pal.length])]));
+    return (a) => map.get(a.asym);
+  }
+  const range = new Map();
+  for (const a of g.atoms) { const r = range.get(a.asym) || [1e9, -1e9]; r[0] = Math.min(r[0], a.seq); r[1] = Math.max(r[1], a.seq); range.set(a.asym, r); }
+  return (a) => { const r = range.get(a.asym); const t = (a.seq - r[0]) / Math.max(1, r[1] - r[0]); return new THREE.Color().setHSL(0.83 - 0.75 * t, 0.8, 0.58); };
+}
+function disposeObj(o) { o.traverse(x => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); }
+function rebuildMeshes() {
+  const pal = PALETTES[$('palette').value], rep = $('repMode').value;
+  groups.forEach((g, i) => {
+    if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
+    g.color = ($('palette').value === 'neon' && g.fixed) ? g.fixed : pal[i % pal.length];
+    g.mesh = rep === 'cartoon' ? buildCartoon(g, colourFn(g, i)) : rep === 'shape' ? buildShapes(g, colourFn(g, i)) : buildGroup(g, colourFn(g, i));
+    g.mesh.visible = g.visible; g.mesh.rotation.y = g.spin ? theta : 0;
+    world.add(g.mesh);
+  });
+}
+function rebuildLigands() {
+  for (const lg of ligGroups) world.remove(lg.obj);
+  const prevVis = new Map(ligGroups.map(l => [l.key, l.visible]));
+  ligGroups = [];
+  const by = new Map();
+  for (const L of model.ligands) if (!L.hidden) { const key = L.comp + '|' + (L.state || 0); if (!by.has(key)) by.set(key, []); by.get(key).push(L); }
+  for (const [key, mols] of by) {
+    const obj = buildMolecules(mols, +$('ligScale').value);
+    const visible = prevVis.get(key) ?? true;
+    obj.visible = visible && $('ligOn').checked;
+    world.add(obj);
+    ligGroups.push({ key, comp: mols[0].comp, name: mols[0].fullName, n: mols.length, obj, visible, state: mols[0].state || 0 });
+  }
+}
+
+/* ----------------------------------------------------------------------------- membrane */
+function rebuildMembranes() {
+  for (const o of membraneObjs) { world.remove(o); o.geometry.dispose(); o.material.dispose(); }
+  membraneObjs = [];
+  if (!$('memOn').checked || !model) return;
+  const ys = [+$('mem1').value * model.radius];
+  if ($('mem2On').checked) ys.push(+$('mem2').value * model.radius);
+  const R = +$('memR').value * model.mainR, spacing = 9.5, maxLipids = 120000;
+  const perLeaf = Math.PI * R * R / (spacing * spacing * 0.866);
+  const sp = spacing * Math.max(1, Math.sqrt(perLeaf * 2 * ys.length / maxLipids)), cell = 6;
+  for (const y0 of ys) {
+    const occ = new Set();
+    for (const g of groups) if (g.visible) for (const a of g.atoms) if (Math.abs(a.p.y - y0) < 26) {
+      const gx = Math.round(a.p.x / cell), gz = Math.round(a.p.z / cell);
+      for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) occ.add((gx + dx) + ',' + (gz + dz));
+    }
+    const heads = [], tails = [];
+    for (const leaf of [1, -1]) {
+      let row = 0;
+      for (let z = -R; z <= R; z += sp * 0.866, row++) for (let x = -R + (row % 2) * sp / 2; x <= R; x += sp) {
+        const jx = x + (Math.random() - 0.5) * sp * 0.35, jz = z + (Math.random() - 0.5) * sp * 0.35, rr = Math.hypot(jx, jz);
+        if (rr > R || occ.has(Math.round(jx / cell) + ',' + Math.round(jz / cell))) continue;
+        const edge = Math.max(0, (rr - R * 0.82) / (R * 0.18)); if (Math.random() < edge * edge) continue;
+        heads.push([jx, y0 + leaf * (19 + (Math.random() - 0.5) * 2), jz]);
+        tails.push([jx - 1.4, y0 + leaf * 9.5, jz], [jx + 1.4, y0 + leaf * 9.5, jz]);
+      }
+    }
+    const hMesh = new THREE.InstancedMesh(withAttrs(new THREE.IcosahedronGeometry(1, 1), heads.length), blobMaterial({ roughness: 0.25 }), heads.length);
+    const tMesh = new THREE.InstancedMesh(withAttrs(new THREE.CylinderGeometry(0.6, 0.4, 15, 5, 1), tails.length), blobMaterial({ roughness: 0.4 }), tails.length);
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler(), c = new THREE.Color();
+    heads.forEach((h, i) => { s.setScalar(2.5 + Math.random() * 0.4); m.compose(v.set(...h), q.identity(), s); hMesh.setMatrixAt(i, m); hMesh.setColorAt(i, c.set('#e64fc8').offsetHSL((Math.random() - .5) * .03, 0, (Math.random() - .5) * .08)); });
+    tails.forEach((t, i) => { e.set((Math.random() - .5) * .35, 0, (Math.random() - .5) * .35); q.setFromEuler(e); s.set(1, 1, 1); m.compose(v.set(...t), q, s); tMesh.setMatrixAt(i, m); tMesh.setColorAt(i, c.set('#eef1f8').offsetHSL(0, 0, (Math.random() - .5) * .1)); });
+    for (const mesh of [hMesh, tMesh]) { mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true; mesh.frustumCulled = false; mesh.material.clippingPlanes = [cutPlane]; world.add(mesh); membraneObjs.push(mesh); }
+  }
+}
+function applyCut() {
+  const v = +$('cut').value;
+  cutPlane.constant = v >= 1.04 ? 1e9 : v * (model ? model.radius : 1);
+  const all = $('cutWhat').value === 'all';
+  for (const g of groups) if (g.mesh) g.mesh.traverse(x => {
+    if (!x.material) return;
+    if (x.userData.cartoon) {   // cartoon: global cut, or the wedge (clipIntersection) for "剖" parts
+      x.material.clippingPlanes = all ? [cutPlane] : g.ghost ? wedgePlanes : noPlanes;
+      x.material.clipIntersection = !all && g.ghost;
+    } else x.material.clippingPlanes = planesFor(g);
+  });
+  for (const o of membraneObjs) o.material.clippingPlanes = [cutPlane];
+}
+
+/* ----------------------------------------------------------------------------- legend */
+function renderLegend() {
+  const L = $('legend');
+  L.innerHTML = '<div class="hdr"><span></span><span>名称（数量）</span><span title="显示">显</span><span title="绕主轴旋转">转</span><span title="剖开：切掉朝向镜头的一半，露出内部">剖</span></div>';
+  groups.forEach((g) => {
+    const d = document.createElement('div'); d.className = 'ent';
+    d.innerHTML = `<span class="sw" style="background:${g.color};color:${g.color}"></span><span class="nm" title="${g.name}">${g.name} <span class="sub">(${g.atoms.length.toLocaleString()})</span></span>
+      <input type="checkbox" ${g.visible ? 'checked' : ''} data-k="vis"><input type="checkbox" ${g.spin ? 'checked' : ''} data-k="spin"><input type="checkbox" ${g.ghost ? 'checked' : ''} data-k="ghost">`;
+    d.querySelector('[data-k=vis]').onchange = (ev) => { g.visible = ev.target.checked; g.mesh.visible = g.visible; };
+    d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; g.mesh.rotation.y = g.spin ? theta : 0; };
+    d.querySelector('[data-k=ghost]').onchange = (ev) => { g.ghost = ev.target.checked; if (g.ghost) aimCut(); rebuildMeshes(); applyCut(); };
+    L.appendChild(d);
+  });
+  for (const lg of ligGroups) {
+    const st = elStyle(lg.comp.length <= 2 ? lg.comp : 'P');
+    const d = document.createElement('div'); d.className = 'ent';
+    d.innerHTML = `<span class="sw" style="background:${st[0]};color:${st[0]};border-radius:3px"></span><span class="nm" title="${lg.name}">◆ ${lg.comp}${lg.state ? '（构象 2）' : ''} <span class="sub">${lg.name.toLowerCase()} ×${lg.n}</span></span><input type="checkbox" ${lg.visible ? 'checked' : ''}><span></span><span></span>`;
+    d.querySelector('input').onchange = (ev) => { lg.visible = ev.target.checked; lg.obj.visible = lg.visible && $('ligOn').checked; };
+    L.appendChild(d);
+  }
+}
+
+/* ----------------------------------------------------------------------------- camera */
+function resetCamera(cam) {
+  if (!model) return;
+  const c = cam || current?.camera || { az: -0.9, el: 0.25, dist: 1.2 };
+  const R = model.focus.radius, d = R / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * (c.dist || 1);
+  const t = model.focus.centre.clone().applyMatrix4(world.matrixWorld);
+  controls.target.copy(t);
+  camera.position.set(t.x + Math.sin(c.az) * Math.cos(c.el) * d, t.y + Math.sin(c.el) * d, t.z + Math.cos(c.az) * Math.cos(c.el) * d);
+  camera.near = d / 200; camera.far = d * 20; camera.updateProjectionMatrix();
+  controls.update();
+}
+
+/* ----------------------------------------------------------------------------- UI wiring */
+function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if (o) o.textContent = (+inp.value).toFixed(inp.step < 0.05 ? 2 : 1); }
+document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
+for (const [name, p] of Object.entries(PRESETS)) {
+  const b = document.createElement('button'); b.textContent = name;
+  b.onclick = () => { $('pdb').value = p.id; loadScene({ ...p, name }); };
+  $('presets').appendChild(b);
+}
+$('load').onclick = () => {
+  const id = $('pdb').value.trim().toUpperCase();
+  if (!/^[0-9][A-Z0-9]{3}$/.test(id)) { status('PDB 编号是 4 位，首位是数字，如 6ZPO'); return; }
+  const preset = Object.entries(PRESETS).find(([, p]) => p.id === id);
+  loadScene(preset ? { ...preset[1], name: preset[0] } : { id });
+};
+$('pdb').addEventListener('keydown', e => { if (e.key === 'Enter') $('load').click(); });
+async function openFile(f) { status(`读取 ${f.name} …`, true); const text = await f.text(); loadScene({ local: entryFromFile(f.name, text), name: f.name, axis: $('axisMode').value }); }
+$('fileBtn').onclick = () => $('file').click();
+$('file').onchange = () => $('file').files[0] && openFile($('file').files[0]);
+addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('on'); });
+addEventListener('dragleave', e => { if (e.target === $('drop')) $('drop').classList.remove('on'); });
+addEventListener('drop', e => { e.preventDefault(); $('drop').classList.remove('on'); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
+
+$('bloom').oninput = () => bloom.strength = +$('bloom').value;
+$('rim').oninput = () => U.uRim.value = +$('rim').value;
+$('glow').oninput = () => U.uGlow.value = +$('glow').value;
+$('lumpy').oninput = () => U.uLumpy.value = +$('lumpy').value;
+$('jitter').oninput = () => U.uJitter.value = +$('jitter').value;
+$('hot').oninput = () => U.uHot.value = +$('hot').value;
+$('exposure').oninput = () => renderer.toneMappingExposure = +$('exposure').value;
+$('sat').oninput = () => grade.uniforms.uSat.value = +$('sat').value;
+$('con').oninput = () => grade.uniforms.uCon.value = +$('con').value;
+$('morph').oninput = () => { $('morphAuto').checked = false; };
+$('ao').onchange = () => applyQuality(false);
+$('dof').onchange = () => applyQuality(false);
+$('quality').onchange = () => applyQuality(true);
+$('autoRot').onchange = () => controls.autoRotate = $('autoRot').checked;
+$('blob').onchange = () => rebuildMeshes();
+$('ligScale').onchange = () => { if (model) { rebuildLigands(); renderLegend(); if (current?.process) loadScene(current); } };
+$('ligOn').onchange = () => { for (const lg of ligGroups) lg.obj.visible = lg.visible && $('ligOn').checked; };
+$('procOn').onchange = () => { procRoot.visible = $('procOn').checked; $('caption').style.display = $('procOn').checked ? '' : 'none'; };
+$('colorMode').onchange = () => { rebuildMeshes(); renderLegend(); };
+$('palette').onchange = () => { rebuildMeshes(); renderLegend(); };
+for (const id of ['memOn', 'mem2On', 'mem1', 'mem2', 'memR']) $(id).addEventListener('change', rebuildMembranes);
+$('cut').oninput = applyCut; $('cutWhat').onchange = applyCut;
+$('axisMode').onchange = () => current && loadScene({ ...current, axis: $('axisMode').value });
+$('assembly').onchange = () => current && loadScene({ ...current, assembly: $('assembly').checked });
+$('resetCam').onclick = () => resetCamera();
+$('aimCut').onclick = () => aimCut();
+$('repMode').onchange = () => {
+  if ($('repMode').value === 'shape' && !$('labelsOn').checked) $('labelsOn').checked = true;   // simplified mode = teaching mode
+  rebuildMeshes(); applyCut(); rebuildLabels();
+};
+$('shapeDetail').onchange = () => { if ($('repMode').value === 'shape') { rebuildMeshes(); applyCut(); } };
+$('labelsOn').onchange = rebuildLabels;
+$('infoX').onclick = () => { $('infoCard').style.display = 'none'; labels.forEach(l => l.el.classList.remove('on')); };
+$('shellOn').onchange = () => { if ($('repMode').value === 'cartoon') { rebuildMeshes(); applyCut(); } };
+$('shot').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = `${$('tId').textContent.replace(/\W+/g, '_')}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
+$('toggle').onclick = () => $('panel').classList.toggle('hidden');
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+  if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hidden');
+  if (e.key === ' ') { $('pause').checked = !$('pause').checked; e.preventDefault(); }
+});
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+  if (aoPass) aoPass.setSize(innerWidth, innerHeight);
+});
+
+/* ----------------------------------------------------------------------------- frame loop */
+const clock = new THREE.Clock();
+let fpsT = 0, fpsN = 0, morphT = 0;
+function frame() {
+  requestAnimationFrame(frame);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (!$('pause').checked) {
+    U.uTime.value += dt; grade.uniforms.uT.value = U.uTime.value % 10;
+    theta += +$('spin').value * dt;
+    for (const g of groups) if (g.spin && g.mesh) g.mesh.rotation.y = theta;
+    if (current?.states && $('morphAuto').checked) {   // ease-in-out ping-pong with holds at both ends
+      morphT += dt * 0.35; const c = (Math.sin(morphT) + 1) / 2; $('morph').value = ease((c - 0.1) / 0.8); syncOut($('morph'));
+    }
+    U.uMorph.value = +$('morph').value;
+    for (const lg of ligGroups) if (current?.states) lg.obj.visible = lg.visible && $('ligOn').checked && (lg.state ? U.uMorph.value > 0.6 : U.uMorph.value < 0.4);
+    if (proc && $('procOn').checked) {
+      proc.update(proc.ctx, dt); tickAnims(dt);
+      const cnt = $('cnt'); if (cnt) cnt.textContent = Object.entries(proc.ctx.counters).map(([k, v]) => `${k}：${v}`).join('　');
+    }
+  }
+  U.uUpView.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
+  procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion);
+  for (const g of groups) if (g.mesh) {
+    if (g.blend) applyBlends(g);
+    if (current?.states) g.mesh.traverse(x => {
+      if (x.userData.p2Index >= 0 && x.morphTargetInfluences) x.morphTargetInfluences[x.userData.p2Index] = U.uMorph.value;
+      if (x.userData.shapes && x.userData.lastMorph !== U.uMorph.value) { x.userData.lastMorph = U.uMorph.value; const w = U.uMorph.value; updateShapes(g, x, (a) => a.p2 ? a.p.clone().lerp(a.p2, w) : a.p); }
+    });
+  }
+  controls.update();
+  const dist = camera.position.distanceTo(controls.target);
+  bokeh.uniforms.focus.value = dist;
+  bokeh.uniforms.aperture.value = +$('dofAmt').value * 0.00003 * Math.min(1, dist / 600);   // weaker when close
+  composer.render(); updateLabels();
+  fpsT += dt; fpsN++;
+  if (fpsT > 2) { window.__fps = fpsN / fpsT; $('fpsOut').textContent = '帧率：' + window.__fps.toFixed(1) + ' fps'; fpsT = 0; fpsN = 0; }
+}
+frame();
+
+/* ----------------------------------------------------------------------------- start */
+window.__viewer = { loadScene, PRESETS, PROCESSES, groups: () => groups, ligands: () => ligGroups, model: () => model, camera, controls, proc: () => proc, entryFromFile };
+const params = new URLSearchParams(location.search);
+(() => {
+  const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
+  const gpu = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '';
+  window.__gpu = gpu;
+  const soft = /SwiftShader|Basic Render|llvmpipe|softpipe/i.test(gpu);
+  const integrated = /Intel|UHD|Iris|Radeon\(TM\) Graphics|Vega \d+ Graphics/i.test(gpu);
+  $('quality').value = soft ? 'low' : integrated ? 'medium' : 'high';
+  console.log('GPU:', gpu, '-> quality', $('quality').value);
+})();
+if (params.get('q')) $('quality').value = params.get('q');
+applyQuality(false);
+const startId = (params.get('pdb') || '').toUpperCase();
+const startPreset = params.get('preset') || (startId ? null : 'ATP 合酶（合成 ATP）');
+if (startPreset && PRESETS[startPreset]) { $('pdb').value = PRESETS[startPreset].id; loadScene({ ...PRESETS[startPreset], name: startPreset }); }
+else if (startId) { $('pdb').value = startId; $('load').click(); }
+</script>
+</body>
+</html>

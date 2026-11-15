@@ -1,0 +1,121 @@
+# 查看器内部结构（改代码前必读）
+
+单文件 `assets/viewer.html`（约 1250 行）：HTML 面板 + CSS + 一个 ES module 脚本。
+依赖：Three.js 0.160.0（importmap → jsDelivr）：`OrbitControls`、`EffectComposer`、`RenderPass`、`GTAOPass`（动态 import）、`BokehPass`、`UnrealBloomPass`、`OutputPass`、`ShaderPass`、`Pass`、`RoomEnvironment`。
+
+脚本按编号分段（搜 `====` 定位）：
+1. `PRESETS`、`PALETTES`、`ELEMENTS`（元素颜色 / 球半径 / 共价半径）
+2. 工具、mmCIF/PDB 解析、RCSB 下载、几何（PCA、Horn 叠合）、渲染器/灯光/后期、材质、场景状态、小分子、动画运行器，然后是 `PROCESSES`（过程动画）
+3. 组件放置、`loadScene`、膜、剖切、图例、相机、UI 绑定、帧循环、启动
+
+## 1. 数据流
+
+```
+PDB 编号 / 本地文件
+ └ loadEntry(id, useAssembly)                         entryFromFile(name, text)
+    ├ fetchMeta(GraphQL)：标题、聚合物实体名称、非聚合物实体（配体）、组装体算符
+    ├ ModelServer：label_atom_id=CA、label_atom_id=P、每个非水配体实体 label_entity_id=N（最多 12 个）
+    ├ parseAtomSite()：按 _atom_site 表头定位列，支持带引号的值，只取第一个 model
+    ├ rowsToEntry()：ATOM 的 CA/P → 残基点 atoms[]；HETATM（非水、非氢）→ 配体分子 ligands[]（按 asym|comp|残基号分组）
+    │               链内修饰残基（MSE、M3L…，label_seq_id>0）当作残基，不当配体
+    └ 组装体：parseOperExpr + operMatrix，残基和配体一起复制/变换
+ └ keepChains（预设 chains）；states 第二构象：Horn 叠合到第一构象，残基按 asym|seq 配对 → a.p2
+ └ 定向：axisFrom（两部件质心连线 = 转轴）或 orientTransform('long'|'short'|'sym'|'native')；up 翻转
+ └ 按实体名称分部件 → model.entityStats；components 拼接（placeComponent）
+ └ groups[]（每部件一个 InstancedMesh）+ ligGroups[]（每种配体 × 构象一个球棍组）
+ └ process.setup(ctx)（异步，完成后才激活）→ markHotFromLigands() → rebuildMeshes/Ligands/Membranes → 图例 → 相机
+每帧 frame()：theta += 转速·dt → 旋转部件 rotation.y = theta → 构象自动往返 → proc.update + tickAnims
+           → procRoot 跟随 world → 剖开平面 → 景深 → composer.render()
+```
+
+`loadScene` 带加载令牌（`loadSeq` + `live()`）：新加载开始后，旧加载在下一个 await 处抛出 `Stale` 自动放弃，避免连点预设时两份场景混在一起。
+
+## 2. RCSB 接口（均允许跨域）
+
+| 用途 | 地址 |
+|---|---|
+| Cα 坐标 | `https://models.rcsb.org/v1/{id小写}/atoms?label_atom_id=CA&encoding=cif&copy_all_categories=false` |
+| 核酸 P | 同上，`label_atom_id=P` |
+| 某个配体实体的全部原子 | 同上，`label_entity_id={实体号}` |
+| 名称 / 配体实体 / 组装体 | `POST https://data.rcsb.org/graphql`（见 `fetchMeta`） |
+| 小分子理想构型（含键） | `https://files.rcsb.org/ligands/view/{代码}_ideal.sdf`（V2000，见 `getTemplate`） |
+
+## 3. 定向
+- `pca()`：协方差矩阵 → `jacobi()`（通用 n×n 对称矩阵，也用于 4×4 Horn 叠合 `superpose()`）。
+- `long` 最长轴竖直；`short` 最短轴竖直；`sym` 选与另两个特征值差别最大的轴；`native` 不旋转。
+  注意：`sym` 对 8YJT（C 环）选错了轴，C 环组件用 `short`。
+- **`axisFrom: ['部件A', '部件B']`**：A 质心 → B 质心作为 +Y，转轴穿过 A 的质心。旋转机器一定用它（ATP 合酶：c 环 → β），否则 PCA 轴偏一点，转子就会摆。
+- `horizontal: true`：`world` 绕 Z 转 −90°。
+
+## 4. 团块材质 `blobMaterial(opts)`
+`MeshPhysicalMaterial`（粗糙度 0.3，clearcoat 1.0/0.12，sheen 0.08），`onBeforeCompile` 注入：
+- 顶点：`uLumpy` 椭球形变 + 起伏；`uJitter` 热运动；`aDelta × uMorph` 构象变形；`opts.cutaway` 时中心在镜头一侧的整颗团块塌缩为 0（“剖开”）。
+- 片元：`up = 法线·视空间上方向`；`自发光 += 颜色 × (uGlow·up + uRim·菲涅尔·(0.25+1.1·up))` —— **边缘光只在朝上的面强**，下方自然沉入黑暗（参考图的顶光感）；`aHot × uHot × 脉动` 结合位点闪光；背面压暗。
+- 共享 uniform 对象 `U`：uTime、uJitter、uRim、uGlow、uLumpy、uHot、uMorph、uUpView、uCutA、uCutB（剖开楔形的两个平面）。
+- 每个团块几何体必须带 `aHot`、`aDelta` 两个实例属性（`withAttrs()`），膜也一样。
+
+## 5. 小分子
+- `buildMolecules(mols, scale, carbon)`：所有原子一个 InstancedMesh（球），所有键一个 InstancedMesh（每根键两半，各取所连原子的颜色）。
+  结构里的配体按共价半径判断成键（`bondsOf`：d < r1 + r2 + 0.45 Å）；理想模板用 SDF 键表（双键加粗 1.3×）。
+  `scale` = 面板“小分子大小”（相对分子中心放大，形状和键角不变）。
+- `ligandMaterial(boost)`：自发光随时间轻微脉动 + 菲涅尔边缘；`customProgramCacheKey` 区分不同 boost（否则 three 复用同一个着色器程序）。
+- `getTemplate(comp)`：下载并缓存 CCD 理想构型（去氢、居中）。`makeMol(tpl)`：生成一个可移动的分子（过程动画用），ATP 碳金色、ADP 碳青色（`MOL_CARBON`）。
+
+## 6. 灯光与后期（光影核心，见 style_guide.md）
+- 主场景：半球光 0x9fb7ff/黑 0.12；顶部白色主光 3.2 @(0.35,1,0.45)；冷蓝背轮廓 2.4 @(−0.6,0.5,−1)；品红侧补 1.2 @(1,0.1,−0.6)；**没有从下往上的补光**。环境贴图 0.12。
+- 管线：`RenderPass(scene)` → `GTAOPass` → `BokehPass` → `ClearDepthPass` → `RenderPass(overlay)` → `UnrealBloomPass(0.35, 0.45, 0.75)` → `OutputPass`（ACES）→ 调色 `ShaderPass`（饱和度 1.3、对比 1.12、暗角 0.45、颗粒 0.018）。
+- **叠加层 `overlay`**：过程动画的物体（`procRoot`：ATP/ADP/Pi、H⁺、K⁺、闪光）放在单独场景，在 AO 和景深**之后**画在蛋白上面（有自己的灯）。原因：配体埋在蛋白口袋里，和蛋白一起渲染时 AO 会把它压成黑色、前面的团块会挡住它。`procRoot` 每帧复制 `world` 的变换。
+- `ClearDepthPass`：three r160 的 `RenderPass.clearDepth` 在绑定目标之前清深度（清的是上一个目标），所以自己写一个：先 `setRenderTarget(readBuffer)` 再 `clearDepth()`。
+- 画质 `applyQuality()`：高 = 像素比≤2 + AO + 景深；中 = 1 + AO + 景深；低 = 0.6，关 AO/景深，团块 20 面。
+- 景深强度随距离减弱（近看不糊）：`aperture = 强度 × 0.00003 × min(1, 距离/600)`。
+
+## 7. 剖开 / 剖切
+- **剖开（每部件“剖”复选框，预设 `ghost`）**：`aimCut(半角=62°, 余量=4 Å)` 在加载时按当前视线方向算一个**固定在模型上的楔形**（两个过主轴的平面 `U.uCutA/uCutB`）；带 `cutaway` 的材质去掉中心落在楔形里的整颗团块。
+  **不再每帧跟随相机**：v2 每帧重算平面，转动时平面附近的团块在“剖/不剖”之间来回跳 → 用户看到“转动时结构消失”。现在楔形固定，按钮“剖面对准当前视角”才重新对准。
+  结构示意模式的飘带用同样两个平面做 `clippingPlanes` + `clipIntersection = true`（两个平面都切到才去掉）。
+  试过半透明（多层叠成奶白雾）和逐片元裁剪（团块变空心泡泡），都放弃。
+- **剖切（全局）**：固定平面法线 (0,0,−1)，“只切膜”/“全部”。
+
+## 8. 膜 `rebuildMembranes()`
+六角网格间距 9.5 Å 两层叶；头基球半径 2.5–2.9（粉）、每个脂质两根 15 Å 尾巴（白）；膜高度 ±26 Å 内的蛋白投影到 6 Å 网格挖洞；边缘 18% 稀疏；>12 万脂质自动加大间距。半径 = 滑块 × `model.mainR`。
+
+## 9. 组件 `placeComponent(comp, atoms, ligands)`
+定向后按 `anchor` + `side`/`gap`/`dy` 定高度；`single` / `ring{n,radius}` / `helix{n,rise,twist}` 复制（配体一起复制）。
+
+## 10. 过程动画
+见 `processes.md`。`PROCESSES[name] = { caption, async setup(ctx), update(ctx, dt) }`，预设里写 `process: 'name'` 启用。
+`anim(obj, dur, step, next)` / `tickAnims(dt)` 是极小的补间运行器：`dur = null` 表示由 `step` 返回 true 结束；没有 `next` 时结束后自动移除物体。
+
+## 11. 相机
+`resetCamera()` 只按主结构（不含组件）取景；`camera: {az, el, dist}`。
+
+## 12. 修改注意
+- 改默认参数要同时改：HTML 滑块 `value`、对应 uniform / pass 构造参数、`style_guide.md`。
+- 新控件：HTML 加 `.row`，在 “UI wiring” 段绑定；`<output>` 由 `syncOut` 自动更新。
+- 不要下载整份 mmCIF（大结构几十 MB）。
+- 新的着色器实例属性要在 `withAttrs()` 里给所有团块几何体加上，否则 WebGL 报 attribute 缺失。
+- 同一个 `onBeforeCompile` 生成不同着色器代码时，必须设 `customProgramCacheKey`。
+
+## 13. 两种显示模式（面板“显示模式”）
+- **团块（写实）**`buildGroup(g)`：每残基一颗团块（`blobInstances`）。每个残基的随机大小存在 `a.rf`，重建后不变。
+- **结构示意（螺旋 / 折叠）**`buildCartoon(g)`：每条链一个网格，沿 Cα（核酸用 P）扫掠截面：
+  无规卷曲 = 细圆管 0.7 Å；α 螺旋 = 粗圆柱 2.1 Å（沿螺旋轴，取 ±2 个残基平均）；β 折叠 = 扁带 1.7 × 0.45 Å，末端箭头 2.7 → 0.25；核酸 1.5 Å。
+  CatmullRom 插值，每残基 S 个截面（低/中/高 = 2/3/4），每圈 M = 6/8/10 点；β 带宽方向取褶皱向量（相邻残基保持同号），其余用平行移动标架。
+  **二级结构来源（科学性）**：优先用作者沉积的注释 `applyDepositedSS()`（`files.rcsb.org/header/XXXX.cif` 的 `_struct_conf` HELX_* 与 `_struct_sheet_range`，按 label_asym_id + label_seq_id 写到 `a.ss`）；没有注释的链才用 Cα 几何规则 `assignSS()`（螺旋 d(i,i+3)≈5.1、d(i,i+4)≈6.2；折叠 = 伸展 + 非局部 5.6 Å 内有伸展伙伴）。
+  链在 Cα 间距 > 4.4 Å（P 8.5 Å）处断开（缺失残基不连假线）。
+- **外形轮廓**（复选“结构示意模式显示外形轮廓”）：同样的团块放大 1.45 倍画两遍：先只写深度（`shell:'depth'`），再用 `LessEqual` 只画最外层颜色（`shell:'color'`，alpha = 0.025 + 0.42·菲涅尔）→ 只有发光的外轮廓，不会叠成雾。AO 和景深渲染时暂时隐藏外壳（`hideShellsDuring`）。
+- 大结构**不降级**：鞭毛马达（15 万残基）、HK97（11.5 万）在结构示意模式下照样逐链画出所有螺旋 / 折叠（约 5–7 M 三角形），画质档只改变平滑度。
+
+## 14. 逐链构象变化（过程动画驱动的真实构象）
+- 过程在 setup 里给残基写 `a.alts = {键: Vector3}`，然后 `ctx.setConformations(g, 键数组)`；update 里每帧 `ctx.setChainBlend(g, 链, 从键, 到键, w)`。
+- 帧循环 `applyBlends(g)`：团块模式在 CPU 上改实例矩阵（位置插值，大小 `scaleOf(a)` 不变）；结构示意模式用 morph target（每个键一个，`morphTargetsRelative`，法线也作为 morph）。
+- 两构象预设（`states`）的 `a.p2` 在结构示意模式里也是一个 morph target，跟 `uMorph` 同步。
+
+## 15. 简化示意模式（几何形状 + 讲解）`buildShapes(g)`
+科研论文 / 教科书常用的简化画法：不画原子起伏，每条链（或每个结构域）用一个光滑立体图形表示。
+- `shapeClusters(g)`：按链（相距 < 20 Å 的片段合并）；“按结构域”时每约 160 残基一个，用按序号分段初始化的 k-means 分成结构域；**又长又弯的片段**（长轴 > 2.6 × 次轴）沿序列对半切分，直到每段近似直棒（外周柄、长螺旋、丝状结构）。
+- `fitShape(points)`：PCA；实心椭球的二阶矩相同 → 半轴 = √5·标准差 + 1.5 Å；沿长轴的三阶矩（偏度）决定蛋形 / 花瓣形的锥度 `aTaper`（宽头朝质量多的一侧），在顶点着色器里做 `xz *= 1 + aTaper·y`。
+- 核酸：`naTubes()` 把 P 链按 ±5 nt（约一圈）平均得到双螺旋**轴线**，沿轴画 9 Å 粗的光滑管（核小体 DNA 绕组蛋白的超螺旋清楚可见）。
+- `shapeMaterial()`：清漆 + 菲涅尔顶光边缘 + 与团块相同的楔形剖开。
+- 构象变化：过程的逐链构象（`applyBlends`）和两态变形（`uMorph`）都会**重新拟合**形状 → ATP 合酶的 β 花瓣随转子改变形状/朝向。
+- **标注与讲解** `rebuildLabels()/updateLabels()`：每个部件一个 HTML 标签（按大小取前 16 个），锚定在部件外侧、跟随旋转；点击弹出讲解卡片。文字来自预设 `notes`，没有则显示实体名 + 链数 + 残基数。切到简化示意模式自动打开标注。
