@@ -176,9 +176,10 @@
   #shop .seg button.on{background:linear-gradient(135deg,#c95fc4,#6f8ff0);color:#fff;border-color:transparent}
   #shop input[type=search]{flex:1;min-width:140px;padding:5px 9px;border-radius:7px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;font:inherit}
   #shop .x{margin-left:auto;cursor:pointer;font-size:20px;line-height:1;padding:0 4px;opacity:.7}
-  #shopGrid{overflow:auto;padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  #shopGrid{flex:1 1 auto;min-height:0;overflow:auto;padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));grid-auto-rows:max-content;align-content:start;gap:12px}
+  #shop .hd,#shop .ft,#shopPub{flex:none}
   #shopGrid .card{border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:rgba(255,255,255,.03)}
-  #shopGrid .cov{position:relative;aspect-ratio:16/9;background:#e9ecf2;overflow:hidden} #shopGrid .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  #shopGrid .cov{flex:none;position:relative;aspect-ratio:16/9;background:#e9ecf2;overflow:hidden} #shopGrid .cov img{width:100%;height:100%;object-fit:cover;display:block}
   #shopGrid .badge{position:absolute;left:8px;top:8px;font-size:11px;padding:1px 7px;border-radius:9px;background:#2448e8;color:#fff} #shopGrid .badge.community{background:#2f9e44}
   #shopGrid .cb{padding:9px 11px 11px;display:flex;flex-direction:column;gap:4px;flex:1} #shopGrid .meta{font-size:11.5px;color:var(--dim)} #shopGrid .upd{color:#e8590c;font-weight:600}
   #shopGrid .desc{font-size:12px;color:var(--dim);flex:1} #shopGrid .tags span{display:inline-block;font-size:11px;padding:0 6px;margin:0 4px 2px 0;border-radius:8px;border:1px solid var(--line)}
@@ -188,7 +189,7 @@
   #shopPub{display:none;padding:10px 16px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6}
   #shopPub ol{margin:4px 0 0 18px;padding:0}
   body.lightbg #shop .box{background:#fff;color:#1c2233;border-color:rgba(0,0,0,.1)} body.lightbg #shopGrid .card{background:#fff;border-color:rgba(0,0,0,.1)}
-  body.lightbg #shop .hd,body.lightbg #shop .ft,body.lightbg #shopPub{border-color:rgba(0,0,0,.08)} body.lightbg #shopGrid .tags span{border-color:rgba(0,0,0,.12)}
+  body.lightbg #shop .hd,body.lightbg #shop .ft,body.lightbg #shopPub{border-color:rgba(0,0,0,.08)} body.lightbg #shop button.ghost{background:#f3f4f8;color:#1c2233;border:1px solid rgba(0,0,0,.16)} body.lightbg #shop button.ghost:hover{border-color:#c95fc4} body.lightbg #shopGrid .tags span{border-color:rgba(0,0,0,.12)}
   @media (max-width:600px){#shop{padding:6px} #shopGrid{grid-template-columns:1fr}}
 </style>
 <script type="importmap">
