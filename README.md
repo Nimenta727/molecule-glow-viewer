@@ -53,6 +53,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - 网页版：双击 [`web/index.html`](web/index.html)，详见 [web/README.md](web/README.md)。
 - 桌面版：从 Releases 下载 exe，或者自己构建，详见 [desktop/README.md](desktop/README.md)。
 - 让 AI 帮你做新场景：见 [skill/README.md](skill/README.md)。
+- 项目纠偏、稳定性和专业化路线：见 [面向 AI 的审计与稳基文档](docs/AI_AUDIT_AND_STABILIZATION.md)。
 
 ## 数据来源与引用
 所有结构数据来自 RCSB PDB，使用时请引用 PDB 以及各结构的原始论文：
