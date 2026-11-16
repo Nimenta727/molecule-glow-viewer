@@ -27,6 +27,7 @@
 | 卡顿 | 软件渲染 / 团块太多 | 降画质；减少组件拷贝；`chrome://gpu` 确认独显 |
 | 动画完全不动、帧率显示 “—” | 页面在隐藏的窗口/面板里，浏览器暂停了 requestAnimationFrame | 让窗口可见（Claude 内置浏览器：先显示浏览器面板） |
 | 控制台 `Framebuffer is incomplete: zero size` | 窗口尺寸为 0 | 显示窗口；测试时先设视口再触发 resize |
+| 页面全黑，控制台每帧刷 `firstElem.toArray is not a function`（three 的 `PureArrayUniform.setValueV4fArray`） | 多半是**加载到了写了一半的 viewer.html**（刚 `cp` 完立刻刷新），模块执行到中途状态不一致；也可能是画布尺寸为 0 | 重新加载；对比文件大小确认已完整写入；确认浏览器面板可见。注意控制台**跨页面保留**旧报错，别把历史记录当成当前在报——用 `window.addEventListener('error', …)` 计数 2 秒才准 |
 | 网址参数无效 | 预览工具把页面转成 data: 地址 | 用真实浏览器打开；测试时用控制台设置控件 |
 
 ## 自动化测试方法（给 AI）
