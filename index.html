@@ -19,6 +19,8 @@
   #panel{padding-bottom:60px}
   #panel[data-mode="quick"] [data-panel-section]:not([data-panel-section="预设"]):not([data-panel-section="过程动画"]):not([data-panel-section="外观"]):not([data-panel-section="其他"]){display:none}
   #panel[data-mode="teaching"] [data-panel-section]:not([data-panel-section="预设"]):not([data-panel-section="过程动画"]):not([data-panel-section="组成（显示 / 旋转 / 剖开 / 简化）"]):not([data-panel-section="其他"]){display:none}
+  #loadProgress{position:fixed;left:0;top:0;width:100%;height:3px;background:rgba(255,255,255,.12);z-index:20;opacity:0;transition:opacity .2s}
+  #loadProgress i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s}
   /* keep caption / status in the free area beside the open panel (desktop) */
   @media (min-width:601px){ body:has(#panel:not(.hidden)) #caption{left:334px;max-width:min(980px,calc(100vw - 360px))}
     body:has(#panel:not(.hidden)) #status{left:calc(50% + 167px)} }
@@ -265,6 +267,7 @@
 </div>
 <button class="ghost" id="toggle">☰ 面板</button>
 <div id="status">准备中…</div>
+<div id="loadProgress"><i></i></div>
 
 <script type="module">
 import * as THREE from 'three';
@@ -483,7 +486,14 @@ const IGNORE_LIGANDS = new Set(['HOH', 'WAT', 'DOD', 'UNX', 'UNL']);
 /* ----------------------------------------------------------------------------- utils */
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
+const progressEl = $('loadProgress'), progressBar = progressEl.querySelector('i');
 let statusTimer;
+function loadProgress(value) {
+  const active = value > 0 && value < 100;
+  progressEl.style.opacity = active || value >= 100 ? 1 : 0;
+  progressBar.style.width = `${Math.max(0, Math.min(100, value))}%`;
+  if (value >= 100) setTimeout(() => { progressEl.style.opacity = 0; }, 500);
+}
 function status(msg, keep) {
   statusEl.textContent = msg; statusEl.style.opacity = 1;
   clearTimeout(statusTimer);
@@ -3784,11 +3794,13 @@ class Stale extends Error {}
 async function loadScene(cfg) {
   const my = ++loadSeq, live = () => { if (my !== loadSeq) throw new Stale(); };   // a newer loadScene cancels this one
   $('load').disabled = true;
+  loadProgress(5);
   try {
     clearScene();
     current = cfg;
     const useAsm = cfg.assembly ?? $('assembly').checked;
     const main = cfg.local || await loadEntry(cfg.id, useAsm); live();
+    loadProgress(35);
     const keepChains = (e) => { if (!cfg.chains) return e; const ok = (c) => cfg.chains.includes(c.split('_')[0]);
       e.atoms = e.atoms.filter(a => ok(a.asym)); e.ligands = e.ligands.filter(L => ok(L.asym) || L.atoms.some(x => e.atoms.some(a => a.p.distanceTo(x.p) < 6))); return e; };
     keepChains(main);
@@ -3919,6 +3931,7 @@ async function loadScene(cfg) {
       const pr = Object.create(P); pr.ctx = makeCtx();   // activate only after async setup finished
       try { await pr.setup(pr.ctx); live(); proc = pr; } catch (e) { if (e instanceof Stale) throw e; console.warn(e); status('过程动画初始化失败：' + e.message); }
     }
+    loadProgress(85);
     $('morph').value = 0; U.uMorph.value = 0;
     markHotFromLigands();
     $('simpDefault').value = 'auto';   // before the build, so the menu and the meshes agree
@@ -3933,7 +3946,8 @@ async function loadScene(cfg) {
     if (P?.cell && proc) startCellSim(P.cell);
     const total = groups.reduce((s, g) => s + g.atoms.length, 0);
     status(`完成：${total.toLocaleString()} 个残基团块，${ligands.length} 个小分子`);
-  } catch (e) { if (e instanceof Stale) return; console.error(e); status('出错：' + e.message, true); }
+    loadProgress(100);
+  } catch (e) { if (e instanceof Stale) return; console.error(e); status('出错：' + e.message, true); loadProgress(0); }
   finally { $('load').disabled = false; }
 }
 
