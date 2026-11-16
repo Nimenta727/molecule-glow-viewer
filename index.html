@@ -21,6 +21,8 @@
   #panel[data-mode="teaching"] [data-panel-section]:not([data-panel-section="预设"]):not([data-panel-section="过程动画"]):not([data-panel-section="组成（显示 / 旋转 / 剖开 / 简化）"]):not([data-panel-section="其他"]){display:none}
   #loadProgress{position:fixed;left:0;top:0;width:100%;height:3px;background:rgba(255,255,255,.12);z-index:20;opacity:0;transition:opacity .2s}
   #loadProgress i{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s}
+  #mobileBar{display:none}
+  @media (max-width:600px){#mobileBar{position:fixed;display:flex;left:12px;right:12px;bottom:10px;justify-content:space-around;gap:6px;z-index:12;padding:6px;background:rgba(12,14,22,.86);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(8px)}#mobileBar button{flex:1;min-height:34px}}
   /* keep caption / status in the free area beside the open panel (desktop) */
   @media (min-width:601px){ body:has(#panel:not(.hidden)) #caption{left:334px;max-width:min(980px,calc(100vw - 360px))}
     body:has(#panel:not(.hidden)) #status{left:calc(50% + 167px)} }
@@ -266,6 +268,7 @@
   <div id="help">左键旋转 · 右键平移 · 滚轮缩放 · H 隐藏面板 · 空格暂停</div>
 </div>
 <button class="ghost" id="toggle">☰ 面板</button>
+<div id="mobileBar"><button class="ghost" id="mobilePlay">播放</button><button class="ghost" id="mobileLabels">标签</button><button class="ghost" id="mobileShot">截图</button><button class="ghost" id="mobileMore">更多</button></div>
 <div id="status">准备中…</div>
 <div id="loadProgress"><i></i></div>
 
@@ -5088,6 +5091,10 @@ $('shot').onclick = async () => {
   const a = document.createElement('a'); a.download = name; a.href = dataUrl; a.click();
 };
 $('toggle').onclick = () => $('panel').classList.toggle('hidden');
+$('mobilePlay').onclick = () => { $('pause').checked = !$('pause').checked; $('mobilePlay').textContent = $('pause').checked ? '继续' : '暂停'; };
+$('mobileLabels').onclick = () => { $('labelsOn').checked = !$('labelsOn').checked; $('labelsOn').dispatchEvent(new Event('change')); };
+$('mobileShot').onclick = () => $('shot').click();
+$('mobileMore').onclick = () => $('toggle').click();
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
   if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hidden');
