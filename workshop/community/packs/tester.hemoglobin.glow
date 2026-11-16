@@ -1,0 +1,1 @@
+{"format":"glow-scene","version":1,"id":"tester.hemoglobin","revision":1,"title":"血红蛋白（投稿测试）","category":"single","tags":["测试"],"author":{"name":"Nimenta727"},"license":"CC-BY-4.0","description":"投稿机器人测试，不会合并。","citations":[{"pdb":"4HHB"}],"scene":{"id":"4HHB","axis":"sym"}}
