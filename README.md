@@ -74,6 +74,21 @@ npm run dist:portable
 
 Web 版由浏览器直接运行，适合静态服务器部署；桌面版提供独立窗口和原生截图保存，但仍需要联网访问 RCSB 和 jsDelivr CDN。两种版本都不能在无网络时下载新的结构或 Three.js 资源，本地结构文件导入不需要联网。
 
+## 可选后端服务
+
+在不改变原有 HTML 直连方式的前提下，仓库新增了一个零额外依赖的 Node.js API 服务。它提供健康检查和受限的 RCSB 代理，并在进程内缓存 15 分钟，适合后续接入预设保存和教学场景服务：
+
+```bash
+npm run start:server
+```
+
+服务默认监听 `http://127.0.0.1:8787`：
+
+- `GET /api/health`
+- `GET /api/rcsb?url=https%3A%2F%2Fdata.rcsb.org%2F...`
+
+代理只允许 `data.rcsb.org`、`models.rcsb.org` 和 `files.rcsb.org` 的 HTTPS 地址，避免把服务变成任意 URL 转发器。现有 Web 版和 Electron 版仍可不依赖该服务直接运行。
+
 ## 开发进度
 
 当前已完成的渐进式改进：

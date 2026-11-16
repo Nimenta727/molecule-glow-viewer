@@ -6,7 +6,8 @@
   "main": "electron/main.cjs",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/desktop-config.test.cjs",
+    "start:server": "node server.mjs",
+    "test": "node --test test/*.test.cjs",
     "dist": "electron-builder --win --x64 --publish never",
     "dist:portable": "electron-builder --win portable --x64 --publish never",
     "dist:dir": "electron-builder --dir --publish never"
