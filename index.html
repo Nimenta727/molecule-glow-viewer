@@ -135,7 +135,7 @@
   <div class="row"><label>结合位点闪光</label><input type="range" id="hot" min="0" max="1.5" step="0.05" value="0.6"><output></output></div>
 
   <h2>外观</h2>
-  <div class="row"><label>画风</label><select id="bgMode"><option value="dark">视频光影（黑底辉光）</option><option value="light">插画（白底平涂描边）</option></select></div>
+  <div class="row"><label>画风</label><select id="bgMode"><option value="dark">视频光影（黑底辉光）</option><option value="light" selected>插画（白底平涂描边）</option></select></div>
   <div class="row illusOnly"><label>插画线条</label><input type="range" id="inkAmt" min="0" max="1.5" step="0.05" value="1"><output></output></div>
   <div class="row illusOnly"><label>远处淡出</label><input type="range" id="fogAmt" min="0" max="1" step="0.05" value="0.5"><output></output></div>
   <div class="row"><label>显示模式</label><select id="repMode"><option value="blob">团块（写实）</option><option value="cartoon">结构示意（螺旋 / 折叠）</option></select></div>
@@ -3253,7 +3253,7 @@ function applyBg() {
   renderer.toneMapping = light ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;   // illustration: colours exactly as specified (ACES greys pastels)
 }
 $('bgMode').onchange = () => { applyBg(); if (model) { rebuildMeshes(); rebuildLigands(); renderLegend(); rebuildMembranes(); applyCut(); } };
-document.querySelectorAll('.illusOnly').forEach(r => r.style.display = $('bgMode').value === 'light' ? '' : 'none');
+applyBg();   // startup default: illustration style (white paper + ink)
 $('simpRes').onchange = $('simpStyle').onchange = () => { if (groups.some(g => g.simple)) { rebuildMeshes(); applyCut(); } };
 let labelsTouched = false;
 $('labelsOn').onchange = () => { labelsTouched = true; rebuildLabels(); };
