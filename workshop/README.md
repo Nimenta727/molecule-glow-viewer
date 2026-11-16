@@ -30,6 +30,10 @@
 - 程序下载场景时会核对 `index.json` 里的 SHA-256，对不上就拒绝打开。
 - 程序里每个社区场景都有“举报”按钮，点了会打开一个 GitHub issue。
 
+## 评分、评论、举报
+- **评分和评论**：每个场景在仓库 Discussions（Show and tell）里有一个讨论帖，👍 / 👎 就是评分，回复就是评论，用 GitHub 账号登录。CI 每 6 小时把点赞数、评论数和最新 3 条评论写进 `stats.json`，程序的工坊卡片读这个文件（`tools/threads.mjs`，新场景会自动建帖）。
+- **举报**：用“举报社区场景”issue 模板。机器人（`tools/report.mjs`）确认场景存在并回复；同一个社区场景有 **3 位不同用户**举报时，它会被写进 `community/held.json`，目录重建时不再列出（暂停展示），等维护者审核。审核通过后从 `held.json` 删掉这一项即可恢复。官方场景不会自动下架。
+
 ## 维护者
 ```bash
 node workshop/tools/validate.mjs            # 检查全部场景包（也可以给文件路径）

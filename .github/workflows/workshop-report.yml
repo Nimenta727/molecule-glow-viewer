@@ -1,0 +1,44 @@
+name: workshop report
+# A "举报社区场景" issue -> acknowledge it; at 3 different reporters a community scene is put on hold (workshop/community/held.json)
+# and the catalogue is rebuilt without it. The issue body is untrusted: only passed as an environment variable to report.mjs.
+on:
+  issues:
+    types: [opened, edited]
+permissions:
+  contents: write
+  issues: write
+concurrency: { group: workshop-report, cancel-in-progress: false }
+jobs:
+  report:
+    if: contains(github.event.issue.labels.*.name, 'scene-report') && github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - id: r
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPORTER: ${{ github.event.issue.user.login }}
+          GH_TOKEN: ${{ github.token }}
+        run: node workshop/tools/report.mjs
+      - name: hold the scene and rebuild the catalogue
+        if: steps.r.outputs.hold == 'true'
+        env:
+          ID: ${{ steps.r.outputs.id }}
+        run: |
+          node workshop/tools/build-index.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add workshop
+          git commit -m "workshop: hold community scene $ID after reports"
+          git pull --rebase origin main && git push origin HEAD:main
+      - name: label and comment
+        if: always() && steps.r.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUM: ${{ github.event.issue.number }}
+          SRC: ${{ steps.r.outputs.src }}
+        run: |
+          if [ -n "$SRC" ]; then gh label create "scene-report:$SRC" --color BFD4F2 2>/dev/null || true; gh issue edit "$NUM" --add-label "scene-report:$SRC" || true; fi
+          test -f "$RUNNER_TEMP/result.md" && gh issue comment "$NUM" --body-file "$RUNNER_TEMP/result.md" || true

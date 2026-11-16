@@ -9,6 +9,9 @@ import { loadRules, listPacks, checkFile, sha256, SOURCES, WS } from './glow-lib
 const R = loadRules();
 const NAMES = { official: '官方', community: '社区' };
 let bad = 0;
+/* moderation: community scenes on hold after reports (workshop/community/held.json, written by report.mjs) stay out of the catalogue */
+const heldF = path.join(WS, 'community', 'held.json');
+const HELD = new Set(fs.existsSync(heldF) ? JSON.parse(fs.readFileSync(heldF, 'utf8')).held.map(h => h.id) : []);
 for (const src of SOURCES) {
   const dir = path.join(WS, src), covers = path.join(dir, 'covers'); fs.mkdirSync(covers, { recursive: true });
   const packs = [];
@@ -16,6 +19,7 @@ for (const src of SOURCES) {
     const r = checkFile(file, src, R);
     if (!r.ok) { bad++; r.errors.forEach(e => console.log('✗ ' + e)); continue; }
     const P = r.pack, S = P.scene;
+    if (src === 'community' && HELD.has(P.id)) { console.log(`⏸ ${P.id}：被举报暂停展示`); continue; }
     let cover = null;
     const m = /^data:image\/(jpeg|png|webp);base64,(.+)$/.exec(r.raw.cover || '');
     if (m) { const ext = m[1] === 'jpeg' ? 'jpg' : m[1]; cover = `covers/${P.id}.${ext}`; fs.writeFileSync(path.join(dir, cover), Buffer.from(m[2], 'base64')); }
