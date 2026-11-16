@@ -24,7 +24,7 @@ curl -s -X POST https://search.rcsb.org/rcsbsearch/v2/query -H "Content-Type: ap
 | 核糖体 | 4YBB | 10,411 / 343 | — | 大量 Mg²⁺ |
 | 核小体 | 1KX5 | 1,266 / 18 | — | |
 | 蛋白酶体 | 5LE5 | 6,268 / 82 | — | |
-| 病毒衣壳 HK97 | 2FT1 | 115,140 / 0 | — | 自动按链着色 |
+| 线粒体呼吸链 | 5GUP + 1HRC + 6ZPO | 19,174 / 67 | — | 按复合体合并部件；电子沿真实辅因子跳 |
 | （任意）| 4HHB | 574 | — | 血红蛋白（带 HEM） |
 
 鞭毛马达部件：7CGO（杆、MS/LP 环、钩、输出装置）；8YJT（C 环 CCW，顺时针态 8WIW，组件 axis 用 short）；6YKM（MotA5B2 定子，环形 11 个、半径 215 Å）；1UCU（鞭毛蛋白，螺旋上升 4.7 Å、扭转 65.8°）。

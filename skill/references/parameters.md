@@ -109,6 +109,7 @@ notes: { '关键词或/正则/': ['标签名', '一句话作用', '点击后显�
 预设字段 `core: [{ near: { part: '/subunit a$/', seq: 159 }, r: 13, with: ['subunit C1'] }, { part: 'subunit C1', seqs: [[56, 60]] }]`：额外的功能核心残基（某残基周围 r Å 内、或指定序号范围），画成原子团块。
 预设字段 `siteNotes: { ADP: '…', ATP: '…' }`：小分子聚焦时信息卡里的位点讲解（按配体三字码）。
 预设 / 过程字段 `energy: [['标签', '解释'], ...]` 与 `energyStage: 'morph'`：底部能量转化条（见 architecture §18）。
+预设字段 `axisFit`、`groupParts`、`frameAll`、`camera.broadside`，组件字段 `axisFrom` / `alignTo` / `beside` / `split` / `pivot`：多机器协同场景用，见 architecture §21.2。
 预设 / 过程字段 `energyHL: [[部件关键词 | { part?, aseqs: [[起, 止]] }], ...]`：每一步涉及的结构，点步骤或“◎ 跟随”时高亮（残基用**作者编号**，见 architecture §19）。
 预设字段 `domains: [['CORE', [[1, 29], [60, 121], [160, 214]]], ...]`：示意图里单个蛋白的结构域（文献残基范围，label_seq_id）。
 预设字段 `lobes: ['histone']`：这些部件在示意图里强制画成球状叶片（去掉柔性尾巴）。

@@ -79,6 +79,7 @@
   #energy .eh{color:#ffe680;font-weight:600;margin-right:6px}
   #energy .e{padding:2px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .25s,color .25s}
   #energy .e.on{background:#ffe680;color:#1b1b24;font-weight:600}
+  .fbtn.wide.on{background:#ffe680;color:#1b1b24;border-color:#ffe680}
   #energy .e.fol{margin-left:8px;border-color:rgba(255,230,128,.45)} .fbtn.wide{width:auto;padding:1px 8px}
   #energy .e:hover{border-color:#ffe680}
   #energy i{font-style:normal;color:#7b86a3}
@@ -129,6 +130,7 @@
 
   <h2>小分子</h2>
   <label class="chk"><input type="checkbox" id="ligOn" checked>显示小分子（配体、核苷酸、离子、脂质）</label>
+  <div class="row"><label>小分子画法</label><select id="ligStyle"><option value="ball">球棍</option><option value="valence">价键（单 / 双 / 三键、芳香环）</option><option value="space">空间填充（范德华半径）</option></select></div>
   <div class="row"><label>小分子大小</label><input type="range" id="ligScale" min="0.8" max="4" step="0.05" value="2.6"><output></output></div>
   <div class="row"><label>结合位点闪光</label><input type="range" id="hot" min="0" max="1.5" step="0.05" value="0.6"><output></output></div>
 
@@ -236,6 +238,38 @@ const PRESETS = {
       'inhibitor': ['IF1', '抑制蛋白', 'IF1 抑制 ATP 合酶反向水解 ATP（例如缺氧时防止浪费 ATP）。6ZPO 中 IF1 的 N 端插在 αDP/βDP 界面，所以这个结构其实处于被抑制状态；动画中的合成循环是基于该结构的模型演示。'],
     },
   },
+  '线粒体呼吸链（电子传递 → ATP）': {
+    id: '5GUP', blob: 5.0,
+    axisFit: ['NADH-ubiquinone oxidoreductase chain', '/^Cytochrome b$/', 'Cytochrome c oxidase subunit 1', 'Cytochrome c oxidase subunit 3'], up: 'flavoprotein 1',
+    groupParts: [['复合体 IV', 'oxidase'], ['复合体 III', 'b-c1', '/^Cytochrome b$/', 'Cytochrome c1'], ['复合体 I', 'NADH', 'Acyl carrier']],
+    membranes: [{ at: '/^Cytochrome b$/', offset: 0 }], memR: 0.95, cut: 0.0, cutWhat: 'mem',
+    spin: ['subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1'],
+    components: [
+      { id: '6ZPO', label: 'ATP 合酶', axisFrom: ['subunit C1', 'subunit beta'], alignTo: { own: 'subunit C1', anchor: '/^Cytochrome b$/' }, beside: { part: 'oxidase', gap: 45 }, split: true, pivot: 'subunit C1' },
+      { id: '1HRC', label: '细胞色素 c', axis: 'long' },
+    ],
+    process: 'respiratoryChain', frameAll: true,
+    core: [{ near: { part: '/subunit a$/', seq: 159 }, r: 13, with: ['subunit C1'] }],
+    colors: { '/^复合体 I$/': '#5b9dff', '/^复合体 III$/': '#e64fc8', '/^复合体 IV$/': '#3fc864', '细胞色素 c': '#ff6b4a',
+              'subunit alpha': '#f0b0e0', 'subunit beta': '#b6d4ff', 'subunit gamma': '#e3e7f2', 'subunit delta': '#e3e7f2', 'subunit epsilon': '#e3e7f2', 'subunit C1': '#9be6a8', '/subunit a$/': '#2448e8' },
+    notes: {
+      '/^复合体 I$/': ['复合体 I', 'NADH 脱氢酶：泵 4 H⁺', '约 45 个亚基、近 1 MDa，L 形：伸进基质的外周臂（NADH 结合位点 FMN 和 8 个铁硫簇）+ 埋在膜里的膜臂（3 个类反向转运体亚基 ND2/ND4/ND5 等，质子通道）。每氧化 1 个 NADH 泵出 4 个 H⁺。'],
+      '/^复合体 III$/': ['复合体 III（二聚体）', '细胞色素 bc1：Q 循环', '同二聚体。每个单体有细胞色素 b（血红素 bL、bH）、细胞色素 c1 和 Rieske 铁硫蛋白；Rieske 的头部在 Qo 位点和 c1 之间摆动传电子。'],
+      '/^复合体 IV$/': ['复合体 IV', '细胞色素 c 氧化酶：O₂ → H₂O', '电子从细胞色素 c 进入 CuA（双铜中心），经血红素 a 到 a3–CuB 双核中心还原 O₂。每 4 个电子还原 1 个 O₂ 成 2 个 H₂O，同时泵出 4 个 H⁺。'],
+      '细胞色素 c': ['细胞色素 c', '膜间隙里的电子穿梭体', '约 104 个残基的小蛋白，共价连着一个血红素 c；在复合体 III 和 IV 之间一次运 1 个电子。它从线粒体释放到胞质也是细胞凋亡的信号。'],
+      'subunit C1': ['c 环（c8）', 'ATP 合酶膜内转子', 'H⁺ 经 a 亚基半通道结合、离开 c 亚基的 Glu58，推动 c 环转动；8 个 H⁺ 转一圈。'],
+      'subunit beta': ['β 亚基 ×3', 'ATP 合酶催化位点', 'γ 转动依次改变三个 β 的构象（开放 / 松弛 / 紧密），每转一圈合成 3 个 ATP。'],
+      'subunit gamma': ['γ 亚基', 'ATP 合酶中心柄', '与 c 环一起转动，偏心轴驱动 β 构象变化。'],
+    },
+    siteNotes: {
+      SF4: '[4Fe-4S] 铁硫簇：由 4 个半胱氨酸的硫配位，一次只接受 / 给出 1 个电子。复合体 I 的簇沿外周臂排成一条“电线”，相邻簇边到边 < 14 Å，电子靠量子隧穿在毫秒内传过。',
+      FES: '[2Fe-2S] 铁硫簇。在复合体 III 中是 Rieske 蛋白的簇：一个 Fe 由两个组氨酸配位（不是半胱氨酸），所以电位较高（约 +0.28 V），能从 Qo 位点的 QH₂ 接受电子。',
+      HEM: '血红素 b（复合体 III 的细胞色素 b 上有 bL 和 bH 两个）：Q 循环的低电位链，把第二个电子从 Qo 跨膜送到 Qi。',
+      HEC: '血红素 c：通过两个硫醚键共价连在蛋白上（CXXCH 基序）。复合体 III 的 c1 把电子交给细胞色素 c。',
+      HEA: '血红素 a：复合体 IV 的两个血红素 a 中，a 负责传电子，a3 与 CuB 组成还原 O₂ 的双核中心。',
+      CU: '铜中心：复合体 IV 的 CuA（双铜，接受细胞色素 c 的电子）和 CuB（与血红素 a3 一起结合并还原 O₂）。' },
+    camera: { broadside: true, el: 0.1, dist: 0.95 },
+  },
   '鞭毛马达': {
     id: '7CGO', axis: 'long', up: 'hook protein', blob: 5.0, horizontal: true,
     spin: ['rod', 'hook', 'M-ring', 'MS ring', 'FliE', 'FliP', 'FliQ', 'FliR', 'C 环', 'flagellin', '鞭毛丝', 'Dc loop'],
@@ -292,7 +326,6 @@ const PRESETS = {
       'H2A': ['H2A ×2', '组蛋白（二聚体）', '与 H2B 组成 H2A–H2B 二聚体，两个二聚体分别结合在四聚体两侧，包住靠外的 DNA。核小体组装时先装 (H3–H4)₂，再加两个 H2A–H2B。'],
       'H2B': ['H2B ×2', '组蛋白（二聚体）', '与 H2A 配对。H2A–H2B 二聚体比四聚体更容易离开，转录时常被部分移去，让聚合酶通过。'] } },   // schematic: each histone = one globular unit of the octamer (tails dropped), as in textbook figures
   '20S 蛋白酶体（核心颗粒）': { id: '5LE5', axis: 'long', blob: 3.8 },
-  '病毒衣壳 HK97': { id: '2FT1', axis: 'native', blob: 3.8, assembly: true },
 };
 
 const PALETTES = {
@@ -527,7 +560,7 @@ async function getTemplate(comp) {
       p: new THREE.Vector3(num(r.pdbx_model_Cartn_x_ideal, r.model_Cartn_x), num(r.pdbx_model_Cartn_y_ideal, r.model_Cartn_y), num(r.pdbx_model_Cartn_z_ideal, r.model_Cartn_z)) }));
     if (!atoms.length || atoms.some(a => !isFinite(a.p.x))) throw new Error('no ideal coordinates');
     const idx = new Map(atoms.map((a, i) => [a.name, i])), ord = { SING: 1, DOUB: 2, TRIP: 3, AROM: 1 };
-    bonds = parseLoop(t, '_chem_comp_bond').filter(b => idx.has(b.atom_id_1) && idx.has(b.atom_id_2)).map(b => [idx.get(b.atom_id_1), idx.get(b.atom_id_2), ord[b.value_order] || 1]);
+    bonds = parseLoop(t, '_chem_comp_bond').filter(b => idx.has(b.atom_id_1) && idx.has(b.atom_id_2)).map(b => [idx.get(b.atom_id_1), idx.get(b.atom_id_2), b.pdbx_aromatic_flag === 'Y' ? 4 : ord[b.value_order] || 1]);
   } catch (e) {
     console.warn('CCD cif failed, using SDF', comp, e);
     const t = await fetchText(`https://files.rcsb.org/ligands/view/${comp}_ideal.sdf`);
@@ -1697,34 +1730,75 @@ function bondsOf(atoms) {   // distance-based bonds for structure ligands
   }
   return out;
 }
-/* ball-and-stick for many molecules at once (static ligands). mols: [{atoms, bonds?, centre}] -> Group */
-function buildMolecules(mols, scale, carbon) {   // carbon: optional colour override for C atoms (tells ATP from ADP)
-  const balls = [], sticks = [];
+/* bonds with orders from the CCD template, matched by atom name (structure ligands and residues carry names) */
+function bondsFromTemplate(atoms, tpl, nameKey = 'name') {
+  if (!tpl || !tpl.atoms.length) return null;
+  const at = new Map(); atoms.forEach((a, i) => { if (a[nameKey]) at.set(a[nameKey], i); });
+  const out = [];
+  for (const [i, j, o] of tpl.bonds) { const a = at.get(tpl.atoms[i].name), b = at.get(tpl.atoms[j].name); if (a != null && b != null) out.push([a, b, o]); }
+  return out.length ? out : null;
+}
+const ligStyle = () => $('ligStyle')?.value || 'ball';
+const VDW_R = { C: 1.7, N: 1.55, O: 1.52, S: 1.8, P: 1.8, F: 1.47, CL: 1.75, BR: 1.85, I: 1.98, MG: 1.73, K: 2.75, NA: 2.27, CA: 2.31, ZN: 1.39, FE: 1.94, CU: 1.4, MN: 1.97 };
+/* small molecules for many molecules at once. mols: [{atoms, bonds?, centre}] -> Group
+   style 'ball'    : ball-and-stick (atom balls, double bonds slightly thicker)
+   style 'valence' : 价键 / licorice with bond orders (CCD): single = one stick, double = two, triple = three,
+                     aromatic = a stick plus a dashed inner line toward the ring centre; atoms are just joints
+   style 'space'   : space-filling, van der Waals radii */
+function buildMolecules(mols, scale, carbon, style = ligStyle()) {
+  const balls = [], solid = [], dash = [];
+  const up = new THREE.Vector3(0, 1, 0), tmp = new THREE.Vector3();
   for (const M of mols) {
     const c = M.centre, P = (p) => p.clone().sub(c).multiplyScalar(scale).add(c);
-    const bonds = M.bonds || bondsOf(M.atoms);
-    M.atoms.forEach(a => balls.push([P(a.p), a.el]));
-    for (const [i, j, o] of bonds) sticks.push([P(M.atoms[i].p), P(M.atoms[j].p), o, M.atoms[i].el, M.atoms[j].el]);
+    const bonds = style === 'space' ? [] : (M.bonds || bondsOf(M.atoms));
+    const nb = M.atoms.map(() => []); for (const [i, j] of bonds) { nb[i].push(j); nb[j].push(i); }
+    M.atoms.forEach((a, i) => balls.push([P(a.p), a.el, nb[i].length]));
+    for (const [i, j, o] of bonds) {
+      const A = P(M.atoms[i].p), B = P(M.atoms[j].p), ea = M.atoms[i].el, eb = M.atoms[j].el;
+      if (style !== 'valence') { solid.push([A, B, 0.24 * scale * (o > 1 ? 1.3 : 1), ea, eb]); continue; }
+      /* offset direction in the plane of a neighbouring bond (inside the ring for aromatic bonds) */
+      const d = B.clone().sub(A).normalize(), k = nb[i].find(x => x !== j) ?? nb[j].find(x => x !== i);
+      let perp = null;
+      if (k != null) { const ref = P(M.atoms[k].p).sub(nb[i].includes(k) ? A : B); perp = ref.sub(d.clone().multiplyScalar(ref.dot(d))); }
+      if (!perp || perp.lengthSq() < 1e-6) perp = tmp.set(1, 0, 0).cross(d).lengthSq() > 1e-3 ? new THREE.Vector3(1, 0, 0).cross(d) : new THREE.Vector3(0, 0, 1).cross(d);
+      perp.normalize();
+      const r1 = 0.15 * scale, off = (f) => perp.clone().multiplyScalar(f * scale);
+      if (o === 2) { solid.push([A.clone().add(off(0.13)), B.clone().add(off(0.13)), 0.09 * scale, ea, eb]); solid.push([A.clone().add(off(-0.13)), B.clone().add(off(-0.13)), 0.09 * scale, ea, eb]); }
+      else if (o === 3) for (const f of [-0.19, 0, 0.19]) solid.push([A.clone().add(off(f)), B.clone().add(off(f)), 0.07 * scale, ea, eb]);
+      else if (o === 4) {   // aromatic: full bond + dashed line inside the ring
+        solid.push([A, B, r1 * 0.9, ea, eb]);
+        const a2 = A.clone().add(off(0.3)).lerp(B, 0.18), b2 = B.clone().add(off(0.3)).lerp(A, 0.18), n = 3;
+        for (let t = 0; t < n; t++) dash.push([a2.clone().lerp(b2, t / n + 0.04), a2.clone().lerp(b2, (t + 0.6) / n)]);
+      } else solid.push([A, B, r1, ea, eb]);
+    }
   }
   const grp = new THREE.Group();
-  const bm = new THREE.InstancedMesh(SPH, ligandMaterial(), Math.max(1, balls.length));
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), col = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), col = new THREE.Color();
   const elCol = (el) => (carbon && el === 'C') ? carbon : elStyle(el)[0];
-  balls.forEach(([p, el], i) => { const st = elStyle(el); s.setScalar(st[1] * scale); m.compose(p, q.identity(), s); bm.setMatrixAt(i, m); bm.setColorAt(i, col.set(elCol(el))); });
+  const bm = new THREE.InstancedMesh(SPH, ligandMaterial(), Math.max(1, balls.length));
+  balls.forEach(([p, el, deg], i) => {
+    const r = style === 'space' ? (VDW_R[el] || 1.8) * scale * 0.42 : style === 'valence' && deg ? 0.15 * scale : elStyle(el)[1] * scale;   // space: x0.42 keeps enlarged display copies readable
+    s.setScalar(r); m.compose(p, q.identity(), s); bm.setMatrixAt(i, m); bm.setColorAt(i, col.set(elCol(el)));
+  });
   bm.count = balls.length; grp.add(bm);
-  if (sticks.length) {
-    const sm = new THREE.InstancedMesh(CYL, ligandMaterial(), sticks.length * 2);
+  if (solid.length) {
+    const sm = new THREE.InstancedMesh(CYL, ligandMaterial(), solid.length * 2);
     let k = 0;
-    for (const [a, b, o, ea, eb] of sticks) {   // two half-bonds, each in its atom's colour
+    for (const [a, b, r, ea, eb] of solid) {   // two half-bonds, each in its atom's colour
       const mid = a.clone().add(b).multiplyScalar(0.5);
       for (const [from, el] of [[a, ea], [b, eb]]) {
         const d = mid.clone().sub(from), len = d.length();
-        q.setFromUnitVectors(up, d.clone().normalize());
-        s.set(0.24 * scale * (o > 1 ? 1.3 : 1), len, 0.24 * scale * (o > 1 ? 1.3 : 1));
+        q.setFromUnitVectors(up, d.clone().normalize()); s.set(r, len, r);
         m.compose(from.clone().add(mid).multiplyScalar(0.5), q, s); sm.setMatrixAt(k, m); sm.setColorAt(k++, col.set(elCol(el)));
       }
     }
     grp.add(sm);
+  }
+  if (dash.length) {
+    const dm = new THREE.InstancedMesh(CYL, ligandMaterial(), dash.length);
+    dash.forEach(([a, b], i) => { const d = b.clone().sub(a); q.setFromUnitVectors(up, d.clone().normalize()); s.set(0.06 * scale, d.length(), 0.06 * scale);
+      m.compose(a.clone().add(b).multiplyScalar(0.5), q, s); dm.setMatrixAt(i, m); dm.setColorAt(i, col.set(illustrative() ? '#55607a' : '#c9d0de')); });
+    grp.add(dm);
   }
   if (illustrative()) for (const o of [...grp.children]) grp.add(outlineOf(o));   // same ink line as the proteins (PDB-101 style)
   grp.traverse(o => { if (o.isInstancedMesh) { o.instanceMatrix.needsUpdate = true; if (o.instanceColor) o.instanceColor.needsUpdate = true; o.frustumCulled = false; } });
@@ -1951,6 +2025,133 @@ const PROCESSES = {
     },
   },
 
+  /* Mitochondrial respiratory chain (5GUP respirasome I1III2IV1 + cytochrome c 1HRC + ATP synthase 6ZPO).
+     Electrons hop between the REAL cofactor positions of the deposited structure (Fe-S clusters, hemes, copper centres):
+     complex I cluster chain = shortest path through the clusters (FMN -> N3 ... N2 in the real enzyme); III: Q cycle
+     (Rieske Fe-S -> c1 and bL -> bH -> Qi); cyt c shuttles III -> IV; IV: CuA -> heme a -> a3/CuB -> O2.
+     Proton counts per NADH (2 e-): I 4, III 4 (released to the IMS), IV 2 -> 10 H+; bovine c8 ring: 8 H+ per 3 ATP. */
+  respiratoryChain: {
+    energyHL: [['/^复合体 I$/'], ['/^复合体 I$/'], ['/^复合体 I$/', '/^复合体 III$/'], ['/^复合体 III$/'], ['细胞色素 c', '/^复合体 III$/', '/^复合体 IV$/'], ['/^复合体 IV$/'], ['ATP 合酶']],
+    energy: [
+      ['NADH 交出电子', 'NADH 把 2 个电子（以氢负离子 H⁻ 形式）交给复合体 I 顶端的 FMN。NAD⁺/NADH 的标准还原电位 E°′ ≈ −0.32 V，是整条链的“高能”起点。'],
+      ['复合体 I：电子下坡，泵 4 H⁺', '电子经一串铁硫簇（N3 → N1b → N4 → N5 → N6a → N6b → N2，间距都 < 14 Å，靠量子隧穿跳跃）到达膜旁的 N2，再还原泛醌（Q → QH₂）。还原放出的能量通过膜臂的构象 / 静电耦合，把 4 个 H⁺ 从基质泵到膜间隙（耦合的具体机制仍有争论）。'],
+      ['泛醌池', 'QH₂ 是脂溶性的，在膜内扩散，把 2 个电子带到复合体 III。'],
+      ['复合体 III：Q 循环', 'QH₂ 在 Qo 位点被氧化，两个电子分道：一个经 Rieske 铁硫蛋白 → 细胞色素 c1 → 细胞色素 c（高电位链）；另一个经血红素 bL → bH 到 Qi 位点还原另一个醌（低电位链）。Q 循环的净效果：每 2 个电子向膜间隙释放 4 个 H⁺，并从基质侧摄取 2 个。'],
+      ['细胞色素 c 穿梭', '水溶性的细胞色素 c 在膜间隙一侧穿梭，一次只携带 1 个电子（血红素铁 Fe³⁺ ⇌ Fe²⁺），从复合体 III 的 c1 送到复合体 IV 的 CuA；每个 NADH 需要往返 2 次（动画只画一次）。'],
+      ['复合体 IV：O₂ → H₂O', '电子 CuA → 血红素 a → 血红素 a3–CuB 双核中心，在这里把 O₂ 还原成水（O₂/H₂O 的 E°′ ≈ +0.82 V）。每 2 个电子消耗基质侧 2 个“化学”H⁺（生成水），同时再泵出 2 个 H⁺。'],
+      ['质子动力势 → ATP', 'NADH → O₂：ΔE°′ ≈ 1.14 V，ΔG°′ = −nFΔE°′ ≈ −220 kJ/mol。约 10 个 H⁺ 被泵出，能量储存在跨内膜的质子动力势里（约 200 mV，线粒体中以膜电位为主）。H⁺ 经 ATP 合酶回流驱动转子：牛的 c8 环每转 8 个 H⁺ 合成 3 个 ATP；加上运入 ADP 和 Pi 的耗费，约每个 NADH 产生 2.5 个 ATP。'] ],
+    stage() { return this.stg || 0; },
+    caption: 'NADH 的电子沿真实辅因子位置（铁硫簇、血红素、铜中心）流过复合体 I → 泛醌 → 复合体 III → 细胞色素 c → 复合体 IV → O₂；三个复合体共泵出约 10 个 H⁺（黄），H⁺ 经 ATP 合酶回流驱动转子合成 ATP（5GUP 猪呼吸链超复合物 + 1HRC 细胞色素 c + 6ZPO 牛 ATP 合酶；组件位置为示意）',
+    async setup(ctx) {
+      const V3 = (x, y, z) => new THREE.Vector3(x, y, z), all = ctx.allAtoms;
+      const partAt = (p) => { let b = null, bd = 1e9; for (const a of all) { const d = a.p.distanceToSquared(p); if (d < bd) { bd = d; b = a; } } return b?.part || ''; };
+      const cof = ctx.ligands.filter(l => ['SF4', 'FES', 'HEM', 'HEC', 'HEA', 'CU', 'CUA'].includes(l.comp) && !l.compLabel).map(l => ({ comp: l.comp, p: l.centre.clone(), part: partAt(l.centre) }));
+      const inP = (nm) => cof.filter(c => c.part === nm), cen = (re) => { const A = ctx.atomsOf(re); return A.reduce((s, a) => s.add(a.p), V3(0, 0, 0)).multiplyScalar(1 / Math.max(1, A.length)); };
+      const ym = this.ym = ctx.membraneY[0] ?? 0;
+      /* complex I: shortest path through the Fe-S clusters from the matrix tip to the cluster next to the membrane (N2) */
+      const fe = inP('复合体 I').filter(c => c.comp === 'SF4' || c.comp === 'FES');
+      let chain = [];
+      if (fe.length >= 2) {
+        const s0 = fe.indexOf(fe.reduce((a, b) => b.p.y > a.p.y ? b : a)), t0 = fe.indexOf(fe.reduce((a, b) => b.p.y < a.p.y ? b : a));
+        const n = fe.length, dist = Array(n).fill(Infinity), prev = Array(n).fill(-1), done = Array(n).fill(false); dist[s0] = 0;
+        for (;;) { let u = -1; for (let i = 0; i < n; i++) if (!done[i] && dist[i] < Infinity && (u < 0 || dist[i] < dist[u])) u = i;
+          if (u < 0 || u === t0) break; done[u] = true;
+          for (let v = 0; v < n; v++) { const d = fe[u].p.distanceTo(fe[v].p); if (v !== u && d < 20 && dist[u] + d * d < dist[v]) { dist[v] = dist[u] + d * d; prev[v] = u; } } }
+        for (let v = t0; v >= 0; v = prev[v]) chain.unshift(fe[v].p); if (chain.length < 2) chain = [fe[s0].p, fe[t0].p];
+      } else { const c = cen(/^复合体 I$/); chain = [c.clone().setY(ym + 90), c.clone().setY(ym + 25)]; }
+      this.chainI = chain; this.nadh = chain[0].clone().add(V3(0, 16, 0));
+      const N2 = chain[chain.length - 1]; this.qI = N2.clone().lerp(V3(N2.x, ym, N2.z), 0.6);
+      /* complex IV centres */
+      const c4 = inP('复合体 IV'), cus = c4.filter(c => c.comp === 'CU' || c.comp === 'CUA'), pairOf = (c) => cus.some(d => d !== c && d.p.distanceTo(c.p) < 3.5);
+      const cuA = (cus.find(pairOf) || cus.reduce((a, b) => (!a || b.p.y < a.p.y) ? b : a, null))?.p || cen(/^复合体 IV$/).setY(ym - 25);
+      const cuB = cus.find(c => !pairOf(c))?.p || cen(/^复合体 IV$/).setY(ym + 5);
+      const hea = c4.filter(c => c.comp === 'HEA').map(c => c.p).sort((a, b) => a.distanceTo(cuB) - b.distanceTo(cuB));
+      this.a3 = hea[0] || cuB; this.ha = hea[1] || this.a3; this.cuA = cuA; this.cuB = cuB;
+      /* complex III: the monomer whose c1 faces complex IV; bL = heme b nearest that c1, bH = heme b on the matrix side of bL */
+      const c3 = inP('复合体 III'), c1 = (c3.filter(c => c.comp === 'HEC').map(c => c.p).sort((a, b) => a.distanceTo(cuA) - b.distanceTo(cuA))[0]) || cen(/^复合体 III$/).setY(ym - 25);
+      const hems = c3.filter(c => c.comp === 'HEM').map(c => c.p), bL = hems.sort((a, b) => a.distanceTo(c1) - b.distanceTo(c1))[0] || c1.clone().setY(ym - 8);
+      const bH = hems.filter(h => h !== bL && h.y > bL.y + 6).sort((a, b) => a.distanceTo(bL) - b.distanceTo(bL))[0] || bL.clone().add(V3(0, 18, 0));
+      const isp = (c3.filter(c => c.comp === 'FES').map(c => c.p).sort((a, b) => a.distanceTo(bL.clone().lerp(c1, 0.5)) - b.distanceTo(bL.clone().lerp(c1, 0.5)))[0]) || bL.clone().lerp(c1, 0.5);
+      Object.assign(this, { c1, bL, bH, isp, Qo: bL.clone().lerp(isp, 0.45), Qi: bH.clone().add(V3(0, 7, 0)) });
+      /* complex I membrane arm: 4 pumping positions spread along it */
+      const arm = ctx.atomsOf(/^复合体 I$/).filter(a => Math.abs(a.p.y - ym) < 18);
+      this.pumpI = [];
+      if (arm.length > 20) { const pc = pca(arm.map(a => a.p)), e = pc.axes[2].clone().setY(0).normalize(), ts = arm.map(a => a.p.clone().sub(pc.centre).dot(e)), lo = Math.min(...ts), hi = Math.max(...ts);
+        for (const f of [0.2, 0.4, 0.6, 0.8]) this.pumpI.push(pc.centre.clone().addScaledVector(e, lo + (hi - lo) * f).setY(ym)); }
+      else for (let i = 0; i < 4; i++) this.pumpI.push(this.qI.clone().setY(ym));
+      /* cytochrome c: its own heme is hidden (the animation draws it on the moving protein) */
+      const cytL = ctx.ligands.find(l => l.compLabel === '细胞色素 c' && l.comp === 'HEC'); if (cytL) ctx.hideLigand(cytL);
+      const cytA = ctx.atomsOf(/^细胞色素 c$/); this.c0 = cytA.reduce((s, a) => s.add(a.p), V3(0, 0, 0)).multiplyScalar(1 / Math.max(1, cytA.length));
+      this.h0 = cytL ? cytL.centre.clone() : this.c0.clone();
+      this.dock1 = c1.clone().add(V3(0, -24, 0)); this.dock2 = cuA.clone().add(V3(0, -24, 0)); this.cytPos = this.dock1.clone();
+      /* ATP synthase: H+ path at the a-subunit / c-ring interface; ATP leaves the F1 head */
+      const aSub = cen(/ATP 合酶 · .*subunit a$/), beta = cen(/ATP 合酶 · .*subunit beta/);
+      this.atpH = [aSub.clone().setY(ym - 34), aSub.clone().setY(ym - 6), aSub.clone().setY(ym + 6), aSub.clone().setY(ym + 34)];
+      this.atpOut = beta.clone().add(V3(0, 18, 0));
+      this.lastA = Math.floor(ctx.theta / (2 * Math.PI / 3)); this.lastH = Math.floor(ctx.theta / (2 * Math.PI / 8));
+      ctx.counters.NADH = 0; ctx.counters['H⁺ 泵出'] = 0; ctx.counters.ATP = 0;
+      ctx.markHot([...chain, cuA, cuB, this.a3, this.ha, c1, bL, bH, isp], 7);
+      this.t = 0; this.busy = false; this.stg = 0;
+    },
+    move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
+      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6); let i = 0; p.position.copy(pts[0]);
+      const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
+        const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
+      go();
+    },
+    pumpH(from, to, delay = 0) {   // one H+ across the membrane (matrix +y -> IMS -y for the pumps)
+      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6);
+      ctx.anim(null, Math.max(0.02, delay / k), () => {}, () => { const p = ctx.makeParticle(0xfff27a, 2.6); ctx.counters['H⁺ 泵出']++;
+        this.move(p, [from, from.clone().lerp(to, 0.5), to], 1.0, (q) => ctx.anim(q, 0.6 / k, (u) => { q.scale.setScalar(2.6 * (1 - u) + 0.01); })); });
+    },
+    cycle() {
+      const ctx = this.ctx, ym = this.ym, V3 = (x, y, z) => new THREE.Vector3(x, y, z), up = (p, d) => p.clone().setY(ym + d);
+      this.busy = true; this.stg = 0; ctx.counters.NADH++;
+      const nadh = ctx.makeParticle(0xffb04a, 4.2);
+      this.move(nadh, [this.nadh.clone().add(V3(0, 40, 0)), this.nadh], 1.6, (n) => { n.parent?.remove(n);
+        this.stg = 1; const e = ctx.makeParticle(0x6ff4ff, 3.0);
+        this.pumpI.forEach((q, i) => this.pumpH(up(q, 34), up(q, -34), 0.5 + i * 0.35));
+        this.move(e, [this.nadh, ...this.chainI, this.qI], 0.45, (e1) => { e1.parent?.remove(e1);
+          this.stg = 2; const q = ctx.makeParticle(0xffe08a, 3.6);
+          this.move(q, [this.qI, up(this.qI, 2), up(this.Qo, 2), this.Qo], 1.3, (q1) => { q1.parent?.remove(q1);
+            this.stg = 3;
+            for (let i = 0; i < 4; i++) this.pumpH(this.Qo.clone(), up(this.Qo, -36).add(V3((i - 1.5) * 5, 0, 0)), i * 0.3);
+            for (let i = 0; i < 2; i++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, [up(this.Qi, 34).add(V3(i * 6 - 3, 0, 0)), this.Qi], 1.2, (x) => x.parent?.remove(x)); }
+            const eb = ctx.makeParticle(0x6ff4ff, 2.6); this.move(eb, [this.Qo, this.bL, this.bH, this.Qi], 0.6, (x) => x.parent?.remove(x));
+            const ea = ctx.makeParticle(0x6ff4ff, 3.0);
+            this.move(ea, [this.Qo, this.isp, this.c1, this.cytPos.clone().sub(this.c0).add(this.h0)], 0.6, (x) => { x.parent?.remove(x);
+              this.stg = 4; this.cytLoaded = true; const a = this.cytPos.clone();
+              ctx.anim(null, 2.2 / Math.max(0.3, ctx.speed / 0.6), (u) => { this.cytPos.lerpVectors(a, this.dock2, ease(u)); }, () => {
+                this.stg = 5; this.cytLoaded = false; const e4 = ctx.makeParticle(0x6ff4ff, 3.0);
+                this.pumpH(up(this.ha, 34), up(this.ha, -34), 0.6); this.pumpH(up(this.ha, 34).add(V3(5, 0, 0)), up(this.ha, -34).add(V3(5, 0, 0)), 1.1);
+                for (let i = 0; i < 2; i++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, [up(this.cuB, 34).add(V3(i * 6 - 3, 0, 0)), this.cuB], 1.4, (x) => x.parent?.remove(x)); }
+                this.move(e4, [this.dock2.clone().sub(this.c0).add(this.h0), this.cuA, this.ha, this.a3, this.cuB], 0.55, (x) => { x.parent?.remove(x);
+                  const f = ctx.makeParticle(0xff4a4a, 4.5); f.position.copy(this.cuB).add(V3(0, 9, 0));   // O2 -> H2O
+                  ctx.anim(f, 1.2, (u) => { f.scale.setScalar(4.5 + u * 3); f.material.color.setHSL(0.0 + u * 0.55, 0.9, 0.6); f.material.emissive?.copy(f.material.color); });
+                  const b = this.cytPos.clone(); ctx.anim(null, 2.2 / Math.max(0.3, ctx.speed / 0.6), (u) => { this.cytPos.lerpVectors(b, this.dock1, ease(u)); });
+                  this.stg = 6; ctx.anim(null, 2.6 / Math.max(0.3, ctx.speed / 0.6), () => {}, () => { this.busy = false; });
+                });
+              });
+            });
+          });
+        });
+      });
+    },
+    update(ctx) {
+      if (!this.busy) this.cycle();
+      /* cytochrome c follows its animated position; its heme glows while it carries an electron */
+      const g = ctx.partGroups(/^细胞色素 c$/)[0];
+      if (g?.mesh) g.mesh.position.copy(this.cytPos).sub(this.c0);
+      if (!this.heme) this.heme = ctx.makeParticle(0xff7040, 2.4);
+      this.heme.position.copy(this.cytPos).sub(this.c0).add(this.h0); this.heme.scale.setScalar(this.cytLoaded ? 3.4 : 2.0);
+      /* ATP synthase: 8 H+ per turn of the c8 ring, 3 ATP per turn */
+      const kH = Math.floor(ctx.theta / (2 * Math.PI / 8)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3));
+      for (; this.lastH < kH; this.lastH++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, this.atpH, 0.8, (x) => x.parent?.remove(x)); }
+      for (; this.lastA < kA; this.lastA++) { const m = ctx.makeParticle(0xffb300, 3.6), a = this.atpOut.clone(), b = a.clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 45, (Math.random() - 0.5) * 30)); ctx.counters.ATP++;
+        ctx.anim(m, 2.2, (u) => { m.position.copy(a).lerp(b, ease(u)); m.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }); }
+    },
+  },
+
   ionChannel: {
     energyHL: [[], [{ aseqs: [[62, 74]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[79, 81]] }]],
     energy: [
@@ -1994,7 +2195,7 @@ const PROCESSES = {
 /* ----------------------------------------------------------------------------- component placement */
 function placeComponent(comp, atoms, ligands) {
   const ys = atoms.map(a => a.p.y), ymin = Math.min(...ys), ymax = Math.max(...ys);
-  const ak = Object.keys(model.entityStats).find(k => kwMatch(k, comp.anchor || ''));
+  const ak = comp.anchor ? Object.keys(model.entityStats).find(k => kwMatch(k, comp.anchor)) : null;
   const anc = ak && model.entityStats[ak];
   let dy = comp.dy || 0;
   if (anc) {
@@ -2063,6 +2264,10 @@ async function loadScene(cfg) {
       applyTf(main, { centre: cA, q: new THREE.Quaternion().setFromUnitVectors(dir, new THREE.Vector3(0, 1, 0)) });
       const ys = main.atoms.map(a => a.p.y);
       applyTf(main, { centre: new THREE.Vector3(0, (Math.min(...ys) + Math.max(...ys)) / 2, 0), q: new THREE.Quaternion() });
+    } else if (cfg.axisFit) {   // membrane complexes: the flattest direction of the transmembrane subunits = membrane normal -> +Y
+      const fit = main.atoms.filter(a => cfg.axisFit.some(k => kwMatch(main.entities[a.ent]?.name || '', k)));
+      const P0 = (fit.length > 50 ? fit : main.atoms).map(a => a.p), pc = pca(P0);
+      applyTf(main, { centre: centroid(main.atoms), q: new THREE.Quaternion().setFromUnitVectors(pc.axes[0], new THREE.Vector3(0, 1, 0)) });
     } else applyTf(main, orientTransform(main.atoms.map(a => a.p), mode));
     if (cfg.up && !cfg.axisFrom) {
       const ups = main.atoms.filter(a => kwMatch(main.entities[a.ent]?.name || '', cfg.up));
@@ -2073,9 +2278,14 @@ async function loadScene(cfg) {
     const focus = { centre: fc, radius: Math.max(...pts.map(p => p.distanceTo(fc))) };
     // ---- parts by entity
     const byEnt = new Map();
-    for (const a of main.atoms) { const nm = main.entities[a.ent]?.name || ('entity ' + a.ent); a.part = nm; if (!byEnt.has(nm)) byEnt.set(nm, []); byEnt.get(nm).push(a); }
+    const groupOf = (nm) => (cfg.groupParts || []).find(([, ...kws]) => kws.some(k => kwMatch(nm, k)))?.[0] || nm;   // e.g. 45 subunits -> '复合体 I'
+    const rawEnt = new Map();
+    for (const a of main.atoms) { const raw = main.entities[a.ent]?.name || ('entity ' + a.ent), nm = groupOf(raw); a.part = nm; a.entName = raw;
+      if (!byEnt.has(nm)) byEnt.set(nm, []); byEnt.get(nm).push(a); if (!rawEnt.has(raw)) rawEnt.set(raw, []); rawEnt.get(raw).push(a); }
     model = { entityStats: {}, focus };
-    for (const [nm, arr] of byEnt) { const ys = arr.map(a => a.p.y); model.entityStats[nm] = { min: Math.min(...ys), max: Math.max(...ys), mean: ys.reduce((s, v) => s + v, 0) / ys.length }; }
+    const stat = (arr) => { const ys = arr.map(a => a.p.y); return { min: Math.min(...ys), max: Math.max(...ys), mean: ys.reduce((s, v) => s + v, 0) / ys.length }; };
+    for (const [nm, arr] of rawEnt) model.entityStats[nm] = stat(arr);   // raw subunit names stay addressable (membranes, alignment)
+    for (const [nm, arr] of byEnt) model.entityStats[nm] = stat(arr);
     const parts = [...byEnt.entries()].map(([nm, arr]) => ({ name: nm, atoms: arr }));
     let ligands = main.ligands.slice();
     // ---- components (other PDB entries placed relative to the main one)
@@ -2083,17 +2293,38 @@ async function loadScene(cfg) {
       try {
         status(`下载组件 ${comp.id} …`, true);
         const c = await loadEntry(comp.id, true); live();
-        if (comp.axis === 'native') nativeZtoY(c); else applyTf(c, orientTransform(c.atoms.map(a => a.p), comp.axis || 'long'));
+        const en = (a) => c.entities?.[a.ent]?.name || '', ofC = (kw) => c.atoms.filter(a => kwMatch(en(a), kw));
+        const shiftC = (v) => { for (const a of c.atoms) a.p.add(v); for (const L of c.ligands) for (const x of L.atoms) x.p.add(v); };
+        if (comp.axisFrom && ofC(comp.axisFrom[0]).length && ofC(comp.axisFrom[1]).length) {   // e.g. ATP synthase: c-ring -> F1 head = rotor axis
+          const cA = centroid(ofC(comp.axisFrom[0])), dir = centroid(ofC(comp.axisFrom[1])).sub(cA).normalize();
+          applyTf(c, { centre: cA, q: new THREE.Quaternion().setFromUnitVectors(dir, new THREE.Vector3(0, 1, 0)) });
+        } else if (comp.axis === 'native') nativeZtoY(c); else applyTf(c, orientTransform(c.atoms.map(a => a.p), comp.axis || 'long'));
         if (comp.flip) applyTf(c, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
+        if (comp.alignTo) {   // put one of its subunits at the height of one of the main entry's subunits (same membrane)
+          const own = ofC(comp.alignTo.own), ak2 = Object.keys(model.entityStats).find(k => kwMatch(k, comp.alignTo.anchor));
+          if (own.length && ak2) shiftC(new THREE.Vector3(0, model.entityStats[ak2].mean - centroid(own).y, 0));
+        }
+        if (comp.beside) {   // next to the main structure, on the side of one of its parts, without overlap
+          const side = main.atoms.filter(a => kwMatch(a.entName || a.part, comp.beside.part)), mc = centroid(main.atoms);
+          const d = (side.length ? centroid(side) : new THREE.Vector3(1, 0, 0)).sub(mc).setY(0).normalize();
+          const ext = Math.max(...main.atoms.map(a => a.p.clone().sub(mc).dot(d))), cc = centroid(c.atoms).setY(0);
+          const rC = Math.max(...c.atoms.map(a => Math.hypot(a.p.x - cc.x, a.p.z - cc.z)));
+          shiftC(mc.setY(0).addScaledVector(d, ext + rC + (comp.beside.gap || 20)).sub(cc));
+        }
         const placed = placeComponent(comp, c.atoms, c.ligands);
-        placed.atoms.forEach(a => a.part = comp.label || comp.id);
-        parts.push({ name: comp.label || comp.id, atoms: placed.atoms, comp });
+        placed.ligands.forEach(L => L.compLabel = comp.label || comp.id);
+        const pv = comp.pivot && placed.atoms.filter(a => kwMatch(en(a), comp.pivot)), pivot = pv?.length ? centroid(pv) : null;
+        if (comp.split) {   // one part per subunit type, so rotor and stator can behave differently
+          const by = new Map(); for (const a of placed.atoms) { const nm = `${comp.label || comp.id} · ${en(a) || a.ent}`; a.part = nm; if (!by.has(nm)) by.set(nm, []); by.get(nm).push(a); }
+          for (const [nm, arr] of by) parts.push({ name: nm, atoms: arr, comp, pivot });
+        } else { placed.atoms.forEach(a => a.part = comp.label || comp.id); parts.push({ name: comp.label || comp.id, atoms: placed.atoms, comp, pivot }); }
         ligands.push(...placed.ligands);
       } catch (e) { if (e instanceof Stale) throw e; console.warn(e); status(`组件 ${comp.id} 加载失败：${e.message}`); }
     }
     let rmax = 0, mainR = 0;
     for (const p of parts) for (const a of p.atoms) { rmax = Math.max(rmax, a.p.length()); mainR = Math.max(mainR, Math.hypot(a.p.x, a.p.z)); }
     Object.assign(model, { radius: rmax, mainR, allAtoms: parts.flatMap(p => p.atoms) });
+    if (cfg.frameAll) { const A = model.allAtoms, c = A.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / A.length); model.focus = { centre: c, radius: Math.max(...A.map(a => a.p.distanceTo(c))) }; }
     world.rotation.set(0, 0, cfg.horizontal ? -Math.PI / 2 : 0); world.updateMatrixWorld(true);
     // ---- colours & groups
     parts.sort((a, b) => b.atoms.length - a.atoms.length);
@@ -2105,7 +2336,7 @@ async function loadScene(cfg) {
       const fk = findKey(cfg.colors, part.name);
       const spin = part.comp?.spin === false ? false : (cfg.spin || []).some(k => kwMatch(part.name, k));
       const ghost = (cfg.ghost || []).some(k => kwMatch(part.name, k));
-      groups.push({ name: part.name, color: pal[i % pal.length], fixed: fk ? cfg.colors[fk] : null, atoms: part.atoms, spin, ghost, visible: true, mesh: null });
+      groups.push({ name: part.name, color: pal[i % pal.length], fixed: fk ? cfg.colors[fk] : null, atoms: part.atoms, spin, ghost, visible: true, mesh: null, pivot: part.pivot ? new THREE.Vector2(part.pivot.x, part.pivot.z) : null });
     });
     // ---- small molecules
     for (const L of ligands) { L.centre = L.atoms.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / L.atoms.length); L.hidden = false; }
@@ -2209,6 +2440,11 @@ function colourFnRaw(g, gi) {
   return (a) => { const r = range.get(a.asym); const t = (a.seq - r[0]) / Math.max(1, r[1] - r[0]); return new THREE.Color().setHSL(0.83 - 0.75 * t, 0.8, 0.58); };
 }
 function disposeObj(o) { o.traverse(x => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); }
+/* rotor pose: rotate about the world Y axis, or about a vertical axis through g.pivot (x, z) */
+function spinPose(g) {
+  if (!g.mesh) return; const th = g.spin ? theta : 0; g.mesh.rotation.y = th;
+  if (g.pivot) { const c = Math.cos(th), s = Math.sin(th), x = g.pivot.x, z = g.pivot.y; g.mesh.position.x = x - (x * c + z * s); g.mesh.position.z = z - (-x * s + z * c); }
+}
 function rebuildMeshes() {
   clearSelection();
   const pal = PALETTES[$('palette').value], rep = $('repMode').value;
@@ -2232,7 +2468,7 @@ function rebuildMeshes() {
         g.mesh.add(dm);
       }
     }
-    g.mesh.visible = g.visible; g.mesh.rotation.y = g.spin ? theta : 0;
+    g.mesh.visible = g.visible; spinPose(g);
     world.add(g.mesh);
   });
 }
@@ -2245,10 +2481,27 @@ function rebuildLigands() {
   for (const L of model.ligands) if (!L.hidden) { const key = L.comp + '|' + (L.state || 0); if (!by.has(key)) by.set(key, []); by.get(key).push(L); }
   for (const [key, mols] of by) {
     const obj = buildMolecules(mols, +$('ligScale').value);
+    world.add(obj);
     const visible = prevVis.get(key) ?? !LIPIDS.has(mols[0].comp);   // bound lipids / detergents start hidden (tick them in the legend)
     obj.visible = visible && $('ligOn').checked;
-    world.add(obj);
-    ligGroups.push({ key, comp: mols[0].comp, name: mols[0].fullName, n: mols.length, obj, visible, state: mols[0].state || 0 });
+    ligGroups.push({ key, comp: mols[0].comp, name: mols[0].fullName, n: mols.length, obj, visible, state: mols[0].state || 0, mols });
+  }
+  upgradeLigandBonds();
+}
+function rebuildLigGroupObj(lg) {   // redraw one ligand group in place (new bonds / style), keeping its visibility
+  world.remove(lg.obj); disposeObj(lg.obj);
+  lg.obj = buildMolecules(lg.mols, +$('ligScale').value); lg.obj.visible = lg.visible && $('ligOn').checked && !focus; world.add(lg.obj);
+}
+/* distance-guessed bonds -> real bonds with orders from the CCD (by atom name); one template per compound */
+async function upgradeLigandBonds() {
+  const mine = model;
+  for (const lg of ligGroups.slice()) {
+    if (lg.mols.every(L => L.bonds || L.atoms.length < 2)) continue;
+    let tpl = null; try { tpl = await getTemplate(lg.comp); } catch (e) { continue; }
+    if (model !== mine || !ligGroups.includes(lg)) return;
+    let changed = false;
+    for (const L of lg.mols) if (!L.bonds && L.atoms.length > 1) { const b = bondsFromTemplate(L.atoms, tpl); if (b) { L.bonds = b; changed = true; } }
+    if (changed) rebuildLigGroupObj(lg);
   }
 }
 
@@ -2311,7 +2564,7 @@ function renderLegend() {
     d.innerHTML = `<span class="sw" style="background:${g.color};color:${g.color}"></span><span class="nm" title="${g.name}">${g.name} <span class="sub">(${g.atoms.length.toLocaleString()})</span></span>
       <input type="checkbox" ${g.visible ? 'checked' : ''} data-k="vis"><input type="checkbox" ${g.spin ? 'checked' : ''} data-k="spin"><input type="checkbox" ${g.ghost ? 'checked' : ''} data-k="ghost"><input type="checkbox" ${g.simple ? 'checked' : ''} data-k="simple">`;
     d.querySelector('[data-k=vis]').onchange = (ev) => { g.visible = ev.target.checked; g.mesh.visible = g.visible; };
-    d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; g.mesh.rotation.y = g.spin ? theta : 0; };
+    d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; spinPose(g); };
     d.querySelector('[data-k=ghost]').onchange = (ev) => { g.ghost = ev.target.checked; if (g.ghost) aimCut(); rebuildMeshes(); applyCut(); };
     d.querySelector('[data-k=simple]').onchange = (ev) => { g.simple = ev.target.checked; rebuildMeshes(); applyCut(); };
     const nmEl = d.querySelector('.nm'); nmEl.style.cursor = 'pointer'; nmEl.onclick = () => selectPart(g);
@@ -2385,6 +2638,7 @@ function domainTurns(g, at, pFrom, pTo, names) {   // rigid rotation of each dom
 }
 async function focusLigand(L, idx = 0, n = 1) {
   clearFocus(false); clearSelection();
+  const myReq = focusLigand._req = {};
   if (!L.src) { status('这个小分子没有来源条目，无法下载结合位点'); return; }
   status(`下载 ${L.comp} 结合位点的全原子坐标 …`, true);
   let txt;
@@ -2433,10 +2687,19 @@ async function focusLigand(L, idx = 0, n = 1) {
   /* geometry */
   const obj = new THREE.Group(); obj.renderOrder = 5;
   const shown = [...res.values()].filter(rr => inter.some(i => i.rr === rr) || hydro.has(rr));   // only residues that make a contact
-  const resAtoms = shown.flatMap(rr => rr.atoms.map(x => ({ p: x.p, el: x.el })));
-  if (resAtoms.length) obj.add(buildMolecules([{ atoms: resAtoms, centre: new THREE.Vector3() }], 1, illustrative() ? '#a9b1c2' : '#c9d0de'));
-  const ligAtoms = [...lig, ...het].map(x => ({ p: x.p, el: x.el }));
-  if (ligAtoms.length) obj.add(buildMolecules([{ atoms: ligAtoms, centre: ligAtoms.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / ligAtoms.length) }], 1, '#ffb300'));
+  /* bonds (with orders) from the CCD templates of the ligand and of each residue type; peptide bonds between shown neighbours */
+  const tplOf = {}; await Promise.all([L.comp, ...new Set(shown.map(rr => rr.comp))].map(async (c) => { try { tplOf[c] = await getTemplate(c); } catch (e) { tplOf[c] = null; } }));
+  if (focusLigand._req !== myReq) return;
+  const resAtoms = [], resBonds = [];
+  for (const rr of shown) {
+    const base = resAtoms.length, b = bondsFromTemplate(rr.atoms, tplOf[rr.comp], 'an') || bondsOf(rr.atoms);
+    rr.atoms.forEach(x => resAtoms.push({ p: x.p, el: x.el, an: x.an, rr })); for (const [i, j, o] of b) resBonds.push([base + i, base + j, o]);
+  }
+  resAtoms.forEach((x, i) => { if (x.an !== 'C') return; const n = resAtoms.findIndex(y => y.an === 'N' && y.rr.asym === x.rr.asym && y.rr.seq === x.rr.seq + 1); if (n >= 0 && x.p.distanceTo(resAtoms[n].p) < 1.6) resBonds.push([i, n, 1]); });
+  if (resAtoms.length) obj.add(buildMolecules([{ atoms: resAtoms, bonds: resBonds, centre: new THREE.Vector3() }], 1, illustrative() ? '#a9b1c2' : '#c9d0de'));
+  const ligC = lig.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, lig.length));
+  if (lig.length) obj.add(buildMolecules([{ atoms: lig, bonds: bondsFromTemplate(lig, tplOf[L.comp], 'an') || bondsOf(lig), centre: ligC }], 1, '#ffb300'));
+  if (het.length) obj.add(buildMolecules([{ atoms: het.map(x => ({ p: x.p, el: x.el })), centre: ligC }], 1, '#ffb300'));
   for (const t of Object.keys(ITYPE)) { const pr = inter.filter(i => i.type === t).map(i => [i.a.p, i.b.p]); if (pr.length) obj.add(dashes(pr, ITYPE[t][1])); }
   const lg = ligGroups.find(l => l.comp === L.comp && l.state === (L.state || 0));
   for (const g2 of ligGroups) g2.obj.visible = false;   // enlarged display copies would bury the site; the focused one is drawn at true size
@@ -2461,9 +2724,9 @@ async function focusLigand(L, idx = 0, n = 1) {
       const cols = new Float32Array(out.cls.length * 3), cc = new THREE.Color();
       out.cls.forEach((k, i) => { cc.set(k === 255 ? '#d8d1b8' : RES_CHEM[CL[k]]); cols.set([cc.r, cc.g, cc.b], i * 3); });
       geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
-      mesh.renderOrder = 4; mesh.userData.pocket = true; obj.add(mesh);
-      const b = $('pocketBtn'); if (b) { b.disabled = false; b.textContent = '口袋表面：开'; }
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
+      mesh.renderOrder = 4; mesh.userData.pocket = true; mesh.visible = !!focusLigand._pocketOn; obj.add(mesh);   // off by default: it hides the ligand; one click shows the pocket shape
+      const b = $('pocketBtn'); if (b) { b.disabled = false; b.textContent = '口袋表面：' + (mesh.visible ? '开' : '关'); }
     });
   }
   /* residue labels (only residues that make an interaction, plus the closest others up to 14) */
@@ -2475,7 +2738,7 @@ async function focusLigand(L, idx = 0, n = 1) {
     const el = document.createElement('div'); el.className = 'rlab'; el.textContent = nameOf(rr); box.appendChild(el);
     labs.push({ el, p: pts.reduce((s, x) => s.add(x.clone()), new THREE.Vector3()).multiplyScalar(1 / pts.length) });
   }
-  focus = { token, L, obj, labs, lg, procVis: procRoot.visible, cam: focusLigand._cam || [camera.position.clone(), controls.target.clone()] }; focusLigand._cam = focus.cam; procRoot.visible = false;   // animated particles would bury the site
+  focus = { token, L, idx, n, obj, labs, lg, procVis: procRoot.visible, cam: focusLigand._cam || [camera.position.clone(), controls.target.clone()] }; focusLigand._cam = focus.cam; procRoot.visible = false;   // animated particles would bury the site
   /* camera: centre the ligand, keep the viewing direction */
   world.updateMatrixWorld(); const c = Lc.clone().applyMatrix4(world.matrixWorld), dir = camera.position.clone().sub(controls.target).normalize();
   const r = Math.max(14, ...L.atoms.map(x => x.p.distanceTo(Lc))) + 16;
@@ -2509,9 +2772,11 @@ async function focusLigand(L, idx = 0, n = 1) {
     + (clash ? `<div class="sec" style="color:var(--dim)">另有 ${clash} 对 N/O 原子距离 < 2.4 Å（沉积模型里的交替构象或几何冲突，不是真实接触），未计入。</div>` : '')
     + conf + (note ? `<div class="sec"><b>机制</b>：${note}</div>` : '')
     + `<div class="sec"><button class="fbtn wide" id="pocketBtn" disabled>口袋表面计算中…</button> 半透明表面＝结合口袋的形状（位点残基的分子表面，不含小分子），颜色＝残基化学性质：红 酸性、蓝 碱性、青绿 极性、紫 芳香、黄 含硫、沙色 疏水。</div>`
+    + `<div class="sec">画法：<button class="fbtn wide" data-st="ball">球棍</button> <button class="fbtn wide" data-st="valence">价键</button> <button class="fbtn wide" data-st="space">空间填充</button>　价键模型：一根＝单键，两根＝双键，三根＝三键，实线加内侧虚线＝芳香环（键级来自 RCSB 化学组分字典）。</div>`
     + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 或按 Esc 退出聚焦。</div>`;
   $('infoCard').style.display = 'block';
-  $('pocketBtn').onclick = () => { const m = focus?.obj.children.find(x => x.userData.pocket); if (!m) return; m.visible = !m.visible; $('pocketBtn').textContent = '口袋表面：' + (m.visible ? '开' : '关'); };
+  $('infoB').querySelectorAll('[data-st]').forEach(b => { b.classList.toggle('on', b.dataset.st === ligStyle()); b.onclick = () => { $('ligStyle').value = b.dataset.st; $('ligStyle').onchange(); }; });
+  $('pocketBtn').onclick = () => { const m = focus?.obj.children.find(x => x.userData.pocket); if (!m) return; m.visible = focusLigand._pocketOn = !m.visible; $('pocketBtn').textContent = '口袋表面：' + (m.visible ? '开' : '关'); };
   status(`聚焦 ${L.comp}：${inter.length} 个极性相互作用`);
 }
 
@@ -2608,7 +2873,11 @@ function updateEnergy() {
 /* ----------------------------------------------------------------------------- camera */
 function resetCamera(cam) {
   if (!model) return;
-  const c = cam || current?.camera || { az: -0.9, el: 0.25, dist: 1.2 };
+  let c = cam || current?.camera || { az: -0.9, el: 0.25, dist: 1.2 };
+  if (c.broadside && model.allAtoms?.length) {   // look across the long horizontal axis of the whole scene (a row of complexes in a membrane)
+    const P = model.allAtoms.filter((_, i) => i % 7 === 0).map(a => new THREE.Vector3(a.p.x, 0, a.p.z)), e = pca(P).axes[2];
+    c = { ...c, az: Math.atan2(-e.z, e.x) + (c.flipSide ? Math.PI : 0) };
+  }
   /* fit the narrower of the two field-of-view axes (portrait / phone screens) and pad for blob / lobe size */
   const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * camera.aspect));
   const R = model.focus.radius + 6, d = R / Math.sin(half) * (c.dist || 1);
@@ -2658,6 +2927,7 @@ $('quality').onchange = () => applyQuality(true);
 $('autoRot').onchange = () => controls.autoRotate = $('autoRot').checked;
 $('blob').onchange = () => { rebuildMeshes(); applyCut(); };
 $('ligScale').onchange = () => { if (model) { rebuildLigands(); renderLegend(); if (current?.process) loadScene(current); } };
+$('ligStyle').onchange = () => { if (!model) return; for (const lg of ligGroups) rebuildLigGroupObj(lg); if (focus) focusLigand(focus.L, focus.idx, focus.n); };
 $('ligOn').onchange = () => { for (const lg of ligGroups) lg.obj.visible = lg.visible && $('ligOn').checked; };
 $('procOn').onchange = () => { procRoot.visible = $('procOn').checked; $('caption').style.display = $('procOn').checked ? '' : 'none'; };
 $('colorMode').onchange = () => { rebuildMeshes(); applyCut(); renderLegend(); };
@@ -2707,7 +2977,7 @@ function frame() {
   if (!$('pause').checked) {
     U.uTime.value += dt; grade.uniforms.uT.value = U.uTime.value % 10;
     theta += +$('spin').value * dt;
-    for (const g of groups) if (g.spin && g.mesh) g.mesh.rotation.y = theta;
+    for (const g of groups) if (g.spin && g.mesh) spinPose(g);
     if (current?.states && $('morphAuto').checked) {   // ease-in-out ping-pong with holds at both ends
       morphT += dt * 0.35; const c = (Math.sin(morphT) + 1) / 2; $('morph').value = ease((c - 0.1) / 0.8); syncOut($('morph'));
     }
