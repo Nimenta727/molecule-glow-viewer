@@ -44,6 +44,12 @@
   #legend input{accent-color:var(--acc2);margin:0}
   #status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 16px;color:var(--dim);transition:opacity .4s;pointer-events:none;white-space:nowrap}
   #caption{position:fixed;bottom:54px;left:0;right:0;margin:0 auto;width:fit-content;max-width:min(980px,92vw);text-align:center;color:#dfe6f5;font-size:13px;line-height:1.5;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
+  #caption{pointer-events:auto;cursor:pointer} #caption .ct{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  #caption.open .ct{display:block} #caption .more{display:none;color:#7fb6f5;font-size:11px} #caption.clamped:not(.open) .more{display:inline}
+  #energy{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none} #energy::-webkit-scrollbar{display:none} #energy .e,#energy i,#energy .eh{flex:none;white-space:nowrap}
+  #cellHud .ctl .sec{cursor:pointer;user-select:none} #cellHud .ctl .sec::before{content:'▾ ';opacity:.6} #cellHud .ctl .sec.shut::before{content:'▸ '}
+  #cellHud .ctl .hid{display:none!important}
+  #cellHud .note.shut{max-height:3.2em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 40%,transparent)} #cellHud .noteT{font-size:11px;color:#7fb6f5;cursor:pointer;margin-top:4px}
   #caption .cnt{display:block;color:#ffe680;font-size:13px;margin-top:2px;font-variant-numeric:tabular-nums}
   #title{position:fixed;top:16px;right:18px;text-align:right;pointer-events:none;max-width:45%}
   #title .id{font-size:22px;font-weight:600;letter-spacing:2px;background:linear-gradient(90deg,#f08ae6,#8fc0ff);-webkit-background-clip:text;color:transparent}
@@ -1750,7 +1756,21 @@ function updateFly() {
   if (k >= 1) camFly = null;
 }
 controls.addEventListener('start', () => { camFly = null; });
-const safeAspect = () => Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1;   // hidden tab / zero-size canvas gives 0/0
+const safeAspect = () => (Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1) * viewFree.frac;   // hidden tab / zero-size canvas gives 0/0; fit into the free width
+/* free screen area between the left panel and the simulation panel: the camera's view is shifted so the scene is centred there */
+const viewFree = { frac: 1, dx: 0, key: '' };
+function updateViewOffset() {
+  const W = innerWidth, H = innerHeight; if (!(W > 0 && H > 0)) return;
+  const vis = (e) => e && getComputedStyle(e).display !== 'none' && !e.classList.contains('hidden');
+  let l = 0, r = W; const pn = $('panel'), hud = $('cellHud');
+  if (vis(pn)) { const b = pn.getBoundingClientRect(); if (b.right > 0 && b.right < W * 0.6) l = b.right + 8; }
+  if (vis(hud)) { const b = hud.getBoundingClientRect(); if (b.left > W * 0.4) r = b.left - 8; }
+  if (r - l < 320) { l = 0; r = W; }
+  const dx = (l + r) / 2 - W / 2, frac = (r - l) / W, key = W + ',' + H + ',' + Math.round(dx) + ',' + frac.toFixed(3);
+  if (key === viewFree.key) return; viewFree.key = key; viewFree.dx = dx; viewFree.frac = frac;
+  if (Math.abs(dx) < 2) camera.clearViewOffset(); else camera.setViewOffset(W, H, -dx, 0, W, H);
+  camera.updateProjectionMatrix();
+}
 const fitDist = (r) => { const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * safeAspect())); return r / Math.sin(half); };
 /* what the info card says about a part or one residue of it */
 function showSelInfo(g, a) {
@@ -2059,7 +2079,20 @@ function updateTags() {
     else vis = false;
     if (vis) { _tg.y += t.dy; _tg.project(camera); vis = _tg.z < 1 && Math.abs(_tg.x) < 1.1 && Math.abs(_tg.y) < 1.1; }
     t.el.style.display = vis ? '' : 'none';
-    if (vis) { t.el.style.left = ((_tg.x * 0.5 + 0.5) * innerWidth) + 'px'; t.el.style.top = ((-_tg.y * 0.5 + 0.5) * innerHeight) + 'px'; }
+    if (vis) { t.sx = (_tg.x * 0.5 + 0.5) * innerWidth; t.sy = (-_tg.y * 0.5 + 0.5) * innerHeight; t.el.style.left = t.sx + 'px'; t.el.style.top = t.sy + 'px'; }
+    t.vis = vis;
+  }
+  /* declutter: highlighted / warning tags first, then normal, then small ones; a tag that would overlap one already placed
+     (or a UI panel) is faded out instead of piling up. Sizes are cached (text rarely changes size much). */
+  const rank = (t) => /\b(hl|warn)\b/.test(t.el.className) ? 0 : /\bsmall\b/.test(t.el.className) ? 2 : 1, placed = [];
+  for (const id of ['panel', 'cellHud', 'energy', 'caption', 'infoCard']) { const e = $(id); if (!e || getComputedStyle(e).display === 'none' || e.classList.contains('hidden')) continue;
+    const r = e.getBoundingClientRect(); if (r.width && r.height) placed.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }); }
+  const vt = procTags.filter(t => t.vis).sort((a, b) => rank(a) - rank(b));
+  for (const t of vt) {
+    if (t.w == null || t._wh !== t._h) { t._wh = t._h; t.w = t.el.offsetWidth; t.h = t.el.offsetHeight; }
+    const box = { x: t.sx, y: t.sy - 0.8 * t.h, w: t.w, h: t.h };
+    const hit = placed.some(o => Math.abs(o.x - box.x) < (o.w + box.w) / 2 + 2 && Math.abs(o.y - box.y) < (o.h + box.h) / 2 + 1);
+    t.el.style.opacity = hit ? '0' : ''; if (!hit) placed.push(box);
   }
 }
 function clearTags() { for (const t of procTags) t.el.remove(); procTags = []; }
@@ -2115,6 +2148,65 @@ async function alignEntry(id, opts) {
   }
   console.log(`alignEntry ${id}: ${best.n}/${best.of} 个参考残基，RMSD ${best.rmsd.toFixed(2)} Å`);
   alignCache.set(key, out); return out;
+}
+
+/* ----------------------------------------------------------------------------- macromolecular crowding (cell-scale backdrop)
+   buildCrowd(spec) fills a box of cytoplasm with pale, coarse copies of real structures, so a scene reads as the inside of a
+   cell (Goodsell-style) instead of machines floating in empty space.
+   spec = { box: {min: Vector3, max: Vector3}, keepSide: {n: Vector3, d} (only points with n.p > d, i.e. behind the cut plane),
+            phi (target protein volume fraction), cellVol (A^3; E. coli cytoplasm ~7e11), types: [{id, label, perCell, col, fill}] }
+   Copies of each type = perCell * boxVolume / cellVol (abundance per cell); `fill` types then top the box up to phi (they stand
+   for the thousands of other cytoplasmic proteins). Each copy = one rigid body of coarse blobs (every k-th CA / P, radius grown
+   so the volume is kept); placement avoids the scene's atoms and the copies already placed (8 A grid). Slow Brownian drift. */
+async function buildCrowd(spec) {
+  const V = THREE.Vector3, B = spec.box, size = B.max.clone().sub(B.min), boxVol = size.x * size.y * size.z * (spec.keepSide ? 0.5 : 1);   /* only the half behind the cut is filled */
+  const keep = (p) => !spec.keepSide || spec.keepSide.n.dot(p) > spec.keepSide.d;
+  const cell = 8, occ = new Set(), K = (x, y, z) => Math.floor(x / cell) + ',' + Math.floor(y / cell) + ',' + Math.floor(z / cell);
+  for (const a of model.allAtoms) occ.add(K(a.p.x, a.p.y, a.p.z));
+  const free = (p) => { const x = Math.floor(p.x / cell), y = Math.floor(p.y / cell), z = Math.floor(p.z / cell);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) if (occ.has((x + dx) + ',' + (y + dy) + ',' + (z + dz))) return false; return true; };
+  /* coarse shapes from the real structures (CA / P only, first biological assembly) */
+  const shapes = await Promise.all(spec.types.map(async (t) => {
+    try { const e = await loadEntry(t.id, true, false); const P = e.atoms.map(a => a.p), c = P.reduce((s, p) => s.add(p), new V()).multiplyScalar(1 / P.length);
+      const k = Math.max(1, Math.ceil(P.length / 300)), pts = P.filter((_, i) => i % k === 0).map(p => p.clone().sub(c));
+      return { ...t, pts, n: P.length, r: 3.3 * Math.cbrt(k) * 1.12, R: Math.max(...pts.map(p => p.length())), vol: P.length * 135 };
+    } catch (e) { console.warn('crowd', t.id, e); return null; } }));
+  const S = shapes.filter(Boolean); if (!S.length) return null;
+  /* how many copies: abundance first, then fill types up to the target volume fraction */
+  const want = S.map(s => Math.round((s.perCell || 0) * boxVol / (spec.cellVol || 7e11)));
+  let vol = S.reduce((a, s, i) => a + want[i] * s.vol, 0); const fillers = S.map((s, i) => i).filter(i => S[i].fill);
+  for (let g = 0; vol < (spec.phi || 0.15) * boxVol && fillers.length && g < 3000; g++) { const i = fillers[g % fillers.length]; want[i]++; vol += S[i].vol; }
+  /* place: biggest first (ribosomes before small enzymes) */
+  const order = S.map((s, i) => i).sort((a, b) => S[b].vol - S[a].vol), bodies = [], _q = new THREE.Quaternion(), _p = new V();
+  for (const i of order) {
+    const s = S[i]; let placed = 0;
+    for (let tries = 0; placed < want[i] && tries < want[i] * 40; tries++) {
+      const c = new V(B.min.x + Math.random() * size.x, B.min.y + Math.random() * size.y, B.min.z + Math.random() * size.z);
+      if (!keep(c)) continue;
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.random() * 6.3, Math.random() * 6.3, Math.random() * 6.3));
+      let ok = true; for (const p of s.pts) { _p.copy(p).applyQuaternion(q).add(c); if (!free(_p) || _p.y > B.max.y + 10) { ok = false; break; } }
+      if (!ok) continue;
+      for (const p of s.pts) { _p.copy(p).applyQuaternion(q).add(c); occ.add(K(_p.x, _p.y, _p.z)); }
+      bodies.push({ i, c, q, c0: c.clone(), ph: Math.random() * 100 }); placed++;
+    }
+    s.placed = placed;
+  }
+  /* one InstancedMesh per type; pale flat colours (the ink pass draws the outlines) */
+  const root = new THREE.Group(), geo = new THREE.IcosahedronGeometry(1, 0);   /* 20 faces: flat-coloured background, keeps the frame rate */
+  const meshes = S.map((s) => { const n = bodies.filter(b => b.i === S.indexOf(s)).length * s.pts.length;
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(s.col || '#d8d2c4').lerp(new THREE.Color('#f6f4ef'), 0.35) }); mat.clippingPlanes = [cutPlane];   /* flat and pale: background, the ink pass outlines it */
+    const m = new THREE.InstancedMesh(geo, mat, Math.max(1, n)); m.count = n; m.frustumCulled = false; root.add(m); return m; });
+  const _m = new THREE.Matrix4(), _s = new V(), _qq = new THREE.Quaternion();
+  const draw = (t) => { const cnt = S.map(() => 0);
+    for (const b of bodies) { const s = S[b.i], m = meshes[b.i];
+      _qq.copy(b.q); _p.set(Math.sin(t * 0.21 + b.ph), Math.sin(t * 0.17 + b.ph * 1.3), Math.sin(t * 0.19 + b.ph * 0.7)).multiplyScalar(1.6).add(b.c0);
+      for (const p of s.pts) { _m.compose(_s.copy(p).applyQuaternion(_qq).add(_p), _q, new V(s.r, s.r, s.r)); m.setMatrixAt(cnt[b.i]++, _m); } }
+    meshes.forEach(m => m.instanceMatrix.needsUpdate = true); };
+  draw(0);
+  world.add(root); procWorld.push(root);
+  const summary = S.filter(s => s.placed).map(s => `${s.label} ×${s.placed}`).join('、');
+  console.log(`crowd: ${bodies.length} 个分子，体积分数 ${(100 * Math.min(vol, S.reduce((a, s) => a + s.placed * s.vol, 0)) / boxVol).toFixed(0)}%：${summary}`);
+  return { root, draw, bodies, summary, phi: S.reduce((a, s) => a + s.placed * s.vol, 0) / boxVol };
 }
 
 /* ----------------------------------------------------------------------------- tunnel / pore search
@@ -3691,6 +3783,22 @@ const PROCESSES = {
       $('mem1').value = ym / rmax; $('mem2On').checked = false; ctx.membraneY = [ym];
       await kc.setup(ctx);
       tl.yMax = ym - 30;   /* cytoplasmic factors and drugs stay below the membrane */
+      /* the rest of the cytoplasm: pale copies of abundant E. coli proteins behind the cut plane (macromolecular crowding) */
+      status('填充细胞质：下载背景蛋白结构…', true);
+      let botC = 1e9; for (const a of rib) botC = Math.min(botC, a.p.y);
+      const vdir = new V(Math.sin(az), 0, Math.cos(az)), nBack = vdir.clone().negate(), fcc = cen(all), Hx = tl.Rr + 170;
+      this.crowd = await buildCrowd({ box: { min: new V(cR.x - Hx, botC - 70, cR.z - Hx), max: new V(cR.x + Hx, ym - 34, cR.z + Hx) },
+        keepSide: { n: nBack, d: nBack.dot(fcc) + 6 }, phi: 0.16, cellVol: 7e11,
+        types: [
+          { id: '1EFT', label: 'EF-Tu', perCell: 60000, col: '#cdd9e8', fill: 2 },
+          { id: '4V6F', label: '70S 核糖体', perCell: 25000, col: '#e6dccb' },
+          { id: '6ALH', label: 'RNA 聚合酶', perCell: 3000, col: '#d6e2d0' },
+          { id: '1AON', label: 'GroEL/GroES', perCell: 1500, col: '#e2d5e6' },
+          { id: '1GD1', label: '甘油醛-3-磷酸脱氢酶', perCell: 0, col: '#dcd6c8', fill: 1 },
+          { id: '1PKN', label: '丙酮酸激酶', perCell: 0, col: '#d3dbd8', fill: 1 },
+          { id: '1TIM', label: '磷酸丙糖异构酶', perCell: 0, col: '#e0d8d0', fill: 1 },
+          { id: '4AKE', label: '腺苷酸激酶', perCell: 0, col: '#d8dce6', fill: 1 } ] }).catch(e => { console.warn('crowd', e); return null; });
+      this.tc = 0;
       /* overview framing: from the bottom of the ribosome to just above the membrane (the cut plane stays vertical through the same x, z) */
       let bot = 1e9; for (const a of rib) bot = Math.min(bot, a.p.y);
       const topS = ym + 45; model.focus.centre.y = (bot + topS) / 2; model.focus.radius = Math.max((topS - bot) / 2, tl.Rr * 1.15);
@@ -3698,7 +3806,7 @@ const PROCESSES = {
       this.kTag = makeTag('KcsA 钾通道（细胞膜）', { p: kc.O.clone().setY(kc.site.S0.y + 26), cls: 'hl' });
       console.log('cellCorner: 膜 y =', ym.toFixed(0), '，核糖体顶 y =', top.toFixed(0), '，通道轴', kc.O.toArray().map(v => v.toFixed(0)).join(','));
     },
-    update(ctx, dt) { for (const s of this.sub) s.update(ctx, dt); },
+    update(ctx, dt) { for (const s of this.sub) s.update(ctx, dt); this.tc += dt; if (this.crowd && (this._f = (this._f || 0) + 1) % 3 === 0) this.crowd.draw(this.tc); },
     look(v) {
       this.view = v; renderEnergy();
       const [tl, kc] = this.sub, M = world.matrixWorld;
@@ -3709,6 +3817,8 @@ const PROCESSES = {
     explain() {
       const [tl, kc] = this.sub, c = kc.conc();
       const L = ['━━ 核糖体（细胞质）━━', tl.explain(), '', '━━ KcsA 钾通道（细胞膜）━━', kc.explain()];
+      if (this.crowd) L.push('', `━━ 背景 ━━
+浅色的是细胞质里的其他大分子（真实结构的粗粒化模型，只画剖面后方）：${this.crowd.summary}。数量按每个大肠杆菌细胞的拷贝数量级（EF-Tu 约 6 万、核糖体约 2.5 万、RNA 聚合酶约 3 千、GroEL 约 1.5 千）换算到这块体积，其余用几种常见代谢酶补到蛋白体积分数约 ${(100 * this.crowd.phi).toFixed(0)}%（真实细胞质的大分子占体积 20–30%，这里略稀以便看清）。`);
       if (c.pH < 6) L.push('', `⚠ 胞内 pH ${c.pH.toFixed(1)}：KcsA 只在这样的酸性条件下打开（实验条件）。真实细胞质约 pH 7.5，这么酸时翻译也会停止；本模型没有包含 pH 对翻译的影响。`);
       else L.push('', `胞内 pH ${c.pH.toFixed(1)}（接近生理）：KcsA 的门几乎总是关着。把胞内 pH 拖到 4 左右可以看到它打开（实验条件）。`);
       return L.join('\n');
@@ -3728,8 +3838,8 @@ const PROCESSES = {
           { type: 'button', label: '全景', run: () => proc?.look?.('all') },
           { type: 'button', label: '看核糖体', run: () => proc?.look?.('rib') },
           { type: 'button', label: '看钾通道', run: () => proc?.look?.('k') },
-          { type: 'section', label: '━ 核糖体（细胞质）' }, ...T.controls.map(x => W(x, 0)),
-          { type: 'section', label: '━ KcsA 钾通道（细胞膜）' }, ...K.controls.map(x => W(x.id === 'pH' ? { ...x, value: 7.2 } : x, 1)),
+          ...(T.controls[0]?.type === 'section' ? [] : [{ type: 'section', label: '核糖体' }]), ...T.controls.map(x => W(x.type === 'section' ? { ...x, label: '核糖体 · ' + x.label } : x, 0)),
+          ...K.controls.map(x => W(x.type === 'section' ? { ...x, label: '钾通道 · ' + x.label } : x.id === 'pH' ? { ...x, value: 7.2 } : x, 1)),
         ],
         series: [...T.series.map(x => W(x, 0)), ...K.series.map(x => W(x, 1))],
         explain: () => proc?.explain?.() || '',
@@ -3918,7 +4028,8 @@ async function loadScene(cfg) {
     $('simpDefault').value = 'auto';   // before the build, so the menu and the meshes agree
     rebuildMeshes(); rebuildLigands(); rebuildMembranes(); applyCut();
     const cap = cfg.caption || (P && P.caption) || '';
-    $('caption').innerHTML = cap ? `${cap}<span class="cnt" id="cnt"></span>` : '';
+    $('caption').innerHTML = cap ? `<span class="ct">${cap}</span><span class="more">点击展开全文 ▾</span><span class="cnt" id="cnt"></span>` : '';
+    $('caption').classList.remove('open'); requestAnimationFrame(() => { const ct = $('caption').querySelector('.ct'); $('caption').classList.toggle('clamped', !!ct && ct.scrollHeight > ct.clientHeight + 2); });
     $('tId').textContent = (cfg.states ? cfg.states.join(' ⇄ ') : main.id) + ((cfg.components || []).length ? ' + ' + cfg.components.map(c => c.id).join(' + ') : '');
     $('tName').textContent = cfg.name || main.title;
     if (!labelsTouched) $('labelsOn').checked = !!cfg.notes;   // V12: respect the user's own choice
@@ -3927,6 +4038,7 @@ async function loadScene(cfg) {
     if (P?.cell && proc) startCellSim(P.cell);
     const total = groups.reduce((s, g) => s + g.atoms.length, 0);
     status(`完成：${total.toLocaleString()} 个残基团块，${ligands.length} 个小分子`);
+    if (P?.cell && innerWidth < 1600 && innerWidth > 600) { $('panel').classList.add('hidden'); resetCamera(cfg.camera); }   /* room for the scene; ☰ / H brings the panel back */
   } catch (e) { if (e instanceof Stale) return; console.error(e); status('出错：' + e.message, true); }
   $('load').disabled = false;
 }
@@ -3958,7 +4070,7 @@ function startCellSim(def) {
   /* controls: on/off buttons (default), {type:'range', min, max, step, value, unit}, {type:'select', options:[[v, label]]},
      {type:'button', run(sim)} (an action), {type:'section', label} (a heading) */
   for (const c of def.controls) {
-    if (c.type === 'section') { const d = document.createElement('div'); d.className = 'sec'; d.textContent = c.label; $('cellCtl').appendChild(d); continue; }
+    if (c.type === 'section') { const d = document.createElement('div'); d.className = 'sec'; d.textContent = c.label; $('cellCtl').appendChild(d); continue; }   /* folding: wired up after all controls exist */
     if (c.type === 'range') {
       const row = document.createElement('label'); row.className = 'rng'; row.title = c.tip || '';
       row.innerHTML = `<span></span><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.value}"><output></output>`;
@@ -3981,6 +4093,11 @@ function startCellSim(def) {
     $('cellCtl').appendChild(b);
   }
   $('cellHd').onclick = () => hud.classList.toggle('min');
+  { const kids = [...$('cellCtl').children], secs = kids.filter(x => x.classList.contains('sec')), long = kids.length > 12;
+    const setShut = (sec, shut) => { sec.classList.toggle('shut', shut); for (let n = sec.nextElementSibling; n && !n.classList.contains('sec'); n = n.nextElementSibling) n.classList.toggle('hid', shut); };
+    secs.forEach((sec, i) => { setShut(sec, long && i > 0); sec.onclick = () => setShut(sec, !sec.classList.contains('shut')); }); }
+  { const n = $('cellNote'); n.classList.add('shut'); let t = $('cellNoteT'); if (!t) { t = document.createElement('div'); t.id = 'cellNoteT'; t.className = 'noteT'; n.after(t); }
+    t.textContent = '讲解 ▸ 展开'; t.onclick = () => { const sh = n.classList.toggle('shut'); t.textContent = sh ? '讲解 ▸ 展开' : '讲解 ▾ 收起'; }; }
   buildCellVisuals(sim);
 }
 function stopCellSim() {
@@ -4910,7 +5027,7 @@ function updateEnergy() {
   else if (current?.energyStage === 'morph') { const m = U.uMorph.value; if (Math.abs(m - _morphPrev) > 1e-4) _morphDir = Math.sign(m - _morphPrev); _morphPrev = m;
     k = m < 0.15 ? 0 : m > 0.85 ? 2 : _morphDir > 0 ? 1 : 3; }
   if (k === energyKey) return; energyKey = k;
-  $('energy').querySelectorAll('.e[data-i]').forEach(el => el.classList.toggle('on', +el.dataset.i === k));
+  $('energy').querySelectorAll('.e[data-i]').forEach(el => { el.classList.toggle('on', +el.dataset.i === k); if (+el.dataset.i === k) { const box = $('energy'); box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' }); } });
   if (energyFollow && !focus && (!sel.ids.size || sel.source === 'step')) selectSpecs(energyHLList()?.[k], true);   // a user's own pick is not overridden
 }
 
@@ -5005,6 +5122,7 @@ $('infoX').onclick = () => { $('infoCard').style.display = 'none'; clearSelectio
 $('shellOn').onchange = () => { if ($('repMode').value === 'cartoon') { rebuildMeshes(); applyCut(); } };
 $('shot').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = `${$('tId').textContent.replace(/\W+/g, '_')}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
 $('toggle').onclick = () => $('panel').classList.toggle('hidden');
+$('caption').onclick = () => $('caption').classList.toggle('open');
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
   if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hidden');
@@ -5040,6 +5158,7 @@ function frame() {
       const cnt = $('cnt'); if (cnt) cnt.textContent = Object.entries(proc.ctx.counters).map(([k, v]) => `${k}：${v}`).join('　');
     }
   }
+  updateViewOffset();
   U.uUpView.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
   procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion);
   for (const g of groups) if (g.mesh) {
