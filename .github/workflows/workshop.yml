@@ -1,14 +1,18 @@
 name: workshop
-# Check every scene pack with the viewer's own rules; on main, rebuild the workshop indexes and commit them.
+# Check every scene pack with the viewer's own rules; on main, rebuild the workshop indexes, make sure every scene has a
+# discussion thread (rating = 👍/👎, comments = replies) and refresh workshop/stats.json; commit only real changes.
 on:
   pull_request:
     paths: ['workshop/**', 'web/index.html']
   push:
     branches: [main]
     paths: ['workshop/**', 'web/index.html']
+  schedule:
+    - cron: '17 */6 * * *'
   workflow_dispatch:
 permissions:
   contents: write
+  discussions: write
 concurrency: { group: workshop-index, cancel-in-progress: false }
 jobs:
   check:
@@ -21,13 +25,18 @@ jobs:
         run: node workshop/tools/validate.mjs
       - name: Rebuild indexes
         run: node workshop/tools/build-index.mjs
-      - name: Commit indexes (main only)
+      - name: Discussion threads and stats (main only)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node workshop/tools/threads.mjs
+      - name: Commit (main only)
         if: github.event_name != 'pull_request'
         run: |
           if [ -n "$(git status --porcelain -- workshop)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add workshop
-            git commit -m "workshop: rebuild index"
+            git commit -m "workshop: rebuild index / stats"
             git push
           fi
