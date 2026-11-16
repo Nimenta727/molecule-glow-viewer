@@ -1,0 +1,126 @@
+{
+ "format": "glow-stats",
+ "version": 1,
+ "packs": {
+  "official.adenylate-kinase": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/13",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.adk-reaction-data": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/14",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.atp-synthase": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/17",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.cell-corner": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/11",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.chloroplast-light": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/15",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.flagellar-motor": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/6",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.groel": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/18",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.kcsa": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/9",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.kcsa-data": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/10",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.nucleosome": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/8",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.proteasome-20s": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/5",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.respiratory-chain": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/12",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.spike": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/19",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.translation": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/7",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "official.whole-cell": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/16",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  }
+ }
+}
