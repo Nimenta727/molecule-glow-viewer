@@ -18,7 +18,7 @@ test('API server persists and retrieves scenes', async () => {
   const port = server.address().port;
   const call = (method, route, body) => new Promise((resolve, reject) => {
     const req = request({ host: '127.0.0.1', port, path: route, method, headers: body ? { 'content-type': 'application/json' } : {} }, res => {
-      let text = ''; res.setEncoding('utf8'); res.on('data', chunk => text += chunk); res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(text) }));
+      let text = ''; res.setEncoding('utf8'); res.on('data', chunk => text += chunk); res.on('end', () => resolve({ status: res.statusCode, body: text ? JSON.parse(text) : null }));
     });
     req.on('error', reject); if (body) req.end(JSON.stringify(body)); else req.end();
   });
@@ -27,6 +27,12 @@ test('API server persists and retrieves scenes', async () => {
     assert.equal(created.status, 201);
     const fetched = await call('GET', `/api/scenes/${created.body.id}`);
     assert.deepEqual(fetched.body.config, { preset: '6ZPO' });
+    const updated = await call('PUT', `/api/scenes/${created.body.id}`, { name: '更新后的演示', config: { preset: '1BL8' } });
+    assert.equal(updated.body.name, '更新后的演示');
+    const removed = await call('DELETE', `/api/scenes/${created.body.id}`);
+    assert.equal(removed.status, 204);
+    const missing = await call('GET', `/api/scenes/${created.body.id}`);
+    assert.equal(missing.status, 404);
   } finally {
     await new Promise(resolve => server.close(resolve));
     await fs.rm(dataDir, { recursive: true, force: true });

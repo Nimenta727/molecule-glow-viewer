@@ -89,6 +89,8 @@ npm run start:server
 - `GET /api/scenes`
 - `POST /api/scenes`，提交 `{ "name": "...", "config": { ... } }`
 - `GET /api/scenes/:id`
+- `PUT /api/scenes/:id`，更新场景名称和配置
+- `DELETE /api/scenes/:id`，删除场景
 
 代理只允许 `data.rcsb.org`、`models.rcsb.org` 和 `files.rcsb.org` 的 HTTPS 地址，避免把服务变成任意 URL 转发器。现有 Web 版和 Electron 版仍可不依赖该服务直接运行。
 

@@ -102,6 +102,25 @@ export function createApiServer({ dataDir = process.env.DATA_DIR || path.join(pr
         json(res, 200, scene);
         return;
       }
+      if (sceneMatch && (req.method === 'PUT' || req.method === 'DELETE')) {
+        const scenes = await readScenes(sceneFile);
+        const scene = scenes[sceneMatch[1]];
+        if (!scene) { json(res, 404, { error: 'Scene not found' }); return; }
+        if (req.method === 'DELETE') {
+          delete scenes[sceneMatch[1]];
+          await writeFile(sceneFile, JSON.stringify(scenes, null, 2) + '\n');
+          send(res, 204, '');
+          return;
+        }
+        const update = await requestBody(req);
+        if (!validScene(update)) { json(res, 400, { error: 'Scene requires a name and optional object config' }); return; }
+        scene.name = update.name.trim();
+        scene.config = update.config || {};
+        scene.updatedAt = new Date().toISOString();
+        await writeFile(sceneFile, JSON.stringify(scenes, null, 2) + '\n');
+        json(res, 200, scene);
+        return;
+      }
       if (requestUrl.pathname === '/api/rcsb') {
         const raw = requestUrl.searchParams.get('url');
         if (!raw) { json(res, 400, { error: 'Missing url query parameter' }); return; }
