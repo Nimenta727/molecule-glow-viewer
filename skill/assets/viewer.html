@@ -183,7 +183,9 @@
   #shopGrid .badge{position:absolute;left:8px;top:8px;font-size:11px;padding:1px 7px;border-radius:9px;background:#2448e8;color:#fff} #shopGrid .badge.community{background:#2f9e44}
   #shopGrid .cb{padding:9px 11px 11px;display:flex;flex-direction:column;gap:4px;flex:1} #shopGrid .meta{font-size:11.5px;color:var(--dim)} #shopGrid .upd{color:#e8590c;font-weight:600}
   #shopGrid .desc{font-size:12px;color:var(--dim);flex:1} #shopGrid .tags span{display:inline-block;font-size:11px;padding:0 6px;margin:0 4px 2px 0;border-radius:8px;border:1px solid var(--line)}
-  #shopGrid .acts{display:flex;gap:6px;margin-top:4px} #shopGrid .acts button{padding:4px 10px;font-size:12px}
+  #shopGrid .soc{display:flex;gap:10px;font-size:11.5px;color:var(--dim)} #shopGrid .cmt{font-size:11.5px;color:var(--dim);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #shop select{padding:4px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;font:inherit;font-size:12.5px}
+  #shopGrid .acts{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap} #shopGrid .acts button{padding:4px 10px;font-size:12px}
   .shopMsg{grid-column:1/-1;padding:30px 10px;text-align:center;color:var(--dim)}
   #shop .ft{padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   #shopPub{display:none;padding:10px 16px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6}
@@ -219,10 +221,11 @@
 <div id="shop"><div class="box">
   <div class="hd"><h3>🧩 创意工坊</h3><div class="seg" id="shopTabs"><button data-src="official">官方</button><button data-src="community">社区</button><button data-src="subs">已订阅</button></div>
     <div class="seg" id="shopCats"><button data-cat="all">全部</button><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button></div>
+    <select id="shopSort" title="排序"><option value="title">按标题</option><option value="hot">最受欢迎</option><option value="new">最新</option></select>
     <input type="search" id="shopQ" placeholder="搜索标题、标签、PDB 编号、作者"><span class="x" id="shopX">×</span></div>
   <div id="shopGrid"></div>
   <div id="shopPub"><b>场景包已下载。</b>投稿到社区工坊：<ol><li>打开 <a id="shopIssue" target="_blank" rel="noopener">投稿页面</a>（需要 GitHub 账号），填写标题和说明，把刚下载的 .glow 文件拖进去。</li><li>自动检查通过、维护者审核后，场景就会出现在“社区”里。</li></ol>熟悉 GitHub 也可以直接提 Pull Request，把文件放进 <code>workshop/community/packs/</code>。</div>
-  <div class="ft"><span>官方场景由项目维护；社区场景由作者上传，经过自动检查。社区动画只能用数据描述（粒子、隔室、路径、反应），不会运行任何代码。</span><button class="ghost" id="shopPublish" style="margin-left:auto">发布我的场景</button></div>
+  <div class="ft"><span>官方场景由项目维护；社区场景由作者上传，经过自动检查。社区动画只能用数据描述（粒子、隔室、路径、反应），不会运行任何代码。评分和评论在每个场景的 GitHub 讨论帖里（用 GitHub 账号登录），每 6 小时同步到这里。</span><button class="ghost" id="shopPublish" style="margin-left:auto">发布我的场景</button></div>
 </div></div>
 <div id="drop">松开鼠标导入结构文件（.cif / .pdb）或场景包（.glow）</div>
 
@@ -6424,7 +6427,13 @@ PROCESSES.dataAnim = {
 };
 
 /* ---- workshop: two sources (official / community), each a folder with index.json + packs/ + covers/ in the GitHub repo */
-const shop = { src: 'official', cat: 'all', q: '', idx: {}, err: {} };
+const shop = { src: 'official', cat: 'all', q: '', sort: 'title', idx: {}, err: {}, stats: null };
+/* phase 2 on GitHub: workshop/stats.json (built every 6 h by CI from each scene's discussion thread: 👍 / 👎 = rating, replies = comments) */
+async function shopStats() {
+  if (shop.stats) return shop.stats;
+  try { const r = await fetch(WS_BASE + 'stats.json', { cache: 'no-cache' }); if (r.ok) { const J = await r.json(); if (J.format === 'glow-stats') return shop.stats = J.packs || {}; } } catch (e) {}
+  return shop.stats = {};
+}
 const subsGet = () => { try { return JSON.parse(localStorage.getItem('glowSubs') || '{}'); } catch (e) { return {}; } };
 const subsSet = (s) => { try { localStorage.setItem('glowSubs', JSON.stringify(s)); } catch (e) {} };
 async function sha256Hex(text) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
@@ -6451,20 +6460,24 @@ async function renderShop() {
   else { grid.innerHTML = '<div class="shopMsg">正在读取目录…</div>'; const I = await shopIndex(shop.src);
     if (!I) { grid.innerHTML = `<div class="shopMsg">连不上工坊（${escT(shop.err[shop.src])}）。离线时可以打开“已订阅”里看过的场景，或导入本地 .glow 文件。</div>`; return; }
     items = I.packs.map(e => ({ ...e, _src: shop.src })); }
-  const q = shop.q.trim().toLowerCase();
+  const ST = await shopStats(), q = shop.q.trim().toLowerCase();
   items = items.filter(e => (shop.cat === 'all' || e.category === shop.cat) && (!q || [e.title, e.description, ...(e.tags || []), e.author?.name, ...(e.pdb || [])].join(' ').toLowerCase().includes(q)));
+  const score = (e) => (ST[e.id]?.up || 0) - (ST[e.id]?.down || 0);
+  if (shop.sort === 'hot') items.sort((a, b) => score(b) - score(a) || (ST[b.id]?.comments || 0) - (ST[a.id]?.comments || 0));
+  else if (shop.sort === 'new') items.sort((a, b) => String(b.updated || '').localeCompare(String(a.updated || '')));
   if (!items.length) { grid.innerHTML = `<div class="shopMsg">${shop.src === 'subs' ? '还没有订阅的场景。订阅后会出现在左侧预设里，有新版本时自动更新。' : '没有符合条件的场景。'}</div>`; return; }
   const latest = (e) => shop.idx[e._src]?.packs.find(x => x.id === e.id);
   grid.innerHTML = items.map(e => { const sub = subs[e.id], upd = sub && latest(e) && latest(e).revision > sub.revision;
     return `<div class="card" data-id="${escT(e.id)}" data-src="${e._src}">
       <div class="cov">${e.cover ? `<img loading="lazy" src="${escT(WS_SRC[e._src].url + e.cover)}" alt="">` : ''}<span class="badge ${e._src}">${WS_SRC[e._src].name}</span></div>
       <div class="cb"><b>${escT(e.title)}</b><div class="meta">${escT(PACK_CATS[e.category] || '')} · ${escT(e.author?.name || '匿名')} · 第 ${e.revision | 0} 版${upd ? ' · <span class="upd">有更新</span>' : ''}</div>
-      <div class="desc">${escT((e.description || '').slice(0, 90))}</div><div class="tags">${(e.tags || []).map(t => `<span>${escT(t)}</span>`).join('')}</div>
-      <div class="acts"><button data-a="open">打开</button><button class="ghost" data-a="sub">${sub ? '取消订阅' : '订阅'}</button>${e._src === 'community' ? '<button class="ghost" data-a="report">举报</button>' : ''}</div></div></div>`; }).join('');
+      <div class="desc">${escT((e.description || '').slice(0, 90))}</div>${ST[e.id] ? `<div class="soc"><span title="GitHub 讨论帖上的 👍 / 👎">👍 ${ST[e.id].up | 0}${ST[e.id].down ? ' · 👎 ' + (ST[e.id].down | 0) : ''}</span><span>💬 ${ST[e.id].comments | 0}</span></div>${ST[e.id].latest?.length ? `<div class="cmt">“${escT(ST[e.id].latest[0].text.slice(0, 70))}” —${escT(ST[e.id].latest[0].author)}</div>` : ''}` : ''}<div class="tags">${(e.tags || []).map(t => `<span>${escT(t)}</span>`).join('')}</div>
+      <div class="acts"><button data-a="open">打开</button><button class="ghost" data-a="sub">${sub ? '取消订阅' : '订阅'}</button>${ST[e.id]?.url ? '<button class="ghost" data-a="talk" title="在 GitHub 讨论帖里点赞、评论（用 GitHub 账号登录）">评分 / 评论</button>' : ''}${e._src === 'community' ? '<button class="ghost" data-a="report">举报</button>' : ''}</div></div></div>`; }).join('');
 }
 async function shopAction(a, id, src) {
   const subs = subsGet();
   const entry = shop.idx[src]?.packs.find(x => x.id === id) || subs[id]?.entry; if (!entry) return;
+  if (a === 'talk') { const u = shop.stats?.[id]?.url; if (u && /^https:\/\/github\.com\//.test(u)) open(u, '_blank'); return; }
   if (a === 'report') { open(`${WS_REPO}/issues/new?template=report-scene.yml&title=${encodeURIComponent('举报：' + id)}`, '_blank'); return; }
   if (a === 'sub') { if (subs[id]) delete subs[id]; else subs[id] = { src, revision: entry.revision, entry }; subsSet(subs); renderSubs(); renderShop(); return; }
   if (a === 'open') {
@@ -6521,6 +6534,7 @@ $('shop').onclick = (e) => { if (e.target === $('shop')) $('shop').classList.rem
 document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => { shop.src = b.dataset.src; renderShop(); });
 document.querySelectorAll('#shopCats button').forEach(b => b.onclick = () => { shop.cat = b.dataset.cat; renderShop(); });
 $('shopQ').oninput = () => { shop.q = $('shopQ').value; renderShop(); };
+$('shopSort').onchange = () => { shop.sort = $('shopSort').value; renderShop(); };
 $('shopGrid').onclick = (e) => { const b = e.target.closest('button[data-a]'), c = e.target.closest('.card'); if (b && c) shopAction(b.dataset.a, c.dataset.id, c.dataset.src); };
 $('shopIssue').href = `${WS_REPO}/issues/new?template=submit-scene.yml`;
 $('shopPublish').onclick = publishHelp;
