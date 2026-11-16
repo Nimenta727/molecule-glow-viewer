@@ -16,6 +16,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - **点哪里讲哪里**：在 3D 场景里点任意残基或部件，它会高亮、其余淡化、镜头平滑飞过去，信息卡说明它是什么（残基用文献编号，附化学性质、离小分子的距离、属于功能核心还是支架）；点小分子直接进入结合位点。按 Esc 取消。
 - **价键模型**：小分子可以画成球棍、价键（单键、双键、三键、芳香环，键级来自 RCSB 化学组分字典）或空间填充；聚焦时结合位点的残基也按同样的键级画。
 - **线粒体呼吸链**：复合体 I、III、IV、细胞色素 c 和 ATP 合酶排在同一层膜上，电子沿真实结构里的铁硫簇、血红素、铜中心依次跳过，三个复合体泵出 H⁺，H⁺ 经 ATP 合酶回流合成 ATP，能量条讲清每一步的能量变化。
+- **叶绿体光反应**：PSII、细胞色素 b6f、PSI 和 ATP 合酶排在类囊体膜上；光子激发 P680 和 P700，电子从水出发按 Z 方案经质体醌、质体蓝素、铁氧还蛋白到 FNR 生成 NADPH，水裂解放出 O₂，H⁺ 在类囊体腔累积后经 ATP 合酶回流合成 ATP。
 - **口袋表面**：聚焦小分子时，在后台线程（Web Worker）计算结合口袋的分子表面，按残基化学性质着色。
 - **能量转化条**：点某一步会高亮这一步涉及的结构；打开“◎ 跟随”后，播放到哪一步就自动高亮哪一步。随动画高亮当前步骤（例如 ATP 合酶：质子动力势 → c 环扭矩 → γ 旋转 → β 构象变化 → 释放 ATP），点击看解释。
 - **相互作用动画**
@@ -63,6 +64,13 @@ python -m http.server 8765
 | 20S 蛋白酶体 | 5LE5 | Schrader et al. (2016) *Science* 353, 594 |
 | 线粒体呼吸链超复合物 I₁III₂IV₁ | 5GUP | Wu et al. (2016) *Cell* 167, 1598 |
 | 细胞色素 c | 1HRC | Bushnell, Louie & Brayer (1990) *J. Mol. Biol.* 214, 585 |
+| PSII-LHCII 超复合物（菠菜） | 3JCU | Wei et al. (2016) *Nature* 534, 69 |
+| 细胞色素 b6f（菠菜） | 6RQF | Malone et al. (2019) *Nature* 575, 535 |
+| PSI-LHCI（豌豆） | 5L8R | Mazor et al. (2017) *Nature Plants* 3, 17014 |
+| 叶绿体 ATP 合酶 CF1Fo（菠菜） | 6FKF | Hahn et al. (2018) *Science* 360, eaat4318 |
+| 质体蓝素（杨树） | 1PLC | Guss et al. (1992) *Acta Cryst.* B48, 790 |
+| 铁氧还蛋白（菠菜） | 1A70 | Binda et al. (1998) *Acta Cryst.* D54, 1353 |
+| 铁氧还蛋白–NADP⁺ 还原酶（菠菜） | 1FNB | Bruns & Karplus (1995) *J. Mol. Biol.* 247, 125 |
 
 机制参考：
 - Boyer, P. D. (1997) The ATP synthase — a splendid molecular machine. *Annu. Rev. Biochem.* 66, 717.

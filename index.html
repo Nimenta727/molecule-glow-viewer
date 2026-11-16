@@ -270,6 +270,55 @@ const PRESETS = {
       CU: '铜中心：复合体 IV 的 CuA（双铜，接受细胞色素 c 的电子）和 CuB（与血红素 a3 一起结合并还原 O₂）。' },
     camera: { broadside: true, el: 0.1, dist: 0.95 },
   },
+  '叶绿体光反应（光 → NADPH + ATP）': {
+    id: '3JCU', blob: 5.0,
+    axisFit: ['Photosystem II protein D1', 'D2 protein', 'CP47', 'CP43'], down: 'Oxygen-evolving enhancer protein 1',
+    groupParts: [['放氧复合体蛋白', 'Oxygen-evolving'], ['LHCII 天线', 'Chlorophyll a-b binding'], ['PSII 核心', '/./']],
+    membranes: [{ at: 'Photosystem II protein D1', offset: 0 }], memR: 0.95, cut: 0.0, cutWhat: 'mem',
+    spin: ['gamma chain', 'epsilon chain', 'subunit c,'],
+    components: [
+      { id: '6RQF', label: 'Cyt b6f', axisFrom: ['/^Cytochrome b6$/', '/^Cytochrome f$/'], flip: true, alignTo: { own: '/^Cytochrome b6$/', anchor: 'Photosystem II protein D1' }, beside: { dir: 'row', gap: 30 } },
+      { id: '5L8R', label: 'PSI-LHCI', axisFrom: ['P700 chlorophyll a apoprotein', 'iron-sulfur center'], alignTo: { own: 'P700 chlorophyll a apoprotein', anchor: 'Photosystem II protein D1' }, beside: { dir: 'row', gap: 45 } },
+      { id: '6FKF', label: 'ATP 合酶', axisFrom: ['subunit c,', 'subunit beta'], alignTo: { own: 'subunit c,', anchor: 'Photosystem II protein D1' }, beside: { dir: 'row', gap: 45 }, split: true, pivot: 'subunit c,' },
+      { id: '1PLC', label: '质体蓝素', axis: 'long', at: { part: '/^Cytochrome f$/', dy: -30 } },
+      { id: '1A70', label: '铁氧还蛋白', axis: 'long', at: { part: 'Photosystem I iron-sulfur center', dy: 24 } },
+      { id: '1FNB', label: 'FNR', axis: 'long', at: { part: 'Photosystem I iron-sulfur center', dy: 52, along: 42 } },
+    ],
+    process: 'chloroplast', frameAll: true,
+    coreLigands: ['OEX', 'PHO', 'PL9', 'FE2', 'BCT', 'CL', 'HEM', 'HEC', 'FES', 'SF4', 'CU', 'PQN', 'CL0', 'FAD', 'ATP', 'ADP', 'MG'],
+    ligOff: ['CLA', 'CHL', 'BCR', 'LUT', 'XAT', 'NEX', 'ZEX', 'A86', 'HTG', '6PL', 'LMT', 'LMG', 'DGD', 'SQD', 'LHG', 'PGV', 'CA', 'UNL'],
+    colors: { 'PSII 核心': '#3fc864', 'LHCII 天线': '#a8e05a', '放氧复合体蛋白': '#ffb84a', 'Cyt b6f': '#e64fc8', 'PSI-LHCI': '#5b9dff',
+              '质体蓝素': '#4ad6ff', '铁氧还蛋白': '#ff6b4a', 'FNR': '#ffd34a',
+              'subunit alpha': '#f0b0e0', 'subunit beta': '#b6d4ff', 'gamma chain': '#e3e7f2', 'epsilon chain': '#e3e7f2', 'subunit c,': '#9be6a8', '/subunit a,/': '#2448e8' },
+    notes: {
+      'PSII 核心': ['光系统 II（PSII）', '用光把水里的电子“拔”出来', '二聚体，每个单体的反应中心是 D1/D2 异二聚体，结合 P680（一对叶绿素 a）、去镁叶绿素、质体醌 QA/QB 和非血红素铁；CP47、CP43 是内周天线。P680 被激发后失去电子变成 P680⁺（约 +1.2 V），是生物界最强的氧化剂，强到能从水里夺电子。'],
+      '放氧复合体蛋白': ['放氧增强蛋白 PsbO/P/Q', '保护锰簇，固定 Ca²⁺/Cl⁻', '位于类囊体腔一侧，像盖子一样罩住 Mn₄CaO₅ 簇，稳定放氧所需的 Ca²⁺ 和 Cl⁻。'],
+      'LHCII 天线': ['LHCII / CP29 / CP26 天线', '收集光能', '每个天线蛋白结合十几个叶绿素 a/b 和类胡萝卜素（面板“小分子”里默认未勾选，勾上可见），吸收光子后通过共振能量转移（不是电子）在几十皮秒内把激发能传到反应中心。'],
+      'Cyt b6f': ['细胞色素 b6f（二聚体）', '质体醌氧化：Q 循环，泵 H⁺', '相当于线粒体复合体 III：Rieske 铁硫蛋白 + 细胞色素 f（高电位链），血红素 bL、bH、cn（低电位链）。氧化 PQH₂、还原质体蓝素，同时把 H⁺ 送进类囊体腔。'],
+      'PSI-LHCI': ['光系统 I + LHCI', '第二次光激发，把电子推到 −1.3 V', '反应中心 PsaA/PsaB 结合 P700（叶绿素 a/a′ 对）、A0、A1（叶绿醌）和铁硫簇 FX；基质侧的 PsaC 带 FA、FB。外面一圈 4 个 LHCI 天线（Lhca1–4）。'],
+      '质体蓝素': ['质体蓝素', '类囊体腔里的电子穿梭体（Cu）', '约 99 个残基的小蓝铜蛋白，铜离子 Cu²⁺ ⇌ Cu⁺，一次运 1 个电子，从 b6f 的细胞色素 f 送到 PSI 的 P700⁺。'],
+      '铁氧还蛋白': ['铁氧还蛋白 Fd', '基质里的电子穿梭体（2Fe-2S）', '约 97 个残基，[2Fe-2S] 簇（−0.42 V），一次运 1 个电子，从 PSI 的 FB 交给 FNR；也能把电子送回 PQ（环式电子流）或给其他代谢途径。'],
+      'FNR': ['铁氧还蛋白–NADP⁺ 还原酶', '2 个 Fd 电子 → NADPH', '含 FAD：FAD 依次接收两个 Fd 送来的单电子（经半醌），再以氢负离子（H⁻）形式一次交给 NADP⁺，得到 NADPH。'],
+      'subunit c,': ['c 环（c14）', 'ATP 合酶膜内转子', '叶绿体 ATP 合酶的 c 环有 14 个 c 亚基：转一圈要 14 个 H⁺ 从腔流回基质，合成 3 个 ATP（约 4.7 H⁺/ATP，比线粒体 c8 多）。'],
+      'subunit beta': ['β 亚基 ×3', 'CF1 催化位点', 'γ 转动依次改变三个 β 的构象（开放 / 松弛 / 紧密），每转一圈合成 3 个 ATP。'],
+      'gamma chain': ['γ 亚基', '中心柄（带氧化还原开关）', '叶绿体 γ 有一段特有的二硫键环：光照下经硫氧还蛋白还原后酶才被激活，黑暗中关闭，避免夜里水解 ATP。'],
+    },
+    siteNotes: {
+      OEX: 'Mn₄CaO₅ 簇（放氧中心）：4 个 Mn、1 个 Ca 和 5 个氧桥组成的“歪椅子”。每吸收 1 个光子前进一个 S 态（S0 → S4），攒够 4 个氧化当量后把 2 个 H₂O 变成 1 个 O₂，同时放出 4 个 H⁺ 到类囊体腔。',
+      PHO: '去镁叶绿素 a（Pheo）：P680* 的电子在约 3 皮秒内先跳到这里（D1 一侧的分支才有活性）。',
+      PL9: '质体醌：QA 固定在 D2 上，一次只接 1 个电子；QB 在 D1 上，接满 2 个电子并从基质摄取 2 个 H⁺ 后变成 PQH₂，离开进入膜里的醌池。b6f 里也结合着一个质体醌。',
+      FE2: '非血红素铁：位于 QA 和 QB 之间，由 4 个组氨酸和一个碳酸氢根（BCT）配位，调节两个醌之间的电子传递。',
+      HEM: '血红素 b：b6f 的 bL（腔侧）和 bH（基质侧）组成 Q 循环的低电位链，把第二个电子跨膜送回 Qi 位点。',
+      HEC: '血红素 c：细胞色素 f 的血红素（腔侧，把电子交给质体蓝素）；b6f 还有一个特有的血红素 cn（基质侧 Qi 位点旁）。',
+      FES: '[2Fe-2S] 铁硫簇：b6f 里是 Rieske 蛋白的簇（两个 His 配位，电位高），铁氧还蛋白里是 4 个 Cys 配位的簇（−0.42 V）。',
+      SF4: '[4Fe-4S] 铁硫簇：PSI 的 FX（PsaA/B 之间）、FA 和 FB（PsaC 上），把电子从 A1 一路送到基质表面。',
+      CU: '质体蓝素的铜离子：由 2 个 His、1 个 Cys、1 个 Met 配位成扭曲四面体，这种“张力态”几何让 Cu²⁺/Cu⁺ 转换几乎不需要重排，电子转移很快。',
+      PQN: '叶绿醌（维生素 K1，A1）：PSI 里两条对称分支上各一个，接收 A0 的电子再交给 FX。',
+      CL0: '叶绿素 a′（P700 的一半）：P700 是叶绿素 a / a′ 的异二聚体，吸收 700 nm 光子后变成 −1.3 V 的强还原剂。',
+      FAD: 'FAD（FNR 的辅基）：接收铁氧还蛋白的两个单电子，再以 H⁻ 形式交给 NADP⁺。',
+      ATP: 'ATP：CF1 的催化位点（β 亚基）上的核苷酸。' },
+    camera: { broadside: true, el: 0.12, dist: 0.92 },
+  },
   '鞭毛马达': {
     id: '7CGO', axis: 'long', up: 'hook protein', blob: 5.0, horizontal: true,
     spin: ['rod', 'hook', 'M-ring', 'MS ring', 'FliE', 'FliP', 'FliQ', 'FliR', 'C 环', 'flagellin', '鞭毛丝', 'Dc loop'],
@@ -478,11 +527,13 @@ async function loadEntry(id, useAssembly, withLigands = true) {
   status(`下载 ${id} …`, true);
   const ms = (q) => `https://models.rcsb.org/v1/${lid}/atoms?${q}&encoding=cif&copy_all_categories=false`;
   const meta = await fetchMeta(id.toUpperCase());
-  const ligEnts = withLigands ? (meta.nonpolymer_entities || []).filter(n => !IGNORE_LIGANDS.has(n.nonpolymer_comp.chem_comp.id)) : [];
+  /* at most 24 ligand types per entry; the scene's functional cofactors first, unticked pigments / lipids last */
+  const prio = (n) => { const c = n.nonpolymer_comp.chem_comp.id; return current?.coreLigands?.includes(c) ? 0 : (current?.ligOff?.includes(c) || LIPIDS.has(c)) ? 2 : 1; };
+  const ligEnts = withLigands ? (meta.nonpolymer_entities || []).filter(n => !IGNORE_LIGANDS.has(n.nonpolymer_comp.chem_comp.id)).sort((x, y) => prio(x) - prio(y)) : [];
   const header = fetchText(`https://files.rcsb.org/header/${id.toUpperCase()}.cif`).catch(() => '');   // struct_conf / struct_sheet_range
   const texts = await Promise.all([
     fetchText(ms('label_atom_id=CA')), fetchText(ms('label_atom_id=P')).catch(() => ''),
-    ...ligEnts.slice(0, 12).map(n => fetchText(ms('label_entity_id=' + n.rcsb_nonpolymer_entity_container_identifiers.entity_id)).catch(() => '')),
+    ...ligEnts.slice(0, 24).map(n => fetchText(ms('label_entity_id=' + n.rcsb_nonpolymer_entity_container_identifiers.entity_id)).catch(() => '')),
   ]);
   const entities = {};
   for (const e of meta.polymer_entities || []) {
@@ -1442,7 +1493,7 @@ function resurface(g, x, posOf, key) {
    (3) parts with no core and no motion -> simplified and faded (scaffold). */
 const LIPIDS = new Set(['CDL', 'PC1', 'PEE', 'LMT', 'PLC', 'POV', 'UNL', 'DMU', 'LDA', '3PE', 'PCW', 'PGT', 'CLR', 'LHG', 'PTY', 'DGA', '8PE', 'PEF', 'PGV', 'SQD', 'LMG', 'DGD', 'BOG', 'DDM', 'UND', 'OLA', 'OLC', 'PLM', 'STE', 'MYR', 'Y01', 'CHD']);
 function computeCore(g) {
-  const L = (model?.ligands || []).filter(l => !LIPIDS.has(l.comp) && l.atoms.length <= 120);
+  const CL = current?.coreLigands, L = (model?.ligands || []).filter(l => CL ? CL.includes(l.comp) : !LIPIDS.has(l.comp) && l.atoms.length <= 120);
   const ions = L.filter(l => l.atoms.length === 1);
   const pts = L.filter(l => l.atoms.length > 1 || ions.length <= 20).flatMap(l => l.atoms.map(x => x.p));
   const set = new Set();
@@ -2152,6 +2203,156 @@ const PROCESSES = {
     },
   },
 
+  chloroplast: {
+    energyHL: [['LHCII 天线', 'PSII 核心'], ['PSII 核心', '放氧复合体蛋白'], ['PSII 核心', 'Cyt b6f'], ['质体蓝素', 'Cyt b6f', 'PSI-LHCI'], ['PSI-LHCI'], ['PSI-LHCI', '铁氧还蛋白', 'FNR'], ['ATP 合酶']],
+    energy: [
+      ['光能捕获', '天线叶绿素吸收光子（680 nm 红光约 1.82 eV，每摩尔光子约 176 kJ），激发能经共振能量转移在几十皮秒内汇集到反应中心 P680。每轮动画 = 2 个电子 = 1 个 NADPH，PSII 和 PSI 各需 2 个光子。'],
+      ['PSII：电荷分离 + 水裂解', 'P680* 把电子交给去镁叶绿素（约 3 ps）→ QA → 非血红素铁 → QB；留下的 P680⁺（约 +1.2 V，生物界最强氧化剂）经 D1 的 Tyr161（TyrZ）从 Mn₄CaO₅ 簇夺回电子。锰簇攒够 4 个氧化当量，把 2 H₂O 氧化成 O₂（O₂/H₂O E°′ = +0.82 V），4 个 H⁺ 留在类囊体腔。QB 接 2 个电子并从基质摄取 2 个 H⁺ 成为 PQH₂。'],
+      ['质体醌 → b6f：Q 循环', 'PQH₂ 在膜内扩散到 b6f 的 Qo 位点被氧化：一个电子经 Rieske 铁硫簇 → 细胞色素 f（高电位链，约 +0.37 V）；另一个经血红素 bL → bH → cn 回到 Qi 位点还原质体醌（低电位链，需基质 H⁺）。每 2 个电子向腔里释放 4 个 H⁺。'],
+      ['质体蓝素穿梭', '质体蓝素（Cu）在类囊体腔里一次运 1 个电子，从细胞色素 f 送到 PSI 的 P700⁺（每轮需往返 2 次，动画只画一次）。'],
+      ['PSI：第二次光激发', 'P700（约 +0.45 V）吸收 700 nm 光子（约 1.77 eV）变成 P700*（约 −1.3 V），电子经 A0（叶绿素）→ A1（叶绿醌）→ FX → FA → FB 铁硫簇到达基质表面。两个光系统串联、能量“两次爬坡”，画成电位图就是 Z 形，所以叫 Z 方案。'],
+      ['Fd → FNR → NADPH', '铁氧还蛋白（−0.42 V）把电子带给 FNR；FNR 的 FAD 攒够 2 个电子，以 H⁻ 形式交给 NADP⁺（E°′ = −0.32 V），从基质再取 1 个 H⁺ → NADPH。总账：H₂O → NADP⁺，ΔE°′ ≈ 1.14 V，2 个电子 ΔG°′ ≈ +220 kJ/mol（上坡），由 4 个光子（约 690 kJ/mol）推动，光能约 1/3 存进 NADPH。'],
+      ['质子动力势 → ATP', '每 2 个电子约 6 个 H⁺ 进入类囊体腔（水裂解 2 + Q 循环 4），腔 pH 可降到约 5。H⁺ 经 CF1Fo ATP 合酶流回基质：c14 环每转 14 个 H⁺ 合成 3 个 ATP（约 4.7 H⁺/ATP）→ 线性电子流约 1.3 ATP/NADPH，而卡尔文循环需要 1.5；不足的 ATP 由环式电子流（Fd → PQ → b6f → PSI，只泵 H⁺、不产 NADPH）补上。'] ],
+    stage() { return this.stg || 0; },
+    caption: '光子（红）激发 PSII 的 P680，电子（青）从水经 PSII → 质体醌 → b6f → 质体蓝素 → PSI（再次激发）→ 铁氧还蛋白 → FNR，生成 NADPH；水裂解放出 O₂（蓝），H⁺（黄）在类囊体腔累积，经 ATP 合酶回流合成 ATP（3JCU 菠菜 PSII-LHCII + 6RQF 菠菜 b6f + 5L8R 豌豆 PSI-LHCI + 1PLC 质体蓝素 + 1A70 铁氧还蛋白 + 1FNB FNR + 6FKF 菠菜 ATP 合酶；位置为示意，上方 = 基质，下方 = 类囊体腔）',
+    async setup(ctx) {
+      const V3 = (x, y, z) => new THREE.Vector3(x, y, z), all = ctx.allAtoms, ym = this.ym = ctx.membraneY[0] ?? 0;
+      const near = (p, f = () => true) => { let b = null, bd = 1e9; for (const a of all) if (f(a)) { const d = a.p.distanceToSquared(p); if (d < bd) { bd = d; b = a; } } return b; };
+      const ring = (L) => { const r = L.atoms.filter(x => ['MG', 'NA', 'NB', 'NC', 'ND'].includes(x.name)); return (r.length ? r : L.atoms).reduce((s, x) => s.add(x.p), V3(0, 0, 0)).multiplyScalar(1 / (r.length || L.atoms.length)); };
+      const lig = (comp, lab) => ctx.ligands.filter(l => l.comp === comp && (lab ? l.compLabel === lab : !l.compLabel));
+      const pts = (comp, lab) => lig(comp, lab).map(ring);
+      const cen = (re) => { const A = ctx.atomsOf(re); return A.reduce((s, a) => s.add(a.p), V3(0, 0, 0)).multiplyScalar(1 / Math.max(1, A.length)); };
+      const by = (p) => (a, b) => a.distanceTo(p) - b.distanceTo(p), entIs = (p, re) => re.test(near(p)?.entName || '');
+      const row = ctx.rowDir || V3(1, 0, 0);
+      /* ---- PSII: the monomer facing b6f */
+      const b6C = cen(/^Cyt b6f$/), psiC = cen(/^PSI-LHCI$/);
+      const oex = pts('OEX').sort(by(b6C))[0] || cen(/^PSII 核心$/).setY(ym - 15);
+      const pheos = pts('PHO').sort(by(oex)).slice(0, 2), pm = pheos.length === 2 ? pheos[0].clone().lerp(pheos[1], 0.5) : oex.clone().setY(ym);
+      const pheo = pheos.find(p => entIs(p, /protein D1/)) || pheos[0] || pm;
+      const chl = pts('CLA').filter(p => p.distanceTo(pm) < 18 && p.y < pm.y + 2); let best = null, bd = 1e9;
+      for (let i = 0; i < chl.length; i++) for (let j = i + 1; j < chl.length; j++) { const d = chl[i].distanceTo(chl[j]); if (d < bd) { bd = d; best = [chl[i], chl[j]]; } }
+      const P680 = best && bd < 12 ? best[0].clone().lerp(best[1], 0.5) : oex.clone().lerp(pm, 0.55);
+      const tyrZ = near(oex, a => a.resn === 'TYR' && +a.aseq === 161 && /protein D1/.test(a.entName || ''))?.p.clone() || oex.clone().lerp(P680, 0.5);
+      const fe2 = pts('FE2').sort(by(pm))[0] || pm.clone().setY(ym + 12);
+      const qs = pts('PL9').filter(p => p.distanceTo(fe2) < 22);
+      const QA = qs.find(p => entIs(p, /D2 protein/)) || fe2.clone().addScaledVector(row, -7);
+      const QB = qs.find(p => entIs(p, /protein D1/)) || fe2.clone().multiplyScalar(2).sub(QA);
+      /* ---- b6f: cyt f facing PSI; bL nearest it; bH matrix-side of bL; heme cn next to bH; Rieske between */
+      const f = pts('HEC', 'Cyt b6f').filter(p => p.y < ym - 10).sort(by(psiC))[0] || b6C.clone().setY(ym - 35);
+      const hems = pts('HEM', 'Cyt b6f'), bL = hems.sort(by(f))[0] || f.clone().setY(ym - 8);
+      const bH = hems.filter(h => h !== bL && h.y > bL.y + 6).sort(by(bL))[0] || bL.clone().add(V3(0, 18, 0));
+      const cn = pts('HEC', 'Cyt b6f').filter(p => p.y > ym).sort(by(bH))[0] || bH.clone().add(V3(0, 6, 0));
+      const isp = pts('FES', 'Cyt b6f').sort(by(bL.clone().lerp(f, 0.5)))[0] || bL.clone().lerp(f, 0.5);
+      /* ---- PSI: P700 = chl a' + its partner; A1 = phylloquinone; FX, FA, FB in order of distance */
+      const cl0 = pts('CL0', 'PSI-LHCI')[0] || psiC.clone().setY(ym - 12);
+      const partner = pts('CLA', 'PSI-LHCI').sort(by(cl0))[0], P700 = partner && partner.distanceTo(cl0) < 12 ? cl0.clone().lerp(partner, 0.5) : cl0;
+      const A1 = pts('PQN', 'PSI-LHCI').sort(by(P700))[0] || P700.clone().add(V3(0, 18, 0));
+      const A0 = pts('CLA', 'PSI-LHCI').filter(p => p.distanceTo(P700) < 16 && p.distanceTo(A1) < 14).sort(by(A1))[0];
+      const fs = pts('SF4', 'PSI-LHCI').sort(by(P700)), FX = fs[0] || A1.clone().add(V3(0, 12, 0)), FA = fs[1] || FX.clone().add(V3(0, 12, 0)), FB = fs[2] || FA.clone().add(V3(0, 10, 0));
+      Object.assign(this, { oex, tyrZ, P680, pheo, QA, fe2, QB, f, bL, bH, cn, isp, Qo: bL.clone().lerp(isp, 0.45), Qi: cn.clone().lerp(bH, 0.3), P700, A0, A1, FX, FA, FB });
+      /* ---- antenna chlorophylls (photon targets) */
+      this.ant2 = pts('CLA').concat(pts('CHL')).filter(p => p.distanceTo(P680) > 25 && p.distanceTo(P680) < 70);
+      this.ant1 = pts('CLA', 'PSI-LHCI').filter(p => p.distanceTo(P700) > 25);
+      /* ---- shuttles: their own cofactor is hidden, the animation draws it on the moving protein */
+      const shuttle = (lab, comp) => { const L = lig(comp, lab)[0]; if (L) ctx.hideLigand(L); const c0 = cen(new RegExp('^' + lab + '$')); return { c0, h0: L ? L.centre.clone() : c0.clone(), pos: c0.clone() }; };
+      this.pc = shuttle('质体蓝素', 'CU'); this.fd = shuttle('铁氧还蛋白', 'FES');
+      this.pc.dock1 = f.clone().add(V3(0, -20, 0)); this.pc.dock2 = P700.clone().add(V3(0, -26, 0)); this.pc.pos.copy(this.pc.dock1);
+      const fad = pts('FAD', 'FNR')[0] || cen(/^FNR$/), fnrC = cen(/^FNR$/);
+      this.fad = fad; this.fd.dock1 = FB.clone().add(V3(0, 20, 0));
+      this.fd.dock2 = fnrC.clone().add(this.fd.dock1.clone().sub(fnrC).normalize().multiplyScalar(30)); this.fd.pos.copy(this.fd.dock1);
+      this.nadp = fad.clone().add(V3(0, 26, 0)).addScaledVector(row, 10);
+      /* ---- ATP synthase: H+ path at the a-subunit / c-ring interface (lumen -> stroma); ATP leaves the CF1 head */
+      const aSub = cen(/ATP 合酶 · .*subunit a,/), beta = cen(/ATP 合酶 · .*subunit beta/);
+      this.atpH = [aSub.clone().setY(ym - 34), aSub.clone().setY(ym - 6), aSub.clone().setY(ym + 6), aSub.clone().setY(ym + 34)];
+      this.atpOut = beta.clone().add(V3(0, 18, 0));
+      this.lastA = Math.floor(ctx.theta / (2 * Math.PI / 3)); this.lastH = Math.floor(ctx.theta / (2 * Math.PI / 14));
+      Object.assign(ctx.counters, { '光子': 0, 'O₂': 0, 'H⁺ 入腔': 0, NADPH: 0, ATP: 0 });
+      this.marks = [P680, P700].map(p => { const m = ctx.makeParticle(0x9dff6a, 2.0); m.position.copy(p); return m; });
+      ctx.markHot([oex, tyrZ, P680, pheo, QA, fe2, QB, f, bL, bH, cn, isp, P700, A1, FX, FA, FB, fad], 7);
+      this.busy = false; this.stg = 0; this.n = 0;
+    },
+    move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
+      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6); let i = 0; p.position.copy(pts[0]);
+      const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
+        const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
+      go();
+    },
+    async cycle() {
+      const ctx = this.ctx, V3 = (x, y, z) => new THREE.Vector3(x, y, z), ym = this.ym, up = (p, d) => p.clone().setY(ym + d);
+      const k = () => Math.max(0.3, ctx.speed / 0.6), wait = (s) => new Promise(r => ctx.anim(null, Math.max(0.02, s / k()), () => {}, r));
+      const hop = (p, pts, per) => new Promise(r => this.move(p, pts, per, (q) => { q.parent?.remove(q); r(); }));
+      const mk = (c, r) => ctx.makeParticle(c, r), E = 0x6ff4ff, H = 0xfff27a;
+      const flash = (p, c, r) => { const f = ctx.makeFlash(c); f.visible = true; f.position.copy(p); ctx.anim(f, 0.8 / k(), (u) => { f.scale.setScalar(r * (0.4 + 1.6 * u)); f.material.opacity = 0.9 * (1 - u); }); };
+      const two = (fn) => Promise.all([fn(), wait(0.35).then(fn)]);   // 2 electrons per NADPH
+      const photon = async (target, ant, mark) => {
+        const a = ant.length ? ant[Math.floor(Math.random() * ant.length)] : target.clone().add(V3(20, 0, 0)), ph = mk(0xff5a5a, 2.2); ctx.counters['光子']++;
+        const s = a.clone().add(V3((Math.random() - 0.5) * 60, 90, (Math.random() - 0.5) * 60));
+        await hop(ph, [s, a], 0.7); flash(a, 0xff7a7a, 5);
+        await hop(mk(0x9dff6a, 2.2), [a, a.clone().lerp(target, 0.5).add(V3(0, 4, 0)), target], 0.3);
+        flash(target, 0xb8ff8a, 9); mark.scale.setScalar(3.6); ctx.anim(null, 0.6, (u) => { mark.scale.setScalar(3.6 - 1.6 * u); });
+      };
+      const pumpH = (from, to, delay) => wait(delay).then(() => { ctx.counters['H⁺ 入腔']++; return hop(mk(H, 2.4), [from, from.clone().lerp(to, 0.5), to], 1.0); });
+      const takeH = (from, to) => hop(mk(H, 2.4), [from, to], 1.1);
+      this.busy = true; this.n++;
+      /* 0-1: two photons at PSII, charge separation, water splitting */
+      this.stg = 0; await two(() => photon(this.P680, this.ant2, this.marks[0]));
+      this.stg = 1;
+      await Promise.all([
+        two(() => hop(mk(E, 2.8), [this.P680, this.pheo, this.QA, this.fe2, this.QB], 0.45)),
+        two(() => hop(mk(E, 2.4), [this.oex, this.tyrZ, this.P680], 0.6)),
+        pumpH(this.oex, up(this.oex, -40).addScaledVector(ctx.rowDir, -6), 0.3), pumpH(this.oex, up(this.oex, -40).addScaledVector(ctx.rowDir, 6), 0.7),
+        takeH(up(this.QB, 40).add(V3(-3, 0, 0)), this.QB), wait(0.4).then(() => takeH(up(this.QB, 40).add(V3(3, 0, 0)), this.QB)),
+        this.n % 2 === 0 ? wait(1.0).then(() => { ctx.counters['O₂']++; const o = mk(0x7ab8ff, 3.6), a = this.oex.clone(), b = up(this.oex, -55).add(V3(0, 0, 18));
+          return new Promise(r => ctx.anim(o, 2.0 / k(), (u) => { o.position.copy(a).lerp(b, ease(u)); o.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }, () => { o.parent?.remove(o); r(); })); }) : null,
+      ]);
+      /* 2: PQH2 through the membrane to Qo; Q cycle */
+      this.stg = 2;
+      await hop(mk(0xffe08a, 3.6), [this.QB, up(this.QB, 2), up(this.Qo, 2), this.Qo], 1.3);
+      await Promise.all([
+        ...[0, 1, 2, 3].map(i => pumpH(this.Qo.clone(), up(this.Qo, -38).addScaledVector(ctx.rowDir, (i - 1.5) * 5), i * 0.3)),
+        hop(mk(E, 2.4), [this.Qo, this.bL, this.bH, this.cn, this.Qi], 0.6),
+        takeH(up(this.Qi, 36).add(V3(-3, 0, 0)), this.Qi), wait(0.4).then(() => takeH(up(this.Qi, 36).add(V3(3, 0, 0)), this.Qi)),
+        two(() => hop(mk(E, 2.8), [this.Qo, this.isp, this.f], 0.6)),
+      ]);
+      /* 3: plastocyanin carries the electron from cyt f to P700 */
+      this.stg = 3; const pc = this.pc;
+      await hop(mk(E, 2.8), [this.f, pc.pos.clone().sub(pc.c0).add(pc.h0)], 0.6); pc.loaded = true;
+      { const a = pc.pos.clone(); await new Promise(r => ctx.anim(null, 2.2 / k(), (u) => { pc.pos.lerpVectors(a, pc.dock2, ease(u)); }, r)); }
+      /* 4: second photon pair at PSI; electron down the PSI chain */
+      this.stg = 4; pc.loaded = false;
+      const back = () => { const a = pc.pos.clone(); ctx.anim(null, 2.2 / k(), (u) => { pc.pos.lerpVectors(a, pc.dock1, ease(u)); }); };
+      await hop(mk(E, 2.6), [pc.dock2.clone().sub(pc.c0).add(pc.h0), this.P700], 0.5); back();
+      await two(() => photon(this.P700, this.ant1, this.marks[1]));
+      const fd = this.fd, fdH = () => fd.pos.clone().sub(fd.c0).add(fd.h0);
+      await two(() => hop(mk(E, 2.8), [this.P700, ...(this.A0 ? [this.A0] : []), this.A1, this.FX, this.FA, this.FB, fdH()], 0.4));
+      /* 5: ferredoxin -> FNR -> NADPH */
+      this.stg = 5; fd.loaded = true;
+      { const a = fd.pos.clone(); await new Promise(r => ctx.anim(null, 2.0 / k(), (u) => { fd.pos.lerpVectors(a, fd.dock2, ease(u)); }, r)); }
+      fd.loaded = false; await hop(mk(E, 2.8), [fdH(), this.fad], 0.5); flash(this.fad, 0xffe27a, 8);
+      { const a = fd.pos.clone(); ctx.anim(null, 2.0 / k(), (u) => { fd.pos.lerpVectors(a, fd.dock1, ease(u)); }); }
+      await hop(mk(0xffb04a, 3.6), [this.nadp.clone().add(V3(0, 30, 0)), this.fad], 1.0);
+      ctx.counters.NADPH++;
+      const nadph = mk(0xffb04a, 4.4), a = this.fad.clone(), b = this.nadp.clone().add(V3(10, 45, 10));
+      ctx.anim(nadph, 2.4 / k(), (u) => { nadph.position.copy(a).lerp(b, ease(u)); nadph.scale.setScalar(4.4 * (1 - ease((u - 0.6) / 0.4)) + 0.01); });
+      /* 6: ATP synthase runs continuously (see update); give it a moment on the strip */
+      this.stg = 6; await wait(2.6);
+      this.busy = false;
+    },
+    update(ctx) {
+      if (!this.busy) this.cycle().catch((e) => console.warn(e));
+      for (const [lab, s, col] of [['质体蓝素', this.pc, 0x4ad6ff], ['铁氧还蛋白', this.fd, 0xff8a5a]]) {
+        const g = ctx.partGroups(new RegExp('^' + lab + '$'))[0]; if (g?.mesh) g.mesh.position.copy(s.pos).sub(s.c0);
+        if (!s.glow) s.glow = ctx.makeParticle(col, 2.2);
+        s.glow.position.copy(s.pos).sub(s.c0).add(s.h0); s.glow.scale.setScalar(s.loaded ? 3.4 : 2.0);
+      }
+      /* CF1Fo: 14 H+ per turn of the c14 ring, 3 ATP per turn */
+      const kH = Math.floor(ctx.theta / (2 * Math.PI / 14)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3));
+      for (; this.lastH < kH; this.lastH++) { const h = ctx.makeParticle(0xfff27a, 2.4); this.move(h, this.atpH, 0.8, (x) => x.parent?.remove(x)); }
+      for (; this.lastA < kA; this.lastA++) { const m = ctx.makeParticle(0xffb300, 3.6), a = this.atpOut.clone(), b = a.clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 45, (Math.random() - 0.5) * 30)); ctx.counters.ATP++;
+        ctx.anim(m, 2.2, (u) => { m.position.copy(a).lerp(b, ease(u)); m.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }); }
+    },
+  },
+
   ionChannel: {
     energyHL: [[], [{ aseqs: [[62, 74]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[79, 81]] }]],
     energy: [
@@ -2269,9 +2470,9 @@ async function loadScene(cfg) {
       const P0 = (fit.length > 50 ? fit : main.atoms).map(a => a.p), pc = pca(P0);
       applyTf(main, { centre: centroid(main.atoms), q: new THREE.Quaternion().setFromUnitVectors(pc.axes[0], new THREE.Vector3(0, 1, 0)) });
     } else applyTf(main, orientTransform(main.atoms.map(a => a.p), mode));
-    if (cfg.up && !cfg.axisFrom) {
-      const ups = main.atoms.filter(a => kwMatch(main.entities[a.ent]?.name || '', cfg.up));
-      if (ups.length && ups.reduce((s, a) => s + a.p.y, 0) / ups.length < 0)
+    if ((cfg.up || cfg.down) && !cfg.axisFrom) {
+      const ups = main.atoms.filter(a => kwMatch(main.entities[a.ent]?.name || '', cfg.up || cfg.down)), my = ups.length ? ups.reduce((s, a) => s + a.p.y, 0) / ups.length : 0;
+      if (ups.length && (cfg.up ? my < 0 : my > 0))
         applyTf(main, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
     }
     const pts = main.atoms.map(a => a.p), fc = new THREE.Vector3(); pts.forEach(p => fc.add(p)); fc.multiplyScalar(1 / pts.length);
@@ -2288,6 +2489,9 @@ async function loadScene(cfg) {
     for (const [nm, arr] of byEnt) model.entityStats[nm] = stat(arr);
     const parts = [...byEnt.entries()].map(([nm, arr]) => ({ name: nm, atoms: arr }));
     let ligands = main.ligands.slice();
+    /* row direction = long horizontal axis of the main structure (machines in one membrane laid out in a row) */
+    { const P = main.atoms.filter((_, i) => i % 5 === 0).map(a => new THREE.Vector3(a.p.x, 0, a.p.z)); model.rowDir = P.length > 3 ? pca(P).axes[2].clone().setY(0).normalize() : new THREE.Vector3(1, 0, 0);
+      if (cfg.rowFlip) model.rowDir.negate(); }
     // ---- components (other PDB entries placed relative to the main one)
     for (const comp of cfg.components || []) {
       try {
@@ -2304,15 +2508,20 @@ async function loadScene(cfg) {
           const own = ofC(comp.alignTo.own), ak2 = Object.keys(model.entityStats).find(k => kwMatch(k, comp.alignTo.anchor));
           if (own.length && ak2) shiftC(new THREE.Vector3(0, model.entityStats[ak2].mean - centroid(own).y, 0));
         }
-        if (comp.beside) {   // next to the main structure, on the side of one of its parts, without overlap
-          const side = main.atoms.filter(a => kwMatch(a.entName || a.part, comp.beside.part)), mc = centroid(main.atoms);
-          const d = (side.length ? centroid(side) : new THREE.Vector3(1, 0, 0)).sub(mc).setY(0).normalize();
-          const ext = Math.max(...main.atoms.map(a => a.p.clone().sub(mc).dot(d))), cc = centroid(c.atoms).setY(0);
+        if (comp.beside) {   // next to the main structure, on the side of one of its parts (or further along the row), without overlap
+          const row = comp.beside.dir === 'row', side = row ? [] : main.atoms.filter(a => kwMatch(a.entName || a.part, comp.beside.part)), mc = centroid(main.atoms);
+          const d = row ? model.rowDir.clone() : (side.length ? centroid(side) : new THREE.Vector3(1, 0, 0)).sub(mc).setY(0).normalize();
+          const placedSoFar = row ? parts.flatMap(p => p.atoms) : main.atoms;
+          const ext = Math.max(...placedSoFar.map(a => a.p.clone().sub(mc).dot(d))), cc = centroid(c.atoms).setY(0);
           const rC = Math.max(...c.atoms.map(a => Math.hypot(a.p.x - cc.x, a.p.z - cc.z)));
           shiftC(mc.setY(0).addScaledVector(d, ext + rC + (comp.beside.gap || 20)).sub(cc));
         }
+        if (comp.at) {   // centroid at a part / subunit placed so far (+ dy up, + along the row)
+          const tgt = parts.flatMap(p => p.atoms).filter(a => kwMatch(a.part, comp.at.part) || kwMatch(a.entName || '', comp.at.part));
+          if (tgt.length) shiftC(centroid(tgt).add(new THREE.Vector3(0, comp.at.dy || 0, 0)).addScaledVector(model.rowDir, comp.at.along || 0).sub(centroid(c.atoms)));
+        }
         const placed = placeComponent(comp, c.atoms, c.ligands);
-        placed.ligands.forEach(L => L.compLabel = comp.label || comp.id);
+        placed.ligands.forEach(L => L.compLabel = comp.label || comp.id); placed.atoms.forEach(a => a.entName = en(a));
         const pv = comp.pivot && placed.atoms.filter(a => kwMatch(en(a), comp.pivot)), pivot = pv?.length ? centroid(pv) : null;
         if (comp.split) {   // one part per subunit type, so rotor and stator can behave differently
           const by = new Map(); for (const a of placed.atoms) { const nm = `${comp.label || comp.id} · ${en(a) || a.ent}`; a.part = nm; if (!by.has(nm)) by.set(nm, []); by.get(nm).push(a); }
@@ -2377,7 +2586,7 @@ async function loadScene(cfg) {
 function makeCtx() {
   const ctx = {
     get theta() { return theta; }, get speed() { return +$('spin').value; },
-    get ligands() { return model.ligands; }, get allAtoms() { return model.allAtoms; },
+    get ligands() { return model.ligands; }, get allAtoms() { return model.allAtoms; }, get rowDir() { return model.rowDir; },
     membraneY: [], counters: {},
     atomsOf: (re) => model.allAtoms.filter(a => re.test(a.part)),
     template: getTemplate, makeMol, makeParticle, makeFlash, anim,
@@ -2396,7 +2605,8 @@ function makeCtx() {
 /* residues within ~8 A of a visible ligand pulse ("结合位点闪光") */
 function markHotFromLigands() {
   const cell = 8, grid = new Map();
-  for (const L of model.ligands) if (!L.hidden && L.atoms.length < 400) for (const x of L.atoms) {
+  const CL = current?.coreLigands;
+  for (const L of model.ligands) if (!L.hidden && L.atoms.length < 400 && (!CL || CL.includes(L.comp))) for (const x of L.atoms) {
     const k = `${Math.floor(x.p.x / cell)},${Math.floor(x.p.y / cell)},${Math.floor(x.p.z / cell)}`;
     if (!grid.has(k)) grid.set(k, []); grid.get(k).push(x.p);
   }
@@ -2482,7 +2692,7 @@ function rebuildLigands() {
   for (const [key, mols] of by) {
     const obj = buildMolecules(mols, +$('ligScale').value);
     world.add(obj);
-    const visible = prevVis.get(key) ?? !LIPIDS.has(mols[0].comp);   // bound lipids / detergents start hidden (tick them in the legend)
+    const visible = prevVis.get(key) ?? (!LIPIDS.has(mols[0].comp) && !(current?.ligOff || []).includes(mols[0].comp));   // bound lipids / detergents start hidden (tick them in the legend)
     obj.visible = visible && $('ligOn').checked;
     ligGroups.push({ key, comp: mols[0].comp, name: mols[0].fullName, n: mols.length, obj, visible, state: mols[0].state || 0, mols });
   }
@@ -2512,8 +2722,18 @@ function rebuildMembranes() {
   if (!$('memOn').checked || !model) return;
   const ys = [+$('mem1').value * model.radius];
   if ($('mem2On').checked) ys.push(+$('mem2').value * model.radius);
-  const R = +$('memR').value * model.mainR, spacing = 9.5, maxLipids = 120000;
-  const perLeaf = Math.PI * R * R / (spacing * spacing * 0.866);
+  let R = +$('memR').value * model.mainR, spacing = 9.5, maxLipids = 120000;
+  /* multi-machine rows: lipids fill a strip (u along the row, v across) around the whole scene */
+  let strip = null;
+  if (current?.frameAll && model.rowDir && model.allAtoms?.length) {
+    const d = model.rowDir, n = new THREE.Vector3(-d.z, 0, d.x), c = model.focus.centre.clone().setY(0);
+    let ulo = 1e9, uhi = -1e9, vlo = 1e9, vhi = -1e9;
+    for (let i = 0; i < model.allAtoms.length; i += 3) { const p = model.allAtoms[i].p, q = new THREE.Vector3(p.x - c.x, 0, p.z - c.z), u = q.dot(d), v = q.dot(n);
+      ulo = Math.min(ulo, u); uhi = Math.max(uhi, u); vlo = Math.min(vlo, v); vhi = Math.max(vhi, v); }
+    strip = { d, n, c, ulo: ulo - 25, uhi: uhi + 25, vlo: vlo - 25, vhi: vhi + 25 };
+    R = Math.max(strip.uhi - strip.ulo, strip.vhi - strip.vlo) / 2;
+  }
+  const perLeaf = strip ? (strip.uhi - strip.ulo) * (strip.vhi - strip.vlo) / (spacing * spacing * 0.866) : Math.PI * R * R / (spacing * spacing * 0.866);
   const sp = spacing * Math.max(1, Math.sqrt(perLeaf * 2 * ys.length / maxLipids)), cell = 6;
   for (const y0 of ys) {
     const occ = new Set();
@@ -2524,10 +2744,15 @@ function rebuildMembranes() {
     const heads = [], tails = [];
     for (const leaf of [1, -1]) {
       let row = 0;
-      for (let z = -R; z <= R; z += sp * 0.866, row++) for (let x = -R + (row % 2) * sp / 2; x <= R; x += sp) {
-        const jx = x + (Math.random() - 0.5) * sp * 0.35, jz = z + (Math.random() - 0.5) * sp * 0.35, rr = Math.hypot(jx, jz);
-        if (rr > R || occ.has(Math.round(jx / cell) + ',' + Math.round(jz / cell))) continue;
-        const edge = Math.max(0, (rr - R * 0.82) / (R * 0.18)); if (Math.random() < edge * edge) continue;
+      const z0 = strip ? strip.vlo : -R, z1 = strip ? strip.vhi : R, x0 = strip ? strip.ulo : -R, x1 = strip ? strip.uhi : R;
+      for (let z = z0; z <= z1; z += sp * 0.866, row++) for (let x = x0 + (row % 2) * sp / 2; x <= x1; x += sp) {
+        let jx = x + (Math.random() - 0.5) * sp * 0.35, jz = z + (Math.random() - 0.5) * sp * 0.35, edge;
+        if (strip) {   // (u, v) -> world x, z; soft edges on all four sides
+          const m = Math.min(jx - x0, x1 - jx, jz - z0, z1 - jz); edge = Math.max(0, 1 - m / 30);
+          const wx = strip.c.x + strip.d.x * jx + strip.n.x * jz, wz = strip.c.z + strip.d.z * jx + strip.n.z * jz; jx = wx; jz = wz;
+        } else { const rr = Math.hypot(jx, jz); if (rr > R) continue; edge = Math.max(0, (rr - R * 0.82) / (R * 0.18)); }
+        if (occ.has(Math.round(jx / cell) + ',' + Math.round(jz / cell))) continue;
+        if (Math.random() < edge * edge) continue;
         heads.push([jx, y0 + leaf * (19 + (Math.random() - 0.5) * 2), jz]);
         tails.push([jx - 1.4, y0 + leaf * 9.5, jz], [jx + 1.4, y0 + leaf * 9.5, jz]);
       }
@@ -2542,7 +2767,11 @@ function rebuildMembranes() {
 }
 function applyCut() {
   const v = +$('cut').value;
-  cutPlane.constant = v >= 1.04 ? 1e9 : v * (model ? model.radius : 1);
+  cutPlane.normal.set(0, 0, -1); cutPlane.constant = v >= 1.04 ? 1e9 : v * (model ? model.radius : 1);
+  if (current?.frameAll && model?.focus && v < 1.04) {   // keep what lies behind the vertical plane through the centre, facing the camera
+    const c = model.focus.centre.clone().applyMatrix4(world.matrixWorld), d = camera.position.clone().sub(c).setY(0);
+    if (d.lengthSq() > 1) { d.normalize(); cutPlane.normal.copy(d).negate(); cutPlane.constant = d.dot(c) + v * model.focus.radius; }
+  }
   const all = $('cutWhat').value === 'all';
   for (const g of groups) if (g.mesh) g.mesh.traverse(x => {
     if (!x.material) return;
@@ -2887,6 +3116,7 @@ function resetCamera(cam) {
   camera.position.set(t.x + Math.sin(c.az) * Math.cos(c.el) * d, t.y + Math.sin(c.el) * d, t.z + Math.cos(c.az) * Math.cos(c.el) * d);
   camera.near = d / 200; camera.far = d * 20; camera.updateProjectionMatrix();
   controls.update();
+  if (current?.frameAll) applyCut();
 }
 
 /* ----------------------------------------------------------------------------- UI wiring */

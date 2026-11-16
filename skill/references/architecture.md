@@ -204,3 +204,19 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - 电子沿**沉积结构里真实的辅因子位置**跳：复合体 I = 铁硫簇图上从基质端到 N2 的最短路径（边 < 20 Å，代价 d²，自然跳过不在主链上的 N1a）；III = 离复合体 IV 的 CuA 最近的 c1 所在单体，bL = 离 c1 最近的血红素 b，bH = bL 基质侧最近的血红素 b（两个 bL 跨二聚体只隔约 14 Å，比 bL–bH 还近，不能只按距离配对），Rieske FeS = 离 bL–c1 中点最近；IV：成对的 Cu = CuA，单个 Cu = CuB，离 CuB 最近的血红素 a = a3。
 - 动画循环（每个 NADH）：NADH → FeS 链（复合体 I 同时泵 4 H⁺）→ QH₂ 经膜到 Qo → 电子分道（Rieske → c1 / bL → bH → Qi），释放 4 H⁺、摄取 2 H⁺ → 细胞色素 c 带着发光的血红素从 III 移到 IV（它自己的 HEC 配体隐藏，由动画画）→ CuA → a → a3/CuB → O₂ → H₂O，泵 2 H⁺、消耗 2 个化学 H⁺。ATP 合酶按转角：每 1/8 圈一个 H⁺ 回流，每 1/3 圈一个 ATP。
 - 能量条 7 步（ΔE°′ ≈ 1.14 V，ΔG°′ ≈ −220 kJ/mol，10 H⁺/NADH，c8 环 8 H⁺/3 ATP，约 2.5 ATP/NADH），`energyHL` 联动高亮。
+
+## 22. v7：叶绿体光反应 `chloroplast`
+### 22.1 场景
+- 主结构 3JCU（菠菜 PSII-LHCII C2S2，Wei 等 2016 *Nature* 534:69），组件 6RQF（菠菜 b6f，Malone 等 2019 *Nature* 575:535）、5L8R（豌豆 PSI-LHCI，Mazor 等 2017 *Nat Plants* 3:17014）、6FKF（菠菜 CF1Fo，Hahn 等 2018 *Science* 360:eaat4318）、1PLC（杨树质体蓝素，Guss 等 1992）、1A70（菠菜铁氧还蛋白，Binda 等 1998）、1FNB（菠菜 FNR，Bruns & Karplus 1995 *JMB* 247:125）。
+- 朝向：上 = 基质，下 = 类囊体腔（`down: 'Oxygen-evolving enhancer protein 1'`，新增的 `down` 与 `up` 相反）。b6f 用 `axisFrom [b6, f]` + `flip`（f 在腔侧）。
+### 22.2 新参数
+- `beside: { dir: 'row', gap }`：沿主结构水平 PCA 长轴（`model.rowDir`，`rowFlip` 反向）排成一排，每个组件接在**已放置的全部结构**之后。
+- `at: { part, dy, along }`：组件质心放在某部件 / 亚基（含组件的 `entName`）质心 + dy（向上）+ along（沿排方向）。组件原子现在也带 `entName`。
+- `coreLigands: [...]`：只有这些小分子定义功能核心和位点闪光（否则几百个叶绿素会让天线全部变成原子级，且计算量 O(配体原子 × 残基)）。
+- `ligOff: [...]`：这些小分子组默认不勾选（色素、脂），图例里可勾上。
+- 下载时每个结构最多 24 种小分子（原 12），`coreLigands` 优先、`ligOff` / 脂类最后（3JCU 有 22 种，原来锰簇、去镁叶绿素、叶绿素都被截掉了）。
+- **膜条带**：`frameAll` 场景的膜沿排方向铺成矩形条带（覆盖所有机器），剖切面竖直穿过场景中心、朝向镜头（`resetCamera` 后重新瞄准），前半膜切掉，机器全露出来。呼吸链场景同样受益（细胞色素 c 不再被膜挡住）。
+### 22.3 过程
+- 辅因子定位（都取自沉积结构）：PSII 选靠近 b6f 的单体的 OEX；两个 PHO 的中点附近、腔侧、Mg 环中心距离最近的一对 CLA = P680；D1 Tyr161（作者编号）= TyrZ；D1 一侧的 PHO 是活性分支；FE2 旁结合在 D2 的 PL9 = QA、D1 的 = QB。b6f：腔侧、离 PSI 最近的 HEC = 细胞色素 f，bL / bH / Rieske 同呼吸链规则，基质侧 HEC = 血红素 cn。PSI：CL0 + 最近的 CLA = P700，PQN = A1，SF4 按离 P700 距离 = FX、FA、FB。
+- 每轮 = 2 个电子 = 1 NADPH（`async cycle()`，Promise 串起各步）：2 个光子 → 天线叶绿素 → 激子 → P680 闪光 → 电子 Pheo → QA → Fe → QB，同时水 → Mn 簇 → TyrZ → P680，放 2 H⁺ 入腔，QB 从基质取 2 H⁺；每两轮放 1 个 O₂ → PQH₂ 经膜到 Qo → Q 循环（4 H⁺ 入腔，低电位链 bL → bH → cn → Qi）→ 质体蓝素带着发光的 Cu 移到 PSI → 2 个光子激发 P700 → A1 → FX → FA → FB → 铁氧还蛋白带着 FeS 移到 FNR → FAD → NADP⁺ → NADPH。CF1Fo 按转角：每 1/14 圈一个 H⁺，每 1/3 圈一个 ATP。
+- 能量条 7 步：光能捕获、PSII 电荷分离 + 水裂解、Q 循环、质体蓝素穿梭、PSI 再次激发（Z 方案）、Fd → FNR → NADPH（ΔE°′ ≈ 1.14 V，+220 kJ/mol，4 个光子约 690 kJ/mol）、质子动力势 → ATP（c14：约 4.7 H⁺/ATP，约 1.3 ATP/NADPH < 卡尔文循环所需 1.5，由环式电子流补足）。

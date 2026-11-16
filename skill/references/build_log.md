@@ -119,3 +119,8 @@
 - 本轮完成：价键 / 空间填充画法（CCD 键级）；场景参数（axisFit、groupParts、组件 axisFrom/alignTo/beside/split/pivot、frameAll、broadside 镜头）；线粒体呼吸链预设与过程。
 - 调试：'复合体 I' 作为颜色键匹配了 '复合体 III/IV'（全部变蓝）→ 正则键；组件无 anchor 时被对齐到第一个实体（ATP 合酶 c 环比膜低 67 Å）→ 修 placeComponent；镜头只框主结构 → frameAll；斜视时 ATP 合酶挡住复合体 IV → broadside。
 - 待做：叶绿体光反应链（PSII → PQ → b6f → PC → PSI → Fd → FNR + ATP 合酶）、噬菌体侵染（尾鞘收缩、DNA 注入，两态）、酶机理（诱导契合、催化三联体等）。
+
+### v7：叶绿体光反应（2026-11）
+- 7 个植物结构拼成类囊体膜上的一排：PSII-LHCII → b6f → PSI-LHCI → ATP 合酶，质体蓝素在腔里、铁氧还蛋白和 FNR 在基质侧穿梭；Z 方案电子流沿真实辅因子位置。
+- 调试：3JCU 的锰簇 / 去镁叶绿素 / 叶绿素没下载（每个结构只取前 12 种小分子）→ 24 种 + 按 coreLigands 排序；膜是围绕主结构的圆盘，够不到 PSI / ATP 合酶且挡住 PSII → frameAll 场景改成沿排方向的条带 + 朝向镜头的剖切面。
+- 用户下一步想法：画面“质感”不够；希望展现细胞内部动态过程（区域变化、浓度等）、多蛋白协同的生命过程。
