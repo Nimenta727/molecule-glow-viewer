@@ -119,6 +119,12 @@
   .ptag.small{font-size:10px;font-weight:500;padding:0 4px;opacity:.9}
   .ptag.hl{background:#ffe680;color:#1b1b24;border-color:#e0b400}
   .ptag.warn{background:#ff6b6b;color:#fff;border-color:#d43c3c}
+  .ptag.pl{font-size:10px;font-weight:600;padding:0 4px;border-width:0 0 0 3px;border-radius:3px;opacity:.92;transform:translate(-50%,-150%)}
+  .ptag.flow{font-weight:600;border-width:0 0 0 4px;border-radius:3px}
+  .ptag.ev{font-size:12px;background:#fff6cf;color:#5a3d00;border-color:#e8b400;animation:evRise 2.4s linear forwards;z-index:3}
+  @keyframes evRise{0%{opacity:0;margin-top:6px}8%{opacity:1;margin-top:0}82%{opacity:1;margin-top:-6px}100%{opacity:0;margin-top:-10px}}
+  #tscale{display:flex;gap:4px;flex:1} #tscale button{flex:1;padding:3px 0;font-size:12px;background:transparent;color:inherit;border:1px solid rgba(127,127,127,.45)}
+  #tscale button.on{background:linear-gradient(135deg,#c95fc4,#6f8ff0);color:#fff;border-color:transparent}
   #cellNote{white-space:pre-line}
   #cellHud .ctl .rng{display:flex;align-items:center;gap:6px;width:100%;font-size:11px}
   #cellHud .ctl .rng span{width:92px;flex:none} #cellHud .ctl .rng input{flex:1;min-width:60px} #cellHud .ctl .rng output{width:52px;text-align:right;flex:none}
@@ -199,6 +205,8 @@
   <h2>过程动画</h2>
   <label class="chk"><input type="checkbox" id="procOn" checked>显示相互作用过程（质子 / 离子 / ATP 合成）</label>
   <div class="row"><label>转子转速</label><input type="range" id="spin" min="0" max="3" step="0.02" value="0.6"><output></output></div>
+  <div class="row"><label>时间尺度</label><div id="tscale"><button data-v="slow" class="on">慢放 · 看细节</button><button data-v="fast">快放 · 看粒子流</button></div></div>
+  <div class="sub" id="tscaleNote">慢放：每个分子事件单独画出——从溶液里扩散过来、结合、反应、离开。快放：大量粒子流显示通量往哪里走、有多大。</div>
   <div class="row"><label>构象变化</label><input type="range" id="morph" min="0" max="1" step="0.01" value="0"><output></output></div>
   <label class="chk"><input type="checkbox" id="morphAuto" checked>自动往返播放构象变化</label>
   <div class="row"><label>热运动</label><input type="range" id="jitter" min="0" max="1" step="0.02" value="0.25"><output></output></div>
@@ -2049,9 +2057,9 @@ function makeMol(tpl, xray = true, carbon = MOL_CARBON[tpl.comp]) {
   g.visible = false; procRoot.add(g); return g;
 }
 const PARTICLE_GEO = new THREE.IcosahedronGeometry(1, 2);
-function makeParticle(color, radius) {
+function makeParticle(color, radius, label) {   /* label: its name tag (H⁺, e⁻, ATP ...) follows it and goes with it */
   const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.3, roughness: 0.3 });
-  const p = new THREE.Mesh(PARTICLE_GEO, mat); p.scale.setScalar(radius); procRoot.add(p); return p;
+  const p = new THREE.Mesh(PARTICLE_GEO, mat); p.scale.setScalar(radius); procRoot.add(p); if (label) labelObj(p, label, color); return p;
 }
 function makeFlash(color) {
   const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
@@ -2083,8 +2091,10 @@ function makeTag(text, o = {}) {
 const _tg = new THREE.Vector3();
 function updateTags() {
   $('procLabs').style.display = kit ? 'none' : '';
+  let gone = null;
   for (const t of procTags) {
-    let vis = t.on && procRoot.visible && (!tagFilter || tagFilter(t));
+    if (t.auto && !t.obj?.parent) { (gone ||= []).push(t); continue; }
+    let vis = t.on && (procRoot.visible || t.auto) && (!tagFilter || tagFilter(t));
     if (t.obj) { let o = t.obj; while (vis && o) { vis = o.visible; o = o.parent; } if (vis && !t.obj.parent) vis = false; if (vis) t.obj.getWorldPosition(_tg); }
     else if (t.p) _tg.copy(t.p).applyMatrix4(procRoot.matrixWorld);
     else vis = false;
@@ -2093,9 +2103,10 @@ function updateTags() {
     if (vis) { t.sx = (_tg.x * 0.5 + 0.5) * innerWidth; t.sy = (-_tg.y * 0.5 + 0.5) * innerHeight; t.el.style.left = t.sx + 'px'; t.el.style.top = t.sy + 'px'; }
     t.vis = vis;
   }
+  if (gone) for (const t of gone) t.remove();
   /* declutter: highlighted / warning tags first, then normal, then small ones; a tag that would overlap one already placed
      (or a UI panel) is faded out instead of piling up. Sizes are cached (text rarely changes size much). */
-  const rank = (t) => /\b(hl|warn)\b/.test(t.el.className) ? 0 : /\bsmall\b/.test(t.el.className) ? 2 : 1, placed = [];
+  const rank = (t) => /\b(hl|warn|ev)\b/.test(t.el.className) ? 0 : /\bpl\b/.test(t.el.className) ? 3 : /\bsmall\b/.test(t.el.className) ? 2 : 1, placed = [];
   for (const id of ['panel', 'cellHud', 'energy', 'caption', 'infoCard']) { const e = $(id); if (!e || getComputedStyle(e).display === 'none' || e.classList.contains('hidden')) continue;
     const r = e.getBoundingClientRect(); if (r.width && r.height) placed.push({ x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height }); }
   const vt = procTags.filter(t => t.vis).sort((a, b) => rank(a) - rank(b));
@@ -2107,6 +2118,228 @@ function updateTags() {
   }
 }
 function clearTags() { for (const t of procTags) t.el.remove(); procTags = []; }
+
+/* ============================================================================= MOTION KIT (v16)
+   Nothing pops in, flashes or shrinks away. Free molecules (H⁺, ADP, Pi, ATP, NADH, O₂, K⁺ ...) wander in POOLS in the bulk
+   solution of their own compartment (Brownian, never inside protein); a reaction TAKES the nearest one and it diffuses to its
+   site along a Brownian bridge that keeps clear of protein atoms (brownPath); products diffuse back and are GIVEN to the pool
+   of the compartment they end up in. Every moving particle carries a name tag; chemical events are named (eventTag) instead
+   of flashed. Pools live in the main scene (hidden behind protein like everything else); a particle doing something (taken
+   from a pool) moves to the overlay so it stays visible inside channels. */
+const V3n = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(6.283185 * Math.random());
+const bulkRoot = new THREE.Group();   /* added to world once the scene exists (see below) */
+let scenePools = new Map();
+/* spatial hash of all atoms of the current model (model frame = world- / procRoot-local), cell 5 A; built lazily per model */
+function occOf() {
+  if (!model?.allAtoms) return null; if (model._occ) return model._occ;
+  const c = 5, m = new Map(), fl = Math.floor, K = (x, y, z) => ((x + 4096) * 8192 + y + 4096) * 8192 + z + 4096;
+  for (const a of model.allAtoms) { const k = K(fl(a.p.x / c), fl(a.p.y / c), fl(a.p.z / c)); let L = m.get(k); if (!L) m.set(k, L = []); L.push(a.p); }
+  return model._occ = { c, m, K };
+}
+const _push = new THREE.Vector3();
+/* distance to the nearest atom closer than R (Infinity if none); _push = summed direction away from those atoms */
+function atomClear(p, R) {
+  const O = occOf(); if (!O) return Infinity;
+  const c = O.c, fl = Math.floor, r = Math.ceil(R / c), x0 = fl(p.x / c), y0 = fl(p.y / c), z0 = fl(p.z / c), R2 = R * R;
+  let best = R2; _push.set(0, 0, 0);
+  for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+    const L = O.m.get(O.K(x0 + dx, y0 + dy, z0 + dz)); if (!L) continue;
+    for (const q of L) { const ex = p.x - q.x, ey = p.y - q.y, ez = p.z - q.z, d2 = ex * ex + ey * ey + ez * ez; if (d2 >= R2) continue;
+      if (d2 < best) best = d2; const d = Math.sqrt(d2) + 1e-3, w = (R - d) / d; _push.x += ex * w; _push.y += ey * w; _push.z += ez * w; } }
+  return best < R2 ? Math.sqrt(best) : Infinity;
+}
+/* any atom closer than R? (early exit; used every frame by the pools) */
+function occBusy(p, R) {
+  const O = occOf(); if (!O) return false;
+  const c = O.c, fl = Math.floor, r = Math.ceil(R / c), x0 = fl(p.x / c), y0 = fl(p.y / c), z0 = fl(p.z / c), R2 = R * R;
+  for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+    const L = O.m.get(O.K(x0 + dx, y0 + dy, z0 + dz)); if (!L) continue;
+    for (const q of L) { const ex = p.x - q.x, ey = p.y - q.y, ez = p.z - q.z; if (ex * ex + ey * ey + ez * ez < R2) return true; } }
+  return false;
+}
+function pushClear(p, R, it = 6) {
+  for (let i = 0; i < it; i++) { const d = atomClear(p, R); if (d >= R) return true;
+    if (_push.lengthSq() < 1e-8) _push.set(gauss(), gauss(), gauss()); p.addScaledVector(_push.normalize(), Math.min(R - d + 0.6, 4)); }
+  return atomClear(p, R) >= R * 0.8;
+}
+/* Brownian bridge A -> B: a random walk pinned at both ends, smoothed, pushed out of protein (except within free0 of A and
+   free1 of B, where the molecule binds / leaves its site); keep(p) may project points into a compartment */
+function brownPath(A, B, o = {}) {
+  const n = o.n || 22, L = Math.max(1, A.distanceTo(B)), sig = (o.wander ?? 0.3) * L / Math.sqrt(n), R = o.clear ?? 8.5;   /* the atom list holds one atom per residue (CA / P): ~8 A clears the residue blobs */
+  const W = [V3n()]; for (let i = 1; i <= n; i++) W.push(W[i - 1].clone().add(V3n(gauss(), gauss(), gauss()).multiplyScalar(sig)));
+  const P = W.map((w, i) => { const t = i / n; return A.clone().lerp(B, t).add(w).addScaledVector(W[n], -t); });
+  for (let s = 0; s < 2; s++) for (let i = 1; i < n; i++) P[i].lerp(P[i - 1].clone().add(P[i + 1]).multiplyScalar(0.5), 0.35);
+  for (let s = 0; s < 2; s++) for (let i = 1; i < n; i++) {
+    if (P[i].distanceTo(B) < (o.free1 ?? 9) || P[i].distanceTo(A) < (o.free0 ?? 0)) continue;
+    o.keep?.(P[i]); if (R > 0) pushClear(P[i], R); o.keep?.(P[i]); }
+  return P;
+}
+/* alpha of a particle / molecule (all its materials) */
+function setAlpha(o, a) {
+  o.traverse(x => { const m = x.material; if (!m || x.userData.noFade) return; m.transparent = true; m.opacity = a; m.depthWrite = a > 0.6; });
+  o.visible = a > 0.02; o.userData.alpha = a;
+}
+/* move obj along points P in dur seconds; fadeIn / fadeOut = fractions of the trip; remove = take it away at the end */
+function travel(obj, P, dur, o = {}) {
+  const curve = new THREE.CatmullRomCurve3(P, false, 'centripetal'), a0 = obj.userData.alpha ?? 1;
+  return new Promise((res) => anim(obj, Math.max(0.05, dur), (u) => {
+    curve.getPoint(o.ease ? ease(u) : u, obj.position);
+    if (o.fadeIn || o.fadeOut) setAlpha(obj, Math.min(o.fadeIn ? Math.min(1, a0 + (1 - a0) * u / o.fadeIn) : 1, o.fadeOut ? Math.min(1, (1 - u) / o.fadeOut) : 1));
+    if (o.tumble) obj.rotation.x += 0.03, obj.rotation.y += 0.02;
+  }, () => { if (o.remove) obj.parent?.remove(obj); res(obj); }));
+}
+/* a name tag that follows a particle and disappears with it */
+function labelObj(obj, text, col) {
+  const t = makeTag(text, { obj, cls: 'small pl' }); t.auto = true; obj.userData.tag = t;
+  if (col != null) t.el.style.borderColor = '#' + new THREE.Color(col).getHexString(); return t;
+}
+/* a named chemical / physical event at a point (replaces the old flashes): rises, holds, fades */
+function eventTag(text, p, dur = 2.4) {
+  const t = makeTag(text, { p, cls: 'ev' }); t.el.style.animationDuration = dur + 's';
+  anim(null, dur, () => {}, () => t.remove()); return t;
+}
+/* ---- regions of bulk solution */
+function boxRegion(B, y0, y1) {   /* a cell-sim compartment: u along B.d, v along B.n, y0 < y < y1 */
+  const at = (u, v, y) => V3n(B.c.x, y, B.c.z).addScaledVector(B.d, u).addScaledVector(B.n, v), _q = V3n();
+  const uv = (p) => { _q.set(p.x - B.c.x, 0, p.z - B.c.z); return [_q.dot(B.d), _q.dot(B.n)]; };
+  const far = y1 > y0 && Math.abs(y1 - (B.ym ?? 0)) > Math.abs(y0 - (B.ym ?? 0)) ? 1 : -1;   /* which y face is away from the membrane */
+  return {
+    inside(p) { const [u, v] = uv(p); return u > B.ulo && u < B.uhi && v > B.vlo && v < B.vhi && p.y > y0 + 2 && p.y < y1 - 2; },
+    depth(p) { const [u, v] = uv(p); return Math.min(u - B.ulo, B.uhi - u, v - B.vlo, B.vhi - v, far > 0 ? y1 - p.y : p.y - y0); },
+    sample(edge) { for (let k = 0; k < 40; k++) {
+      let u = THREE.MathUtils.lerp(B.ulo + 3, B.uhi - 3, Math.random()), v = THREE.MathUtils.lerp(B.vlo + 3, B.vhi - 3, Math.random()), y = y0 + 4 + Math.random() * (y1 - y0 - 8);
+      if (edge) { const f = Math.floor(Math.random() * 5); if (f === 0) u = B.ulo + 4; else if (f === 1) u = B.uhi - 4; else if (f === 2) v = B.vlo + 4; else if (f === 3) v = B.vhi - 4; else y = far > 0 ? y1 - 5 : y0 + 5; }
+      const p = at(u, v, y); if (!occBusy(p, 6)) return p; } return null; },
+  };
+}
+function shellRegion(c, r0, r1, ok = () => true) {   /* a shell around a machine, limited to one compartment by ok(p) */
+  return {
+    inside(p) { const d = p.distanceTo(c); return d > r0 && d < r1 && ok(p); },
+    depth(p) { return r1 - p.distanceTo(c); },
+    sample(edge) { for (let k = 0; k < 60; k++) {
+      const d = V3n(gauss(), gauss(), gauss()).normalize(), p = c.clone().addScaledVector(d, edge ? r1 - 4 : THREE.MathUtils.lerp(r0 + 4, r1 - 4, Math.cbrt(Math.random())));
+      if (ok(p) && !occBusy(p, 6)) return p; } return null; },
+  };
+}
+/* ---- a pool of one kind of free molecule */
+class MolPool {
+  constructor(o) { Object.assign(this, { n: 0, clear: 7.5, kick: 16, maxTags: 2, items: [] }, o); }
+  add(p, mode, a) {
+    const obj = this.make(); bulkRoot.add(obj); obj.position.copy(p); if (this.tumble) obj.rotation.set(Math.random() * 6, Math.random() * 6, 0);
+    if (obj.isMesh && illustrative()) { obj.material.dispose(); obj.material = new THREE.MeshBasicMaterial({ color: this.col }); }
+    if (this.label) labelObj(obj, this.label, this.col); setAlpha(obj, a);
+    const it = { obj, v: V3n(), mode, a }; this.items.push(it); this.retag(); return it;
+  }
+  fill() { for (let i = 0; i < Math.round(this.n); i++) { const p = this.region.sample(false); if (p) this.add(p, 'free', 1); } }
+  retag() { let k = 0; for (const it of this.items) { const t = it.obj.userData.tag; if (t) t.on = it.mode !== 'out' && k++ < this.maxTags; } }
+  /* the nearest free one goes to work (moved to the overlay); none free -> one drifts in from the edge of the bulk */
+  take(near) {
+    let best = null, bd = Infinity;
+    for (const it of this.items) if (it.mode === 'free' || it.mode === 'in') { const d = it.obj.position.distanceToSquared(near); if (d < bd) { bd = d; best = it; } }
+    if (!best) best = this.add(this.region.sample(true) || near.clone(), 'in', 0.05);
+    this.items = this.items.filter(x => x !== best); this.retag();
+    const obj = best.obj; procRoot.add(obj); obj.userData.alpha = best.a; if (obj.userData.tag) obj.userData.tag.on = true; return obj;
+  }
+  give(obj) { bulkRoot.add(obj); setAlpha(obj, 1); this.items.push({ obj, v: V3n(), mode: 'free', a: 1 }); this.retag(); }
+  update(dt) {
+    const R = this.region, live = this.items.filter(i => i.mode !== 'out').length, want = Math.round(this.n);
+    if (live < want && Math.random() < dt * 6) { const p = R.sample(true); if (p) this.add(p, 'in', 0); }
+    if (live > want && Math.random() < dt * 6) {   /* the extra one nearest the edge of the bulk drifts out */
+      let w = null; for (const it of this.items) if (it.mode === 'free' && (!w || R.depth(it.obj.position) < R.depth(w.obj.position))) w = it;
+      if (w) { w.mode = 'out'; this.retag(); } }
+    for (let i = this.items.length - 1; i >= 0; i--) { const it = this.items[i], p = it.obj.position;
+      it.v.multiplyScalar(Math.exp(-dt * 1.5)).add(_push.set(gauss(), gauss(), gauss()).multiplyScalar(this.kick * Math.sqrt(dt)));
+      const nx = p.x + it.v.x * dt, ny = p.y + it.v.y * dt, nz = p.z + it.v.z * dt; _cv.set(nx, ny, nz);
+      if ((!R.inside(_cv) && it.mode !== 'out') || occBusy(_cv, this.clear)) it.v.multiplyScalar(-0.6); else p.copy(_cv);
+      if (this.tumble) { it.obj.rotation.x += dt * 0.7; it.obj.rotation.y += dt * 0.5; }
+      if (it.mode === 'in') { it.a = Math.min(1, it.a + dt / 1.2); setAlpha(it.obj, it.a); if (it.a >= 1) it.mode = 'free'; }
+      else if (it.mode === 'out') { it.a -= dt / 1.6; if (it.a <= 0) { it.obj.parent?.remove(it.obj); this.items.splice(i, 1); } else setAlpha(it.obj, it.a); }
+    }
+  }
+}
+/* scene pool by key; spec: { label, col, r | make(), region, n, tumble }. A cell sim's dots are pools too (same keys:
+   label + '@' + comp), so a process that asks for 'H⁺@top' gets the very H⁺ the compartment model is showing. */
+function scenePool(key, spec) {
+  let p = scenePools.get(key); if (p) return p;
+  const make = spec.make || (() => { const m = makeParticle(spec.col, spec.r || 2.2); return m; });
+  p = new MolPool({ ...spec, make, key }); scenePools.set(key, p); if (spec.n) p.fill(); return p;
+}
+function updatePools(dt) { for (const p of scenePools.values()) p.update(dt); }
+function clearPools() { scenePools = new Map(); while (bulkRoot.children.length) { const o = bulkRoot.children[0]; bulkRoot.remove(o); o.traverse(x => { if (x.material) x.material.dispose(); }); } }
+/* the standard little molecules, one look everywhere (colour, size, name) */
+const SPECIES = {
+  'H⁺': { col: 0xfff27a, r: 2.2 }, 'e⁻': { col: 0x6ff4ff, r: 2.6 }, 'K⁺': { col: 0xb98cff, r: 2.0 }, 'Na⁺': { col: 0x4fc3f7, r: 1.7 },
+  'O₂': { col: 0x7ab8ff, r: 3.2 }, 'H₂O': { col: 0xdfe8f5, r: 2.4 }, 'NADH': { col: 0xff6fa8, r: 3.6 }, 'NAD⁺': { col: 0xffb3cf, r: 3.4 },
+  'NADPH': { col: 0xff6fa8, r: 3.6 }, 'NADP⁺': { col: 0xffb3cf, r: 3.4 }, 'ATP': { col: 0xff9a2e, r: 3.4 }, 'ADP': { col: 0x46c8ff, r: 3.2 },
+  'Pi': { col: 0xc9a2ff, r: 2.4 }, 'PQH₂': { col: 0xffe08a, r: 3.4 }, 'QH₂': { col: 0xffe08a, r: 3.4 }, '光子 hν': { col: 0xff5a5a, r: 2.2 },
+  '激发能': { col: 0x9dff6a, r: 2.2 }, 'CO₂': { col: 0xb0b8c8, r: 2.6 },
+};
+/* a labelled particle of a standard species (in the overlay) */
+function mkSp(name, label = name) { const s = SPECIES[name] || { col: 0xffffff, r: 2.4 }; return makeParticle(s.col, s.r, label); }
+/* pool of a standard species in a compartment of the scene (cell-sim box if there is one, else the given region) */
+function spPool(name, comp, region, n = 0) {
+  const key = name + '@' + comp; if (scenePools.has(key)) return scenePools.get(key);
+  const s = SPECIES[name] || { col: 0xffffff, r: 2.4 };
+  return scenePool(key, { label: name, col: s.col, r: s.r, region: (cellSim?.regions?.[comp]) || region, n });
+}
+/* time scale: 'slow' = every molecular event shown in detail; 'fast' = streams of particles show where the flux goes */
+let timeScale = 'slow';
+const fastMode = () => timeScale === 'fast';
+/* ---- particle streams (fast mode). def: { label, col, r, paths: [[Vector3...]...], per: particles per cycle, v: A/s }.
+   One InstancedMesh per stream in the overlay; particles enter at the start of a path (growing in from nothing far out in the
+   bulk), follow it with a little lateral scatter and leave at the end. Rate = per x cycles/s. */
+class FlowLayer {
+  constructor(defs) {
+    this.S = defs.filter(d => d.paths?.length).map(d => {
+      const curves = d.paths.map(P => { const c = new THREE.CatmullRomCurve3(P, false, 'centripetal'); return { c, L: c.getLength() }; });
+      const max = d.max || 400, mat = new THREE.MeshStandardMaterial({ color: d.col, emissive: d.col, emissiveIntensity: 1.1, roughness: 0.35 });
+      const mesh = new THREE.InstancedMesh(PARTICLE_GEO, mat, max); mesh.count = 0; mesh.frustumCulled = false; procRoot.add(mesh);
+      const mid = curves[0].c.getPoint(0.5), tag = makeTag(d.label, { p: mid, cls: 'small flow' }); tag.el.style.borderColor = '#' + new THREE.Color(d.col).getHexString();
+      return { d, curves, mesh, max, parts: [], acc: 0, tag };
+    });
+  }
+  set visible(v) { for (const s of this.S) { s.mesh.visible = v; s.tag.on = v; } }
+  update(dt, cps) {
+    for (const s of this.S) {
+      s.acc += dt * cps * s.d.per; while (s.acc >= 1 && s.parts.length < s.max) { s.acc -= 1; const k = Math.floor(Math.random() * s.curves.length);
+        s.parts.push({ k, u: 0, off: V3n(gauss(), gauss(), gauss()).multiplyScalar(s.d.spread ?? 1.8), sp: (s.d.v || 60) * (0.8 + 0.4 * Math.random()) / s.curves[k].L }); }
+      if (s.acc > 1) s.acc = 1;
+      let n = 0;
+      for (let i = s.parts.length - 1; i >= 0; i--) { const q = s.parts[i]; q.u += q.sp * dt; if (q.u >= 1) { s.parts.splice(i, 1); continue; } }
+      for (const q of s.parts) { s.curves[q.k].c.getPoint(q.u, _tp); _tp.add(q.off);
+        const sc = 1.3 * (s.d.r || 2.2) * Math.min(1, q.u / 0.06, (1 - q.u) / 0.06); _tm4.compose(_tp, _tq0, _tsv.setScalar(Math.max(0.01, sc))); s.mesh.setMatrixAt(n++, _tm4); }
+      s.mesh.count = n; s.mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+  dispose() { for (const s of this.S) { s.mesh.parent?.remove(s.mesh); s.mesh.material.dispose(); s.tag.remove(); } }
+}
+/* shared H+ path helpers for the membrane machines: bulk pool -> channel mouth -> (through the channel) -> other mouth -> bulk */
+async function protonAcross(pIn, pOut, chan, o = {}) {
+  /* pIn / pOut: pools on the entry / exit side; chan: points through the protein (first = entry mouth, last = exit mouth) */
+  const k = o.pace ? o.pace() : 1, h = pIn.take(chan[0]);
+  if (o.count) o.count();
+  await travel(h, brownPath(h.position.clone(), chan[0], { free1: 6, keep: o.keepIn }), (o.tIn ?? 1.6) / k, { fadeIn: (h.userData.alpha ?? 1) < 1 ? 0.3 : 0 });
+  if (o.label) h.userData.tag?.set(o.label);
+  await travel(h, chan, (o.tChan ?? 1.0) / k, { ease: true });
+  h.userData.tag?.set('H⁺');
+  if (!pOut) { h.parent?.remove(h); return; }
+  const dest = pOut.region.sample(false) || chan[chan.length - 1].clone();
+  const exitP = brownPath(chan[chan.length - 1].clone(), dest.clone().lerp(chan[chan.length - 1], 0.45), { free0: 6, free1: 0, keep: o.keepOut });
+  await travel(h, exitP, (o.tOut ?? 1.4) / k);
+  pOut.give(h);
+}
+/* ADP + Pi from the bulk -> F1 head -> ATP back into the bulk (respiratory chain / chloroplast ATP synthase) */
+async function atpFromPools(pl, at, ctx) {
+  const k = ctx.pace(), a = pl('ADP').take(at), p = pl('Pi').take(at), fi = (o) => ({ fadeIn: (o.userData.alpha ?? 1) < 1 ? 0.3 : 0, tumble: true });
+  await Promise.all([travel(a, brownPath(a.position.clone(), at, { free1: 10 }), 2.4 / k, fi(a)), travel(p, brownPath(p.position.clone(), at.clone().add(V3n(3, -2, 0)), { free1: 10 }), 2.4 / k, fi(p))]);
+  a.parent?.remove(a); p.parent?.remove(p);
+  eventTag('ADP + Pi → ATP（F1 头部）', at.clone().add(V3n(0, 8, 0)), 2.0); ctx.counters.ATP++;
+  const m = mkSp('ATP'), pool = pl('ATP'); m.position.copy(at);
+  await travel(m, brownPath(at.clone(), pool.region.sample(false) || at.clone().add(V3n(0, 60, 0)), { free0: 10, free1: 0 }), 2.6 / k);
+  pool.give(m);
+}
+world.add(bulkRoot);
 
 /* ----------------------------------------------------------------------------- other PDB entries in the scene frame
    alignEntry(id, opts): downloads only what is needed from RCSB ModelServer -- the reference chain's P (RNA) or CA atoms,
@@ -2139,7 +2372,7 @@ async function alignEntry(id, opts) {
   const best = [fs, fa].filter(f => f && f.n >= Math.max(20, 0.3 * f.of)).sort((x, y) => x.rmsd - y.rmsd)[0] || [fs, fa].filter(Boolean).sort((x, y) => x.rmsd - y.rmsd)[0];
   if (!best) throw new Error(`${id}: 参考链残基对不上`);
   const { f } = best;
-  const out = { id, rmsd: best.rmsd, nFit: best.n, key: best.key, chains: {}, ligands: {} };
+  const out = { id, rmsd: best.rmsd, nFit: best.n, key: best.key, chains: {}, ligands: {}, f, refAsym };
   for (const [name, kw, full] of opts.chains || []) {
     const asym = asymOf(kw); if (!asym) { console.warn(id, '缺少链', kw); continue; }
     const rows = parseAtomSite(await fetchText(msAtoms(id, `label_asym_id=${asym}`))).filter(r => r.el !== 'H' && (!r.alt || r.alt === '.' || r.alt === 'A'));
@@ -2359,7 +2592,7 @@ const PROCESSES = {
       ['紧密位点里生成 ATP', '在紧密构象中 ADP 和 Pi 被牢牢包住、水被排除，位点内 ADP + Pi ⇌ ATP 的平衡常数接近 1（ΔG ≈ 0），所以生成化学键这一步本身几乎不消耗外来能量——这是 Boyer 结合变构机制的要点。'],
       ['位点打开释放 ATP（耗能）', '紧密位点对 ATP 的亲和力极高（单位点催化测得解离常数约 10⁻¹² M 量级；Penefsky 等）。转动的能量真正用在这里：强迫位点打开、降低亲和力，把 ATP 释放出来。每转一圈释放 3 个 ATP，约 8 H⁺ / 3 ATP ≈ 2.7 H⁺/ATP。'] ],
     stage(ctx) { const f = this.f || 0; return f < 0.15 ? 1 : f < 0.8 ? 2 : f < 0.93 ? 3 : 4; },
-    caption: 'H⁺ 顺电化学梯度（质子动力势）经 a 亚基（深蓝）进入 c 环（绿）→ c 环与中心柄 γ（白）旋转 → γ 每转 120°，三个 β 亚基（蓝）依次变构：开放（空）→ 松弛（结合 ADP + Pi）→ 紧密（合成 ATP，闪光）→ 开放（释放 ATP）（Boyer 结合变构机制）。β 的形状来自 6ZPO（冷冻电镜，4.0 Å）三条 β 链的真实构象；ADP / Mg²⁺ 位置取自该结构，ATP 与 Pi 的位置是按 ADP 位置建模的示意',
+    caption: 'H⁺ 顺电化学梯度（质子动力势）经 a 亚基（深蓝）进入 c 环（绿）→ c 环与中心柄 γ（白）旋转 → γ 每转 120°，三个 β 亚基（蓝）依次变构：开放（空）→ 松弛（结合 ADP + Pi）→ 紧密（在位点里 ADP + Pi → ATP）→ 开放（释放 ATP）（Boyer 结合变构机制）。H⁺、Mg·ADP、Pi 从周围溶液扩散进来，ATP 扩散出去，每个粒子都标了名字；“时间尺度”切到快放可看粒子流。β 的形状来自 6ZPO（冷冻电镜，4.0 Å）三条 β 链的真实构象；ADP / Mg²⁺ 位置取自该结构，ATP 与 Pi 的位置是按 ADP 位置建模的示意',
     async setup(ctx) {
       const c = ctx.atomsOf(/subunit c1/i), a = ctx.atomsOf(/subunit a$/i);
       if (!c.length) throw new Error('找不到 c 环');
@@ -2436,17 +2669,68 @@ const PROCESSES = {
         for (const s2 of chains) { const Tf = T[k][s2], L0 = local[s2];
           P[s2] = { atp: apply(Tf, L0.atp), adp: apply(Tf, L0.adp), mg: L0.mg && Tf(L0.mg), pi: Tf(L0.pi), piOut: Tf(L0.piOut) }; }
         const S = P[k].atp.t.clone(), D = new THREE.Vector3(S.x, 0, S.z).normalize();
-        return { k, P, S, D, atp: ctx.makeMol(tATP), adp: ctx.makeMol(tADP), pi: ctx.makeMol(tPi), mg: ctx.makeParticle(0x7dff8a, 1.6),
-          flash: ctx.makeFlash(0xfff1a8), lastSynth: null };
+        return { k, P, S, D, mg: ctx.makeParticle(0x7dff8a, 1.6), entr: S.clone().addScaledVector(D, 14).add(new THREE.Vector3(0, 9, 0)) };
       });
+      { const s0 = this.sites[0], own = s0.P[s0.k], loc = (pose, p) => p ? p.clone().sub(pose.t).applyQuaternion(pose.q.clone().invert()) : null;
+        this.mgOff = { adp: loc(own.adp, own.mg), atp: loc(own.atp, own.mg) }; this.tpl = { atp: tATP, adp: tADP, pi: tPi };
+        this.cF1 = this.sites.reduce((a, q) => a.add(q.S), new THREE.Vector3()).multiplyScalar(1 / 3); this.rF1 = Math.max(...bg.atoms.map(x => x.p.distanceTo(this.cF1))); }
       this.bg = bg; this.next = next; this.chains = chains; this.f = 0;
       ctx.markHot(this.sites.map(s => s.S), 8);
       this.lastK = Math.floor(ctx.theta / (Math.PI / 4));
       ctx.counters.ATP = 0; ctx.counters['H⁺'] = 0;
     },
+    /* pools of free molecules around the machine (or the cell sim's compartments): matrix = F1 side (+y), IMS = below */
+    pools() {
+      if (this._pools) return this._pools;
+      const yc = this.yc, cF = this.cF1, T = this.tpl, off = this.mgOff;
+      const mat = shellRegion(cF, this.rF1 + 6, this.rF1 + 75, (p) => p.y > yc + 30), ims = shellRegion(V3n(0, yc - 45, 0), 0, 120, (p) => p.y < yc - 28);
+      const matH = shellRegion(V3n(0, yc + 45, 0), 0, 125, (p) => p.y > yc + 28);
+      const nuc = (tpl, mg) => () => { const g = new THREE.Group(), m = makeMol(tpl); m.visible = true; g.add(m);
+        if (mg) { const q = makeParticle(0x7dff8a, 1.4); q.position.copy(mg); g.add(q); } procRoot.add(g); return g; };
+      return this._pools = {
+        adp: scenePool('Mg·ADP@mat', { label: 'Mg·ADP', col: 0x00c8ff, make: nuc(T.adp, off.adp), region: mat, n: 4, tumble: true }),
+        pi: scenePool('Pi@mat', { label: 'Pi', col: 0xc9a2ff, make: () => { const m = makeMol(T.pi); m.visible = true; return m; }, region: mat, n: 4, tumble: true }),
+        atp: scenePool('Mg·ATP@mat', { label: 'Mg·ATP', col: 0xffb300, make: nuc(T.atp, off.atp), region: mat, n: 2, tumble: true }),
+        hIn: spPool('H⁺', 'ims', ims, 14), hOut: spPool('H⁺', 'mat', matH, 4),
+      };
+    },
+    /* a new 120-degree step begins for site s: what it holds changes hands */
+    enter(s, n, role) {
+      const P = this.pools(), first = s.n === undefined; s.n = n;
+      const own = s.P[s.k], fresh = (pool, key, tag) => { const o = pool.make(); procRoot.add(o); o.visible = true; labelObj(o, tag, pool.col); o.userData.alpha = 1; return o; };
+      if (role === 'open') {
+        if (s.atp) this.release(s);
+        s.adp = P.adp.take(s.S); s.adpQ0 = s.adp.quaternion.clone(); s.adpC = new THREE.CatmullRomCurve3(brownPath(s.adp.position.clone(), s.entr, { free1: 5, clear: 7 }), false, 'centripetal');
+        s.pi = P.pi.take(s.S); s.piC = new THREE.CatmullRomCurve3(brownPath(s.pi.position.clone(), s.entr.clone().add(V3n(0, -5, 0)), { free1: 5, clear: 6 }), false, 'centripetal');
+        s.made = false;
+      } else if (role === 'loose') {
+        if (first) { s.adp = fresh(P.adp, 'adp', 'Mg·ADP'); s.pi = fresh(P.pi, 'pi', 'Pi'); }
+        s.made = false;
+      } else if (role === 'tight') {
+        if (!s.made && s.adp) this.synth(s);
+        if (first) { s.atp = fresh(P.atp, 'atp', 'Mg·ATP'); s.made = true; }
+      }
+    },
+    /* inside the closed (tight) site: ADP + Pi -> ATP, named on the spot (no flash) */
+    synth(s) {
+      const p = s.adp.position.clone();
+      for (const o of [s.adp, s.pi]) if (o) { o.parent?.remove(o); }
+      s.adp = s.pi = null; s.made = true;
+      const P = this.pools(); s.atp = P.atp.make(); procRoot.add(s.atp); s.atp.visible = true; s.atp.userData.alpha = 1; labelObj(s.atp, 'Mg·ATP', 0xffb300); s.atp.position.copy(p);
+      this.ctx.counters.ATP++;
+      if (!fastMode()) eventTag('ADP + Pi → ATP（紧密位点里，ΔG ≈ 0）', p.clone().add(V3n(0, 6, 0)), 2.6);
+    },
+    /* the opening site lets the ATP go: it diffuses out into the matrix and joins the free ATP there */
+    release(s) {
+      const a = s.atp; s.atp = null; if (!a) return;
+      const P = this.pools(), dest = P.atp.region.sample(false) || s.entr.clone().addScaledVector(s.D, 40);
+      if (fastMode()) { P.atp.give(a); return; }   /* fast: the ATP stream shows it */
+      eventTag('位点打开 → ATP 释放（这一步耗能）', a.position.clone().add(V3n(0, 8, 0)), 2.2);
+      travel(a, brownPath(a.position.clone(), dest, { free0: 9, free1: 0, clear: 7 }), 3.0 / this.ctx.pace(), { tumble: true }).then(() => P.atp.give(a));
+    },
     update(ctx, dt) {
-      const k8 = Math.floor(ctx.theta / (Math.PI / 4));
-      for (; this.lastK < k8; this.lastK++) this.spawnProton(ctx);
+      const fast = fastMode(), k8 = Math.floor(ctx.theta / (Math.PI / 4));
+      if (fast) this.lastK = k8; else for (; this.lastK < k8; this.lastK++) this.spawnProton(ctx).catch(() => {});
       const step = ctx.theta / (2 * Math.PI / 3), n = Math.floor(step), f = step - n, nn = ((n % 3) + 3) % 3; this.f = f;
       const w = ease((f - 0.25) / 0.6);   // protein conformational change during the middle of each 120 deg step
       const _q = new THREE.Quaternion(), _p = new THREE.Vector3();
@@ -2454,52 +2738,63 @@ const PROCESSES = {
         let c0 = s.k; for (let i = 0; i < nn; i++) c0 = this.next[c0];
         const c1 = this.next[c0], role = this.role[c0];
         ctx.setChainBlend(this.bg, s.k, c0, c1, w);
+        if (s.n !== n) this.enter(s, n, role);
         const A = s.P[c0], B = s.P[c1];
-        const pose = (key, o, sc, extra) => {   // ligand follows the closing / opening pocket
-          _q.copy(A[key].q).slerp(B[key].q, w); _p.copy(A[key].t).lerp(B[key].t, w); if (extra) _p.add(extra);
-          o.quaternion.copy(_q); o.position.copy(_p); o.visible = sc > 0.02; o.scale.setScalar(Math.max(sc, 0.001));
-        };
-        const mgAt = (sc, extra) => { const m0 = A.mg || B.mg, m1 = B.mg || A.mg; if (!m0) { s.mg.visible = false; return; }
-          s.mg.position.copy(m0).lerp(m1, w); if (extra) s.mg.position.add(extra); s.mg.visible = sc > 0.02; s.mg.scale.setScalar(1.6 * Math.max(sc, 0.001)); };
-        const piAt = (p, sc) => { s.pi.position.copy(p); s.pi.visible = sc > 0.02; s.pi.scale.setScalar(Math.max(sc, 0.001)); s.pi.rotation.y += dt * 0.8; };
-        const out = s.D.clone().multiplyScalar(42).add(new THREE.Vector3(0, 26, 0));
-        s.flash.visible = false;
-        if (role === 'loose') {             // loose -> tight: pocket closes, Pi docks onto ADP, ATP is made at the end
-          const piPos = A.piOut.clone().lerp(B.pi, w);
-          if (f < 0.88) { pose('adp', s.adp, 1); piAt(piPos, 1); s.atp.visible = false; }
-          else { pose('atp', s.atp, 1); s.adp.visible = false; s.pi.visible = false;
-            if (s.lastSynth !== n) { s.lastSynth = n; ctx.counters.ATP++; } }
-          mgAt(1);
-          const fl = Math.max(0, 1 - Math.abs(f - 0.88) / 0.08);
-          if (fl > 0) { s.flash.visible = true; s.flash.position.copy(B.pi); s.flash.scale.setScalar(3 + 4 * fl); s.flash.material.opacity = fl * 0.5; }
-        } else if (role === 'tight') {      // tight -> open: pocket opens, ATP (with Mg) leaves
-          const go = ease((f - 0.45) / 0.5), fade = 1 - ease((f - 0.8) / 0.2);
-          pose('atp', s.atp, fade, out.clone().multiplyScalar(go)); mgAt(fade, out.clone().multiplyScalar(go));
-          s.adp.visible = false; s.pi.visible = false;
-        } else {                            // open -> loose: ADP + Pi (+ Mg) diffuse in and bind
-          const come = 1 - ease((f - 0.05) / 0.6), app = ease((f - 0.05) / 0.15);
-          const from = out.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.4).multiplyScalar(come);
-          pose('adp', s.adp, app, from); mgAt(app, from);
-          const piCome = 1 - ease((f - 0.15) / 0.65);
-          piAt(A.piOut.clone().lerp(B.piOut, w).add(from.clone().multiplyScalar(piCome / Math.max(come, 1e-3) * (come > 1e-3 ? 1 : 0)).add(new THREE.Vector3(0, -10 * piCome, 0))), ease((f - 0.15) / 0.15));
-          s.atp.visible = false;
+        const pose = (key, o) => { _q.copy(A[key].q).slerp(B[key].q, w); _p.copy(A[key].t).lerp(B[key].t, w); o.quaternion.copy(_q); o.position.copy(_p); };
+        const fadeUp = (o) => { if ((o.userData.alpha ?? 1) < 1) setAlpha(o, Math.min(1, o.userData.alpha + dt / 0.8)); };
+        if (role === 'open') {               // open -> loose: Mg·ADP and Pi diffuse in from the matrix and bind
+          if (s.adp) { fadeUp(s.adp); const u = f / 0.55;
+            if (u < 1) { s.adpC.getPoint(u, s.adp.position); s.adp.quaternion.slerpQuaternions(s.adpQ0, A.adp.q, ease(u)); }
+            else { pose('adp', s.adp); s.adp.position.lerpVectors(s.entr, _p, ease((f - 0.55) / 0.3)); } }
+          if (s.pi) { fadeUp(s.pi); const u = (f - 0.08) / 0.55;
+            if (u < 1) s.piC.getPoint(Math.max(0, u), s.pi.position); else s.pi.position.lerpVectors(s.entr.clone().add(V3n(0, -5, 0)), A.piOut.clone().lerp(B.piOut, w), ease((f - 0.63) / 0.3)); }
+        } else if (role === 'loose') {       // loose -> tight: the pocket closes round ADP; Pi docks on it; ATP is made at the end
+          if (s.adp) { pose('adp', s.adp); if (s.pi) s.pi.position.copy(A.piOut).lerp(B.pi, w); if (f > 0.88 && !s.made) this.synth(s); }
+          if (s.atp) pose('atp', s.atp);
+        } else {                             // tight -> open: the pocket opens and lets the ATP go
+          if (s.atp) { pose('atp', s.atp); if (f > 0.5) this.release(s); }
         }
+        for (const o of [s.adp, s.pi, s.atp]) if (o) o.visible = !fast;   /* fast: the streams show the flux instead */
+        s.mg.visible = false;
       }
+      this.flows(ctx, dt);
     },
-    spawnProton(ctx) {
-      const p = ctx.makeParticle(0xfff27a, 3.2), rc = this.rc, yc = this.yc, phiIn = this.phiA - 0.35;
-      const A = polar(rc + 34, phiIn - 0.25, yc - 58), B = polar(rc + 3, phiIn, yc - 2);
+    async spawnProton(ctx) {
+      const rc = this.rc, yc = this.yc, phiIn = this.phiA - 0.35, k = ctx.pace(), P = this.pools();
+      const mouth = polar(rc + 26, phiIn - 0.25, yc - 32), site = polar(rc + 3, phiIn, yc - 2);
       ctx.counters['H⁺']++;
-      ctx.anim(p, 1.1, (u) => { p.position.copy(A).lerp(B, ease(u)); }, () => {
-        const th0 = ctx.theta;
-        ctx.anim(p, null, () => {                     // ride the c ring for 7/8 of a turn
-          const d = ctx.theta - th0; p.position.copy(polar(rc + 3, phiIn - d, yc - 2));
-          return d > Math.PI * 1.75;
-        }, () => {
-          const E0 = p.position.clone(), phiE = Math.atan2(E0.z, E0.x), E1 = polar(rc + 30, phiE - 0.3, yc + 62);
-          ctx.anim(p, 1.3, (u) => { p.position.copy(E0).lerp(E1, ease(u)); p.scale.setScalar(3.2 * (1 - ease((u - 0.6) / 0.4)) + 0.01); });
-        });
-      });
+      const h = P.hIn.take(mouth);
+      await travel(h, brownPath(h.position.clone(), mouth, { free1: 6, keep: (p) => { p.y = Math.min(p.y, yc - 28); } }), 2.0 / k, { fadeIn: (h.userData.alpha ?? 1) < 1 ? 0.3 : 0 });
+      h.userData.tag?.set('H⁺ → a 亚基半通道');
+      await travel(h, [mouth, mouth.clone().lerp(site, 0.5).add(V3n(0, 4, 0)), site], 1.0 / k, { ease: true });
+      h.userData.tag?.set('H⁺ 结合 c 亚基 Glu58');
+      const th0 = ctx.theta;
+      await new Promise(r => ctx.anim(h, null, () => { const d = ctx.theta - th0; h.position.copy(polar(rc + 3, phiIn - d, yc - 2)); return d > Math.PI * 1.75; }, r));
+      const E0 = h.position.clone(), phiE = Math.atan2(E0.z, E0.x), E1 = polar(rc + 22, phiE - 0.3, yc + 32);
+      h.userData.tag?.set('H⁺ 经半通道 → 基质');
+      await travel(h, [E0, E0.clone().lerp(E1, 0.5).add(V3n(0, 2, 0)), E1], 1.0 / k, { ease: true });
+      h.userData.tag?.set('H⁺');
+      const dest = P.hOut.region.sample(false) || E1.clone().add(V3n(0, 40, 0));
+      await travel(h, brownPath(E1, dest, { free0: 6, free1: 0, keep: (p) => { p.y = Math.max(p.y, yc + 28); } }), 2.0 / k);
+      P.hOut.give(h);
+    },
+    /* fast mode: streams (cycles = rotor turns) */
+    flows(ctx, dt) {
+      const fast = fastMode();
+      if (!fast) { if (this.flow) this.flow.visible = false; return; }
+      if (!this.flow) {
+        const rc = this.rc, yc = this.yc, phiIn = this.phiA - 0.35, P = this.pools(), H = [], AD = [], AT = [];
+        for (let i = 0; i < 6; i++) { const a = P.hIn.region.sample(false), mouth = polar(rc + 26, phiIn - 0.25, yc - 32);
+          const ring = Array.from({ length: 15 }, (_, j) => polar(rc + 3, phiIn - j * Math.PI * 1.75 / 14, yc - 2)), E0 = ring[14], E1 = polar(rc + 22, Math.atan2(E0.z, E0.x) - 0.3, yc + 32);
+          H.push([...brownPath(a, mouth, { free1: 6 }), ...ring, E1, ...brownPath(E1, P.hOut.region.sample(false) || E1.clone().setY(yc + 80), { free0: 6, free1: 0 }).slice(1)]); }
+        for (const s of this.sites) { AD.push(brownPath(P.adp.region.sample(false) || s.entr.clone().addScaledVector(s.D, 50), s.S, { free1: 14 })); AT.push(brownPath(s.S, P.atp.region.sample(false) || s.entr.clone().addScaledVector(s.D, 50), { free0: 14, free1: 0 })); }
+        this.flow = new FlowLayer([
+          { label: 'H⁺ 流：膜间隙 → c 环 → 基质', col: 0xfff27a, r: 2.0, paths: H, per: 8, v: 90 },
+          { label: 'ADP + Pi 流入 β 位点', col: 0x00c8ff, r: 2.6, paths: AD, per: 3, v: 50 },
+          { label: 'ATP 流出', col: 0xffb300, r: 2.8, paths: AT, per: 3, v: 50 } ]);
+      }
+      this.flow.visible = true;
+      this.flow.update(dt, 3 * +$('spin').value * (cellSim ? cellSim.flux.rotor : 1) / (2 * Math.PI));
     },
   },
 
@@ -2521,14 +2816,14 @@ const PROCESSES = {
       ctx.markHot(Array.from({ length: this.n }, (_, k) => polar(this.R, 2 * Math.PI * k / this.n, this.ys)));
     },
     update(ctx) {
-      const k = Math.floor(ctx.theta / (2 * Math.PI / 44));
+      const k = Math.floor(ctx.theta / (2 * Math.PI / 44)), ys = this.ys, R = this.R;
+      const top = spPool('H⁺', 'peri', shellRegion(V3n(0, ys + 60, 0), 0, R + 90, (p) => p.y > ys + 30 && Math.hypot(p.x, p.z) > R - 60), 24);
+      const bot = spPool('H⁺', 'cyto', shellRegion(V3n(0, ys - 60, 0), 0, R + 90, (p) => p.y < ys - 30 && Math.hypot(p.x, p.z) > R - 60), 8);
       for (; this.lastK < k; this.lastK++) {
-        const phi = 2 * Math.PI * Math.floor(Math.random() * this.n) / this.n + (Math.random() - 0.5) * 0.06, ys = this.ys;
-        const p = ctx.makeParticle(0xfff27a, 3.2); ctx.counters['H⁺（示意）']++;
-        const P0 = polar(this.R + 18, phi, ys + 70), P1 = polar(this.R, phi, ys + 18), P2 = polar(this.R, phi, ys - 22), P3 = polar(this.R + 25, phi + 0.04, ys - 80);
-        ctx.anim(p, 0.9, (u) => p.position.copy(P0).lerp(P1, ease(u)),
-          () => ctx.anim(p, 0.9, (u) => p.position.copy(P1).lerp(P2, u),
-            () => ctx.anim(p, 1.0, (u) => { p.position.copy(P2).lerp(P3, ease(u)); p.scale.setScalar(3.2 * (1 - ease((u - 0.5) / 0.5)) + 0.01); })));
+        const phi = 2 * Math.PI * Math.floor(Math.random() * this.n) / this.n + (Math.random() - 0.5) * 0.06; ctx.counters['H⁺（示意）']++;
+        const P1 = polar(R, phi, ys + 22), P2 = polar(R, phi, ys - 22);
+        protonAcross(top, bot, [P1, P1.clone().lerp(P2, 0.5), P2], { pace: ctx.pace, label: 'H⁺（经定子 MotA/MotB）', tIn: 1.6, tChan: 0.9,
+          keepIn: (p) => { p.y = Math.max(p.y, ys + 30); }, keepOut: (p) => { p.y = Math.min(p.y, ys - 30); } }).catch(() => {});
       }
     },
   },
@@ -2645,42 +2940,70 @@ const PROCESSES = {
       ctx.markHot([...chain, cuA, cuB, this.a3, this.ha, c1, bL, bH, isp], 7);
       this.t = 0; this.busy = false; this.stg = 0;
     },
-    move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
+    move(p, pts, per, done) {   // hop a particle through points (electrons between cofactors: tunnelling hops); per = seconds per 20 A
       const ctx = this.ctx, k = ctx.pace(); let i = 0; p.position.copy(pts[0]);
       const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
         const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
       go();
     },
-    pumpH(from, to, delay = 0) {   // one H+ across the membrane (matrix +y -> IMS -y for the pumps)
-      const ctx = this.ctx, k = ctx.pace();
-      ctx.anim(null, Math.max(0.02, delay / k), () => {}, () => { const p = ctx.makeParticle(0xfff27a, 2.6); ctx.counters['H⁺ 泵出']++;
-        this.move(p, [from, from.clone().lerp(to, 0.5), to], 1.0, (q) => ctx.anim(q, 0.6 / k, (u) => { q.scale.setScalar(2.6 * (1 - u) + 0.01); })); });
+    /* bulk pools: top = matrix, bot = intermembrane space (the cell sim's compartments when it runs) */
+    pl(name, comp, n = 0) { const ym = this.ym, c = model.focus.centre;
+      return spPool(name, comp, shellRegion(V3n(c.x, ym + (comp === 'top' ? 80 : -80), c.z), 0, 190, (p) => comp === 'top' ? p.y > ym + 28 : p.y < ym - 28), n); },
+    /* one H+ pumped matrix -> IMS through a proton path of a complex */
+    pumpH(from, to, delay = 0) {
+      const ctx = this.ctx, ym = this.ym;
+      ctx.anim(null, Math.max(0.02, delay / ctx.pace()), () => {}, () => { ctx.counters['H⁺ 泵出']++;
+        const a = from.clone().setY(ym + 24), b = to.clone().setY(ym - 24);
+        protonAcross(this.pl('H⁺', 'top'), this.pl('H⁺', 'bot'), [a, a.clone().lerp(b, 0.5), b], { pace: ctx.pace, label: 'H⁺（质子通道）',
+          keepIn: (p) => { p.y = Math.max(p.y, ym + 26); }, keepOut: (p) => { p.y = Math.min(p.y, ym - 26); } }).catch(() => {}); });
+    },
+    /* H+ set free at a site (QH2 oxidised at Qo) -> into the IMS */
+    releaseH(at, delay = 0) {
+      const ctx = this.ctx, ym = this.ym;
+      ctx.anim(null, Math.max(0.02, delay / ctx.pace()), () => {}, async () => { ctx.counters['H⁺ 泵出']++;
+        const h = mkSp('H⁺'); h.position.copy(at); const out = at.clone().setY(ym - 24), pool = this.pl('H⁺', 'bot');
+        await travel(h, [at.clone(), at.clone().lerp(out, 0.5), out], 0.9 / ctx.pace(), { ease: true });
+        await travel(h, brownPath(out, pool.region.sample(false) || out.clone().setY(ym - 70), { free0: 6, free1: 0, keep: (p) => { p.y = Math.min(p.y, ym - 26); } }), 1.6 / ctx.pace());
+        pool.give(h); });
+    },
+    /* a matrix H+ is used up chemically at a site (Qi, O2 reduction) */
+    takeH(site, label) {
+      const ctx = this.ctx, ym = this.ym, h = this.pl('H⁺', 'top').take(site), mouth = site.clone().setY(Math.max(site.y + 14, ym + 26));
+      return travel(h, brownPath(h.position.clone(), mouth, { free1: 6, keep: (p) => { p.y = Math.max(p.y, ym + 26); } }), 1.8 / ctx.pace(), { fadeIn: (h.userData.alpha ?? 1) < 1 ? 0.3 : 0 })
+        .then(() => { if (label) h.userData.tag?.set(label); return travel(h, [mouth, site], 0.7 / ctx.pace(), { ease: true, remove: true }); });
     },
     cycle() {
-      const ctx = this.ctx, ym = this.ym, V3 = (x, y, z) => new THREE.Vector3(x, y, z), up = (p, d) => p.clone().setY(ym + d);
+      const ctx = this.ctx, ym = this.ym, V3 = (x, y, z) => new THREE.Vector3(x, y, z), up = (p, d) => p.clone().setY(ym + d), k = () => ctx.pace();
       this.busy = true; this.stg = 0; ctx.counters.NADH++;
-      const nadh = ctx.makeParticle(0xffb04a, 4.2);
-      this.move(nadh, [this.nadh.clone().add(V3(0, 40, 0)), this.nadh], 1.6, (n) => { n.parent?.remove(n);
-        this.stg = 1; const e = ctx.makeParticle(0x6ff4ff, 3.0);
+      const nadh = this.pl('NADH', 'top', 3).take(this.nadh);
+      travel(nadh, brownPath(nadh.position.clone(), this.nadh, { free1: 8, keep: (p) => { p.y = Math.max(p.y, ym + 26); } }), 2.4 / k(), { fadeIn: (nadh.userData.alpha ?? 1) < 1 ? 0.3 : 0 }).then(() => {
+        nadh.parent?.remove(nadh);
+        eventTag('NADH → NAD⁺ + H⁺ + 2e⁻（2 个电子交给 FMN）', this.nadh.clone().add(V3(0, 8, 0)));
+        { const nad = mkSp('NAD⁺'), pool = this.pl('NAD⁺', 'top'); nad.position.copy(this.nadh);
+          travel(nad, brownPath(this.nadh.clone(), pool.region.sample(false) || up(this.nadh, 90), { free0: 8, free1: 0 }), 2.6 / k()).then(() => pool.give(nad)); }
+        this.stg = 1; const e = mkSp('e⁻');
         this.pumpI.forEach((q, i) => this.pumpH(up(q, 34), up(q, -34), 0.5 + i * 0.35));
         this.move(e, [this.nadh, ...this.chainI, this.qI], 0.45, (e1) => { e1.parent?.remove(e1);
-          this.stg = 2; const q = ctx.makeParticle(0xffe08a, 3.6);
-          this.move(q, [this.qI, up(this.qI, 2), up(this.Qo, 2), this.Qo], 1.3, (q1) => { q1.parent?.remove(q1);
+          eventTag('Q + 2e⁻ + 2H⁺ → QH₂', this.qI.clone().add(V3(0, 6, 0)), 2.0);
+          this.stg = 2; const q = mkSp('QH₂', 'QH₂（泛醇，在膜内扩散）');
+          const qPath = [this.qI, ...brownPath(up(this.qI, 2), up(this.Qo, 2), { n: 14, clear: 6, free0: 6, free1: 6, keep: (p) => { p.y = ym + 2 + (p.y - ym - 2) * 0.2; } }), this.Qo];
+          travel(q, qPath, 3.0 / k()).then(() => { q.parent?.remove(q);
             this.stg = 3;
-            for (let i = 0; i < 4; i++) this.pumpH(this.Qo.clone(), up(this.Qo, -36).add(V3((i - 1.5) * 5, 0, 0)), i * 0.3);
-            for (let i = 0; i < 2; i++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, [up(this.Qi, 34).add(V3(i * 6 - 3, 0, 0)), this.Qi], 1.2, (x) => x.parent?.remove(x)); }
-            const eb = ctx.makeParticle(0x6ff4ff, 2.6); this.move(eb, [this.Qo, this.bL, this.bH, this.Qi], 0.6, (x) => x.parent?.remove(x));
-            const ea = ctx.makeParticle(0x6ff4ff, 3.0);
+            eventTag('QH₂ → Q + 2H⁺ + 2e⁻（Qo 位点，Q 循环）', this.Qo.clone().add(V3(0, -6, 0)), 2.2);
+            for (let i = 0; i < 4; i++) this.releaseH(this.Qo.clone().add(V3((i - 1.5) * 3, 0, 0)), i * 0.3);
+            for (let i = 0; i < 2; i++) ctx.anim(null, 0.02 + i * 0.3 / k(), () => {}, () => this.takeH(this.Qi, 'H⁺ → Qi 位点').catch(() => {}));
+            const eb = mkSp('e⁻', 'e⁻（低电位链 bL → bH）'); this.move(eb, [this.Qo, this.bL, this.bH, this.Qi], 0.6, (x) => x.parent?.remove(x));
+            const ea = mkSp('e⁻', 'e⁻（Rieske → c1）');
             this.move(ea, [this.Qo, this.isp, this.c1, this.cytPos.clone().sub(this.c0).add(this.h0)], 0.6, (x) => { x.parent?.remove(x);
-              this.stg = 4; this.cytLoaded = true; const a = this.cytPos.clone();
-              ctx.anim(null, 2.2 / ctx.pace(), (u) => { this.cytPos.lerpVectors(a, this.dock2, ease(u)); }, () => {
-                this.stg = 5; this.cytLoaded = false; const e4 = ctx.makeParticle(0x6ff4ff, 3.0);
+              this.stg = 4; this.cytLoaded = true;
+              this.shuttle(this.dock2, 2.6).then(() => {
+                this.stg = 5; this.cytLoaded = false; const e4 = mkSp('e⁻');
                 this.pumpH(up(this.ha, 34), up(this.ha, -34), 0.6); this.pumpH(up(this.ha, 34).add(V3(5, 0, 0)), up(this.ha, -34).add(V3(5, 0, 0)), 1.1);
-                for (let i = 0; i < 2; i++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, [up(this.cuB, 34).add(V3(i * 6 - 3, 0, 0)), this.cuB], 1.4, (x) => x.parent?.remove(x)); }
+                for (let i = 0; i < 2; i++) this.takeH(this.cuB, '“化学” H⁺ → O₂').catch(() => {});
+                this.oxygen();
                 this.move(e4, [this.dock2.clone().sub(this.c0).add(this.h0), this.cuA, this.ha, this.a3, this.cuB], 0.55, (x) => { x.parent?.remove(x);
-                  const f = ctx.makeParticle(0xff4a4a, 4.5); f.position.copy(this.cuB).add(V3(0, 9, 0));   // O2 -> H2O
-                  ctx.anim(f, 1.2, (u) => { f.scale.setScalar(4.5 + u * 3); f.material.color.setHSL(0.0 + u * 0.55, 0.9, 0.6); f.material.emissive?.copy(f.material.color); });
-                  const b = this.cytPos.clone(); ctx.anim(null, 2.2 / ctx.pace(), (u) => { this.cytPos.lerpVectors(b, this.dock1, ease(u)); });
+                  this.reduceO2();
+                  this.shuttle(this.dock1, 2.6);
                   this.stg = 6; ctx.anim(null, 2.6 / ctx.pace(), () => {}, () => { this.busy = false; });
                 });
               });
@@ -2689,18 +3012,65 @@ const PROCESSES = {
         });
       });
     },
-    update(ctx) {
-      if (!this.busy && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle();
+    /* cytochrome c diffuses (not a straight line, around protein) between its two docking sites in the IMS */
+    shuttle(to, dur) {
+      const ym = this.ym, a = this.cytPos.clone(), P = brownPath(a, to, { n: 14, clear: 12, free0: 14, free1: 14, wander: 0.25, keep: (p) => { p.y = Math.min(p.y, ym - 30); } });
+      const c = new THREE.CatmullRomCurve3(P, false, 'centripetal');
+      return new Promise(r => this.ctx.anim(null, dur / this.ctx.pace(), (u) => { c.getPoint(ease(u), this.cytPos); }, r));
+    },
+    /* complex IV: one O2 binds at the heme a3 - CuB centre and waits there for the second electron pair */
+    oxygen() {
+      if (this.o2) return; const ym = this.ym, site = this.a3.clone().lerp(this.cuB, 0.5), o = this.o2 = this.pl('O₂', 'top', 3).take(site);
+      travel(o, brownPath(o.position.clone(), site, { free1: 12, keep: (p) => { p.y = Math.max(p.y, ym - 10); } }), 2.4 / this.ctx.pace(), { fadeIn: (o.userData.alpha ?? 1) < 1 ? 0.3 : 0 })
+        .then(() => { o.userData.tag?.set('O₂（结合在 a3–CuB）'); o.userData.bound = true; });
+    },
+    reduceO2() {
+      const o = this.o2, site = this.a3.clone().lerp(this.cuB, 0.5);
+      if (!o) return;
+      this.half = !this.half;
+      if (this.half) { eventTag('O₂ 得到 2 个电子（过氧中间体），等下一对电子', site.clone().add(V3n(0, 8, 0)), 2.2); return; }
+      eventTag('O₂ + 4e⁻ + 4H⁺ → 2 H₂O', site.clone().add(V3n(0, 8, 0)), 2.6);
+      o.parent?.remove(o); this.o2 = null;
+      const pool = this.pl('H₂O', 'top');
+      for (let i = 0; i < 2; i++) { const w = mkSp('H₂O'); w.position.copy(site);
+        travel(w, brownPath(site.clone(), pool.region.sample(false) || site.clone().setY(this.ym + 80), { free0: 10, free1: 0 }), 2.6 / this.ctx.pace()).then(() => pool.give(w)); }
+      this.ctx.counters['O₂ → H₂O'] = (this.ctx.counters['O₂ → H₂O'] || 0) + 1;
+    },
+    update(ctx, dt) {
+      if (!this.busy && !fastMode() && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle();
       /* cytochrome c follows its animated position; its heme glows while it carries an electron */
       const g = ctx.partGroups(/^细胞色素 c$/)[0];
       if (g?.mesh) g.mesh.position.copy(this.cytPos).sub(this.c0);
-      if (!this.heme) this.heme = ctx.makeParticle(0xff7040, 2.4);
+      if (!this.heme) { this.heme = ctx.makeParticle(0xff7040, 2.4); this.hemeTag = labelObj(this.heme, '细胞色素 c（血红素）', 0xff7040); }
       this.heme.position.copy(this.cytPos).sub(this.c0).add(this.h0); this.heme.scale.setScalar(this.cytLoaded ? 3.4 : 2.0);
+      this.hemeTag.set(this.cytLoaded ? '细胞色素 c · Fe²⁺（带 1 个 e⁻）' : '细胞色素 c · Fe³⁺');
       /* ATP synthase: 8 H+ per turn of the c8 ring, 3 ATP per turn */
-      const kH = Math.floor(ctx.theta / (2 * Math.PI / 8)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3));
-      for (; this.lastH < kH; this.lastH++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, this.atpH, 0.8, (x) => x.parent?.remove(x)); }
-      for (; this.lastA < kA; this.lastA++) { const m = ctx.makeParticle(0xffb300, 3.6), a = this.atpOut.clone(), b = a.clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 45, (Math.random() - 0.5) * 30)); ctx.counters.ATP++;
-        ctx.anim(m, 2.2, (u) => { m.position.copy(a).lerp(b, ease(u)); m.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }); }
+      const kH = Math.floor(ctx.theta / (2 * Math.PI / 8)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3)), ym = this.ym;
+      if (fastMode()) { this.lastH = kH; this.lastA = kA; }
+      for (; this.lastH < kH; this.lastH++) protonAcross(this.pl('H⁺', 'bot'), this.pl('H⁺', 'top'), this.atpH, { pace: ctx.pace, label: 'H⁺（ATP 合酶 a 亚基 / c 环）',
+        keepIn: (p) => { p.y = Math.min(p.y, ym - 26); }, keepOut: (p) => { p.y = Math.max(p.y, ym + 26); } }).catch(() => {});
+      for (; this.lastA < kA; this.lastA++) atpFromPools((nm) => this.pl(nm, 'top', nm === 'ATP' ? 0 : 3), this.atpOut, ctx).catch(() => {});
+      this.flows(ctx, dt);
+    },
+    flows(ctx, dt) {
+      if (!fastMode()) { if (this.flow) this.flow.visible = false; return; }
+      if (!this.flow) {
+        const ym = this.ym, up = (p, d) => p.clone().setY(ym + d), T = (n) => this.pl(n, 'top').region, Bt = this.pl('H⁺', 'bot').region, S = (R, f) => R.sample(false) || f;
+        const many = (n, fn) => Array.from({ length: n }, fn);
+        const cyt = [this.c1, this.dock1.clone().sub(this.c0).add(this.h0), ...brownPath(this.dock1, this.dock2, { n: 8, clear: 12, free0: 14, free1: 14, keep: (p) => { p.y = Math.min(p.y, ym - 30); } }), this.cuA];
+        const ePath = [this.nadh, ...this.chainI, this.qI, up(this.qI, 2), up(this.Qo, 2), this.Qo, this.isp, ...cyt, this.ha, this.a3, this.cuB];
+        const pump = [...this.pumpI, this.Qo, this.ha].map(q => q.clone());
+        const H = many(10, (_, i) => { const q = pump[i % pump.length]; return [...brownPath(S(T('H⁺'), up(q, 80)), up(q, 26), { free1: 4 }), up(q, 0), ...brownPath(up(q, -26), S(Bt, up(q, -80)), { free0: 4, free1: 0 })]; });
+        const HB = many(6, () => [...brownPath(S(Bt, up(this.atpH[0], -80)), this.atpH[0], { free1: 4 }), ...this.atpH.slice(1), ...brownPath(this.atpH[3], S(T('H⁺'), up(this.atpH[3], 80)), { free0: 4, free1: 0 }).slice(1)]);
+        this.flow = new FlowLayer([
+          { label: 'e⁻ 流：NADH → I → Q → III → cyt c → IV → O₂', col: 0x6ff4ff, r: 2.0, paths: [ePath], per: 2, v: 120, spread: 1.2 },
+          { label: 'H⁺ 泵出：基质 → 膜间隙', col: 0xfff27a, r: 2.0, paths: H, per: 10, v: 90 },
+          { label: 'H⁺ 回流：经 ATP 合酶 → 基质', col: 0xffd84a, r: 2.0, paths: HB, per: 10, v: 90 },
+          { label: 'NADH 流入', col: 0xff6fa8, r: 3.0, paths: many(3, () => brownPath(S(T('NADH'), up(this.nadh, 90)), this.nadh, { free1: 8 })), per: 1, v: 60 },
+          { label: 'O₂ 流入 → H₂O', col: 0x7ab8ff, r: 2.8, paths: many(3, () => brownPath(S(T('O₂'), up(this.cuB, 90)), this.a3, { free1: 12 })), per: 0.5, v: 60 },
+          { label: 'ATP 流出', col: 0xff9a2e, r: 2.8, paths: many(3, () => brownPath(this.atpOut, S(T('ATP'), up(this.atpOut, 80)), { free0: 8, free1: 0 })), per: 2.5, v: 60 } ]);
+      }
+      this.flow.visible = true; this.flow.update(dt, 1.5 * ctx.pace());
     },
   },
 
@@ -2815,89 +3185,142 @@ const PROCESSES = {
       this.atpOut = beta.clone().add(V3(0, 18, 0));
       this.lastA = Math.floor(ctx.theta / (2 * Math.PI / 3)); this.lastH = Math.floor(ctx.theta / (2 * Math.PI / 14));
       Object.assign(ctx.counters, { '光子': 0, 'O₂': 0, 'H⁺ 入腔': 0, NADPH: 0, ATP: 0 });
-      this.marks = [P680, P700].map(p => { const m = ctx.makeParticle(0x9dff6a, 2.0); m.position.copy(p); return m; });
+      this.marks = [P680, P700].map((p, i) => { const m = ctx.makeParticle(0x9dff6a, 2.0, i ? 'P700（PSI 反应中心）' : 'P680（PSII 反应中心）'); m.position.copy(p); return m; });
       ctx.markHot([oex, tyrZ, P680, pheo, QA, fe2, QB, f, bL, bH, cn, isp, P700, A1, FX, FA, FB, fad], 7);
       this.busy = false; this.stg = 0; this.n = 0;
     },
-    move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
+    move(p, pts, per, done) {   // hop a particle through points (electrons between cofactors); per = seconds per 20 A
       const ctx = this.ctx, k = ctx.pace(); let i = 0; p.position.copy(pts[0]);
       const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
         const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
       go();
     },
+    /* bulk pools: top = stroma, bot = thylakoid lumen (the cell sim's compartments when it runs) */
+    pl(name, comp, n = 0) { const ym = this.ym, c = model.focus.centre;
+      return spPool(name, comp, shellRegion(V3n(c.x, ym + (comp === 'top' ? 80 : -80), c.z), 0, 220, (p) => comp === 'top' ? p.y > ym + 28 : p.y < ym - 28), n); },
     async cycle() {
       const ctx = this.ctx, V3 = (x, y, z) => new THREE.Vector3(x, y, z), ym = this.ym, up = (p, d) => p.clone().setY(ym + d);
       const k = () => ctx.pace(), wait = (s) => new Promise(r => ctx.anim(null, Math.max(0.02, s / k()), () => {}, r));
       const hop = (p, pts, per) => new Promise(r => this.move(p, pts, per, (q) => { q.parent?.remove(q); r(); }));
-      const mk = (c, r) => ctx.makeParticle(c, r), E = 0x6ff4ff, H = 0xfff27a;
-      const flash = (p, c, r) => { const f = ctx.makeFlash(c); f.visible = true; f.position.copy(p); ctx.anim(f, 0.8 / k(), (u) => { f.scale.setScalar(r * (0.4 + 1.6 * u)); f.material.opacity = 0.9 * (1 - u); }); };
       const two = (fn) => Promise.all([fn(), wait(0.35).then(fn)]);   // 2 electrons per NADPH
-      const photon = async (target, ant, mark) => {
-        const a = ant.length ? ant[Math.floor(Math.random() * ant.length)] : target.clone().add(V3(20, 0, 0)), ph = mk(0xff5a5a, 2.2); ctx.counters['光子']++;
-        const s = a.clone().add(V3((Math.random() - 0.5) * 60, 90, (Math.random() - 0.5) * 60));
-        await hop(ph, [s, a], 0.7); flash(a, 0xff7a7a, 5);
-        await hop(mk(0x9dff6a, 2.2), [a, a.clone().lerp(target, 0.5).add(V3(0, 4, 0)), target], 0.3);
-        flash(target, 0xb8ff8a, 9); mark.scale.setScalar(3.6); ctx.anim(null, 0.6, (u) => { mark.scale.setScalar(3.6 - 1.6 * u); });
+      const fi = (o) => ({ fadeIn: (o.userData.alpha ?? 1) < 1 ? 0.3 : 0 });
+      const keepS = (p) => { p.y = Math.max(p.y, ym + 26); }, keepL = (p) => { p.y = Math.min(p.y, ym - 26); };
+      /* a photon (straight line: light does not diffuse) is absorbed by an antenna chlorophyll; the excitation hops by resonance
+         energy transfer from chlorophyll to chlorophyll to the reaction centre */
+      const photon = async (target, ant, mark, name) => {
+        const a = ant.length ? ant[Math.floor(Math.random() * ant.length)] : target.clone().add(V3(20, 0, 0));
+        const ph = mkSp('光子 hν', name === 'P680' ? '光子 hν（680 nm）' : '光子 hν（700 nm）'); ctx.counters['光子']++;
+        const s = a.clone().add(V3((Math.random() - 0.5) * 80, 130, (Math.random() - 0.5) * 80)); ph.userData.alpha = 0;
+        await travel(ph, [s, a], 0.9 / k(), { fadeIn: 0.25 });
+        ph.parent?.remove(ph); eventTag('天线叶绿素吸收光子 → 激发态', a.clone().add(V3(0, 6, 0)), 1.6);
+        const mid = ant.filter(p => p.distanceTo(a) < 30 && p.distanceTo(target) < a.distanceTo(target)).sort((x, y) => y.distanceTo(target) - x.distanceTo(target)).slice(0, 2);
+        await hop(mkSp('激发能', '激发能（共振转移）'), [a, ...mid, target], 0.25);
+        eventTag(name + ' → ' + name + '*（激发态，电荷分离）', target.clone().add(V3(0, -8, 0)), 1.8);
+        mark.scale.setScalar(3.6); ctx.anim(null, 0.6, (u) => { mark.scale.setScalar(3.6 - 1.6 * u); });
       };
-      const pumpH = (from, to, delay) => wait(delay).then(() => { ctx.counters['H⁺ 入腔']++; return hop(mk(H, 2.4), [from, from.clone().lerp(to, 0.5), to], 1.0); });
-      const takeH = (from, to) => hop(mk(H, 2.4), [from, to], 1.1);
+      /* H+ set free in the lumen at a site (water splitting, PQH2 at Qo) */
+      const releaseH = async (at, delay) => { await wait(delay); ctx.counters['H⁺ 入腔']++;
+        const h = mkSp('H⁺'), pool = this.pl('H⁺', 'bot'), out = at.clone().setY(Math.min(at.y - 6, ym - 26)); h.position.copy(at);
+        await travel(h, [at.clone(), at.clone().lerp(out, 0.5), out], 0.8 / k(), { ease: true });
+        await travel(h, brownPath(out, pool.region.sample(false) || out.clone().setY(ym - 70), { free0: 6, free1: 0, keep: keepL }), 1.6 / k());
+        pool.give(h); };
+      /* a stroma H+ is used up at a site (QB, Qi, FNR) */
+      const takeH = async (site, label) => { const h = this.pl('H⁺', 'top').take(site), mouth = site.clone().setY(Math.max(site.y + 12, ym + 26));
+        await travel(h, brownPath(h.position.clone(), mouth, { free1: 6, keep: keepS }), 1.8 / k(), fi(h));
+        h.userData.tag?.set(label); await travel(h, [mouth, site], 0.6 / k(), { ease: true, remove: true }); };
+      const shuttle = (s, to, dur, keep) => { const P = brownPath(s.pos.clone(), to, { n: 14, clear: 12, free0: 14, free1: 14, wander: 0.25, keep }), c = new THREE.CatmullRomCurve3(P, false, 'centripetal');
+        return new Promise(r => ctx.anim(null, dur / k(), (u) => { c.getPoint(ease(u), s.pos); }, r)); };
       this.busy = true; this.n++;
       /* 0-1: two photons at PSII, charge separation, water splitting */
-      this.stg = 0; await two(() => photon(this.P680, this.ant2, this.marks[0]));
+      this.stg = 0;
+      const water = this.pl('H₂O', 'bot', 6).take(this.oex);
+      const wIn = travel(water, brownPath(water.position.clone(), this.oex, { free1: 10, keep: keepL }), 2.4 / k(), fi(water)).then(() => water.parent?.remove(water));
+      await two(() => photon(this.P680, this.ant2, this.marks[0], 'P680'));
       this.stg = 1;
-      await Promise.all([
-        two(() => hop(mk(E, 2.8), [this.P680, this.pheo, this.QA, this.fe2, this.QB], 0.45)),
-        two(() => hop(mk(E, 2.4), [this.oex, this.tyrZ, this.P680], 0.6)),
-        pumpH(this.oex, up(this.oex, -40).addScaledVector(ctx.rowDir, -6), 0.3), pumpH(this.oex, up(this.oex, -40).addScaledVector(ctx.rowDir, 6), 0.7),
-        takeH(up(this.QB, 40).add(V3(-3, 0, 0)), this.QB), wait(0.4).then(() => takeH(up(this.QB, 40).add(V3(3, 0, 0)), this.QB)),
-        this.n % 2 === 0 ? wait(1.0).then(() => { ctx.counters['O₂']++; const o = mk(0x7ab8ff, 3.6), a = this.oex.clone(), b = up(this.oex, -55).add(V3(0, 0, 18));
-          return new Promise(r => ctx.anim(o, 2.0 / k(), (u) => { o.position.copy(a).lerp(b, ease(u)); o.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }, () => { o.parent?.remove(o); r(); })); }) : null,
+      await Promise.all([ wIn,
+        two(() => hop(mkSp('e⁻'), [this.P680, this.pheo, this.QA, this.fe2, this.QB], 0.45)),
+        two(() => hop(mkSp('e⁻', 'e⁻（来自水，经 TyrZ）'), [this.oex, this.tyrZ, this.P680], 0.6)),
+        wait(0.2).then(() => eventTag('锰簇：H₂O 被氧化（每 4 个电子放出 1 个 O₂）', this.oex.clone().add(V3(0, -8, 0)), 2.4)),
+        releaseH(this.oex, 0.3), releaseH(this.oex.clone().addScaledVector(ctx.rowDir, 3), 0.7),
+        takeH(this.QB.clone().add(V3(-2, 0, 0)), 'H⁺ → QB'), wait(0.4).then(() => takeH(this.QB.clone().add(V3(2, 0, 0)), 'H⁺ → QB')),
+        this.n % 2 === 0 ? wait(1.0).then(async () => { ctx.counters['O₂']++; eventTag('2 H₂O → O₂ + 4H⁺ + 4e⁻', this.oex.clone().add(V3(0, -14, 0)), 2.4);
+          const o = mkSp('O₂'), pool = this.pl('O₂', 'bot'); o.position.copy(this.oex);
+          await travel(o, brownPath(this.oex.clone(), pool.region.sample(false) || up(this.oex, -80), { free0: 10, free1: 0, keep: keepL }), 3.0 / k()); pool.give(o); }) : null,
       ]);
       /* 2: PQH2 through the membrane to Qo; Q cycle */
-      this.stg = 2;
-      await hop(mk(0xffe08a, 3.6), [this.QB, up(this.QB, 2), up(this.Qo, 2), this.Qo], 1.3);
+      this.stg = 2; eventTag('PQ + 2e⁻ + 2H⁺ → PQH₂', this.QB.clone().add(V3(0, 6, 0)), 2.0);
+      { const q = mkSp('PQH₂', 'PQH₂（质体醌醇，在膜内扩散）'), path = [this.QB, ...brownPath(up(this.QB, 2), up(this.Qo, 2), { n: 14, clear: 6, free0: 6, free1: 6, keep: (p) => { p.y = ym + 2 + (p.y - ym - 2) * 0.2; } }), this.Qo];
+        await travel(q, path, 3.2 / k(), { remove: true }); }
+      eventTag('PQH₂ → PQ + 2H⁺ + 2e⁻（Qo 位点，Q 循环）', this.Qo.clone().add(V3(0, -6, 0)), 2.2);
       await Promise.all([
-        ...[0, 1, 2, 3].map(i => pumpH(this.Qo.clone(), up(this.Qo, -38).addScaledVector(ctx.rowDir, (i - 1.5) * 5), i * 0.3)),
-        hop(mk(E, 2.4), [this.Qo, this.bL, this.bH, this.cn, this.Qi], 0.6),
-        takeH(up(this.Qi, 36).add(V3(-3, 0, 0)), this.Qi), wait(0.4).then(() => takeH(up(this.Qi, 36).add(V3(3, 0, 0)), this.Qi)),
-        two(() => hop(mk(E, 2.8), [this.Qo, this.isp, this.f], 0.6)),
+        ...[0, 1, 2, 3].map(i => releaseH(this.Qo.clone().addScaledVector(ctx.rowDir, (i - 1.5) * 3), i * 0.3)),
+        hop(mkSp('e⁻', 'e⁻（低电位链 bL → bH → cn）'), [this.Qo, this.bL, this.bH, this.cn, this.Qi], 0.6),
+        takeH(this.Qi.clone().add(V3(-2, 0, 0)), 'H⁺ → Qi'), wait(0.4).then(() => takeH(this.Qi.clone().add(V3(2, 0, 0)), 'H⁺ → Qi')),
+        two(() => hop(mkSp('e⁻', 'e⁻（Rieske → 细胞色素 f）'), [this.Qo, this.isp, this.f], 0.6)),
       ]);
-      /* 3: plastocyanin carries the electron from cyt f to P700 */
+      /* 3: plastocyanin carries the electron from cyt f to P700 (diffusing through the lumen, around the proteins) */
       this.stg = 3; const pc = this.pc;
-      await hop(mk(E, 2.8), [this.f, pc.pos.clone().sub(pc.c0).add(pc.h0)], 0.6); pc.loaded = true;
-      { const a = pc.pos.clone(); await new Promise(r => ctx.anim(null, 2.2 / k(), (u) => { pc.pos.lerpVectors(a, pc.dock2, ease(u)); }, r)); }
+      await hop(mkSp('e⁻'), [this.f, pc.pos.clone().sub(pc.c0).add(pc.h0)], 0.6); pc.loaded = true;
+      await shuttle(pc, pc.dock2, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); });
       /* 4: second photon pair at PSI; electron down the PSI chain */
       this.stg = 4; pc.loaded = false;
-      const back = () => { const a = pc.pos.clone(); ctx.anim(null, 2.2 / k(), (u) => { pc.pos.lerpVectors(a, pc.dock1, ease(u)); }); };
-      await hop(mk(E, 2.6), [pc.dock2.clone().sub(pc.c0).add(pc.h0), this.P700], 0.5); back();
-      await two(() => photon(this.P700, this.ant1, this.marks[1]));
+      await hop(mkSp('e⁻'), [pc.dock2.clone().sub(pc.c0).add(pc.h0), this.P700], 0.5); shuttle(pc, pc.dock1, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); });
+      await two(() => photon(this.P700, this.ant1, this.marks[1], 'P700'));
       const fd = this.fd, fdH = () => fd.pos.clone().sub(fd.c0).add(fd.h0);
-      await two(() => hop(mk(E, 2.8), [this.P700, ...(this.A0 ? [this.A0] : []), this.A1, this.FX, this.FA, this.FB, fdH()], 0.4));
+      await two(() => hop(mkSp('e⁻', 'e⁻（A0 → A1 → FX → FA → FB）'), [this.P700, ...(this.A0 ? [this.A0] : []), this.A1, this.FX, this.FA, this.FB, fdH()], 0.4));
       /* 5: ferredoxin -> FNR -> NADPH */
       this.stg = 5; fd.loaded = true;
-      { const a = fd.pos.clone(); await new Promise(r => ctx.anim(null, 2.0 / k(), (u) => { fd.pos.lerpVectors(a, fd.dock2, ease(u)); }, r)); }
-      fd.loaded = false; await hop(mk(E, 2.8), [fdH(), this.fad], 0.5); flash(this.fad, 0xffe27a, 8);
-      { const a = fd.pos.clone(); ctx.anim(null, 2.0 / k(), (u) => { fd.pos.lerpVectors(a, fd.dock1, ease(u)); }); }
-      await hop(mk(0xffb04a, 3.6), [this.nadp.clone().add(V3(0, 30, 0)), this.fad], 1.0);
-      ctx.counters.NADPH++;
-      const nadph = mk(0xffb04a, 4.4), a = this.fad.clone(), b = this.nadp.clone().add(V3(10, 45, 10));
-      ctx.anim(nadph, 2.4 / k(), (u) => { nadph.position.copy(a).lerp(b, ease(u)); nadph.scale.setScalar(4.4 * (1 - ease((u - 0.6) / 0.4)) + 0.01); });
+      await shuttle(fd, fd.dock2, 2.4, (p) => { p.y = Math.max(p.y, ym + 30); });
+      fd.loaded = false; await hop(mkSp('e⁻'), [fdH(), this.fad], 0.5);
+      eventTag('FAD 攒够 2 个电子 → FADH⁻', this.fad.clone().add(V3(0, 8, 0)), 2.0);
+      shuttle(fd, fd.dock1, 2.4, (p) => { p.y = Math.max(p.y, ym + 30); });
+      { const nadp = this.pl('NADP⁺', 'top', 3).take(this.nadp), h = takeH(this.fad.clone().add(V3(4, 4, 0)), 'H⁺ → FNR');
+        await Promise.all([travel(nadp, brownPath(nadp.position.clone(), this.fad, { free1: 10, keep: keepS }), 2.4 / k(), fi(nadp)), h]); nadp.parent?.remove(nadp); }
+      ctx.counters.NADPH++; eventTag('NADP⁺ + 2e⁻ + H⁺ → NADPH', this.fad.clone().add(V3(0, 10, 0)), 2.4);
+      { const m = mkSp('NADPH'), pool = this.pl('NADPH', 'top'); m.position.copy(this.fad);
+        travel(m, brownPath(this.fad.clone(), pool.region.sample(false) || this.nadp.clone().add(V3(10, 60, 10)), { free0: 10, free1: 0, keep: keepS }), 2.8 / k()).then(() => pool.give(m)); }
       /* 6: ATP synthase runs continuously (see update); give it a moment on the strip */
       this.stg = 6; await wait(2.6);
       this.busy = false;
     },
-    update(ctx) {
-      if (!this.busy && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle().catch((e) => console.warn(e));
-      for (const [lab, s, col] of [['质体蓝素', this.pc, 0x4ad6ff], ['铁氧还蛋白', this.fd, 0xff8a5a]]) {
+    update(ctx, dt) {
+      if (!this.busy && !fastMode() && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle().catch((e) => console.warn(e));
+      for (const [lab, s, col, t0, t1] of [['质体蓝素', this.pc, 0x4ad6ff, '质体蓝素 · Cu²⁺', '质体蓝素 · Cu⁺（带 1 个 e⁻）'], ['铁氧还蛋白', this.fd, 0xff8a5a, '铁氧还蛋白 · 氧化态', '铁氧还蛋白 · 还原态（带 1 个 e⁻）']]) {
         const g = ctx.partGroups(new RegExp('^' + lab + '$'))[0]; if (g?.mesh) g.mesh.position.copy(s.pos).sub(s.c0);
-        if (!s.glow) s.glow = ctx.makeParticle(col, 2.2);
-        s.glow.position.copy(s.pos).sub(s.c0).add(s.h0); s.glow.scale.setScalar(s.loaded ? 3.4 : 2.0);
+        if (!s.glow) { s.glow = ctx.makeParticle(col, 2.2); s.tag = labelObj(s.glow, t0, col); }
+        s.glow.position.copy(s.pos).sub(s.c0).add(s.h0); s.glow.scale.setScalar(s.loaded ? 3.4 : 2.0); s.tag.set(s.loaded ? t1 : t0);
       }
       /* CF1Fo: 14 H+ per turn of the c14 ring, 3 ATP per turn */
-      const kH = Math.floor(ctx.theta / (2 * Math.PI / 14)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3));
-      for (; this.lastH < kH; this.lastH++) { const h = ctx.makeParticle(0xfff27a, 2.4); this.move(h, this.atpH, 0.8, (x) => x.parent?.remove(x)); }
-      for (; this.lastA < kA; this.lastA++) { const m = ctx.makeParticle(0xffb300, 3.6), a = this.atpOut.clone(), b = a.clone().add(new THREE.Vector3((Math.random() - 0.5) * 30, 45, (Math.random() - 0.5) * 30)); ctx.counters.ATP++;
-        ctx.anim(m, 2.2, (u) => { m.position.copy(a).lerp(b, ease(u)); m.scale.setScalar(3.6 * (1 - ease((u - 0.6) / 0.4)) + 0.01); }); }
+      const kH = Math.floor(ctx.theta / (2 * Math.PI / 14)), kA = Math.floor(ctx.theta / (2 * Math.PI / 3)), ym = this.ym;
+      if (fastMode()) { this.lastH = kH; this.lastA = kA; }
+      for (; this.lastH < kH; this.lastH++) protonAcross(this.pl('H⁺', 'bot'), this.pl('H⁺', 'top'), this.atpH, { pace: ctx.pace, label: 'H⁺（ATP 合酶 a 亚基 / c 环）',
+        keepIn: (p) => { p.y = Math.min(p.y, ym - 26); }, keepOut: (p) => { p.y = Math.max(p.y, ym + 26); } }).catch(() => {});
+      for (; this.lastA < kA; this.lastA++) atpFromPools((nm) => this.pl(nm, 'top', nm === 'ATP' ? 0 : 3), this.atpOut, ctx).catch(() => {});
+      this.flows(ctx, dt);
+    },
+    flows(ctx, dt) {
+      if (!fastMode()) { if (this.flow) this.flow.visible = false; return; }
+      if (!this.flow) {
+        const ym = this.ym, up = (p, d) => p.clone().setY(ym + d), St = this.pl('H⁺', 'top').region, Lu = this.pl('H⁺', 'bot').region, S = (R, f) => R.sample(false) || f;
+        const many = (n, fn) => Array.from({ length: n }, fn), pc = this.pc, fd = this.fd;
+        const lum = (a, b) => brownPath(a, b, { n: 8, clear: 12, free0: 14, free1: 14, keep: (p) => { p.y = Math.min(p.y, ym - 30); } });
+        const str = (a, b) => brownPath(a, b, { n: 8, clear: 12, free0: 14, free1: 14, keep: (p) => { p.y = Math.max(p.y, ym + 30); } });
+        const ePath = [this.oex, this.tyrZ, this.P680, this.pheo, this.QA, this.fe2, this.QB, up(this.QB, 2), up(this.Qo, 2), this.Qo, this.isp, this.f, ...lum(pc.dock1, pc.dock2), this.P700,
+          ...(this.A0 ? [this.A0] : []), this.A1, this.FX, this.FA, this.FB, ...str(fd.dock1, fd.dock2), this.fad];
+        const ph = (ant) => many(4, () => { const a = ant[Math.floor(Math.random() * ant.length)] || this.P680; return [a.clone().add(V3n((Math.random() - 0.5) * 80, 140, (Math.random() - 0.5) * 80)), a]; });
+        const Hin = many(8, (_, i) => i % 3 === 0 ? [this.oex, ...brownPath(up(this.oex, -26), S(Lu, up(this.oex, -80)), { free0: 4, free1: 0 })]
+          : [...brownPath(S(St, up(this.QB, 80)), up(this.QB, 26), { free1: 4 }), this.QB, up(this.QB, 2), up(this.Qo, 2), this.Qo, ...brownPath(up(this.Qo, -26), S(Lu, up(this.Qo, -80)), { free0: 4, free1: 0 })]);
+        const Hout = many(6, () => [...brownPath(S(Lu, up(this.atpH[0], -80)), this.atpH[0], { free1: 4 }), ...this.atpH.slice(1), ...brownPath(this.atpH[3], S(St, up(this.atpH[3], 80)), { free0: 4, free1: 0 }).slice(1)]);
+        this.flow = new FlowLayer([
+          { label: '光子 hν', col: 0xff5a5a, r: 1.8, paths: [...ph(this.ant2), ...ph(this.ant1)], per: 4, v: 260, spread: 0.5 },
+          { label: 'e⁻ 流：H₂O → PSII → PQ → b6f → PC → PSI → Fd → FNR', col: 0x6ff4ff, r: 2.0, paths: [ePath], per: 2, v: 120, spread: 1.0 },
+          { label: 'H⁺ 流入类囊体腔', col: 0xfff27a, r: 2.0, paths: Hin, per: 6, v: 90 },
+          { label: 'H⁺ 经 ATP 合酶回流基质', col: 0xffd84a, r: 2.0, paths: Hout, per: 6, v: 90 },
+          { label: 'O₂ 放出（腔内）', col: 0x7ab8ff, r: 2.8, paths: many(3, () => brownPath(this.oex, S(Lu, up(this.oex, -80)), { free0: 10, free1: 0 })), per: 0.5, v: 50 },
+          { label: 'NADPH 流出', col: 0xff6fa8, r: 3.0, paths: many(3, () => brownPath(this.fad, S(St, up(this.fad, 80)), { free0: 10, free1: 0 })), per: 1, v: 55 },
+          { label: 'ATP 流出', col: 0xff9a2e, r: 2.8, paths: many(3, () => brownPath(this.atpOut, S(St, up(this.atpOut, 80)), { free0: 8, free1: 0 })), per: 1.3, v: 55 } ]);
+      }
+      this.flow.visible = true; this.flow.update(dt, 1.5 * ctx.pace());
     },
   },
 
@@ -2926,14 +3349,15 @@ const PROCESSES = {
       this.t += dt * Math.max(0.05, ctx.speed / 0.6);
       if (this.t > 1.0) {
         this.t = 0;
-        const p = ctx.makeParticle(0xb98cff, 2.8), d = this.dir, F = this.filter;
+        const p = ctx.makeParticle(0xb98cff, 2.8, 'K⁺'), d = this.dir, F = this.filter;
         const start = d > 0 ? this.bot : this.top, end = d > 0 ? this.top : this.bot;
         const stops = [start, F - d * 14, F - d * 10.2, F - d * 6.8, F - d * 3.4, F, end];
         let i = 0;
         const hop = () => { if (i >= stops.length - 1) { p.parent?.remove(p); return; }
           const a = stops[i], b = stops[i + 1]; i++; this.hopI = i;
           ctx.anim(p, i === 1 ? 1.6 : i === stops.length - 1 ? 1.4 : 0.55, (u) => { p.position.set(Math.sin(u * 9) * 0.3, a + (b - a) * ease(u), 0);
-            if (i === stops.length - 1) p.scale.setScalar(2.8 * (1 - ease((u - 0.5) / 0.5)) + 0.01); }, hop); };
+            if (i === 1) setAlpha(p, Math.min(1, u / 0.5));   /* drifts in from the bulk ... */
+            if (i === stops.length - 1) setAlpha(p, 1 - ease((u - 0.5) / 0.5)); }, hop); };   /* ... and back out into it */
         hop();
         ctx.counters['K⁺']++;
       }
@@ -3007,6 +3431,7 @@ const PROCESSES = {
       const refs = { '23S': rib.filter(a => /23S/i.test(a.part) && a.na), '16S': rib.filter(a => /16S/i.test(a.part) && a.na) };
       const J = (id, o) => alignEntry(id, { refAtoms: refs[o.ref], ...o }).catch(e => { console.warn('叠合失败', id, e); return null; });
       const aAnti = res(sA.c, 35).p, dec = mrna[Math.min(mrna.length - 1, this.jP + 4)].p, aEnd = end3(S.A), tunPt = alongPath(this.tun, 14, V());
+      this.decPt = dec.clone(); this.asymA = sA.c[0].asym; this.asymP = sP.c[0].asym; this.asymM = mrna[0].asym; this.seqAC = res(sA.c, 35).seq; this.seqA76 = sA.c[sA.c.length - 1].seq;   /* atom-level close-ups */
       const [tu, g1, g2, rf, dTAC, dPAR, dCLM, dERY, dKIR] = await Promise.all([
         J('4V5L', { ref: '23S', chains: [['tu', 'ELONGATION FACTOR TU'], ['tr', 'A-SITE TRNA']], ligands: ['GCP'] }),
         J('4V9H', { ref: '23S', chains: [['g', 'Elongation factor G']], ligands: ['GCP'] }),
@@ -3325,6 +3750,107 @@ const PROCESSES = {
     },
 
     /* ---------------------------------------------------------------- frame */
+    /* ---------------------------------------------------------------- atom-level close-ups (v16)
+       The ribosome is drawn one blob per nucleotide, so the binding sites are shown separately with REAL all-atom coordinates:
+       decoding centre = every residue within 6 A of the A-site anticodon in 4V6F (codon, anticodon, A1492 / A1493, G530,
+       protein S12), PTC = every residue within 7 A of the A-site tRNA 3' end (both CCA ends, A2451, U2585, G2583 ...),
+       fetched from RCSB ModelServer and put into the scene by fitting 4V6F's own 16S onto the scene. A1492 / A1493 are
+       interpolated between their position in the empty-A-site 30S (1J5E, stacked inside h44) and in 4V6F (flipped out,
+       reading the codon-anticodon minor groove); codon-anticodon hydrogen bonds = N/O pairs 2.5-3.4 A in the real atoms. */
+    detail() {
+      if (this.detP) return this.detP;
+      return this.detP = (async () => {
+        const all = this.ctx.allAtoms, dec = this.decPt, loc = all.filter(a => /16S/i.test(a.part) && a.na && a.p.distanceTo(dec) < 45);
+        const V = (r) => new THREE.Vector3(r.x, r.y, r.z), clean = (rows) => rows.filter(r => r.el !== 'H' && (!r.alt || r.alt === '.' || r.alt === 'A'));
+        const [me, apo] = await Promise.all([alignEntry('4V6F', { ref: '16S', refAtoms: loc }), alignEntry('1J5E', { ref: '16S', refAtoms: loc }).catch(e => { console.warn('1J5E', e); return null; })]);
+        const meta = await fetchMeta('4V6F'); this.asymName = {};
+        for (const e of meta.polymer_entities || []) for (const a of e.rcsb_polymer_entity_container_identifiers.asym_ids || []) this.asymName[a] = e.rcsb_polymer_entity.pdbx_description || '';
+        const sur = async (seq, r) => clean(parseAtomSite(await fetchText(`https://models.rcsb.org/v1/4v6f/residueSurroundings?label_asym_id=${this.asymA}&label_seq_id=${seq}&radius=${r}&encoding=cif&copy_all_categories=false`))).map(x => ({ ...x, p: me.f(V(x)) }));
+        const [dc, pt] = await Promise.all([sur(this.seqAC, 6), sur(this.seqA76, 7)]);
+        let apoRows = [];
+        if (apo) for (const n of [1492, 1493]) apoRows.push(...clean(parseAtomSite(await fetchText(msAtoms('1J5E', `label_asym_id=${apo.refAsym}&auth_seq_id=${n}`)))).map(x => ({ ...x, p: apo.f(V(x)) })));
+        console.log(`近景：解码中心 ${dc.length} 个原子，肽基转移中心 ${pt.length} 个原子，1J5E A1492/A1493 ${apoRows.length} 个原子（4V6F 自身叠合 RMSD ${me.rmsd.toFixed(2)} Å${apo ? '，1J5E ' + apo.rmsd.toFixed(2) + ' Å' : ''}）`);
+        return this.det = this.buildDetail(dc, pt, apoRows);
+      })();
+    },
+    buildDetail(dc, pt, apoRows) {
+      const root = new THREE.Group(); root.visible = false; procRoot.add(root);
+      const ent = (r) => this.entOf(r), resKey = (r) => r.asym + ':' + r.seq;
+      const group = (rows) => { const m = new Map(); for (const r of rows) { const k = resKey(r); if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
+      const COL = { A: '#ff7aa8', P: '#c58cff', m: '#ffb347', '16S': '#e9c46a', '23S': '#d4a373', prot: '#8fb3d9' };
+      const kind = (r) => r.asym === this.asymA ? 'A' : r.asym === this.asymP ? 'P' : r.asym === this.asymM ? 'm' : /16S/i.test(ent(r)) ? '16S' : /23S/i.test(ent(r)) ? '23S' : 'prot';
+      const mol = (atoms, col) => { const g = buildMolecules([{ atoms, centre: atoms[0].p.clone() }], 1, col, 'valence'); root.add(g); return g; };
+      const site = (rows, name) => {
+        const S = { name, parts: [], tags: [], hb: [], centre: rows.reduce((s, r) => s.add(r.p), V3n()).multiplyScalar(1 / Math.max(1, rows.length)), flip: [] };
+        for (const [k, rs] of group(rows)) {
+          const r0 = rs[0], kd = kind(r0), aseq = +r0.aseq, flip = kd === '16S' && (aseq === 1492 || aseq === 1493);
+          const atoms = rs.map(r => ({ p: r.p.clone(), el: r.el, name: r.an }));
+          const lab = r0.comp === 'MG' ? 'Mg²⁺' : r0.comp === 'MIA' ? `A 位 tRNA ms²i⁶A${r0.aseq}` : kd === 'A' ? `A 位 tRNA ${r0.comp}${r0.aseq}` : kd === 'P' ? `P 位 tRNA ${r0.comp}${r0.aseq}` : kd === 'm' ? `mRNA ${r0.comp}${r0.aseq}` : kd === 'prot' ? `${(ent(r0).match(/S\d+|L\d+/i) || [''])[0]} ${AA1[r0.comp] || r0.comp}${r0.aseq}`.trim() : `${r0.comp}${r0.aseq}`;
+          const c = atoms.reduce((s, a) => s.add(a.p), V3n()).multiplyScalar(1 / atoms.length);
+          const part = { kd, atoms, col: COL[kd], obj: kd === 'prot' && atoms.length > 14 ? null : mol(atoms, COL[kd]), c, flip };
+          if (flip) { const ap = new Map(apoRows.filter(r => +r.aseq === aseq).map(r => [r.an, r.p])); part.inPos = atoms.map(a => ap.get(a.name) || a.p); part.outPos = atoms.map(a => a.p.clone()); part.w = 1; S.flip.push(part); }
+          if (part.obj || flip) { const t = makeTag(lab, { p: c, cls: 'small' + (flip || /^(G530|A2451|U2585|G2583)$/.test(`${r0.comp}${r0.aseq}`) ? ' hl' : '') }); t.on = false; part.tag = t; S.tags.push(t); }
+          S.parts.push(part);
+        }
+        return S;
+      };
+      const D = { root, dc: site(dc, 'dc'), pt: site(pt, 'ptc'), w: 1 };
+      /* codon-anticodon hydrogen bonds (and the A1492 / A1493 / G530 contacts with the minor groove) from the real atoms */
+      const NO = (p) => p.atoms.filter(a => a.el === 'N' || a.el === 'O');
+      const A = D.dc.parts.filter(p => p.kd === 'A'), M = D.dc.parts.filter(p => p.kd === 'm'), R = D.dc.parts.filter(p => p.kd === '16S');
+      const pairs = (X, Y, lo, hi, kindHb) => { for (const x of X) for (const y of Y) for (const a of NO(x)) for (const b of NO(y)) { const d = a.p.distanceTo(b.p); if (d > lo && d < hi) D.dc.hb.push({ a: a.p, b: b.p, kind: kindHb, x, y }); } };
+      pairs(A, M, 2.5, 3.35, 'wc'); pairs(R, [...A, ...M], 2.5, 3.3, 'mon');
+      const mat = new THREE.LineDashedMaterial({ color: 0x2f9e44, dashSize: 0.35, gapSize: 0.25, depthTest: false, transparent: true });
+      for (const h of D.dc.hb) { const g = new THREE.BufferGeometry().setFromPoints([h.a, h.b]); h.line = new THREE.Line(g, h.kind === 'wc' ? mat : mat.clone()); if (h.kind !== 'wc') h.line.material.color.set(0xe8590c); h.line.computeLineDistances(); root.add(h.line); }
+      D.state = makeTag('', { p: D.dc.centre.clone().add(V3n(0, 9, 0)), cls: 'hl' }); D.state.on = false;
+      D.ptState = makeTag('', { p: D.pt.centre.clone().add(V3n(0, 9, 0)), cls: 'hl' }); D.ptState.on = false;
+      console.log(`近景：密码子–反密码子氢键 ${D.dc.hb.filter(h => h.kind === 'wc').length} 条，A1492/A1493/G530 与小沟接触 ${D.dc.hb.filter(h => h.kind === 'mon').length} 处`);
+      return D;
+    },
+    entOf(r) { return this.asymName?.[r.asym] || ''; },
+    closeUp(v) {
+      this.view = v; this.viewIn = false;
+      if (!v) { resetCamera(current?.camera); return; }
+      status(v === 'dc' ? '下载解码中心的全原子坐标（4V6F + 1J5E）…' : '下载肽基转移中心的全原子坐标（4V6F）…', true);
+      this.detail().then(D => { status(v === 'dc' ? '解码中心：真实原子坐标' : '肽基转移中心：真实原子坐标');
+        const S = v === 'dc' ? D.dc : D.pt; flyTo(S.centre.clone().applyMatrix4(world.matrixWorld), v === 'dc' ? 40 : 52, 1800); })
+        .catch(e => { console.warn(e); status('近景下载失败：' + e.message); this.view = null; });
+    },
+    drawDetail(dt) {
+      const D = this.det; if (!D) return;
+      const s = this.s, dist = camera.position.distanceTo(controls.target), on = !!this.view && dist < 260;
+      if (this.view && dist < 200) this.viewIn = true;
+      if (this.view && this.viewIn && dist > 400) { this.view = null; this.viewIn = false; }   /* zoomed back out by hand */
+      D.root.visible = on;
+      if (!D.dim) { D.dim = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({ transparent: true, depthTest: false, depthWrite: false,
+          uniforms: { uC: { value: new THREE.Color() }, uA: { value: 0 } }, vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
+          fragmentShader: 'uniform vec3 uC; uniform float uA; void main(){ gl_FragColor = vec4(uC, uA); }' }));
+        D.dim.frustumCulled = false; D.dim.renderOrder = -100; overlay.add(D.dim); procWorld.push(D.dim); }
+      D.dimA = (D.dimA || 0) + ((on ? 1 : 0) - (D.dimA || 0)) * Math.min(1, dt * 3);
+      D.dim.visible = D.dimA > 0.01; D.dim.material.uniforms.uA.value = 0.62 * D.dimA; D.dim.material.uniforms.uC.value.set(illustrative() ? 0xffffff : 0x05070d);
+      if (this.mMesh) this.mMesh.visible = !on;
+      const st = s?.st || 'post', inA = ['cr', 'gtp', 'kir', 'rel', 'acc', 'pre'].includes(st), cog = s?.inc?.cls === 'c' || !s?.inc;
+      /* decoding centre: the anticodon is there only while a tRNA reads the A codon; A1492 / A1493 flip out on a cognate match */
+      const wT = st === 'cr' ? (cog ? 1 : 0.35) : inA ? (cog ? 1 : 0.5) : 0;
+      const prevW = D.w; D.w += Math.sign(wT - D.w) * Math.min(Math.abs(wT - D.w), dt * 1.4);
+      const showDC = on && this.view === 'dc', showPT = on && this.view === 'ptc';
+      for (const p of D.dc.parts) { if (p.obj) p.obj.visible = showDC && (p.kd !== 'A' || inA); if (p.tag) p.tag.on = showDC && (p.kd !== 'A' || inA); }
+      for (const p of D.pt.parts) { const vis = showPT && (p.kd !== 'A' || ['acc', 'pre', 'g'].includes(st)); if (p.obj) p.obj.visible = vis; if (p.tag) p.tag.on = vis; }
+      if (Math.abs(D.w - prevW) > 1e-4 || !D.flipBuilt) { D.flipBuilt = true;
+        for (const p of D.dc.flip) { if (p.obj) { p.obj.parent?.remove(p.obj); disposeObj(p.obj); }
+          const atoms = p.atoms.map((a, i) => ({ ...a, p: p.inPos[i].clone().lerp(p.outPos[i], ease(D.w)) }));
+          p.obj = buildMolecules([{ atoms, centre: atoms.reduce((q, a) => q.add(a.p), V3n()).multiplyScalar(1 / atoms.length) }], 1, p.col, 'valence'); D.root.add(p.obj);
+          p.tag.p.copy(atoms.reduce((q, a) => q.add(a.p), V3n()).multiplyScalar(1 / atoms.length)); } }
+      for (const p of D.dc.flip) if (p.obj) p.obj.visible = showDC;
+      for (const h of D.dc.hb) h.line.visible = showDC && inA && (h.kind === 'wc' ? true : D.w > 0.9);
+      D.state.on = showDC; D.ptState.on = showPT;
+      D.state.set(!inA ? 'A 位空着：A1492 / A1493 收在 h44 里（1J5E）' : st === 'cr' || st === 'gtp' || st === 'kir' ? (cog ? '同源：三对碱基配对，A1492 / A1493 翻出“咬住”小沟 → GTP 酶被激活' : '近同源：一个错配，小沟几何不对，A1492 / A1493 咬不紧') : (cog ? 'tRNA 已被接受，正在容纳 / 已容纳' : '近同源 tRNA 正在被校对'));
+      D.ptState.set(st === 'acc' ? 'A 位氨酰末端已摆进 PTC：α-NH₂ 对准 P 位肽酰酯键' : st === 'pre' ? '肽键已形成：肽链转到 A 位 tRNA 上（23S rRNA 是核酶）' : st === 'g' ? 'EF-G 推动移位' : 'P 位肽酰-tRNA 在 PTC，等下一个氨酰-tRNA');
+      /* named events as they happen */
+      if (this.lastSt !== st) { const prev = this.lastSt; this.lastSt = st;
+        if (showDC && st === 'cr') eventTag(cog ? '密码子识别：A1492 / A1493 翻出，G530 转动' : '密码子识别：一个错配', D.dc.centre.clone().add(V3n(0, -8, 0)), 2.6);
+        if (showPT && st === 'pre' && prev === 'acc') eventTag('肽键形成：α-NH₂ 进攻酯键羰基碳', D.pt.centre.clone().add(V3n(0, -8, 0)), 2.6); }
+    },
     update(ctx, dt) {
       if (!this.s) return;
       this.speed = +(ctx.cell?.ctrl?.speed ?? this.speed);
@@ -3333,7 +3859,7 @@ const PROCESSES = {
         if (u >= 1) { this.tw.splice(i, 1); x.done?.(); } }
       this.updPool(dt, c);
       if (!this.paused || this.stepReq) this.runEngine(dt);
-      this.draw(dt);
+      this.draw(dt); this.drawDetail(dt);
     },
     updPool(dt, c) {
       const H = this.H, keep = (cr) => { const t = cr.t1;
@@ -3472,6 +3998,10 @@ const PROCESSES = {
         { type: 'button', label: '⏸ 暂停', run: (sim, b) => { if (!proc) return; proc.paused = !proc.paused; b.textContent = proc.paused ? '▶ 继续' : '⏸ 暂停'; } },
         { type: 'button', label: '⏭ 单步', tip: '执行下一个事件（暂停时用）', run: () => { if (proc) { proc.paused = true; proc.stepReq = 1; } } },
         { type: 'button', label: '↺ 重新开始', run: () => proc?.restart() },
+        { type: 'section', label: '镜头（原子细节）' },
+        { type: 'button', label: '🔍 解码中心', tip: '真实全原子坐标：密码子–反密码子配对、A1492 / A1493 翻出（4V6F + 1J5E）', run: () => proc?.closeUp?.('dc') },
+        { type: 'button', label: '🔍 肽基转移中心', tip: '真实全原子坐标：两个 tRNA 的 CCA 末端和 23S rRNA 的 A2451、U2585 等', run: () => proc?.closeUp?.('ptc') },
+        { type: 'button', label: '↩ 全景', run: () => proc?.closeUp?.(null) },
       ],
       series: [
         { label: '延伸速率', get: () => { const s = proc?.s; if (!s?.rate) return 0; const idle = s.lastPep != null ? s.T - s.lastPep : 0; return Math.min(s.rate, idle > 0 ? 1 / idle : s.rate); }, fmt: (v) => v.toFixed(1) + ' aa/s', range: [0, 25], color: '#2fb39c' },
@@ -3563,7 +4093,7 @@ const PROCESSES = {
       const path = [...inSide.slice(0, -1), cav.clone(), S.S4.clone(), S.S3.clone(), S.S2.clone(), S.S1.clone(), ...outSide];
       const st = {}; let acc = 0; const mark = { [inSide.length - 1]: 'cav', [inSide.length]: 'S4', [inSide.length + 1]: 'S3', [inSide.length + 2]: 'S2', [inSide.length + 3]: 'S1', [inSide.length + 4]: 'S0' };
       path.forEach((p, i) => { if (i) acc += p.distanceTo(path[i - 1]); if (mark[i]) st[mark[i]] = acc; });
-      st.in = -12; st.out = acc + 12; st.inFar = -40; st.outFar = acc + 40;   // beyond the computed ends the path continues straight into bulk
+      st.in = -12; st.out = acc + 12; st.inFar = -80; st.outFar = acc + 80;   // beyond the pore mouths each ion follows its own Brownian path into / out of the bulk
       this.path = path; this.st = st;
       /* blockers at their crystal positions */
       const near = (L) => L.atoms.reduce((s, x) => s.add(x.p), V()).multiplyScalar(1 / L.atoms.length);
@@ -3572,7 +4102,7 @@ const PROCESSES = {
       let tTBA = null; try { tTBA = await ctx.template('TBA'); } catch (e) { console.warn(e); }
       this.tbaMol = null; if (Ltba && tTBA) { const pose = fitPose(tTBA, Ltba.atoms); if (pose) { this.tbaMol = ctx.makeMol(tTBA, true, '#ff8c00'); this.tbaMol.quaternion.copy(pose.q); this.tbaMol.position.copy(pose.t); } }
       this.baPos = Lba ? near(Lba) : S.S4.clone();
-      this.baIon = ctx.makeParticle(0x2fd46a, 2.3); this.baIon.visible = false; this.baIon.position.copy(this.baPos);
+      this.baIon = ctx.makeParticle(0x2fd46a, 2.3); this.baIon.visible = false; this.baIon.position.copy(this.baPos);   /* its tag is this.tags.ba */
       /* which filter site the crystal Ba2+ occupies (nearest site), and its arc length on the pore path (the filter is straight along y) */
       this.baSite = ['S0', 'S1', 'S2', 'S3', 'S4'].sort((a, b) => Math.abs(S[a].y - this.baPos.y) - Math.abs(S[b].y - this.baPos.y))[0];
       st.ba = st.S4 + (this.baPos.y - S.S4.y); this.baIo = { s: st.inFar }; this.tbaD = { d: -34 }; this.tbaT0 = this.tbaMol ? this.tbaMol.position.clone() : null;
@@ -3582,7 +4112,7 @@ const PROCESSES = {
         cav: makeTag('中央腔', { p: ax(cav.y).add(new THREE.Vector3(12, 0, 0)), cls: 'small' }) };
       ctx.markHot([S.S1, S.S2, S.S3, S.S4], 6);
       /* ions, filter waters, hydration shells */
-      this.ions = []; this.waters = ['S1', 'S2', 'S3', 'S4'].map(() => { const w = ctx.makeParticle(0xdfe8f5, 1.0); w.visible = false; return w; });
+      this.ions = []; this.waters = ['S1', 'S2', 'S3', 'S4'].map(() => { const w = ctx.makeParticle(0xdfe8f5, 1.0, 'H₂O'); w.visible = false; return w; });
       this.tw = []; this.paused = false; this.reset();
       ctx.counters['K⁺ 外流'] = 0; ctx.counters['K⁺ 内流'] = 0;
     },
@@ -3595,11 +4125,35 @@ const PROCESSES = {
       if (this.conf) { this.conf.from = 'closed'; this.conf.to = 'closed'; this.conf.w = 0; } if (this.baIo) { this.baIo.s = this.st.inFar; this.tbaD.d = -34; }
     },
     mkIon(site, na) {
-      const p = this.ctx.makeParticle(na ? 0x4fc3f7 : 0xb98cff, na ? 1.7 : 2.0);
+      const p = this.ctx.makeParticle(na ? 0x4fc3f7 : 0xb98cff, na ? 1.7 : 2.0, na ? 'Na⁺' : 'K⁺');
       const shell = Array.from({ length: 6 }, () => { const w = this.ctx.makeParticle(0xdfe8f5, 0.85); return w; });
-      const io = { p, shell, s: this.st[site], site, na, hyd: /in|out|cav/.test(site) ? 1 : 0, ph: Math.random() * 6 }; this.ions.push(io); return io;
+      const io = { p, shell, s: this.st[site], site, na, hyd: /in|out|cav/.test(site) ? 1 : 0, ph: Math.random() * 6 }; this.ions.push(io); this.ends(io, site); return io;
+    },
+    /* each ion's own Brownian path between a pore mouth and the bulk on either side; an ion entering from the bulk IS one of the
+       free ions there (taken from the compartment's pool), an ion leaving becomes one again (given to the pool) */
+    ends(io, site) {
+      const st = this.st, a = alongPath(this.path, st.in, V3n()), b = alongPath(this.path, st.out, V3n()), sp = io.na ? 'Na⁺' : 'K⁺';
+      let fin = a.clone().add(V3n(gauss() * 22, -45 - Math.random() * 20, gauss() * 22)), fout = b.clone().add(V3n(gauss() * 22, 45 + Math.random() * 20, gauss() * 22));
+      const take = (key, near) => { const pool = scenePools.get(key); if (!pool || !pool.items.length) return null; const o = pool.take(near), q = o.position.clone(); o.parent?.remove(o); return q; };
+      if (site === 'inFar') { const q = take(sp + '@bot', fin); if (q) { fin = q; io.fromPool = true; } }
+      if (site === 'outFar') { const q = take(sp + '@top', fout); if (q) { fout = q; io.fromPool = true; } }
+      io.pre = new THREE.CatmullRomCurve3(brownPath(fin, a, { free1: 5, clear: 5, keep: (p) => { p.y = Math.min(p.y, a.y + 2); } }), false, 'centripetal');
+      io.post = new THREE.CatmullRomCurve3(brownPath(b, fout, { free0: 5, free1: 0, clear: 5, keep: (p) => { p.y = Math.max(p.y, b.y - 2); } }), false, 'centripetal');
+    },
+    posOf(io, out) {
+      const st = this.st, cl = THREE.MathUtils.clamp;
+      if (io.s < st.in && io.pre) { const u = cl((io.s - st.inFar) / (st.in - st.inFar), 0, 1); io.edge = u; return io.pre.getPoint(u, out); }
+      if (io.s > st.out && io.post) { const u = cl((io.s - st.out) / (st.outFar - st.out), 0, 1); io.edge = 1 - u; return io.post.getPoint(u, out); }
+      io.edge = 1; return alongPath(this.path, io.s, out);
     },
     killIon(io) { for (const o of [io.p, ...io.shell]) { o.parent?.remove(o); o.material.dispose(); } this.ions = this.ions.filter(x => x !== io); },
+    /* an ion that has left into the bulk joins the free ions there */
+    retire(io) {
+      const pool = scenePools.get((io.na ? 'Na⁺' : 'K⁺') + '@' + (io.s > this.st.S1 ? 'top' : 'bot'));
+      if (!pool) return this.killIon(io);
+      for (const o of io.shell) { o.parent?.remove(o); o.material.dispose(); }
+      this.ions = this.ions.filter(x => x !== io); io.p.userData.tag?.set(io.na ? 'Na⁺' : 'K⁺'); io.p.scale.setScalar(pool.r || 2); pool.give(io.p);
+    },
     ionAt(site) { return this.ions.find(io => io.site === site && !io.leaving); },
     tween(o, k, to, dur, done, block = true) { const d = dur * this.dsc(); if (d < 1e-3) { o[k] = to; done?.(); return; } this.tw.push({ o, k, a: o[k], b: to, t: 0, dur: d, done, block }); },
     dsc() { return Math.min(1, 10 / Math.max(0.1, this.ionSpeed || 10)); },
@@ -3641,7 +4195,7 @@ const PROCESSES = {
         case 'open': s.gate = 'O'; this.stg = 0; conf('open'); log('胞内 pH 低：门打开（TM2 外张）'); break;
         case 'close': s.gate = 'C'; this.stg = 0; conf('closed'); log('门关闭'); break;
         case 'inact': s.gate = 'I'; this.stg = 5; conf('inact'); log('C 型失活：过滤器塌陷，S2、S3 失去离子', true);
-          for (const io of [...this.ions]) if (!io.leaving && io.site !== 'S1' && io.site !== 'S4') { io.leaving = true; this.move(io, /S0|S1|S2/.test(io.site) ? 'outFar' : 'inFar', 0.8, () => this.killIon(io)); }
+          for (const io of [...this.ions]) if (!io.leaving && io.site !== 'S1' && io.site !== 'S4') { io.leaving = true; this.move(io, /S0|S1|S2/.test(io.site) ? 'outFar' : 'inFar', 1.6, () => this.retire(io)); }
           if (!this.ionAt('S1')) this.move(this.mkIon('outFar'), 'S1', 0.8); if (!this.ionAt('S4')) this.move(this.mkIon('inFar'), 'S4', 0.8);   // inactivated filter: ions only at S1 and S4 (5VKE / 1K4D)
           s.perm = 'X'; break;
         case 'recover': s.gate = 'C'; this.stg = 5; conf('closed'); log('从失活恢复（门关，过滤器重新导电）'); this.refill(); break;
@@ -3658,15 +4212,16 @@ const PROCESSES = {
     permFire(id, c) {
       const s = this.s, at = (k) => this.ionAt(k);
       switch (id) {
-        case 'AB': { const io = this.mkIon('inFar'); this.move(io, 'cav', 0.7); s.perm = 'B'; this.stg = 1; break; }
-        case 'BA': { const io = at('cav'); if (io) { io.leaving = true; this.move(io, 'inFar', 0.6, () => this.killIon(io)); } s.perm = 'A'; break; }
+        case 'AB': { const io = this.mkIon('inFar'); this.move(io, 'cav', 1.8); s.perm = 'B'; this.stg = 1; break; }
+        case 'BA': { const io = at('cav'); if (io) { io.leaving = true; this.move(io, 'inFar', 1.6, () => this.retire(io)); } s.perm = 'A'; break; }
         case 'BC': { const a = at('S1'), b = at('S3'), d = at('cav'); if (a) this.move(a, 'S0'); if (b) this.move(b, 'S2'); if (d) this.move(d, 'S4'); s.perm = 'C'; this.stg = 3; break; }
         case 'CB': { const a = at('S0'), b = at('S2'), d = at('S4'); if (a) this.move(a, 'S1'); if (b) this.move(b, 'S3'); if (d) this.move(d, 'cav'); s.perm = 'B'; break; }
-        case 'CD': { const io = at('S0'); if (io) { io.leaving = true; this.move(io, 'outFar', 0.7, () => this.killIon(io)); } s.perm = 'D'; s.out++; this.ctx.counters['K⁺ 外流']++; this.stg = 4; break; }
-        case 'DC': { const io = this.mkIon('outFar'); this.move(io, 'S0', 0.7); s.perm = 'C'; s.inn++; this.ctx.counters['K⁺ 内流']++; this.stg = 4; break; }
+        case 'CD': { const io = at('S0'); if (io) { io.leaving = true; this.move(io, 'outFar', 1.8, () => this.retire(io)); } s.perm = 'D'; s.out++; this.ctx.counters['K⁺ 外流']++; this.stg = 4; break; }
+        case 'DC': { const io = this.mkIon('outFar'); this.move(io, 'S0', 1.8); s.perm = 'C'; s.inn++; this.ctx.counters['K⁺ 内流']++; this.stg = 4; break; }
         case 'DA': { const a = at('S2'), b = at('S4'); if (a) this.move(a, 'S1'); if (b) this.move(b, 'S3'); s.perm = 'A'; this.stg = 2; break; }
         case 'AD': { const a = at('S1'), b = at('S3'); if (a) this.move(a, 'S2'); if (b) this.move(b, 'S4'); s.perm = 'D'; this.stg = 2; break; }
-        case 'na': { const io = this.mkIon('inFar', true); s.na++; this.move(io, 'cav', 0.6, () => { this.tween(io, 's', this.st.cav + 3, 0.25, () => { io.leaving = true; this.move(io, 'inFar', 0.6, () => this.killIon(io)); }); }); break; }
+        case 'na': { const io = this.mkIon('inFar', true); s.na++; this.move(io, 'cav', 1.6, () => { this.tween(io, 's', this.st.cav + 3, 0.25, () => { io.leaving = true;
+          eventTag('Na⁺ 太小：不能同时贴近过滤器的 8 个羰基氧 → 被排斥', alongPath(this.path, this.st.S4, V3n()).add(V3n(10, 0, 0)), 2.4); this.move(io, 'inFar', 1.6, () => this.retire(io)); }); }); break; }
       }
     },
     permRatesNow(c) {
@@ -3705,8 +4260,10 @@ const PROCESSES = {
       /* ions along the real pore path; hydration shell fades inside the filter */
       const _p = new THREE.Vector3();
       for (const io of this.ions) {
-        alongPath(this.path, io.s, _p); io.p.position.copy(_p); io.ph += dt * 3;
-        io.shell.forEach((w, k) => { const th = io.ph + k * Math.PI / 3, r = 3.4; w.visible = io.hyd > 0.05; w.scale.setScalar(0.85 * io.hyd + 0.001);
+        this.posOf(io, _p); io.p.position.copy(_p); io.ph += dt * 3;
+        const al = io.fromPool ? 1 : Math.min(1, io.edge / 0.2); setAlpha(io.p, al);
+        io.p.userData.tag?.set((io.na ? 'Na⁺' : 'K⁺') + (io.hyd > 0.6 ? '（水合）' : io.hyd < 0.2 ? '（脱水，羰基氧配位）' : ''));
+        io.shell.forEach((w, k) => { const th = io.ph + k * Math.PI / 3, r = 3.4; w.visible = io.hyd > 0.05 && al > 0.1; w.scale.setScalar(0.85 * io.hyd + 0.001);
           w.position.set(_p.x + r * Math.cos(th) * io.hyd, _p.y + 2.2 * Math.sin(th * 1.7 + k), _p.z + r * Math.sin(th) * io.hyd); });
       }
       /* waters in the empty filter sites (ions and water alternate) */
@@ -4630,28 +5187,36 @@ function cellBoxes() {
 }
 function buildCellVisuals(sim) {
   const B = sim.box = cellBoxes(), def = sim.def;
-  /* backdrop: one camera-facing panel per compartment, behind the machines, coloured by its pH */
+  /* pH: each compartment is a VOLUME of solution (a ray-marched box that fills the compartment in 3D, soft at its open
+     ends, denser the more acidic), not a flat backdrop; it looks the same from every side */
   sim.panels = !def.comps ? [] : ['top', 'bot'].map((k) => {
-    const [y0, y1] = B[k], w = (B.uhi - B.ulo) * 1.15, h = y1 - y0;
-    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
-      uniforms: { uCol: { value: new THREE.Color() }, uA: { value: 0.2 }, uTop: { value: k === 'top' ? 1 : 0 } },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `uniform vec3 uCol; uniform float uA, uTop; varying vec2 vUv;
-        void main(){ float far = uTop > 0.5 ? vUv.y : 1.0 - vUv.y;   // fade away from the membrane and at the ends
-          float a = uA * (1.0 - smoothstep(0.55, 1.0, far)) * smoothstep(0.0, 0.08, vUv.x) * smoothstep(1.0, 0.92, vUv.x);
-          gl_FragColor = vec4(uCol, a); }` });
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.renderOrder = -5; m.userData = { y: (y0 + y1) / 2, k }; world.add(m); sim.objs.push(m);
+    const [y0, y1] = B[k], su = B.uhi - B.ulo, sv = B.vhi - B.vlo, sy = y1 - y0;
+    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.BackSide,
+      uniforms: { uCol: { value: new THREE.Color() }, uA: { value: 0.2 }, uTop: { value: k === 'top' ? 1 : 0 }, uCam: { value: new THREE.Vector3() }, uScale: { value: new THREE.Vector3(su, sy, sv) } },
+      vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform vec3 uCol, uCam, uScale; uniform float uA, uTop; varying vec3 vP;
+        void main(){
+          vec3 ro = uCam, rd = normalize(vP - uCam), iv = 1.0 / rd;
+          vec3 t0 = (-0.5 - ro) * iv, t1 = (0.5 - ro) * iv, tn3 = min(t0, t1), tf3 = max(t0, t1);
+          float tn = max(max(max(tn3.x, tn3.y), tn3.z), 0.0), tf = min(min(tf3.x, tf3.y), tf3.z);
+          if (tf <= tn) discard;
+          float acc = 0.0;
+          for (int i = 0; i < 24; i++) { vec3 p = ro + rd * mix(tn, tf, (float(i) + 0.5) / 24.0);
+            float side = smoothstep(0.5, 0.38, abs(p.x)) * smoothstep(0.5, 0.38, abs(p.z));
+            float h = uTop > 0.5 ? p.y + 0.5 : 0.5 - p.y;            /* 0 at the membrane, 1 at the far face */
+            acc += side * smoothstep(0.0, 0.05, h) * (1.0 - smoothstep(0.6, 1.0, h)); }
+          float L = length((tf - tn) * rd * uScale);
+          gl_FragColor = vec4(uCol, 1.0 - exp(-uA * acc / 24.0 * L / 90.0)); }` });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat); m.renderOrder = -5; m.scale.set(su, sy, sv);
+    m.position.set(B.c.x, (y0 + y1) / 2, B.c.z).addScaledVector(B.d, (B.ulo + B.uhi) / 2).addScaledVector(B.n, (B.vlo + B.vhi) / 2);
+    m.rotation.set(0, Math.atan2(-B.d.z, B.d.x), 0); m.userData = { y: (y0 + y1) / 2, k }; world.add(m); sim.objs.push(m);
     const lab = document.createElement('div'); lab.className = 'compLab'; document.body.appendChild(lab); sim.labs.push(lab);
     return m;
   });
-  /* free molecules: one instanced mesh per species, count follows the concentration */
-  const geo = new THREE.IcosahedronGeometry(1, 2);
-  sim.dots = (def.dots || []).map((sp) => {
-    const mesh = new THREE.InstancedMesh(geo, dotMaterial(sp), sp.max || 60); mesh.count = 0; mesh.frustumCulled = false; world.add(mesh); sim.objs.push(mesh);
-    const [y0, y1] = B[sp.comp], P = [];
-    for (let i = 0; i < (sp.max || 60); i++) P.push(new THREE.Vector3(B.ulo + Math.random() * (B.uhi - B.ulo), y0 + 4 + Math.random() * (y1 - y0 - 8), B.vlo + Math.random() * (B.vhi - B.vlo)));
-    return { sp, mesh, P, y0, y1, r: sp.r || 2.2, ill: illustrative() };
-  });
+  /* free molecules: a pool of labelled particles per species and compartment (the processes take from / give to them);
+     the target count follows the concentration */
+  sim.regions = { top: boxRegion(B, B.top[0], B.top[1]), bot: boxRegion(B, B.bot[0], B.bot[1]) };
+  sim.dots = (def.dots || []).map((sp) => ({ sp, pool: scenePool(sp.label + '@' + sp.comp, { label: sp.label, col: sp.color, r: sp.r || 2.2, region: sim.regions[sp.comp], maxTags: 2 }) }));
   /* dot legend under the switches */
   const seen = new Set();
   $('cellKey').innerHTML = (def.key || def.dots || []).filter(sp => sp.label && !seen.has(sp.label) && seen.add(sp.label))
@@ -4670,30 +5235,24 @@ function updateCellSim(dt) {
   sim.t += dt; sim.tH += dt;
   const vals = def.series.map(se => se.get(sim.st, sim.flux));
   if (sim.tH > 0.25) { sim.tH = 0; vals.forEach((v, i) => { sim.hist[i].push(v); if (sim.hist[i].length > 240) sim.hist[i].shift(); }); drawCellHud(sim, vals); }
-  /* backdrops follow the camera horizontally (always behind the machines), colour = pH */
-  const B = sim.box, toCam = camera.position.clone().sub(B.c.clone().applyMatrix4(world.matrixWorld)).setY(0).normalize();
-  const back = Math.max(Math.abs(B.vlo), Math.abs(B.vhi)) + 15, comps = def.comps ? def.comps(sim.st, sim.flux) : [];
-  const farOut = proc?.level && proc.level !== 'machine';   /* whole cell zoomed out: the corner's compartment panels / labels are meaningless */
+  /* pH volumes: colour = pH, density grows with [H+] (log scale); the camera position in each box's own unit frame */
+  const B = sim.box, comps = def.comps ? def.comps(sim.st, sim.flux) : [];
+  const farOut = proc?.level && proc.level !== 'machine';   /* whole cell zoomed out: the corner's compartment volumes / labels are meaningless */
   sim.panels.forEach((m, i) => {
-    m.visible = !farOut; m.position.copy(B.c).addScaledVector(toCam, -back).setY(m.userData.y); m.rotation.set(0, Math.atan2(toCam.x, toCam.z), 0);
-    const cp = comps[i]; m.material.uniforms.uCol.value.copy(phColour(cp.pH)); m.material.uniforms.uA.value = illustrative() ? 0.42 : 0.26;
-    const lab = sim.labs[i]; _cv.copy(m.position).addScaledVector(new THREE.Vector3(toCam.z, 0, -toCam.x), -(B.uhi - B.ulo) * 0.5).applyMatrix4(world.matrixWorld).project(camera);
+    m.visible = !farOut; const cp = comps[i], U = m.material.uniforms; U.uCol.value.copy(phColour(cp.pH));
+    U.uA.value = (illustrative() ? 0.55 : 0.4) * THREE.MathUtils.clamp(0.55 + 0.22 * (7.6 - cp.pH), 0.35, 1.3);
+    m.updateMatrixWorld(); U.uCam.value.copy(camera.position).applyMatrix4(_cm.copy(m.matrixWorld).invert());
+    /* label at the box's left-most visible upright edge, half way up */
+    const lab = sim.labs[i]; let best = null;
+    for (const [a, b] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) { const q = V3n(a, 0, b).applyMatrix4(m.matrixWorld).project(camera); if (q.z < 1 && (!best || q.x < best.x)) best = q; }
+    _cv.copy(best || V3n(0, 0, 2));
     const pr = $('panel').getBoundingClientRect(), minX = pr.right > 0 && pr.width > 0 && getComputedStyle($('panel')).display !== 'none' ? pr.right + 10 : 8;
     lab.style.display = _cv.z < 1 && !farOut ? '' : 'none'; lab.style.left = Math.max(minX, (_cv.x * 0.5 + 0.5) * innerWidth) + 'px'; lab.style.top = ((-_cv.y * 0.5 + 0.5) * innerHeight) + 'px';
     lab.innerHTML = `${cp.name} <span style="color:#${phColour(cp.pH).getHexString()}">pH ${cp.pH.toFixed(2)}</span>`;
   });
-  /* free molecules: Brownian drift inside their compartment */
-  for (const D of sim.dots) {
-    if (D.ill !== illustrative()) { D.mesh.material.dispose(); D.mesh.material = dotMaterial(D.sp); D.ill = illustrative(); }
-    const want = Math.max(0, Math.min(D.P.length, Math.round(D.sp.count(sim.st, sim.flux)))); D.mesh.count = want;
-    for (let i = 0; i < want; i++) { const p = D.P[i];
-      p.x += (Math.random() - 0.5) * 6 * dt * 10; p.z += (Math.random() - 0.5) * 6 * dt * 10; p.y += (Math.random() - 0.5) * 4 * dt * 10;
-      const q = new THREE.Vector3(p.x - B.c.x, 0, p.z - B.c.z), u = q.dot(B.d), v = q.dot(B.n);
-      if (u < B.ulo || u > B.uhi || v < B.vlo || v > B.vhi) { p.set(B.c.x, 0, B.c.z).addScaledVector(B.d, B.ulo + Math.random() * (B.uhi - B.ulo)).addScaledVector(B.n, B.vlo + Math.random() * (B.vhi - B.vlo)); p.y = D.y0 + 4 + Math.random() * (D.y1 - D.y0 - 8); }
-      p.y = Math.min(D.y1 - 3, Math.max(D.y0 + 3, p.y));
-      _cs.setScalar(D.r); _cm.compose(p, _cq, _cs); D.mesh.setMatrixAt(i, _cm); }
-    D.mesh.instanceMatrix.needsUpdate = true;
-  }
+  /* free molecules: the pools' target counts follow the concentrations (the pools move themselves, see updatePools) */
+  for (const D of sim.dots) { D.pool.n = Math.max(0, Math.min(D.sp.max || 60, D.sp.count(sim.st, sim.flux)));
+    if (!D.filled) { D.filled = true; D.pool.fill(); } }
 }
 function drawCellHud(sim, vals) {
   const light = illustrative();
@@ -5019,6 +5578,12 @@ function kitPick(cx, cy) {
   }
   return best;
 }
+function setTimeScale(v, fromSlider) {
+  timeScale = v; document.querySelectorAll('#tscale button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  if (!fromSlider) { const sp = $('spin'); sp.value = v === 'fast' ? Math.max(+sp.value, 2.2) : Math.min(+sp.value, 0.6); syncOut(sp); }
+}
+document.querySelectorAll('#tscale button').forEach(b => b.onclick = () => setTimeScale(b.dataset.v));
+$('spin').addEventListener('input', () => { const v = +$('spin').value >= 1.5 ? 'fast' : 'slow'; if (v !== timeScale) setTimeScale(v, true); });
 $('kitBtn').onclick = () => kit ? exitKit() : enterKit();
 $('kitX').onclick = () => exitKit();
 $('kitE').oninput = () => kitSetAll(+$('kitE').value);
@@ -5067,8 +5632,8 @@ function markHotFromLigands() {
 }
 
 function clearScene() {
-  exitKit(); proc = null; stopCellSim(); clearTags(); tagFilter = null; if ($('scaleBar')) $('scaleBar').style.display = 'none';
-  for (const o of procWorld) { world.remove(o); disposeObj(o); } procWorld = [];
+  exitKit(); proc = null; stopCellSim(); clearTags(); clearPools(); tagFilter = null; if ($('scaleBar')) $('scaleBar').style.display = 'none';
+  for (const o of procWorld) { o.parent?.remove(o); disposeObj(o); } procWorld = [];
   for (const g of groups) if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
   groups = [];
   for (const lg of ligGroups) { world.remove(lg.obj); disposeObj(lg.obj); }
@@ -5680,13 +6245,13 @@ function frame() {
     U.uMorph.value = +$('morph').value;
     for (const lg of ligGroups) if (current?.states) lg.obj.visible = lg.visible && $('ligOn').checked && (lg.state ? U.uMorph.value > 0.6 : U.uMorph.value < 0.4) && !focus;
     if (proc && $('procOn').checked) {
-      proc.update(proc.ctx, dt); tickAnims(dt);
+      proc.update(proc.ctx, dt); tickAnims(dt); updatePools(dt);
       const cnt = $('cnt'); if (cnt) cnt.textContent = Object.entries(proc.ctx.counters).map(([k, v]) => `${k}：${v}`).join('　');
     }
   }
   updateViewOffset();
   U.uUpView.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
-  procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion);
+  procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion); bulkRoot.visible = !!proc && $('procOn').checked && !(proc.level && proc.level !== 'machine');
   for (const g of groups) if (g.mesh) {
     if (g.mesh.userData.simple) g.mesh.children.forEach(x => {
       if (!x.userData.surface) return;
