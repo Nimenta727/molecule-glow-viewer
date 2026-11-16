@@ -86,8 +86,13 @@ npm run start:server
 
 - `GET /api/health`
 - `GET /api/rcsb?url=https%3A%2F%2Fdata.rcsb.org%2F...`
+- `GET /api/scenes`
+- `POST /api/scenes`，提交 `{ "name": "...", "config": { ... } }`
+- `GET /api/scenes/:id`
 
 代理只允许 `data.rcsb.org`、`models.rcsb.org` 和 `files.rcsb.org` 的 HTTPS 地址，避免把服务变成任意 URL 转发器。现有 Web 版和 Electron 版仍可不依赖该服务直接运行。
+
+场景数据默认保存在 `data/scenes.json`（已加入 `.gitignore`），可通过 `DATA_DIR` 指定持久化目录。当前接口不包含登录和权限控制，适合本地或受保护的内网部署，不应直接暴露到公网。
 
 ## 开发进度
 
