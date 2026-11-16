@@ -198,6 +198,8 @@
   <div class="row"><label>热运动</label><input type="range" id="jitter" min="0" max="1" step="0.02" value="0.25"><output></output></div>
   <label class="chk"><input type="checkbox" id="pause">暂停（空格）</label>
   <label class="chk"><input type="checkbox" id="autoRot">相机自动环绕</label>
+  <div class="row" id="teachingNav"><button class="ghost" id="teachPrev">上一步</button><button class="ghost" id="teachNext">下一步</button></div>
+  <div class="sub" id="teachingStep">切换到教学模式后，可按步骤查看当前机制。</div>
 
   <h2>拆装</h2>
   <div class="row"><button class="ghost" id="kitBtn">🧩 拆装亚基</button></div>
@@ -4951,7 +4953,7 @@ const panelModeHints = {
   expert: '专家模式显示全部结构、材质、膜、剖切和性能参数。'
 };
 const quickSections = new Set(['预设', '过程动画', '外观', '其他']);
-const quickHiddenIds = new Set(['procOn', 'morph', 'morphAuto', 'jitter', 'autoRot', 'bgMode', 'inkAmt', 'fogAmt', 'shellOn', 'colorMode', 'palette', 'blob', 'lumpy', 'bloom', 'rim', 'glow', 'exposure', 'sat', 'con', 'ao', 'dof', 'dofAmt', 'axisMode', 'assembly', 'aimCut']);
+const quickHiddenIds = new Set(['procOn', 'morph', 'morphAuto', 'jitter', 'autoRot', 'teachingNav', 'teachingStep', 'bgMode', 'inkAmt', 'fogAmt', 'shellOn', 'colorMode', 'palette', 'blob', 'lumpy', 'bloom', 'rim', 'glow', 'exposure', 'sat', 'con', 'ao', 'dof', 'dofAmt', 'axisMode', 'assembly', 'aimCut']);
 function applyPanelMode(mode) {
   $('panel').dataset.mode = mode;
   $('modeHint').textContent = panelModeHints[mode] || panelModeHints.quick;
@@ -4970,6 +4972,16 @@ function applyPanelMode(mode) {
 }
 $('panelMode').onchange = () => applyPanelMode($('panelMode').value);
 applyPanelMode('quick');
+function showTeachingStep(index) {
+  const E = proc?.energy || current?.energy;
+  if (!E?.length) { $('teachingStep').textContent = '当前预设没有定义教学步骤。'; return; }
+  const i = Math.max(0, Math.min(E.length - 1, index));
+  const step = $('energy').querySelector(`.e[data-i="${i}"]`);
+  if (step) step.click();
+  $('teachingStep').textContent = `第 ${i + 1}/${E.length} 步：${E[i][0]}`;
+}
+$('teachPrev').onclick = () => showTeachingStep((energyKey ?? 0) - 1);
+$('teachNext').onclick = () => showTeachingStep((energyKey ?? -1) + 1);
 function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if (o) o.textContent = (+inp.value).toFixed(inp.step < 0.05 ? 2 : 1); }
 document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
 for (const [name, p] of Object.entries(PRESETS)) {
