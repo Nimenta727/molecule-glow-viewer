@@ -17,6 +17,8 @@
   .row label{flex:0 0 92px;color:var(--dim)}
   .row select{flex:1;min-width:0;max-width:100%;text-overflow:ellipsis}
   #panel{padding-bottom:60px}
+  #panel[data-mode="quick"] [data-panel-section]:not([data-panel-section="预设"]):not([data-panel-section="过程动画"]):not([data-panel-section="外观"]):not([data-panel-section="其他"]){display:none}
+  #panel[data-mode="teaching"] [data-panel-section]:not([data-panel-section="预设"]):not([data-panel-section="过程动画"]):not([data-panel-section="组成（显示 / 旋转 / 剖开 / 简化）"]):not([data-panel-section="其他"]){display:none}
   /* keep caption / status in the free area beside the open panel (desktop) */
   @media (min-width:601px){ body:has(#panel:not(.hidden)) #caption{left:334px;max-width:min(980px,calc(100vw - 360px))}
     body:has(#panel:not(.hidden)) #status{left:calc(50% + 167px)} }
@@ -180,6 +182,8 @@
 
 <div id="panel">
   <h1>分子光影查看器</h1>
+  <div class="row"><label>操作模式</label><select id="panelMode"><option value="quick">快速</option><option value="teaching">教学</option><option value="expert">专家</option></select></div>
+  <div class="sub" id="modeHint">快速模式只显示加载、预设、播放、显示、标签、截图和画质。</div>
   <div class="row"><input type="text" id="pdb" value="6ZPO" maxlength="12" spellcheck="false"><button id="load">加载</button></div>
   <div class="row"><button class="ghost" id="fileBtn">导入本地文件</button><input type="file" id="file" accept=".cif,.mmcif,.pdb,.ent" hidden><span class="sub">或把文件拖进窗口</span></div>
   <div class="sub">输入任意 PDB 编号，直接从 RCSB 下载（含小分子）</div>
@@ -4935,6 +4939,37 @@ function resetCamera(cam) {
 }
 
 /* ----------------------------------------------------------------------------- UI wiring */
+const panelSectionNames = new Map();
+let activePanelSection = '';
+for (const child of $('panel').children) {
+  if (child.tagName === 'H2') activePanelSection = child.textContent.trim();
+  if (activePanelSection) child.dataset.panelSection = activePanelSection;
+}
+const panelModeHints = {
+  quick: '快速模式只显示加载、预设、播放、显示、标签、截图和画质。',
+  teaching: '教学模式保留过程控制、结构组成和讲解标签，适合课堂演示。',
+  expert: '专家模式显示全部结构、材质、膜、剖切和性能参数。'
+};
+const quickSections = new Set(['预设', '过程动画', '外观', '其他']);
+const quickHiddenIds = new Set(['procOn', 'morph', 'morphAuto', 'jitter', 'autoRot', 'bgMode', 'inkAmt', 'fogAmt', 'shellOn', 'colorMode', 'palette', 'blob', 'lumpy', 'bloom', 'rim', 'glow', 'exposure', 'sat', 'con', 'ao', 'dof', 'dofAmt', 'axisMode', 'assembly', 'aimCut']);
+function applyPanelMode(mode) {
+  $('panel').dataset.mode = mode;
+  $('modeHint').textContent = panelModeHints[mode] || panelModeHints.quick;
+  for (const id of quickHiddenIds) {
+    const control = $(id);
+    if (control) control.closest('.row,.chk')?.removeAttribute('hidden');
+  }
+  for (const el of $('panel').querySelectorAll('[data-panel-section]')) {
+    const section = el.dataset.panelSection;
+    let hidden = mode === 'quick' ? !quickSections.has(section) : mode === 'teaching' && !['预设', '过程动画', '组成（显示 / 旋转 / 剖开 / 简化）', '其他'].includes(section);
+    if (mode === 'quick' && quickSections.has(section) && el.id && quickHiddenIds.has(el.id)) hidden = true;
+    if (el.id === 'modeHint' || el.id === 'panelMode') hidden = false;
+    el.hidden = hidden;
+  }
+  if (mode === 'quick') for (const id of quickHiddenIds) $(id)?.closest('.row,.chk')?.setAttribute('hidden', '');
+}
+$('panelMode').onchange = () => applyPanelMode($('panelMode').value);
+applyPanelMode('quick');
 function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if (o) o.textContent = (+inp.value).toFixed(inp.step < 0.05 ? 2 : 1); }
 document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
 for (const [name, p] of Object.entries(PRESETS)) {
