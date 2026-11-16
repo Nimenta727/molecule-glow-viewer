@@ -17,9 +17,14 @@ const report = (lines, ok) => { fs.writeFileSync(path.join(process.env.RUNNER_TE
 
 const urlRe = new RegExp(String.raw`https://github\.com/(?:user-attachments/files|${repo.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}/files)/[\w./%-]+\.(?:zip|json|glow)`, 'gi');
 const urls = [...new Set(body.match(urlRe) || [])];
-if (!urls.length) report(['### ❌ 没有找到场景包', '', '请把 `.glow` 文件压缩成 `.zip`（或改名为 `.json`）后拖进 issue 正文里，然后编辑 issue，机器人会重新检查。'], false);
-
 const files = [];
+/* small packs can also be pasted into the issue as a ```json (or ```glow) code block */
+for (const m of body.matchAll(/```(?:json|glow)[^\n]*\r?\n([\s\S]*?)\r?\n```/g)) {
+  if (!m[1].includes('"glow-scene"')) continue;
+  const f = path.join(tmp, 'pasted-' + files.length + '.json'); fs.writeFileSync(f, m[1]); files.push(f);
+}
+if (!urls.length && !files.length) report(['### ❌ 没有找到场景包', '', '请把 `.glow` 文件压缩成 `.zip`（或改名为 `.json`）后拖进 issue 正文里；小的场景包也可以直接粘贴在 ```json 代码块里。然后编辑 issue，机器人会重新检查。'], false);
+
 for (const u of urls.slice(0, 3)) {
   const r = await fetch(u, { redirect: 'follow' }); if (!r.ok) continue;
   const buf = Buffer.from(await r.arrayBuffer()); if (buf.length > MAX_BYTES) continue;

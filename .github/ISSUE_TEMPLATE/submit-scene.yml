@@ -12,7 +12,7 @@ body:
     id: file
     attributes:
       label: 场景包
-      description: 把 .zip（里面是 .glow）或改名为 .json 的场景包拖到这里
+      description: 把 .zip（里面是 .glow）或改名为 .json 的场景包拖到这里。小的场景包（不含封面和内嵌结构）也可以直接粘贴，写成 ```json 开头、``` 结尾的代码块
     validations: { required: true }
   - type: dropdown
     id: category
