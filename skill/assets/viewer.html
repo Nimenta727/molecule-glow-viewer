@@ -45,7 +45,10 @@
   #status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 16px;color:var(--dim);transition:opacity .4s;pointer-events:none;white-space:nowrap}
   #caption{position:fixed;bottom:54px;left:0;right:0;margin:0 auto;width:fit-content;max-width:min(980px,92vw);text-align:center;color:#dfe6f5;font-size:13px;line-height:1.5;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
   #caption{pointer-events:auto;cursor:pointer} #caption .ct{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  #caption.open .ct{display:block} #caption .more{display:none;color:#7fb6f5;font-size:11px} #caption.clamped:not(.open) .more{display:inline}
+  #caption.open .ct{display:block}
+  #caption .lead{display:block;font-weight:600} #caption .ct{display:none!important;margin-top:4px;font-size:12.5px} #caption.open .ct{display:block!important}
+  #caption:not(.open) .more{display:inline!important;margin-left:6px} #caption.open .more{display:none!important}
+  #caption .lnote{display:block;color:#ffb070;font-size:12.5px;margin-bottom:3px} body.lightbg #caption .lnote{color:#a14a00} #caption .more{display:none;color:#7fb6f5;font-size:11px} #caption.clamped:not(.open) .more{display:inline}
   #energy{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none} #energy::-webkit-scrollbar{display:none} #energy .e,#energy i,#energy .eh{flex:none;white-space:nowrap}
   #cellHud .ctl .sec{cursor:pointer;user-select:none} #cellHud .ctl .sec::before{content:'▾ ';opacity:.6} #cellHud .ctl .sec.shut::before{content:'▸ '}
   #cellHud .ctl .hid{display:none!important}
@@ -204,7 +207,7 @@
   #prov{font-size:11px;color:var(--dim);margin-top:3px} body.lightbg #prov{color:#5a6275} #evidPop a{color:#2a5fae}
   #scaleAll{position:fixed;right:18px;bottom:16px;font-size:11.5px;color:#a3abbb;text-align:right;pointer-events:none;z-index:2;max-width:46vw}
   #scaleAll i{display:block;height:5px;border:2px solid currentColor;border-top:0;margin:0 0 2px auto} body.lightbg #scaleAll{color:#4a5263}
-  #scaleAll .ts{display:block} @media (max-width:600px){ #scaleAll{bottom:96px;right:10px} #scaleAll .ts{display:none} }
+  #scaleAll .ts{display:block;white-space:pre-line} @media (max-width:600px){ #scaleAll{bottom:96px;right:10px} #scaleAll .ts{display:none} }
   body.embed #toggle{top:12px;bottom:auto;padding:3px 9px;font-size:12px}   /* embedded: keep the bottom-left corner for compartment labels */
   #devLink{color:var(--acc2)}
   #seqBar{position:fixed;left:50%;transform:translateX(-50%);bottom:12px;z-index:6;width:min(980px,calc(100vw - 32px));max-height:34vh;display:flex;flex-direction:column;
@@ -214,6 +217,7 @@
   #seqRows .row{display:flex;align-items:center;white-space:nowrap;margin:2px 0} #seqRows .row b{flex:none;width:58px;font-weight:600;color:#5a6275;overflow:hidden;text-overflow:ellipsis}
   #seqRows .r{display:inline-block;width:9px;text-align:center;font:10px/15px ui-monospace,Consolas,monospace;cursor:pointer;border-bottom:3px solid #cfd4dc;user-select:none}
   #seqRows .r.h{border-color:#d9776e} #seqRows .r.e{border-color:#d9b43c} #seqRows .r.on{background:#ffe08a} #seqRows .r.tick{position:relative}
+  #seqBar .ftc{padding:0 6px;font-size:11px;background:#fff;border:1px solid} #seqFtChips{flex:none!important} #seqBar .sh{flex-wrap:wrap}
   #seqRows .gap{display:inline-block;width:22px;height:0;border-top:2px dashed #8d96a8;margin:0 2px;vertical-align:middle;cursor:help} body.lightbg #devLink{color:#2a5fae} body.embed #devLink{display:none}
 </style>
 <script type="importmap">
@@ -225,7 +229,7 @@
 </head>
 <body>
 <div id="stage"></div>
-<div id="seqBar" hidden><div class="sh"><b>序列</b><span id="seqInfo">点击或拖选残基 → 在 3D 中选中；红 = 螺旋，黄 = 折叠，灰 = 无规；虚线 = 结构里缺失的残基</span><button id="seqX" title="关闭">×</button></div><div id="seqRows"></div></div>
+<div id="seqBar" hidden><div class="sh"><b>序列</b><button id="seqFt" title="从 UniProt 读取活性位点、结合位点、跨膜段等，标在序列上">功能位点</button><span id="seqFtChips"></span><span id="seqInfo">点击或拖选残基 → 在 3D 中选中；红 = 螺旋，黄 = 折叠，灰 = 无规；虚线 = 结构里缺失的残基</span><button id="seqX" title="关闭">×</button></div><div id="seqRows"></div></div>
 <div id="title"><button id="backBtn" style="display:none">← 返回</button><div class="id" id="tId">—</div><div class="t" id="tName"></div><button id="aboutBtn" style="display:none">简介</button><div id="evid" title="这个画面里哪些是实验数据、哪些是推算、建模或示意（点击查看）"></div><div id="evidPop"></div></div>
 <div id="caption"></div>
 <div id="scaleAll" title="比例尺：旋转中心处的长度"><i></i><span class="sl"></span><span class="ts"></span></div>
@@ -375,6 +379,8 @@ setSeed(URL_SEED);
    case-insensitive "name contains"; when several keys match, the FIRST key wins,
    so list longer / more specific keys first. A key may also be a regex string "/.../".
    ============================================================================= */
+/* one explanation of ATP per NADH everywhere (caption, energy steps, counters) */
+const ATP_PER_NADH = '每个 ATP 另需约 1 个 H⁺ 把 ADP 和 Pi 运进基质，所以理论上 10 ÷ (8/3 + 1) ≈ 2.7 个 ATP / NADH；测得的 P/O 约 2.5（膜有质子漏）';
 const PRESETS = {
   'ATP 合酶（合成 ATP）': {
     id: '6ZPO', axisFrom: ['subunit C1', 'subunit beta'], blob: 4.4,
@@ -1943,6 +1949,8 @@ function showSelInfo(g, a) {
     h += `<div>${chains > 1 ? chains + ' 条链 · ' : ''}${g.atoms.length.toLocaleString()} 个残基${g.coreIdx?.length ? `，其中 ${g.coreIdx.length} 个属于功能核心（原子细节）` : ''}</div>`;
   }
   h += note ? `<div class="sec">${note[2]}</div>` : a ? '' : `<div class="sec" style="color:var(--dim)">${esc(g.name)}（预设里加 notes 可写讲解）</div>`;
+  { const sid = (a?.src || g.atoms[0]?.src || current?.id || '').toUpperCase(), org = current?.local ? null : orgOf(sid), si = org && standIn(sid, org);
+    if (org) h = `<div class="sec"${si ? ' style="color:#a14a00"' : ''}><b>物种：${esc(orgName(org))}</b>${si ? '<br>' + esc(si) : ''}</div>` + h; }
   /* evidence for this object (audit 10): what is measured, what is computed or placed */
   const ev = [current?.local ? (current.structure?.source?.pdb ? `坐标：包里声明来自 PDB ${esc(current.structure.source.pdb)}（未核对）` : '坐标：用户提供的模型') : `坐标：实验结构（${esc((a?.src || g.atoms[0]?.src || current?.id || '').toUpperCase())}）`];
   if (g.simple) ev.push('外形：由 Cα / P 推算的简化形状'); else ev.push('团块大小：示意');
@@ -1956,6 +1964,27 @@ function showSelInfo(g, a) {
   $('infoB').querySelector('.openLink')?.addEventListener('click', (e) => openLinked(e.target.dataset.k));
 }
 /* cell -> system -> protein links (audit 13): which preset shows a part / molecule in detail */
+/* source organism of a structure: known entries first (RCSB lists the antibody of 1K4C too), then the entry's metadata */
+const KNOWN_ORG = { '4V6F': 'Thermus thermophilus', '1K4C': 'Streptomyces lividans', '6ZPO': 'Bos taurus', '5GUP': 'Sus scrofa', '1HRC': 'Equus caballus',
+  '6OQR': 'Escherichia coli', '1EFT': 'Thermus aquaticus', '1GD1': 'Geobacillus stearothermophilus', '1PKN': 'Oryctolagus cuniculus', '1TIM': 'Gallus gallus',
+  '4AKE': 'Escherichia coli', '1AON': 'Escherichia coli', '6ALH': 'Escherichia coli', '1IWG': 'Escherichia coli', '1PV6': 'Escherichia coli', '1RC2': 'Escherichia coli',
+  '1U7G': 'Escherichia coli', '2OMF': 'Escherichia coli', '4HHB': 'Homo sapiens' };
+const ORG_ZH = { 'Escherichia coli': '大肠杆菌', 'Thermus thermophilus': '嗜热栖热菌', 'Thermus aquaticus': '水生栖热菌', 'Streptomyces lividans': '变铅青链霉菌',
+  'Bos taurus': '牛', 'Sus scrofa': '猪', 'Equus caballus': '马', 'Oryctolagus cuniculus': '兔', 'Gallus gallus': '鸡', 'Homo sapiens': '人',
+  'Geobacillus stearothermophilus': '嗜热脂肪地芽孢杆菌', 'Spinacia oleracea': '菠菜', 'Salmonella': '沙门氏菌', 'Mus musculus': '小鼠' };
+const orgOf = (id) => { id = String(id || '').toUpperCase(); return KNOWN_ORG[id] || (current?._prov || []).find(p => p.id === id)?.organisms?.[0] || null; };
+const orgName = (o) => { if (!o) return '未知'; const k = Object.keys(ORG_ZH).find(k => o.startsWith(k)); return k ? `${ORG_ZH[k]}（${k}）` : o; };
+/* scenes that show an E. coli cell: any structure from another organism is a stand-in and says so */
+const cellHost = () => /^(cellCorner|wholeCell)$/.test(current?.process || '') ? 'Escherichia coli' : null;
+const STAND_IN = { '4V6F': '代用结构：用嗜热栖热菌的 70S 核糖体代表大肠杆菌的核糖体（两者结构很相似）',
+  '1K4C': '代用结构：大肠杆菌没有 KcsA，这里用链霉菌的 KcsA 代表一个钾通道',
+  '1EFT': '代用结构：用水生栖热菌的 EF-Tu 代表大肠杆菌的 EF-Tu' };
+function standIn(id, org = orgOf(id)) { const host = cellHost(); if (!host || !org || org.startsWith(host)) return null;
+  return STAND_IN[String(id).toUpperCase()] || `代用结构：这是${orgName(org)}的结构，代表大肠杆菌里的同类分子`; }
+/* the bovine ATP synthase preset has a c8 ring; E. coli has c10 (Escherichia coli 6OQR): 10 H⁺ : 3 ATP */
+function linkNote(key, org) {
+  if (key === 'atp-synthase' && org && !org.startsWith('Bos')) return `注意：要打开的是牛线粒体 ATP 合酶（6ZPO，c8 环：8 H⁺ : 3 ATP）。${orgName(org)}的 ATP 合酶${org.startsWith('Escherichia') ? '是 c10 环：10 H⁺ : 3 ATP' : '的 c 环大小可能不同'}。`;
+  return null; }
 const LINKS = [[/ATP synthase|ATP 合酶|subunit (alpha|beta|gamma|c\b)/i, 'atp-synthase'], [/KcsA|potassium channel|钾通道|钾离子通道/i, 'kcsa'],
   [/ribosom|16S|23S|5S|核糖体|30S|50S|70S/i, 'translation'], [/flagell|MotA|MotB|FliG|鞭毛/i, 'flagellar-motor'],
   [/NADH dehydrogenase|cytochrome (b|c1|c oxidase)|complex (I|III|IV)\b|复合体 (I|III|IV)|呼吸链/i, 'respiratory-chain']];
@@ -1976,15 +2005,16 @@ function renderSeqBar() {
   const C = seqChains(), MAXC = 16, shown = C.slice(0, MAXC); seqCells = [];
   let h = '';
   for (const [k, A] of shown) {
-    const lab = A[0]?.ach || k.split('_')[0];
-    h += `<div class="row" data-asym="${esc(k)}"><b title="作者链名 ${esc(lab)}（label ${esc(k)}）· ${A.length} 个残基">${esc(lab)}</b>`;
+    const base = A[0]?.ach || k.split('_')[0], nCopies = shown.filter(([k2, A2]) => (A2[0]?.ach || k2.split('_')[0]) === base).length;
+    const lab = nCopies > 1 ? `${base}·${k.includes('_') ? k.split('_')[1] : 1}` : base;   /* symmetry copies: A·1, A·2 … */
+    h += `<div class="row" data-asym="${esc(k)}"><b title="作者链名 ${esc(base)}（label ${esc(k)}）${nCopies > 1 ? '，对称拷贝 ' + esc(lab) : ''} · ${A.length} 个残基">${esc(lab)}</b>`;
     A.forEach((a, i) => { if (i && a.seq - A[i - 1].seq > 1) { const n = a.seq - A[i - 1].seq - 1; h += `<span class="gap" title="缺失 ${n} 个残基（label_seq ${A[i - 1].seq + 1}–${a.seq - 1}）：结构里没有坐标"></span>`; }
       h += `<span class="r${a.ss === 1 ? ' h' : a.ss === 2 ? ' e' : ''}" data-i="${seqCells.length}" title="${esc(resLabel(a))}（label ${a.seq}）">${a.na ? esc(String(a.resn || '?').slice(-1)) : esc(AA1[a.resn] || 'X')}</span>`;
       seqCells.push(a); });
     h += '</div>';
   }
   if (C.length > MAXC) h += `<div class="muted" style="color:#5a6275">另有 ${C.length - MAXC} 条链没有列出（用 glow.select('chain …') 选择）</div>`;
-  box.innerHTML = h; seqHighlight();
+  box.innerHTML = h; seqHighlight(); markSeqFeatures();
 }
 function seqHighlight() {
   if (!$('seqRows') || $('seqBar').hidden) return; const on = new Set(glowSel.r || []);
@@ -1994,24 +2024,88 @@ function seqHighlight() {
   $('seqRows').addEventListener('pointerdown', (e) => { const el = e.target.closest('.r'); d0 = el ? +el.dataset.i : null; });
   $('seqRows').addEventListener('pointerup', async (e) => { const el = e.target.closest('.r'); if (d0 == null || !el) { d0 = null; return; }
     let a = seqCells[d0], b = seqCells[+el.dataset.i]; d0 = null; if (!a || !b || a.asym !== b.asym) b = a; if (b.seq < a.seq) [a, b] = [b, a];
-    const ch = a.asym.split('_')[0];
-    try { const r = await glow.select(`label_asym ${ch} and label_seq ${a.seq}-${b.seq}`); $('seqInfo').textContent = `已选 ${r.residues} 个残基：${resLabel(a)}${a !== b ? ' – ' + resLabel(b) : ''}`; } catch (err) { $('seqInfo').textContent = err.message; } });
+    const ex = `asym ${a.asym} and label_seq ${a.seq}-${b.seq}`;   /* exactly this copy */
+    try { const r = await glow.select(ex); $('seqInfo').textContent = `已选 ${r.residues} 个残基：${resLabel(a)}${a !== b ? ' – ' + resLabel(b) : ''}　（glow.select('${ex}')）`; } catch (err) { $('seqInfo').textContent = err.message; } });
   $('seqX').onclick = () => { $('seqBar').hidden = true; };
 }
+const FT_CAT = { 'Active site': ['活性位点', '#d0342c'], 'Binding site': ['结合位点', '#2a6fdb'], 'Site': ['重要位点', '#8a3fd1'],
+  'Transmembrane': ['跨膜段', '#2e9d57'], 'Intramembrane': ['膜内片段', '#5bbf7d'], 'Motif': ['基序', '#c77d00'], 'Disulfide bond': ['二硫键', '#b58900'] };
+let seqFt = null;   /* {cat: [{asymBase, from, to, text}]} for the current scene, label_seq numbering */
+async function loadSeqFeatures() {
+  if (!current?.id || current.local) throw new Error('只有 PDB 条目才能读取 UniProt 注释');
+  const id = current.id.toUpperCase();
+  const q = `{ entry(entry_id:"${id}"){ polymer_entities{ rcsb_polymer_entity_container_identifiers{entity_id asym_ids}
+    rcsb_polymer_entity_align{ reference_database_name reference_database_accession aligned_regions{ entity_beg_seq_id ref_beg_seq_id length } } } } }`;
+  const j = JSON.parse(await fetchText('https://data.rcsb.org/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) }));
+  const out = {}, jobs = [];
+  for (const pe of j.data?.entry?.polymer_entities || []) {
+    const asyms = pe.rcsb_polymer_entity_container_identifiers?.asym_ids || [];
+    for (const al of (pe.rcsb_polymer_entity_align || []).filter(a => a.reference_database_name === 'UniProt').slice(0, 1)) jobs.push((async () => {
+      const u = JSON.parse(await fetchText(`https://rest.uniprot.org/uniprotkb/${al.reference_database_accession}.json?fields=ft_act_site,ft_binding,ft_site,ft_transmem,ft_intramem,ft_motif,ft_disulfid`));
+      const map = (pos) => { for (const r of al.aligned_regions || []) if (pos >= r.ref_beg_seq_id && pos < r.ref_beg_seq_id + r.length) return r.entity_beg_seq_id + pos - r.ref_beg_seq_id; return null; };
+      for (const f of u.features || []) { const c = FT_CAT[f.type]; if (!c) continue;
+        const a = map(f.location?.start?.value), b = map(f.location?.end?.value ?? f.location?.start?.value); if (a == null || b == null) continue;
+        const text = [f.description, f.ligand?.name].filter(Boolean).join(' · ');
+        (out[f.type] ||= []).push({ asyms, from: Math.min(a, b), to: f.type === 'Disulfide bond' ? Math.min(a, b) : Math.max(a, b), to2: f.type === 'Disulfide bond' ? Math.max(a, b) : null, text, acc: al.reference_database_accession }); }
+    })().catch(e => console.warn('uniprot features', e)));
+  }
+  await Promise.all(jobs); return out;
+}
+function markSeqFeatures() {
+  if (!seqFt) { $('seqFtChips').innerHTML = ''; return; }
+  const inF = (a, f) => f.asyms.includes(a.asym.split('_')[0]) && (a.seq >= f.from && a.seq <= f.to || a.seq === f.to2);
+  $('seqRows').querySelectorAll('.r').forEach(el => { const a = seqCells[+el.dataset.i]; let col = null, tip = [];
+    for (const [t, L] of Object.entries(seqFt)) for (const f of L) if (inF(a, f)) { col ||= FT_CAT[t][1]; tip.push(FT_CAT[t][0] + (f.text ? '：' + f.text : '')); }
+    el.style.boxShadow = col ? `inset 0 3px 0 ${col}` : ''; if (tip.length) el.title = el.title.split('\n')[0] + '\n' + tip.join('\n'); });
+  $('seqFtChips').innerHTML = Object.entries(seqFt).map(([t, L]) => `<button class="ftc" data-t="${esc(t)}" style="border-color:${FT_CAT[t][1]};color:${FT_CAT[t][1]}">${FT_CAT[t][0]} ${L.length}</button>`).join(' ') || '<span>这个条目在 UniProt 里没有这些注释</span>';
+}
+$('seqFt').onclick = async () => { $('seqInfo').textContent = '正在读取 UniProt 注释…';
+  try { seqFt = await loadSeqFeatures(); markSeqFeatures(); $('seqInfo').textContent = '点一个类别：在 3D 中选中这些残基（UniProt 注释，按 RCSB 的序列比对换算到结构编号）'; } catch (e) { $('seqInfo').textContent = e.message; } };
+$('seqFtChips').onclick = async (e) => { const t = e.target.closest('.ftc')?.dataset.t; if (!t || !seqFt?.[t]) return;
+  const parts = seqFt[t].map(f => `(label_asym ${f.asyms.join(',')} and label_seq ${f.from}-${f.to}${f.to2 ? ` or label_asym ${f.asyms.join(',')} and label_seq ${f.to2}` : ''})`);
+  try { const r = await glow.select(parts.join(' or ')); $('seqInfo').textContent = `${FT_CAT[t][0]}：${r.residues} 个残基已选中。${[...new Set(seqFt[t].map(f => f.text).filter(Boolean))].slice(0, 3).join('；')}`; } catch (err) { $('seqInfo').textContent = err.message; } };
 function toggleSeqBar(on) { $('seqBar').hidden = on == null ? !$('seqBar').hidden : !on; renderSeqBar(); return !$('seqBar').hidden; }
 const backStack = [];
-async function openLinked(key, from = null) {
+/* A9: going back restores the whole state: the scene the same way it was entered (pack -> openPack, so the mode tab follows),
+   simulation controls, counters, seed, selection, time scale, pause, camera (no intro flight) */
+let pendingRestore = null;
+function sceneSource(cfg) {
+  if (cfg._packObj) return { pack: cfg._packObj, src: cfg._pack?.src || 'local' };
+  if (cfg.name && PRESETS[cfg.name]) return { preset: cfg.name };
+  const o = { ...(cfg._orig0 || cfg) }; for (const k of ['_orig0', '_restore', 'linkNote']) delete o[k];
+  if (o.structure?.text) delete o.local;   /* rebuilt from the text: the parsed entry was transformed in place */
+  return { cfg: o };
+}
+function sceneState() {
+  const mode = document.querySelector('#modeTabs button.on')?.dataset.cat || null;
+  return { src: sceneSource(current), camera: cameraNow(), timeScale, seed: randSeed, ctrl: cellSim ? { ...cellSim.ctrl } : null,
+    counters: proc ? { ...proc.ctx.counters } : null, sel: glowSel.expr || null, mode, paused: $('pause').checked, title: current?.name || current?.id };
+}
+async function enterSource(src, restore = null) {
+  pendingRestore = restore;
+  if (src.pack) return openPack(src.pack, src.src);
+  if (src.preset) { $('pdb').value = PRESETS[src.preset].id; return loadScene({ ...PRESETS[src.preset], name: src.preset }); }
+  const c = { ...src.cfg }; if (c.structure?.text && !c.local) c.local = entryFromFile(c.structure.name, c.structure.text);
+  $('pdb').value = c.id || ''; return loadScene(c);
+}
+function applyRestore(r) {   /* after the scene is built */
+  if (!r) return;
+  if (r.counters && proc) Object.assign(proc.ctx.counters, r.counters);
+  if (r.timeScale && r.timeScale !== timeScale) setTimeScale(r.timeScale);
+  $('pause').checked = !!r.paused;
+  if (r.mode) setMode(r.mode);
+  if (r.sel) try { GLOW_CMDS.select.fn(r.sel); } catch (e) {}
+}
+async function openLinked(key, note = null) {
   const name = presetName(key); if (!name || !current) return;
-  backStack.push({ cfg: current, camera: cameraNow(), timeScale }); if (backStack.length > 8) backStack.shift();
-  $('pdb').value = PRESETS[name].id; await loadScene({ ...PRESETS[name], name }); updateBack();
+  backStack.push(sceneState()); if (backStack.length > 8) backStack.shift();
+  pendingRestore = null; $('pdb').value = PRESETS[name].id; await loadScene({ ...PRESETS[name], name, ...(note ? { linkNote: note } : {}) }); updateBack();
 }
 async function goBack() {
   const b = backStack.pop(); if (!b) return; updateBack();
-  await loadScene({ ...b.cfg, camera: b.camera || b.cfg.camera });
-  if (b.timeScale && b.timeScale !== timeScale) setTimeScale(b.timeScale);
-  updateBack();
+  await enterSource(b.src, b); updateBack();
 }
-function updateBack() { const el = $('backBtn'); if (el) { el.style.display = backStack.length ? '' : 'none'; el.title = backStack.length ? '回到：' + (backStack[backStack.length - 1].cfg.name || backStack[backStack.length - 1].cfg.id) : ''; } }
+function updateBack() { const el = $('backBtn'); if (el) { el.style.display = backStack.length ? '' : 'none'; el.title = backStack.length ? '回到：' + (backStack[backStack.length - 1].title || '') : ''; } }
 function selectPart(g, fly = true) {
   if (focus) clearFocus();
   clearSelection(); sel.ids.add('part:' + groups.indexOf(g)); sel.source = 'part'; applySelection(); showSelInfo(g);
@@ -2060,20 +2154,29 @@ function pickAt(cx, cy) {
     if (!C.root.visible || !C.root.parent) continue;
     C.root.updateMatrixWorld(); _ray.copy(_rc.ray).applyMatrix4(_inv.copy(C.root.matrixWorld).invert());
     if (!C._P) { C._P = C.bodies.map(b => [b.c0.x, b.c0.y, b.c0.z]); C._R = C.bodies.map(b => C.types[b.i].R * 0.8); }
-    scan(C._P, C._R, 25, C.root.matrixWorld, true, (i) => ({ crowd: C.types[C.bodies[i].i], body: C.bodies[i] }));
+    scan(C._P, C._R, 25, C.root.matrixWorld, true, (i) => ({ crowd: C.types[C.bodies[i].i], body: C.bodies[i], set: C }));
   }
   return best;
 }
-let _pd = null;
+let _pd = null, _hovT = 0;
+renderer.domElement.addEventListener('pointermove', (e) => {
+  if (e.buttons || performance.now() - _hovT < 90) return; _hovT = performance.now();
+  let tip = $('ptip'); const h = model && !kit ? pickParticle(e.clientX, e.clientY) : null;
+  if (!h) { if (tip) tip.style.display = 'none'; return; }
+  if (!tip) { tip = document.createElement('div'); tip.id = 'ptip'; tip.style.cssText = 'position:fixed;z-index:30;pointer-events:none;background:rgba(255,255,255,.95);color:#1c2233;border:1px solid rgba(0,0,0,.15);border-radius:7px;padding:2px 8px;font-size:12px'; document.body.appendChild(tip); }
+  tip.textContent = h.name; tip.style.left = e.clientX + 12 + 'px'; tip.style.top = e.clientY + 10 + 'px'; tip.style.display = 'block';
+});
 renderer.domElement.addEventListener('pointerdown', (e) => { _pd = e.button === 0 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; });
 renderer.domElement.addEventListener('pointerup', (e) => {
   const d = _pd; _pd = null;
   if (!d || !model || focus || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 600) return;   // a drag rotates, only a tap selects
   if (kit) { kitSelect(kitPick(e.clientX, e.clientY)); return; }
+  const ph = pickParticle(e.clientX, e.clientY);
+  if (ph) { clearSelection(); $('infoT').textContent = ph.name; $('infoB').innerHTML = '<div class="sec" style="color:var(--dim)">动画里的粒子：种类按化学计量，数量、路径和速度为示意。</div>'; $('infoCard').style.display = 'block'; return; }
   const hit = pickAt(e.clientX, e.clientY);
   if (!hit) { if (sel.ids.size) { clearSelection(); $('infoCard').style.display = 'none'; } return; }
   if (hit.lig) { clearSelection(); focusLigand(hit.lig, hit.list.indexOf(hit.lig), hit.list.length); return; }
-  if (hit.crowd) { showCrowdInfo(hit.crowd); return; }
+  if (hit.crowd) { showCrowdInfo(hit.crowd, hit.set); return; }
   selectResidue(hit.g, hit.a);
 });
 /* energy steps -> selection: `energyHL[i]` lists what step i involves: part keys ('subunit beta', '/re/') or
@@ -2263,30 +2366,52 @@ function makeMol(tpl, xray = true, carbon = MOL_CARBON[tpl.comp]) {
   g.visible = false; procRoot.add(g); return g;
 }
 const PARTICLE_GEO = new THREE.IcosahedronGeometry(1, 2);
-function makeParticle(color, radius, label) {   /* label: its name tag (H⁺, e⁻, ATP ...) follows it and goes with it */
+function makeParticle(color, radius, label, name) {   /* label: its name tag (H⁺, e⁻, ATP ...) follows it and goes with it; name: shown on hover / tap (crowded particles) */
   const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.3, roughness: 0.3 });
-  const p = new THREE.Mesh(PARTICLE_GEO, mat); p.scale.setScalar(radius); procRoot.add(p); if (label) labelObj(p, label, color); return p;
+  const p = new THREE.Mesh(PARTICLE_GEO, mat); p.scale.setScalar(radius); procRoot.add(p); if (label) labelObj(p, label, color); p.userData.name = name || label || null; return p;
 }
+/* every particle has a name (audit 4): hover shows it, a tap opens a small card */
+function particleName(o) { return o.userData.name || o.userData.tag?.el?.textContent || null; }
+const _pw2 = new THREE.Vector3();
+function pickParticle(cx, cy) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  _rc.setFromCamera(_pv.set((cx - rect.left) / rect.width * 2 - 1, -(cy - rect.top) / rect.height * 2 + 1), camera);
+  let best = null;
+  procRoot.traverseVisible((o) => {
+    if (o.geometry !== PARTICLE_GEO || !o.isMesh) return; const nm = particleName(o); if (!nm) return;
+    if (o.isInstancedMesh) { const h = o.count ? _rc.intersectObject(o, false)[0] : null; if (h && (!best || h.distance < best.t)) best = { t: h.distance, name: nm, o }; return; }
+    o.getWorldPosition(_pw2); const r = Math.max(2.2, o.getWorldScale(_pv3).x * 1.4), t = _pw2.clone().sub(_rc.ray.origin).dot(_rc.ray.direction);
+    if (t <= 0 || _rc.ray.distanceSqToPoint(_pw2) > r * r) return; if (!best || t < best.t) best = { t, name: nm, o };
+  });
+  return best;
+}
+const _pv3 = new THREE.Vector3();
+function unnamedParticles() { let n = 0; procRoot.traverseVisible((o) => { if (o.isMesh && o.geometry === PARTICLE_GEO && !particleName(o)) n++; }); return n; }
 function makeFlash(color) {
   const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-  const f = new THREE.Mesh(PARTICLE_GEO, mat); f.visible = false; procRoot.add(f); return f;
+  const f = new THREE.Mesh(PARTICLE_GEO, mat); f.visible = false; f.userData.name = '闪光：事件发生的位置'; procRoot.add(f); return f;
 }
 
 /* ----------------------------------------------------------------------------- tiny animation runner */
 let anims = [];
 let eventLog = [];   /* every event label a process shows (__viewer.events(), glow info): what happened when */
 /* anim(obj, dur, step(u, dt) -> true to finish early, next() called when done; obj removed if no next) */
-function anim(obj, dur, step, next, fail) { anims.push({ obj, t: 0, dur, step, next, fail }); }
+let animPending = 0;   /* A11: anims whose continuation (a promise or a callback) has not run yet; must be 0 right after clearScene */
+function anim(obj, dur, step, next, fail) {
+  if (!next && !fail) { anims.push({ obj, t: 0, dur, step }); return; }
+  let done = false; animPending++; const fin = () => { if (!done) { done = true; animPending--; } };
+  anims.push({ obj, t: 0, dur, step, fin, next: next && ((...x) => { fin(); return next(...x); }), fail: (e) => { fin(); fail?.(e); } });
+}
 /* a waitable animation: rejected with Stale when the scene is cleared, so the coroutine awaiting it ends instead of hanging (L1) */
 function animP(obj, dur, step) { return new Promise((res, rej) => anim(obj, dur, step, res, rej)); }
-function rejectAnims() { const A = anims; anims = []; for (const a of A) try { a.fail?.(new Stale()); } catch (e) {} }
+function rejectAnims() { const A = anims; anims = []; for (const a of A) try { a.fail?.(new Stale()); } catch (e) {} rejectAnims.left = animPending; }
 addEventListener('unhandledrejection', (e) => { if (e.reason instanceof Stale) e.preventDefault(); });   /* coroutines end quietly on Stale */
 function tickAnims(dt) {
   for (let i = anims.length - 1; i >= 0; i--) {
     const a = anims[i]; a.t += dt;
     const u = a.dur ? Math.min(1, a.t / a.dur) : a.t;
     const done = a.step(u, dt) === true || (a.dur && u >= 1);
-    if (done) { anims.splice(i, 1); if (a.next) a.next(); else if (a.obj) a.obj.parent?.remove(a.obj); }
+    if (done) { anims.splice(i, 1); a.fin?.(); if (a.next) a.next(); else if (a.obj) a.obj.parent?.remove(a.obj); }
   }
 }
 
@@ -2475,7 +2600,7 @@ class MolPool {
    label + '@' + comp), so a process that asks for 'H⁺@top' gets the very H⁺ the compartment model is showing. */
 function scenePool(key, spec) {
   let p = scenePools.get(key); if (p) return p;
-  const make = spec.make || (() => { const m = makeParticle(spec.col, spec.r || 2.2); return m; });
+  const make = spec.make || (() => { const m = makeParticle(spec.col, spec.r || 2.2, null, spec.name || spec.label || null); return m; });
   p = new MolPool({ ...spec, make, key }); scenePools.set(key, p); if (spec.n) p.fill(); return p;
 }
 function updatePools(dt) { for (const p of scenePools.values()) p.update(dt); }
@@ -2509,7 +2634,7 @@ class FlowLayer {
     this.S = defs.filter(d => d.paths?.length).map(d => {
       const curves = d.paths.map(P => { const c = new THREE.CatmullRomCurve3(P, false, 'centripetal'); return { c, L: c.getLength() }; });
       const max = d.max || 400, mat = new THREE.MeshStandardMaterial({ color: d.col, emissive: d.col, emissiveIntensity: 1.1, roughness: 0.35 });
-      const mesh = new THREE.InstancedMesh(PARTICLE_GEO, mat, max); mesh.count = 0; mesh.frustumCulled = false; procRoot.add(mesh);
+      const mesh = new THREE.InstancedMesh(PARTICLE_GEO, mat, max); mesh.count = 0; mesh.frustumCulled = false; mesh.userData.name = d.name || d.label; procRoot.add(mesh);
       const mid = curves[0].c.getPoint(0.5), tag = makeTag(d.label, { p: mid, cls: 'small flow' }); tag.el.style.borderColor = '#' + new THREE.Color(d.col).getHexString();
       return { d, curves, mesh, max, parts: [], acc: 0, tag };
     });
@@ -2549,7 +2674,7 @@ async function atpFromPools(pl, at, ctx) {
   const k = ctx.pace(), a = pl('ADP').take(at), p = pl('Pi').take(at), fi = (o) => ({ fadeIn: (o.userData.alpha ?? 1) < 1 ? 0.3 : 0, tumble: true });
   await Promise.all([travel(a, brownPath(a.position.clone(), at, { free1: 10 }), 2.4 / k, fi(a)), travel(p, brownPath(p.position.clone(), at.clone().add(V3n(3, -2, 0)), { free1: 10 }), 2.4 / k, fi(p))]);
   a.parent?.remove(a); p.parent?.remove(p);
-  eventTag('ADP + Pi → ATP（F1 头部）', at.clone().add(V3n(0, 8, 0)), 2.0); ctx.counters.ATP++;
+  eventTag('ADP + Pi → ATP（F1 头部）', at.clone().add(V3n(0, 8, 0)), 2.0); if ('ATP' in ctx.counters) ctx.counters.ATP++;
   const m = mkSp('ATP'), pool = pl('ATP'); m.position.copy(at);
   await travel(m, brownPath(at.clone(), pool.region.sample(false) || at.clone().add(V3n(0, 60, 0)), { free0: 10, free1: 0 }), 2.6 / k);
   pool.give(m);
@@ -2634,11 +2759,12 @@ async function buildCrowd(spec) {
     try { const e = await loadEntry(t.id, true, false); const P = e.atoms.map(a => a.p), c = P.reduce((s, p) => s.add(p), new V()).multiplyScalar(1 / P.length);
       const np = spec.ptsPer ? THREE.MathUtils.clamp(Math.round(P.length / spec.ptsPer), 6, spec.maxPts || 40) : 300;
       const k = Math.max(1, Math.ceil(P.length / np)), pts = P.filter((_, i) => i % k === 0).map(p => p.clone().sub(c));
-      return { ...t, pts, n: P.length, r: 3.3 * Math.cbrt(k) * 1.12, R: Math.max(...pts.map(p => p.length())), vol: P.length * 135 };
+      return { ...t, pts, n: P.length, org: KNOWN_ORG[t.id] || e.prov?.organisms?.[0] || null, r: 3.3 * Math.cbrt(k) * 1.12, R: Math.max(...pts.map(p => p.length())), vol: P.length * 135 };
     } catch (e) { console.warn('crowd', t.id, e); return null; } }));
   const S = shapes.filter(Boolean); if (!S.length) return null;
   /* how many copies: abundance first, then fill types up to the target volume fraction */
   const want = S.map(s => Math.round((s.perCell || 0) * boxVol / (spec.cellVol || 7e11)));
+  S.forEach((s, i) => { s.expect = want[i]; s.scale = boxVol / (spec.cellVol || 7e11); });
   let vol = S.reduce((a, s, i) => a + want[i] * s.vol, 0); const fillers = S.map((s, i) => i).filter(i => S[i].fill);
   for (let g = 0; vol < (spec.phi || 0.15) * boxVol && fillers.length && g < (spec.maxFill || 3000); g++) { const i = fillers[g % fillers.length]; want[i]++; vol += S[i].vol; }
   /* place: biggest first (ribosomes before small enzymes) */
@@ -2671,19 +2797,37 @@ async function buildCrowd(spec) {
   world.add(root); procWorld.push(root);
   const summary = S.filter(s => s.placed).map(s => `${s.label} ×${s.placed}`).join('、');
   console.log(`crowd: ${bodies.length} 个分子，体积分数 ${(100 * Math.min(vol, S.reduce((a, s) => a + s.placed * s.vol, 0)) / boxVol).toFixed(0)}%：${summary}`);
-  const C = { root, draw, bodies, types: S, summary, phi: S.reduce((a, s) => a + s.placed * s.vol, 0) / boxVol }; crowdSets.push(C);
+  const C = { root, draw, bodies, types: S, summary, scale: boxVol / (spec.cellVol || 7e11), phi: S.reduce((a, s) => a + s.placed * s.vol, 0) / boxVol }; crowdSets.push(C);
   return C;
 }
 let crowdSets = [];   /* every crowd of the scene (picking); cleared with the scene */
-function showCrowdInfo(t) {
+/* one statement for crowd numbers everywhere (card, evidence): abundance per E. coli cell from the literature x the share of the cell drawn;
+   "fill" molecules only top up the total protein fraction; positions, orientations and motion are illustrative */
+const CROWD_RULE = '数量 = 每个大肠杆菌细胞的文献丰度 × 画出部分占细胞的体积（膜蛋白按面积）比例；标为“填充”的分子只用来补足总蛋白体积分数；位置、朝向和运动为示意';
+function showCrowdInfo(t, C) {
   clearSelection();
-  $('infoT').innerHTML = `<span class="sw" style="background:${t.col || '#d8d2c4'}"></span>`; $('infoT').append(t.label || t.id);
-  let h = `<div>PDB ${esc(t.id)} · 第一个生物组装体的 Cα / P 粗粒化外形（${(t.n || 0).toLocaleString()} 个残基）</div>`;
-  h += `<div class="sec"><b>背景分子</b>：形状来自真实结构；<b>位置、朝向和数量为示意</b>（按大肠杆菌里的丰度随机摆放，避开主结构）。</div>`;
-  const lk = linkFor(t.label, t.id === '4V6F' || t.id === '4YBB' ? 'ribosome' : '');
-  if (lk) h += `<div class="sec"><button class="openLink" data-k="${esc(lk)}">打开这个机器：${esc(presetName(lk))} →</button></div>`;
+  const col = new THREE.Color(typeof t.col === 'string' ? t.col : 0xd8d2c4).getHexString();   /* A13: never raw text into style */
+  $('infoT').innerHTML = `<span class="sw" style="background:#${col}"></span>`; $('infoT').append(t.label || t.id);
+  const org = t.org || orgOf(t.id), si = standIn(t.id, org);
+  let h = `<div class="sec"${si ? ' style="color:#a14a00"' : ''}><b>物种：${esc(orgName(org))}</b>${si ? '<br>' + esc(si) : ''}</div>`;
+  h += `<div>PDB ${esc(t.id)} · 第一个生物组装体的 Cα / P 粗粒化外形（${(t.n || 0).toLocaleString()} 个残基）</div>`;
+  const placed = t.placed ?? null;
+  h += `<div class="sec"><b>数量</b>：${t.perCell ? `每个大肠杆菌细胞约 ${t.perCell.toLocaleString()} 个（文献）；画出的这部分按比例应有约 ${(t.expect ?? 0).toLocaleString()} 个${placed != null ? `，画出 ${placed.toLocaleString()} 个` : ''}` : `填充分子：画出 ${placed ?? '?'} 个，只用来补足总蛋白体积分数，不是它的文献丰度`}。<b>位置、朝向和运动为示意</b>。</div>`;
+  const lk = linkFor(t.label, t.id === '4V6F' || t.id === '4YBB' ? 'ribosome' : ''), ln = lk && linkNote(lk, org);
+  if (lk) h += `<div class="sec">${ln ? `<span style="color:#a14a00">${esc(ln)}</span><br>` : ''}<button class="openLink" data-k="${esc(lk)}">打开这个机器：${esc(presetName(lk))} →</button></div>`;
+  if (C?.types?.length > 1) h += `<div class="sec"><button class="crowdTab">真实数量 vs 画出数量 ▾</button><div class="crowdTbl" style="display:none"></div></div>`;
   $('infoB').innerHTML = h; $('infoCard').style.display = 'block';
-  $('infoB').querySelector('.openLink')?.addEventListener('click', (e) => openLinked(e.target.dataset.k));
+  $('infoB').querySelector('.openLink')?.addEventListener('click', (e) => openLinked(e.target.dataset.k, ln));
+  $('infoB').querySelector('.crowdTab')?.addEventListener('click', (e) => {   /* audit: real count (literature x scale) against what is drawn, for every type */
+    const box = $('infoB').querySelector('.crowdTbl'), on = box.style.display === 'none'; box.style.display = on ? 'block' : 'none';
+    e.target.textContent = on ? '真实数量 vs 画出数量 ▴' : '真实数量 vs 画出数量 ▾'; if (!on || box.innerHTML) return;
+    const rows = C.types.map(s => ({ s, real: s.expect ?? null, drawn: s.placed ?? 0 })), mx = Math.max(1, ...rows.map(r => Math.max(r.real ?? 0, r.drawn)));
+    const bar = (v, c) => `<span style="display:inline-block;height:6px;width:${Math.max(1, Math.round(70 * v / mx))}px;background:${c};vertical-align:middle"></span>`;
+    box.innerHTML = '<div style="color:var(--dim);margin:4px 0">真实 = 文献每细胞数 × 画出部分的比例（灰条）；画出 = 场景里放下的（彩条）。填充分子没有真实数。</div>'
+      + rows.map(r => `<div style="display:grid;grid-template-columns:7.5em 1fr;gap:2px 6px;font-size:12px${r.s === t ? ';font-weight:600' : ''}"><span>${esc(r.s.label || r.s.id)}</span><span>`
+        + (r.real != null ? `${bar(r.real, '#b9b4a8')} ${Math.round(r.real).toLocaleString()}<br>` : '<span style="color:var(--dim)">填充</span><br>')
+        + `${bar(r.drawn, '#' + new THREE.Color(typeof r.s.col === 'string' ? r.s.col : 0xd8d2c4).getHexString())} ${r.drawn.toLocaleString()}</span></div>`).join('');
+  });
 }
 
 /* ----------------------------------------------------------------------------- tunnel / pore search
@@ -2811,6 +2955,7 @@ let procWorld = [];   // process objects that live in the main scene (macromolec
    ============================================================================= */
 const PROCESSES = {
   atpSynthase: {
+    lead: 'ATP 合酶（牛线粒体，c8 环）：每转 8 个 H⁺ 回流，合成 3 个 ATP。',
     energyHL: [['/subunit a$/'], ['/subunit a$/', 'subunit C1'], ['subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1', 'subunit beta'], ['subunit beta', 'subunit alpha'], ['subunit beta', 'subunit gamma']],
     energy: [
       ['质子动力势', '呼吸链把 H⁺ 泵到膜间隙，建立跨线粒体内膜的电化学梯度（质子动力势 Δp 约 180–200 mV，主要是膜电位，ΔpH 只占一小部分）。这是 ATP 合酶的能量来源。'],
@@ -2896,7 +3041,7 @@ const PROCESSES = {
         for (const s2 of chains) { const Tf = T[k][s2], L0 = local[s2];
           P[s2] = { atp: apply(Tf, L0.atp), adp: apply(Tf, L0.adp), mg: L0.mg && Tf(L0.mg), pi: Tf(L0.pi), piOut: Tf(L0.piOut) }; }
         const S = P[k].atp.t.clone(), D = new THREE.Vector3(S.x, 0, S.z).normalize();
-        return { k, P, S, D, mg: ctx.makeParticle(0x7dff8a, 1.6), entr: S.clone().addScaledVector(D, 14).add(new THREE.Vector3(0, 9, 0)) };
+        return { k, P, S, D, mg: ctx.makeParticle(0x7dff8a, 1.6, null, 'Mg²⁺（β 位点里和 ADP / ATP 结合）'), entr: S.clone().addScaledVector(D, 14).add(new THREE.Vector3(0, 9, 0)) };
       });
       { const s0 = this.sites[0], own = s0.P[s0.k], loc = (pose, p) => p ? p.clone().sub(pose.t).applyQuaternion(pose.q.clone().invert()) : null;
         this.mgOff = { adp: loc(own.adp, own.mg), atp: loc(own.atp, own.mg) }; this.tpl = { atp: tATP, adp: tADP, pi: tPi };
@@ -2913,7 +3058,7 @@ const PROCESSES = {
       const mat = shellRegion(cF, this.rF1 + 6, this.rF1 + 75, (p) => p.y > yc + 30), ims = shellRegion(V3n(0, yc - 45, 0), 0, 120, (p) => p.y < yc - 28);
       const matH = shellRegion(V3n(0, yc + 45, 0), 0, 125, (p) => p.y > yc + 28);
       const nuc = (tpl, mg) => () => { const g = new THREE.Group(), m = makeMol(tpl); m.visible = true; g.add(m);
-        if (mg) { const q = makeParticle(0x7dff8a, 1.4); q.position.copy(mg); g.add(q); } procRoot.add(g); return g; };
+        if (mg) { const q = makeParticle(0x7dff8a, 1.4, null, 'Mg²⁺（和 ATP 一起离开）'); q.position.copy(mg); g.add(q); } procRoot.add(g); return g; };
       return this._pools = {
         adp: scenePool('Mg·ADP@mat', { label: 'Mg·ADP', col: 0x00c8ff, make: nuc(T.adp, off.adp), region: mat, n: 4, tumble: true }),
         pi: scenePool('Pi@mat', { label: 'Pi', col: 0xc9a2ff, make: () => { const m = makeMol(T.pi); m.visible = true; return m; }, region: mat, n: 4, tumble: true }),
@@ -3027,6 +3172,7 @@ const PROCESSES = {
   },
 
   flagellarMotor: {
+    lead: '鞭毛马达：H⁺ 流过定子，驱动转子旋转（H⁺ 数和转速为示意）。',
     energyHL: [['定子'], ['定子'], ['定子'], ['定子', 'C 环'], ['C 环', 'M-ring', 'MS ring', 'rod', 'hook protein', '鞭毛丝']],
     energy: [
       ['质子动力势', '细菌质膜内外的 H⁺ 电化学梯度（Δp 约 −150 mV 量级）。鞭毛马达直接用这个梯度，不用 ATP。'],
@@ -3112,11 +3258,12 @@ const PROCESSES = {
       ['复合体 I：电子下坡，泵 4 H⁺', '电子经一串铁硫簇（N3 → N1b → N4 → N5 → N6a → N6b → N2，间距都 < 14 Å，靠量子隧穿跳跃）到达膜旁的 N2，再还原泛醌（Q → QH₂）。还原放出的能量通过膜臂的构象 / 静电耦合，把 4 个 H⁺ 从基质泵到膜间隙（耦合的具体机制仍有争论）。'],
       ['泛醌池', 'QH₂ 是脂溶性的，在膜内扩散，把 2 个电子带到复合体 III。'],
       ['复合体 III：Q 循环', 'QH₂ 在 Qo 位点被氧化，两个电子分道：一个经 Rieske 铁硫蛋白 → 细胞色素 c1 → 细胞色素 c（高电位链）；另一个经血红素 bL → bH 到 Qi 位点还原另一个醌（低电位链）。Q 循环的净效果：每 2 个电子向膜间隙释放 4 个 H⁺，并从基质侧摄取 2 个。'],
-      ['细胞色素 c 穿梭', '水溶性的细胞色素 c 在膜间隙一侧穿梭，一次只携带 1 个电子（血红素铁 Fe³⁺ ⇌ Fe²⁺），从复合体 III 的 c1 送到复合体 IV 的 CuA；每个 NADH 需要往返 2 次（动画只画一次）。'],
+      ['细胞色素 c 穿梭', '水溶性的细胞色素 c 在膜间隙一侧穿梭，一次只携带 1 个电子（血红素铁 Fe³⁺ ⇌ Fe²⁺），从复合体 III 的 c1 送到复合体 IV 的 CuA；每个 NADH 往返 2 次（动画画出两趟）。'],
       ['复合体 IV：O₂ → H₂O', '电子 CuA → 血红素 a → 血红素 a3–CuB 双核中心，在这里把 O₂ 还原成水（O₂/H₂O 的 E°′ ≈ +0.82 V）。每 2 个电子消耗基质侧 2 个“化学”H⁺（生成水），同时再泵出 2 个 H⁺。'],
-      ['质子动力势 → ATP', 'NADH → O₂：ΔE°′ ≈ 1.14 V，ΔG°′ = −nFΔE°′ ≈ −220 kJ/mol。约 10 个 H⁺ 进入膜间隙（复合体 I 泵出 4 个、IV 泵出 2 个；复合体 III 的 Q 循环不是泵：在 Qo 位点释放 4 个、在 Qi 位点从基质摄取 2 个），能量储存在跨内膜的质子动力势里（约 200 mV，线粒体中以膜电位为主）。H⁺ 经 ATP 合酶回流驱动转子：牛的 c8 环每转 8 个 H⁺ 合成 3 个 ATP；加上运入 ADP 和 Pi 的耗费，约每个 NADH 产生 2.5 个 ATP。'] ],
+      ['质子动力势 → ATP', 'NADH → O₂：ΔE°′ ≈ 1.14 V，ΔG°′ = −nFΔE°′ ≈ −220 kJ/mol。约 10 个 H⁺ 进入膜间隙（复合体 I 泵出 4 个、IV 泵出 2 个；复合体 III 的 Q 循环不是泵：在 Qo 位点释放 4 个、在 Qi 位点从基质摄取 2 个），能量储存在跨内膜的质子动力势里（约 200 mV，线粒体中以膜电位为主）。H⁺ 经 ATP 合酶回流驱动转子：牛的 c8 环每转 8 个 H⁺ 合成 3 个 ATP。' + ATP_PER_NADH + '。'] ],
     stage() { return this.stg || 0; },
-    caption: 'NADH 的电子沿真实辅因子位置（铁硫簇、血红素、铜中心）流过复合体 I → 泛醌 → 复合体 III → 细胞色素 c → 复合体 IV → O₂；每个 NADH 约 10 个 H⁺（黄）进入膜间隙：复合体 I 泵出 4 个、IV 泵出 2 个，复合体 III 经 Q 循环释放 4 个（不是泵），H⁺ 经 ATP 合酶回流驱动转子合成 ATP（5GUP 猪呼吸链超复合物 + 1HRC 细胞色素 c + 6ZPO 牛 ATP 合酶；组件位置为示意）。计数：ATP = 经 ATP 合酶回流的 H⁺ × 3/8（牛 c8 环每转 8 个 H⁺ 合成 3 个 ATP）；理论上每个 NADH 送出 10 个 H⁺，约合 2.7 个 ATP（每个 ATP 另需约 1 个 H⁺ 把 ADP 和 Pi 运进基质：10 ÷ (8/3 + 1)）。画面上转子转速由滑块或模拟决定，所以回流的 H⁺ 不一定等于送出的（示意）',
+    lead: '呼吸链：每个 NADH 送出 10 个 H⁺；H⁺ 经 ATP 合酶回流才合成 ATP（理论约 2.7 个，测得约 2.5 个）。',
+    caption: 'NADH 的电子沿真实辅因子位置流过复合体 I → 泛醌 → III → 细胞色素 c → IV → O₂。每个 NADH：复合体 I 泵出 4 个 H⁺，III 经 Q 循环释放 4 个（不是泵），IV 泵出 2 个，共 10 个。H⁺ 账本：膜间隙存量 = 送出 − 经 ATP 合酶回流；存量用完时转子停下。ATP 计数 = 回流 H⁺ × 3/8（牛 c8 环，只算合酶产出）；' + ATP_PER_NADH + '。结构：5GUP 猪呼吸链超复合物 + 1HRC 马细胞色素 c + 6ZPO 牛 ATP 合酶，组件位置为示意。',
     async setup(ctx) {
       const V3 = (x, y, z) => new THREE.Vector3(x, y, z), all = ctx.allAtoms;
       const partAt = (p) => { let b = null, bd = 1e9; for (const a of all) { const d = a.p.distanceToSquared(p); if (d < bd) { bd = d; b = a; } } return b?.part || ''; };
@@ -3164,7 +3311,7 @@ const PROCESSES = {
       this.atpH = [aSub.clone().setY(ym - 34), aSub.clone().setY(ym - 6), aSub.clone().setY(ym + 6), aSub.clone().setY(ym + 34)];
       this.atpOut = beta.clone().add(V3(0, 18, 0));
       this.lastA = Math.floor(ctx.theta / (2 * Math.PI / 3)); this.lastH = Math.floor(ctx.theta / (2 * Math.PI / 8));
-      ctx.counters.NADH = 0; ctx.counters['H⁺ 泵出（复合体 I / IV）'] = 0; ctx.counters['H⁺ 释放到膜间隙（Q 循环）'] = 0; ctx.counters['H⁺ 回流（ATP 合酶）'] = 0; ctx.counters.ATP = 0; this.nE = 0;   /* per NADH (2 e⁻): pumped I 4 + IV 2; Q cycle at III releases 4 (and takes up 2 at Qi) -> 10 to the IMS */
+      ctx.counters.NADH = 0; ctx.counters['H⁺ 泵出（复合体 I / IV）'] = 0; ctx.counters['H⁺ 释放到膜间隙（Q 循环）'] = 0; ctx.counters['H⁺ 回流（ATP 合酶）'] = 0; ctx.counters['H⁺ 膜间隙存量'] = 0; ctx.counters['ATP（合酶产出）'] = 0; ctx.counters['ATP / NADH'] = 0; this.nE = 0;   /* per NADH (2 e⁻): pumped I 4 + IV 2; Q cycle at III releases 4 (and takes up 2 at Qi) -> 10 to the IMS */
       ctx.markHot([...chain, cuA, cuB, this.a3, this.ha, c1, bL, bH, isp], 7);
       this.t = 0; this.busy = false; this.stg = 0;
     },
@@ -3293,7 +3440,7 @@ const PROCESSES = {
       /* cytochrome c follows its animated position; its heme glows while it carries an electron */
       const g = ctx.partGroups(/^细胞色素 c$/)[0];
       if (g?.mesh) g.mesh.position.copy(this.cytPos).sub(this.c0);
-      if (!this.heme) { this.heme = ctx.makeParticle(0xff7040, 2.4); this.hemeTag = labelObj(this.heme, '细胞色素 c（血红素）', 0xff7040); }
+      if (!this.heme) { this.heme = ctx.makeParticle(0xff7040, 2.4, null, '细胞色素 c 的血红素'); this.hemeTag = labelObj(this.heme, '细胞色素 c（血红素）', 0xff7040); }
       this.heme.position.copy(this.cytPos).sub(this.c0).add(this.h0); this.heme.scale.setScalar(this.cytLoaded ? 3.4 : 2.0);
       this.hemeTag.set(this.cytLoaded ? '细胞色素 c · Fe²⁺（带 1 个 e⁻）' : '细胞色素 c · Fe³⁺');
       /* ATP synthase: 8 H+ per turn of the c8 ring, 3 ATP per turn */
@@ -3304,8 +3451,16 @@ const PROCESSES = {
       for (; this.lastH < kH; this.lastH++) { ctx.counters[RET]++; protonAcross(this.pl('H⁺', 'bot'), this.pl('H⁺', 'top'), this.atpH, { pace: ctx.pace, label: 'H⁺（ATP 合酶 a 亚基 / c 环）',
         keepIn: (p) => { p.y = Math.min(p.y, ym - 26); }, keepOut: (p) => { p.y = Math.max(p.y, ym + 26); } }).catch(() => {}); }
       for (; this.lastA < kA; this.lastA++) atpFromPools((nm) => this.pl(nm, 'top', nm === 'ATP' ? 0 : 3), this.atpOut, ctx, true).catch(() => {});
-      ctx.counters.ATP = Math.floor(ctx.counters[RET] * 3 / 8);
+      /* the proton ledger: what was sent out = what came back through the synthase + what is still in the intermembrane space */
+      const out = ctx.counters['H⁺ 泵出（复合体 I / IV）'] + ctx.counters['H⁺ 释放到膜间隙（Q 循环）'], ret = ctx.counters[RET];
+      ctx.counters['H⁺ 膜间隙存量'] = out - ret;
+      ctx.counters['ATP（合酶产出）'] = Math.floor(ret * 3 / 8);
+      ctx.counters['ATP / NADH'] = ctx.counters.NADH ? +(ctx.counters['ATP（合酶产出）'] / ctx.counters.NADH).toFixed(2) : 0;
       this.flows(ctx, dt);
+    },
+    /* the rotor only turns while there are protons to return (pmf drives it; the slider sets the top speed) */
+    rotorRate() { const c = this.ctx?.counters; if (!c) return 1; const pool = (c['H⁺ 泵出（复合体 I / IV）'] || 0) + (c['H⁺ 释放到膜间隙（Q 循环）'] || 0) - (c['H⁺ 回流（ATP 合酶）'] || 0);
+      return pool >= 1 ? Math.min(1, 0.3 + pool / 12) : 0;
     },
     flows(ctx, dt) {
       if (!fastMode()) { if (this.flow) this.flow.visible = false; return; }
@@ -3330,6 +3485,7 @@ const PROCESSES = {
   },
 
   chloroplast: {
+    lead: '叶绿体光反应：光把水的电子送到 NADPH，腔内累积的 H⁺ 驱动 ATP 合酶。',
     /* compartment model (stroma / thylakoid lumen): mM, s. Lumen pH 7 -> ~5.6 in light, stroma 7 -> ~8.1; photosynthetic
        control (b6f slows when lumen pH < ~5.8), ATP synthase driven by pmf above threshold, Calvin cycle 3 ATP + 2 NADPH / CO2
        (enzymes light-activated via thioredoxin, tau ~6 s), cyclic electron flow when NADPH is high (2 H+/e-, no NADPH). */
@@ -3382,7 +3538,7 @@ const PROCESSES = {
       ['光能捕获', '天线叶绿素吸收光子（680 nm 红光约 1.82 eV，每摩尔光子约 176 kJ），激发能经共振能量转移在几十皮秒内汇集到反应中心 P680。每轮动画 = 2 个电子 = 1 个 NADPH，PSII 和 PSI 各需 2 个光子。'],
       ['PSII：电荷分离 + 水裂解', 'P680* 把电子交给去镁叶绿素（约 3 ps）→ QA → 非血红素铁 → QB；留下的 P680⁺（约 +1.2 V，生物界最强氧化剂）经 D1 的 Tyr161（TyrZ）从 Mn₄CaO₅ 簇夺回电子。锰簇攒够 4 个氧化当量，把 2 H₂O 氧化成 O₂（O₂/H₂O E°′ = +0.82 V），4 个 H⁺ 留在类囊体腔。QB 接 2 个电子并从基质摄取 2 个 H⁺ 成为 PQH₂。'],
       ['质体醌 → b6f：Q 循环', 'PQH₂ 在膜内扩散到 b6f 的 Qo 位点被氧化：一个电子经 Rieske 铁硫簇 → 细胞色素 f（高电位链，约 +0.37 V）；另一个经血红素 bL → bH → cn 回到 Qi 位点还原质体醌（低电位链，需基质 H⁺）。每 2 个电子向腔里释放 4 个 H⁺。'],
-      ['质体蓝素穿梭', '质体蓝素（Cu）在类囊体腔里一次运 1 个电子，从细胞色素 f 送到 PSI 的 P700⁺（每轮需往返 2 次，动画只画一次）。'],
+      ['质体蓝素穿梭', '质体蓝素（Cu）在类囊体腔里一次运 1 个电子，从细胞色素 f 送到 PSI 的 P700⁺（每轮往返 2 次，动画画出两趟）。'],
       ['PSI：第二次光激发', 'P700（约 +0.45 V）吸收 700 nm 光子（约 1.77 eV）变成 P700*（约 −1.3 V），电子经 A0（叶绿素）→ A1（叶绿醌）→ FX → FA → FB 铁硫簇到达基质表面。两个光系统串联、能量“两次爬坡”，画成电位图就是 Z 形，所以叫 Z 方案。'],
       ['Fd → FNR → NADPH', '铁氧还蛋白（−0.42 V）把电子带给 FNR；FNR 的 FAD 攒够 2 个电子，以 H⁻ 形式交给 NADP⁺（E°′ = −0.32 V），从基质再取 1 个 H⁺ → NADPH。总账：H₂O → NADP⁺，ΔE°′ ≈ 1.14 V，2 个电子 ΔG°′ ≈ +220 kJ/mol（上坡），由 4 个光子（约 690 kJ/mol）推动，光能约 1/3 存进 NADPH。'],
       ['质子动力势 → ATP', '每 2 个电子约 6 个 H⁺ 进入类囊体腔（水裂解 2 + Q 循环 4），腔 pH 可降到约 5。H⁺ 经 CF1Fo ATP 合酶流回基质：c14 环每转 14 个 H⁺ 合成 3 个 ATP（约 4.7 H⁺/ATP）→ 线性电子流约 1.3 ATP/NADPH，而卡尔文循环需要 1.5；不足的 ATP 由环式电子流（Fd → PQ → b6f → PSI，只泵 H⁺、不产 NADPH）补上。'] ],
@@ -3514,12 +3670,16 @@ const PROCESSES = {
         two(() => hop(mkSp('e⁻', 'e⁻（Rieske → 细胞色素 f）'), [this.Qo, this.isp, this.f], 0.6)),
       ]);
       /* 3: plastocyanin carries the electron from cyt f to P700 (diffusing through the lumen, around the proteins) */
-      this.stg = 3; const pc = this.pc;
-      await hop(mkSp('e⁻'), [this.f, pc.pos.clone().sub(pc.c0).add(pc.h0)], 0.6); pc.loaded = true;
-      await shuttle(pc, pc.dock2, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); });
+      const pc = this.pc;
+      for (let trip = 0; trip < 2; trip++) {   /* 2 electrons per cycle: plastocyanin carries one per trip, so it goes twice */
+        this.stg = 3;
+        await hop(mkSp('e⁻'), [this.f, pc.pos.clone().sub(pc.c0).add(pc.h0)], 0.6); pc.loaded = true;
+        await shuttle(pc, pc.dock2, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); });
+        this.stg = 4; pc.loaded = false;
+        await hop(mkSp('e⁻', `e⁻（质体蓝素第 ${trip + 1} 趟）`), [pc.dock2.clone().sub(pc.c0).add(pc.h0), this.P700], 0.5);
+        const back = shuttle(pc, pc.dock1, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); }); if (trip === 0) await back;
+      }
       /* 4: second photon pair at PSI; electron down the PSI chain */
-      this.stg = 4; pc.loaded = false;
-      await hop(mkSp('e⁻'), [pc.dock2.clone().sub(pc.c0).add(pc.h0), this.P700], 0.5); shuttle(pc, pc.dock1, 2.6, (p) => { p.y = Math.min(p.y, ym - 30); });
       await two(() => photon(this.P700, this.ant1, this.marks[1], 'P700'));
       const fd = this.fd, fdH = () => fd.pos.clone().sub(fd.c0).add(fd.h0);
       await two(() => hop(mkSp('e⁻', 'e⁻（A0 → A1 → FX → FA → FB）'), [this.P700, ...(this.A0 ? [this.A0] : []), this.A1, this.FX, this.FA, this.FB, fdH()], 0.4));
@@ -3542,7 +3702,7 @@ const PROCESSES = {
       if (!this.busy && !fastMode() && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle().catch((e) => console.warn(e));
       for (const [lab, s, col, t0, t1] of [['质体蓝素', this.pc, 0x4ad6ff, '质体蓝素 · Cu²⁺', '质体蓝素 · Cu⁺（带 1 个 e⁻）'], ['铁氧还蛋白', this.fd, 0xff8a5a, '铁氧还蛋白 · 氧化态', '铁氧还蛋白 · 还原态（带 1 个 e⁻）']]) {
         const g = ctx.partGroups(new RegExp('^' + lab + '$'))[0]; if (g?.mesh) g.mesh.position.copy(s.pos).sub(s.c0);
-        if (!s.glow) { s.glow = ctx.makeParticle(col, 2.2); s.tag = labelObj(s.glow, t0, col); }
+        if (!s.glow) { s.glow = ctx.makeParticle(col, 2.2, null, t0); s.tag = labelObj(s.glow, t0, col); }
         s.glow.position.copy(s.pos).sub(s.c0).add(s.h0); s.glow.scale.setScalar(s.loaded ? 3.4 : 2.0); s.tag.set(s.loaded ? t1 : t0);
       }
       /* CF1Fo: 14 H+ per turn of the c14 ring, 3 ATP per turn */
@@ -3579,46 +3739,6 @@ const PROCESSES = {
     },
   },
 
-  ionChannel: {
-    energyHL: [[], [{ aseqs: [[62, 74]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[79, 81]] }]],
-    energy: [
-      ['电化学梯度', '细胞内 K⁺ 浓度高（约 140 mM，胞外约 5 mM），K⁺ 顺电化学梯度外流。通道不消耗 ATP，只提供一条能垒很低的通路（被动运输）。'],
-      ['水合 K⁺ 进入中央腔', '中央腔里充满水，K⁺ 仍带着水合壳；四个孔螺旋的偶极负端指向中央腔，稳定腔里的阳离子（Doyle 等 1998）。'],
-      ['过滤器：羰基氧替代水', 'TVGYG 的主链羰基氧（最内侧位点还有 Thr75 侧链羟基）围成与水合壳几何几乎相同的氧笼，K⁺ 脱水的能量代价被配位补偿；更小的 Na⁺ 不能同时与这些氧配位，补偿不足，所以被排斥。聚焦 K⁺ 可看到由坐标计算的 K⁺–O 配位。'],
-      ['离子相斥推动通过', '过滤器里通常同时有两个 K⁺（与水相间），彼此静电排斥；新离子进入时把前面的离子推出去（敲击机制），每秒可通过约 10⁸ 个离子。'],
-      ['出胞外重新水合', 'K⁺ 离开过滤器后重新获得水合壳，进入胞外液。'] ],
-    stage(ctx) { const i = this.hopI || 0; return i <= 1 ? 1 : i <= 3 ? 2 : i <= 5 ? 3 : 4; },
-    caption: 'K⁺（紫）排成单列，脱去水合层，依次跳过选择性过滤器的 4 个结合位点穿过通道（1BL8 是关闭态：胞内侧螺旋束交叉处闭合；KcsA 在胞内酸性 pH 下打开，动画假设门已打开）',
-    async setup(ctx) {
-      const ys = ctx.allAtoms.map(a => a.p.y); this.top = Math.max(...ys) + 25; this.bot = Math.min(...ys) - 25;
-      /* selectivity filter = where the DEPOSITED K+ ions sit (1BL8 has 3); the PCA axis sign is arbitrary, so the
-         flow direction is taken from the filter side: ions go cytoplasm -> filter (extracellular end) */
-      const kk = ctx.ligands.filter(L => L.comp === 'K'), yc = (this.top + this.bot) / 2;
-      const kys = kk.map(L => L.centre.y);
-      this.dir = kys.length ? Math.sign(kys.reduce((a, b) => a + b, 0) / kys.length - yc) || 1 : 1;
-      this.filter = kys.length ? (this.dir > 0 ? Math.max(...kys) : Math.min(...kys)) : this.top - 25 - (this.top - this.bot - 50) * 0.22;
-      this.t = 0; this.hopI = 0; ctx.counters['K⁺'] = 0;
-      ctx.markHot([0, 1, 2, 3].map(i => new THREE.Vector3(0, this.filter - this.dir * i * 3.4, 0)), 9);
-    },
-    update(ctx, dt) {
-      this.t += dt * Math.max(0.05, ctx.speed / 0.6);
-      if (this.t > 1.0) {
-        this.t = 0;
-        const p = ctx.makeParticle(0xb98cff, 2.8, 'K⁺'), d = this.dir, F = this.filter;
-        const start = d > 0 ? this.bot : this.top, end = d > 0 ? this.top : this.bot;
-        const stops = [start, F - d * 14, F - d * 10.2, F - d * 6.8, F - d * 3.4, F, end];
-        let i = 0;
-        const hop = () => { if (i >= stops.length - 1) { p.parent?.remove(p); return; }
-          const a = stops[i], b = stops[i + 1]; i++; this.hopI = i;
-          ctx.anim(p, i === 1 ? 1.6 : i === stops.length - 1 ? 1.4 : 0.55, (u) => { p.position.set(Math.sin(u * 9) * 0.3, a + (b - a) * ease(u), 0);
-            if (i === 1) setAlpha(p, Math.min(1, u / 0.5));   /* drifts in from the bulk ... */
-            if (i === stops.length - 1) setAlpha(p, 1 - ease((u - 0.5) / 0.5)); }, hop); };   /* ... and back out into it */
-        hop();
-        ctx.counters['K⁺']++;
-      }
-    },
-  },
-
   /* ============================================================================= translation (one 70S ribosome, kinetic simulation)
      Scene: 4V6F (T. thermophilus 70S, mRNA + E/P/A tRNA). Everything else is superposed onto THIS ribosome by its rRNA
      (alignEntry): EF-Tu·GTP·aa-tRNA in the A/T state (4V5L), EF-Tu·GDP domain arrangement (1TUI, fitted on domains 2-3),
@@ -3627,6 +3747,7 @@ const PROCESSES = {
      mRNA come from the HUD. Molecular time runs at `speed` x real time; every main-chain event plays a short animation
      (durations shrink at high speed) during which molecular time is frozen. Non-cognate encounters are counted, not drawn. */
   translation: {
+    lead: '核糖体翻译（嗜热栖热菌 70S）：每一步按测得的速率随机发生。',
     energyHL: [[], ['/protein L7/'], [{ part: '16S', aseqs: [[1492, 1493], [530, 530]] }], ['/protein L7/'], [], [{ part: '23S', aseqs: [[2451, 2451], [2583, 2585], [2602, 2602]] }], ['/protein L7/'], ['/protein L1$/'], []],
     energy: [
       ['起始', '30S 起始复合物：mRNA 的 SD 序列（GGAGG）与 16S rRNA 的 3′ 端配对，把起始密码子 AUG 放进 P 位；IF1、IF2·GTP、IF3 帮 fMet-tRNAᶠᴹᵉᵗ 进入 P 位，50S 结合后形成 70S 起始复合物。这里合并为一步（约 1 s⁻¹）。'],
@@ -3742,7 +3863,7 @@ const PROCESSES = {
       this.bodies = []; this.trs = new Set(); this.tw = []; this.pool = { tc: [], g: [], rf: [] }; this.free = {}; this.rel = [];
       this.H = this.Rr + 150; this.perUM = Math.pow(2 * this.H, 3) * 6.022e-10;   // molecules in the view box per uM
       this.pepMesh = new THREE.InstancedMesh(PARTICLE_GEO, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 }), 900);
-      this.pepMesh.count = 0; this.pepMesh.frustumCulled = false; this.pepMesh.setColorAt(0, new THREE.Color()); procRoot.add(this.pepMesh);
+      this.pepMesh.count = 0; this.pepMesh.frustumCulled = false; this.pepMesh.userData.name = '新生肽链（每个珠 = 1 个氨基酸，颜色 = 种类）'; this.pepMesh.setColorAt(0, new THREE.Color()); procRoot.add(this.pepMesh);
       this.tag = { E: makeTag('', { p: V(), cls: 'small' }), P: makeTag('', { p: V(), cls: 'small' }), A: makeTag('', { p: V(), cls: 'small' }),
         tc: makeTag('', { p: V() }), g: makeTag('', { p: V() }), rf: makeTag('', { p: V() }), pep: makeTag('', { p: V(), cls: 'small' }),
         sE: makeTag('E 位', { p: this.R3(S.E, T0[54]).addScaledVector(up, 14), cls: 'small hl' }), sP: makeTag('P 位', { p: this.R3(S.P, T0[54]).addScaledVector(up, 14), cls: 'small hl' }),
@@ -3778,7 +3899,7 @@ const PROCESSES = {
         if (tr.pb !== tr.pa && wi > 0) { if (wi >= 1) { q = tr.pb.q; t = tr.pb.t; } else { q = _pq.copy(tr.pa.q).slerp(tr.pb.q, wi); t = _pt.copy(tr.pa.t).lerp(tr.pb.t, wi); } }
         return out.sub(cT).applyQuaternion(q).add(t);
       });
-      tr.bead = this.ctx.makeParticle(aa ? aaCol(aa) : 0xffffff, 2.6); tr.bead.visible = !!aa && aa !== 'fM';   // fMet is drawn as the first residue of the chain
+      tr.bead = this.ctx.makeParticle(aa ? aaCol(aa) : 0xffffff, 2.6, null, aa ? `氨基酸 ${aa === 'fM' ? '甲酰甲硫氨酸 fMet' : aa}（连在 tRNA 末端）` : '氨基酸'); tr.bead.visible = !!aa && aa !== 'fM';   // fMet is drawn as the first residue of the chain
       this.trs.add(tr); return tr;
     },
     setAA(tr, aa) { tr.aa = aa; if (aa) { tr.bead.material.color.set(aaCol(aa)); tr.bead.material.emissive.set(aaCol(aa)); } tr.bead.visible = !!aa; },
@@ -3837,7 +3958,7 @@ const PROCESSES = {
       if (this.mMesh) { procRoot.remove(this.mMesh); this.mMesh.material.dispose(); }
       const NB = { A: '#4caf50', U: '#e5484d', G: '#f5a623', C: '#3b6fe0' };
       this.mMesh = new THREE.InstancedMesh(PARTICLE_GEO, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }), this.seq.length);
-      [...this.seq].forEach((b, i) => this.mMesh.setColorAt(i, new THREE.Color(NB[b]))); this.mMesh.frustumCulled = false; procRoot.add(this.mMesh);
+      [...this.seq].forEach((b, i) => this.mMesh.setColorAt(i, new THREE.Color(NB[b]))); this.mMesh.frustumCulled = false; this.mMesh.userData.name = 'mRNA（每个珠 = 1 个核苷酸：A 绿 U 红 G 橙 C 蓝）'; procRoot.add(this.mMesh);
       this.pi = this.u5; this.mOff = 0; this.mFade = 1;
       const fm = this.mkT('fM'); this.tr = { E: null, P: fm, A: null };
       this.pep = [{ aa: 'fM' }]; this.pepTr = fm; this.pepFrom = null; this.pepW = 1; this.outP = [];
@@ -3997,7 +4118,7 @@ const PROCESSES = {
     releaseChain(dropped) {
       const n = this.pep.length; if (!n) return;
       const P = []; for (let i = 0; i < n; i++) { this.pepMesh.getMatrixAt(i, _tm4); P.push(new THREE.Vector3().setFromMatrixPosition(_tm4)); }
-      const mesh = new THREE.InstancedMesh(PARTICLE_GEO, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 }), n); mesh.frustumCulled = false;
+      const mesh = new THREE.InstancedMesh(PARTICLE_GEO, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.45 }), n); mesh.frustumCulled = false; mesh.userData.name = '离开的肽链（每个珠 = 1 个氨基酸，颜色 = 种类）';
       this.pep.forEach((r, i) => mesh.setColorAt(i, new THREE.Color(aaCol(r.aa)))); procRoot.add(mesh);
       const dir = dropped ? this.ptc.clone().sub(this.C0).normalize().add(new THREE.Vector3(0, 0.3, 0)).normalize() : this.exitDir.clone();
       this.rel.push({ mesh, P, dir, t: 0, n });
@@ -4278,6 +4399,7 @@ const PROCESSES = {
      distances 0.15 / 0.35 / 0.15 / 0.35) and detailed balance, so the current reverses exactly at E_K; rates calibrated
      offline to ~90 pS (KcsA). Ions move along the pore path computed from the open structure (findChannel). */
   kcsa: {
+    lead: 'KcsA 钾通道（链霉菌）：K⁺ 单列穿过选择性过滤器，画面比真实慢约一亿倍。',
     energyHL: [[{ aseqs: [[96, 124]] }], [{ aseqs: [[100, 112]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[78, 82]] }], [{ aseqs: [[71, 71], [77, 77], [80, 80]] }]],
     energy: [
       ['pH 门控', 'KcsA 胞内端有一组可质子化的残基（His25、Glu118、Glu120 等）。胞内 pH 降到约 4 时它们质子化，静电相互作用改变，内螺旋 TM2 在 Gly99 附近弯曲外张，束交叉处（Thr112 一带）的“门”打开。动画用 1K4C（关）和 5VK6（开）的真实坐标插值。'],
@@ -4357,7 +4479,7 @@ const PROCESSES = {
       let tTBA = null; try { tTBA = await ctx.template('TBA'); } catch (e) { console.warn(e); }
       this.tbaMol = null; if (Ltba && tTBA) { const pose = fitPose(tTBA, Ltba.atoms); if (pose) { this.tbaMol = ctx.makeMol(tTBA, true, '#ff8c00'); this.tbaMol.quaternion.copy(pose.q); this.tbaMol.position.copy(pose.t); } }
       this.baPos = Lba ? near(Lba) : S.S4.clone();
-      this.baIon = ctx.makeParticle(0x2fd46a, 2.3); this.baIon.visible = false; this.baIon.position.copy(this.baPos);   /* its tag is this.tags.ba */
+      this.baIon = ctx.makeParticle(0x2fd46a, 2.3, null, 'Ba²⁺（阻断剂，卡在过滤器里）'); this.baIon.visible = false; this.baIon.position.copy(this.baPos);   /* its tag is this.tags.ba */
       /* which filter site the crystal Ba2+ occupies (nearest site), and its arc length on the pore path (the filter is straight along y) */
       this.baSite = ['S0', 'S1', 'S2', 'S3', 'S4'].sort((a, b) => Math.abs(S[a].y - this.baPos.y) - Math.abs(S[b].y - this.baPos.y))[0];
       st.ba = st.S4 + (this.baPos.y - S.S4.y); this.baIo = { s: st.inFar }; this.tbaD = { d: -34 }; this.tbaT0 = this.tbaMol ? this.tbaMol.position.clone() : null;
@@ -4381,7 +4503,7 @@ const PROCESSES = {
     },
     mkIon(site, na) {
       const p = this.ctx.makeParticle(na ? 0x4fc3f7 : 0xb98cff, na ? 1.7 : 2.0, na ? 'Na⁺' : 'K⁺');
-      const shell = Array.from({ length: 6 }, () => { const w = this.ctx.makeParticle(0xdfe8f5, 0.85); return w; });
+      const shell = Array.from({ length: 6 }, () => { const w = this.ctx.makeParticle(0xdfe8f5, 0.85, null, `H₂O（${na ? 'Na⁺' : 'K⁺'} 的水合层，进过滤器前脱去）`); return w; });
       const io = { p, shell, s: this.st[site], site, na, hyd: /in|out|cav/.test(site) ? 1 : 0, ph: rand() * 6 }; this.ions.push(io); this.ends(io, site); return io;
     },
     /* each ion's own Brownian path between a pore mouth and the bulk on either side; an ion entering from the bulk IS one of the
@@ -4587,6 +4709,7 @@ const PROCESSES = {
      so one cut shows both. Sub-station cell callbacks refer to the global `proc`; `wrapSub` points it at the sub-station
      while they run. */
   cellCorner: {
+    lead: '细菌细胞一角：核糖体用嗜热栖热菌结构、钾通道用链霉菌 KcsA 代表（代用结构）。',
     caption: '细菌细胞的一角：细胞质里的 70S 核糖体正在把 mRNA 翻译成蛋白质，上方细胞膜里的 KcsA 钾通道按胞内 pH 开关、让 K⁺ 通过。两套模拟同时运行，各有自己的时钟（翻译以毫秒–秒计，离子通过以纳秒计）。右上角同时控制两者：EF-Tu / EF-G 浓度、抗生素、mRNA；膜电位、两侧离子浓度、胞内 pH、通道阻断剂。用“镜头”按钮在全景、核糖体和通道之间切换。',
     stage() { const s = this.sub?.[this.view === 'k' ? 1 : 0]; return s?.stage ? s.stage(s.ctx) : 0; },
     get energy() { return this.sub?.[this.view === 'k' ? 1 : 0]?.energy; },
@@ -4875,7 +4998,7 @@ PROCESSES.auto = {
     const col = (r) => r < 5 ? 0xe8503a : r < 7 ? 0xff8a3d : r < 10 ? 0xf5c84a : 0x6fb1f0;
     this.pores.forEach((pr, j) => {
       const rAt = (p) => pr.path.reduce((a, b) => b.p.distanceToSquared(p) < a.p.distanceToSquared(p) ? b : a).r; let i = 0;
-      for (let s = 0; s <= pr.len; s += 2.5, i++) { const p = alongPath(pr.path, s), d = ctx.makeParticle(col(rAt(p)), 1.1); d.position.copy(p); d.visible = true; d.userData.base = 1.1; d.userData.i = i; this.dots.push(d); }
+      for (let s = 0; s <= pr.len; s += 2.5, i++) { const p = alongPath(pr.path, s), d = ctx.makeParticle(col(rAt(p)), 1.1, null, `孔道中心线（由结构算出；这里半径约 ${rAt(p).toFixed(1)} Å）`); d.position.copy(p); d.visible = true; d.userData.base = 1.1; d.userData.i = i; this.dots.push(d); }
       if (j === 0) makeTag(`最窄处 · CA 净空 ${pr.rmin.toFixed(1)} Å`, { p: pr.at.clone().add(new V(9, 0, 0)), cls: 'hl small' });
       const lin = ctx.allAtoms.filter(a => a.p.distanceTo(pr.at) < pr.rmin + 2.5);   /* residues lining the constriction (they glow) */
       pr.lining = [...new Map(lin.map(a => [(AA1[a.resn] || a.resn) + (a.aseq || a.seq), 1])).keys()].slice(0, 12);
@@ -4999,10 +5122,11 @@ async function membraneShape(t) {
     if (dn > up) P.forEach(p => { p.y = -p.y; p.z = -p.z; }); }
   const np = THREE.MathUtils.clamp(Math.round(P.length / 45), 8, 70), k = Math.max(1, Math.ceil(P.length / np)), pts = P.filter((_, i) => i % k === 0).map(p => p.clone());
   const foot = Math.max(15, ...pts.filter(p => Math.abs(p.y) < 22).map(p => Math.hypot(p.x, p.z)));
-  return { ...t, pts, r: 3.3 * Math.cbrt(k) * 1.12, foot, n: P.length, half: M.half };
+  return { ...t, pts, r: 3.3 * Math.cbrt(k) * 1.12, foot, n: P.length, half: M.half, org: KNOWN_ORG[t.id] || e.prov?.organisms?.[0] || null };
 }
 
 PROCESSES.wholeCell = {
+  lead: '大肠杆菌细胞（2 µm）：部分分子用其他物种的结构代表；数量按文献比例，位置为示意。',
   __proto__: PROCESSES.cellCorner,
   caption: '一个完整的大肠杆菌细胞（长 2 µm）：外膜、周质与肽聚糖、内膜，中间是拟核 DNA，周围是约 2.5 万个核糖体，外面是鞭毛。用右上角“镜头”一路放大：细胞 → 细胞一角（真实结构按丰度挤满的胞质、膜蛋白）→ 正在工作的核糖体和钾通道 → 原子。左下角是比例尺。',
   async setup(ctx) {
@@ -5095,7 +5219,7 @@ PROCESSES.wholeCell = {
     const area = 2 * C.reg * (wCut + C.reg), imArea = 2 * Math.PI * C.Rim * 2 * H + 4 * Math.PI * C.Rim ** 2, omArea = 2 * Math.PI * Rom * 2 * H + 4 * Math.PI * Rom ** 2;
     const occPts = [], placedBy = new Map(), regionTags = [];
     const place = (list, R, cover, cellArea) => {
-      const want = list.map(s => Math.round((s.perCell || 0) * area / cellArea)); let cov = list.reduce((a, s, i) => a + want[i] * Math.PI * s.foot ** 2, 0);
+      const want = list.map(s => Math.round((s.perCell || 0) * area / cellArea)); list.forEach((s, i) => { s.expect = want[i]; }); let cov = list.reduce((a, s, i) => a + want[i] * Math.PI * s.foot ** 2, 0);
       const fill = list.map((s, i) => i).filter(i => list[i].fill); for (let g = 0; cov < cover * area && fill.length && g < 3000; g++) { const i = fill[g % fill.length]; want[i]++; cov += Math.PI * list[i].foot ** 2; }
       list.map((s, i) => i).sort((a, b) => list[b].n - list[a].n).forEach(i => { const s = list[i], bodies = []; placedBy.set(s, bodies);
         for (let tries = 0; bodies.length < want[i] && tries < want[i] * 30; tries++) {
@@ -5106,6 +5230,7 @@ PROCESSES.wholeCell = {
           if (keys.some(k => occ2.has(k)) || pts.some(inHole)) continue;
           keys.forEach(k => occ2.add(k)); bodies.push({ pts, r: s.r, cen }); occPts.push(...pts);
         }
+        s.placed = bodies.length;
         if (bodies.length) { root.add(blobMesh(bodies, s.col));
           const mid = bodies.reduce((a, b) => b.cen.distanceTo(top) < a.cen.distanceTo(top) ? b : a);
           regionTags.push(makeTag(`${s.label} ×${bodies.length}`, { p: mid.cen.clone().addScaledVector(F.at(C.uF, 0, 1).sub(F.at(C.uF, 0, 0)), s.outer ? 60 : -90), cls: 'small' })); }
@@ -5113,6 +5238,9 @@ PROCESSES.wholeCell = {
     };
     place(shapes.filter(s => !s.outer), C.Rim, 0.2, imArea);
     place(shapes.filter(s => s.outer), Rom, 0.6, omArea);
+    { const T = shapes.filter(s => placedBy.get(s)?.length), B = T.flatMap((s, i) => placedBy.get(s).map(b => ({ i, c0: b.cen })));   /* pickable like the crowd */
+      T.forEach(s => { s.R = Math.max(...placedBy.get(s)[0].pts.map(p => p.distanceTo(placedBy.get(s)[0].cen))); });
+      if (B.length) crowdSets.push({ root, bodies: B, types: T, membrane: true }); }
     /* ---- region cytoplasm: same abundance list as the corner, coarser shapes, outside the corner's own crowd box */
     const cb = this.crowdBox, inCB = (p) => p.x > cb.min.x - 20 && p.x < cb.max.x + 20 && p.y > cb.min.y - 20 && p.y < cb.max.y + 40 && p.z > cb.min.z - 20 && p.z < cb.max.z + 20;
     const corners = []; for (const su of [-1, 1]) for (const sw of [-1, 1]) for (const yy of [C.Rim - C.regDepth, C.Rim + 40]) corners.push(o.clone().addScaledVector(e1, C.uF + su * C.reg).addScaledVector(e3, sw * C.reg).addScaledVector(ey, yy));
@@ -5142,7 +5270,7 @@ PROCESSES.wholeCell = {
       T('内膜', F.at(C.uF + C.reg * 0.8, 0, C.Rim - 60)), T('细胞质：真实结构按丰度挤满', F.at(C.uF - C.reg * 0.7, -0.15, C.Rim - 700)));
     const cellSet = new Set(cellTags), regSet = new Set(regionTags), kTag = this.kTag;
     tagFilter = (t) => this.level === 'cell' ? cellSet.has(t) : this.level === 'region' ? regSet.has(t) || t === kTag : !cellSet.has(t) && !regSet.has(t);
-    this.level = 'machine'; this.startCell = true;
+    this.level = 'machine'; this.startCell = !current?._restore;   /* coming back: keep the saved camera */
     this.pts = { cell: o.clone(), region: top.clone().addScaledVector(ey, -650) };
     console.log(`wholeCell：核糖体点 ${this.nRibDrawn}，膜蛋白 ${this.memSummary}，区域胞质 ${this.regCrowd?.bodies.length ?? 0} 个分子`);
   },
@@ -5202,11 +5330,16 @@ PROCESSES.wholeCell = {
   },
 };
 
+/* the first visible line of a caption: its first sentence, at most 60 characters */
+function leadOf(cap) { const t = String(cap || '').replace(/<[^>]*>/g, ''); const m = /^[^。！？]*[。！？]/.exec(t); const f = (m ? m[0] : t);
+  return f.length <= 60 ? f : f.slice(0, 58) + '…'; }
 async function loadScene(cfg) {
   const my = ++loadSeq, live = () => { if (my !== loadSeq) throw new Stale(); };   // a newer loadScene cancels this one
   $('load').disabled = true; loadScene.lastError = null; loadScene.errors = []; loadScene.fatal = false;
   netAC.abort(); netAC = new AbortController();   /* downloads of a superseded scene are cancelled */
-  setSeed(loadSeedOverride ?? cfg.seed ?? URL_SEED); loadSeedOverride = null;
+  if (!cfg._orig0) cfg._orig0 = { ...cfg };   /* what was asked for, before the load changes cfg (back navigation) */
+  cfg._restore = pendingRestore; pendingRestore = null;
+  setSeed(loadSeedOverride ?? (cfg._restore ? cfg._restore.seed : null) ?? cfg.seed ?? URL_SEED); loadSeedOverride = null;
   restoreQuality();
   if (cfg.name && PRESETS[cfg.name]) setMode(presetCat(cfg.name)); else if (cfg.auto) setMode('single');   /* the tab follows what is shown */
   try {
@@ -5363,19 +5496,20 @@ async function loadScene(cfg) {
     $('simpDefault').value = 'auto';   // before the build, so the menu and the meshes agree
     rebuildMeshes(); rebuildLigands(); rebuildMembranes(); applyCut();
     if (cfg.auto) cfg.caption = autoCaption(cfg);
-    const cap = cfg.caption || (P && P.caption) || '';
-    $('caption').innerHTML = cap ? `<span class="ct">${cap}</span><span class="more">点击展开全文 ▾</span><span class="cnt" id="cnt"></span>` : '';
+    const cap = cfg.caption || (P && P.caption) || '', lead = cfg.lead || (P && P.lead) || leadOf(cap);
+    $('caption').innerHTML = (cfg.linkNote ? `<span class="lnote">${esc(cfg.linkNote)}</span>` : '') + (cap ? `<span class="lead">${lead}</span>${cap !== lead ? `<span class="ct">${cap}</span><span class="more">展开说明 ▾</span>` : ''}<span class="cnt" id="cnt"></span>` : '');
     $('caption').classList.remove('open'); requestAnimationFrame(() => { const ct = $('caption').querySelector('.ct'); $('caption').classList.toggle('clamped', !!ct && ct.scrollHeight > ct.clientHeight + 2); });
     $('tId').textContent = (cfg.states ? cfg.states.join(' ⇄ ') : main.id) + ((cfg.components || []).length ? ' + ' + cfg.components.map(c => c.id).join(' + ') : '');
     $('tName').textContent = cfg.name || niceTitle(main.title); $('aboutBtn').style.display = cfg.auto ? '' : 'none';
     cfg._prov = provList; renderEvidence(cfg, main); renderSeqBar();
     if (!labelsTouched) $('labelsOn').checked = !!cfg.notes;   // V12: respect the user's own choice
     renderLegend(); rebuildLabels(); renderEnergy();
-    resetCamera(cfg.camera); aimCut(); if (cfg.frameAll) applyCut();   // the frameAll cut faces the camera: aim it after the camera is placed
-    if (P?.cell && proc) startCellSim(P.cell);
+    resetCamera(cfg._restore?.camera || cfg.camera); aimCut(); if (cfg.frameAll) applyCut();   // the frameAll cut faces the camera: aim it after the camera is placed
+    if (P?.cell && proc) startCellSim(P.cell, cfg._restore?.ctrl);
     const total = groups.reduce((s, g) => s + g.atoms.length, 0);
     const LC = ligCount(); status(`完成：${total.toLocaleString()} 个残基团块，${LC.types} 种 / ${LC.copies} 个小分子`);
-    if (P?.cell && innerWidth < 1600 && innerWidth > 600) { $('panel').classList.add('hidden'); resetCamera(cfg.camera); }
+    if (P?.cell && innerWidth < 1600 && innerWidth > 600) { $('panel').classList.add('hidden'); resetCamera(cfg._restore?.camera || cfg.camera); }
+    applyRestore(cfg._restore);
     if (cfg.auto) { if (innerWidth < 1600 && innerWidth > 600) $('panel').classList.add('hidden'); showAutoCard(); }   /* room for the scene; ☰ / H brings the panel back */
   } catch (e) { if (e instanceof Stale || my !== loadSeq) return; console.error(e); loadScene.fatal = true; loadFail(e.message); clearEvidence(); status('出错：' + e.message, true); }
   finally { if (my === loadSeq) $('load').disabled = false; }   /* a superseded load leaves the button to the newer one */
@@ -5397,9 +5531,9 @@ function phColour(pH) {
   for (let i = 1; i < S.length; i++) if (pH <= S[i][0]) { const u = (pH - S[i - 1][0]) / (S[i][0] - S[i - 1][0]); return new THREE.Color(S[i - 1][1]).lerp(new THREE.Color(S[i][1]), u); }
   return new THREE.Color(S[S.length - 1][1]);
 }
-function startCellSim(def) {
+function startCellSim(def, saved = null) {
   stopCellSim();
-  const sim = { def, st: def.init(), ctrl: Object.fromEntries(def.controls.filter(c => c.id).map(c => [c.id, c.type === 'range' || c.type === 'select' ? c.value : c.on])), hist: def.series.map(() => []), t: 0, tH: 0, flux: { rate: 1, rotor: 1 }, objs: [], dots: [], labs: [] };
+  const sim = { def, st: def.init(), ctrl: { ...Object.fromEntries(def.controls.filter(c => c.id).map(c => [c.id, c.type === 'range' || c.type === 'select' ? c.value : c.on])), ...(saved || {}) }, hist: def.series.map(() => []), t: 0, tH: 0, flux: { rate: 1, rotor: 1 }, objs: [], dots: [], labs: [] };
   if (!def.noWarmup) for (let i = 0; i < 40; i++) sim.flux = def.step(sim.st, 0.05, sim.ctrl) || sim.flux;   // short warm-up (dark / resting start)
   cellSim = sim;
   /* HUD */
@@ -5413,14 +5547,14 @@ function startCellSim(def) {
     if (c.type === 'section') { const d = document.createElement('div'); d.className = 'sec'; d.textContent = c.label; $('cellCtl').appendChild(d); continue; }   /* folding: wired up after all controls exist */
     if (c.type === 'range') {
       const row = document.createElement('label'); row.className = 'rng'; row.title = c.tip || '';
-      row.innerHTML = `<span></span><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.value}"><output></output>`;
+      row.innerHTML = `<span></span><input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${sim.ctrl[c.id] ?? c.value}"><output></output>`;
       row.querySelector('span').textContent = c.label; const inp = row.querySelector('input'), out = row.querySelector('output');
       const show = () => { out.textContent = (+inp.value).toFixed(c.step < 1 ? (c.step < 0.1 ? 2 : 1) : 0) + (c.unit ? ' ' + c.unit : ''); };
       inp.oninput = () => { sim.ctrl[c.id] = +inp.value; show(); }; show(); $('cellCtl').appendChild(row); continue;
     }
     if (c.type === 'select') {
       const s = document.createElement('select'); s.title = c.tip || ''; for (const [v, l] of c.options) { const o = document.createElement('option'); o.value = v; o.textContent = l; s.appendChild(o); }
-      s.value = c.value; s.onchange = () => { sim.ctrl[c.id] = s.value; c.change?.(sim, s.value); }; $('cellCtl').appendChild(s); continue;
+      s.value = sim.ctrl[c.id] ?? c.value; s.onchange = () => { sim.ctrl[c.id] = s.value; c.change?.(sim, s.value); }; $('cellCtl').appendChild(s); continue;
     }
     if (c.type === 'text') {
       const s = document.createElement('input'); s.type = 'text'; s.placeholder = c.placeholder || ''; s.title = c.tip || ''; s.value = c.value || '';
@@ -5916,14 +6050,14 @@ const PROC_EVIDENCE = {
     illustrative: ['电子、H⁺、醌、细胞色素 c 的路径和速度', '各复合体在膜上的相对位置（组装位置）', '回流的 H⁺ 跟随转子转速，不一定等于泵出的 H⁺'] },
   chloroplast: { modelled: ['线性电子流的顺序：H₂O → PSII → 质体醌 → b6f → 质体蓝素 → PSI → 铁氧还蛋白 → FNR → NADPH', '电子沿真实辅因子位置传递'],
     illustrative: ['光子、电子、H⁺ 的路径和速度', '各复合体的相对位置', '计数只按步骤累加，不是测得的通量'] },
-  ionChannel: { modelled: ['K⁺ 单列穿过选择性过滤器的 4 个结合位点'], illustrative: ['门的开关（1BL8 是关闭态，动画假设门已打开）', 'K⁺ 粒子的数量和速度'] },
   translation: { modelled: ['延伸循环每一步按文献测得的速率常数随机发生（Gillespie 算法）：选择、GTP 水解、肽键形成、移位、终止', '抗生素按解离常数占据各自的结合位点', '三元复合物、EF-G、RF1 的浓度可调'],
     illustrative: ['tRNA、因子在核糖体周围的扩散路径和数量', '时间被放慢，便于看清每一步'] },
   kcsa: { modelled: ['门控：按胞内 pH 的开放 / C 型失活随机模拟（文献速率）', 'K⁺ 按敲击机制在过滤器位点之间跳跃，沿由开放结构算出的孔道路径移动；Na⁺ 被排斥'],
     illustrative: ['K⁺ 的数量和速度（真实电流约每秒 10⁷–10⁸ 个离子）', '阻断剂的结合位置按示意摆放'] },
-  cellCorner: { modelled: ['核糖体翻译和 KcsA 门控两套模拟同时运行，速率与各自的单独场景相同'], illustrative: ['两个机器的相对位置和距离', '两套模拟的时间尺度不同，各自放慢'] },
+  cellCorner: { modelled: ['核糖体翻译和 KcsA 门控两套模拟同时运行，速率与各自的单独场景相同', '背景分子：' + CROWD_RULE.split('；')[0]],
+    illustrative: ['两个机器的相对位置和距离', '两套模拟的时间尺度不同，各自放慢（右下角分别标出）', '背景分子的位置、朝向和运动'] },
   auto: { illustrative: [] },
-  wholeCell: { modelled: ['细胞尺寸、膜层和主要成分的数量按大肠杆菌文献值'], illustrative: ['分子的位置和运动：随机摆放，速度放慢', '远处的分子用简化外形代替'] },
+  wholeCell: { modelled: ['细胞尺寸和膜层按大肠杆菌文献值', '背景分子：' + CROWD_RULE.split('；')[0] + '；' + CROWD_RULE.split('；')[1]], illustrative: ['分子的位置、朝向和运动（随机摆放，速度放慢）', '远处的分子用简化外形代替'] },
   dataAnim: { illustrative: ['场景包作者写的动画：粒子、路径、速率（作者在 evidence 里补充具体等级）'] },
 };
 const procEvidence = (k) => PROCESSES[k]?.evidence || PROC_EVIDENCE[k] || null;   /* a process may also carry its own .evidence */
@@ -5946,6 +6080,8 @@ function evidenceOf(cfg, main) {
   if (+$('jitter').value > 0) E.illustrative.push('团块的热抖动（示意，不是分子动力学）');
   if ($('memOn').checked && membraneObjs.length) E.illustrative.push('膜里的脂质分子：随机排布，数量和位置不是测得的');
   if (L.types && Math.abs(+$('ligScale').value - 1) > 0.01) E.illustrative.push(`小分子放大 ${(+$('ligScale').value).toFixed(1)}×（为了看得见）`);
+  if (cellHost()) { const ids = [...new Set([...(cfg._prov || []).map(p => p.id), ...crowdSets.flatMap(C => C.types.map(t => t.id))])];
+    const si = ids.map(id => standIn(id)).filter(Boolean); if (si.length) E.modelled.unshift(...[...new Set(si)].map(t => '物种：' + t)); }
   const procKey = cfg.process || (cfg.animation ? 'dataAnim' : null), PE = procKey && procEvidence(procKey);
   if (PE) { for (const k of Object.keys(E)) for (const t of PE[k] || []) E[k].push(t); }
   else if (procKey) E.illustrative.push('动画里的粒子、路径和速度（这个过程没有声明证据等级）');
@@ -5976,7 +6112,7 @@ function clearEvidence() { evidArgs = null; if ($('evid')) $('evid').innerHTML =
 for (const id of ['blob', 'jitter', 'ligScale', 'memOn', 'repMode', 'simpDefault']) $(id)?.addEventListener('change', () => { if (evidArgs) setTimeout(() => evidArgs && renderEvidence(...evidArgs), 0); });
 
 function clearScene() {
-  crowdSets = []; seqCells = []; if ($('seqRows')) $('seqRows').innerHTML = '';
+  crowdSets = []; seqCells = []; seqFt = null; if ($('seqRows')) $('seqRows').innerHTML = '';
   exitKit(); clearEvidence(); clearFocus(false); focusLigand._req = null; clearSelection(); camFly = null; energyKey = null;
   labels = []; $('labels').innerHTML = ''; $('infoCard').style.display = 'none';
   if (proc?.dispose) try { proc.dispose(proc.ctx); } catch (e) { console.warn('dispose', e); }   /* a process removes its own listeners / timers */
@@ -6165,7 +6301,8 @@ function renderLegend() {
   L.innerHTML = '<div class="hdr"><span></span><span>名称（数量）</span><span title="显示">显</span><span title="绕主轴旋转">转</span><span title="剖开：切掉朝向镜头的一半，露出内部">剖</span><span title="简化：按“简化样式”画成示意图 / 低分辨率表面">简</span></div>';
   groups.forEach((g) => {
     const d = document.createElement('div'); d.className = 'ent';
-    d.innerHTML = `<span class="sw" style="background:${g.color};color:${g.color}"></span><span class="nm" title="${g.name}">${g.name} <span class="sub">(${g.atoms.length.toLocaleString()})</span></span>
+    const gsid = (g.atoms[0]?.src || '').toUpperCase(), gst = !current?.local && standIn(gsid);
+    d.innerHTML = `<span class="sw" style="background:${g.color};color:${g.color}"></span><span class="nm" title="${esc(g.name)}${gst ? ' · ' + esc(gst) : ''}">${esc(g.name)} <span class="sub">(${g.atoms.length.toLocaleString()})${gst ? ' · 代用：' + esc(ORG_ZH[Object.keys(ORG_ZH).find(k => orgOf(gsid)?.startsWith(k))] || orgOf(gsid)) : ''}</span></span>
       <input type="checkbox" ${g.visible ? 'checked' : ''} data-k="vis"><input type="checkbox" ${g.spin ? 'checked' : ''} data-k="spin"><input type="checkbox" ${g.ghost ? 'checked' : ''} data-k="ghost"><input type="checkbox" ${g.simple ? 'checked' : ''} data-k="simple">`;
     d.querySelector('[data-k=vis]').onchange = (ev) => { g.visible = ev.target.checked; g.mesh.visible = g.visible; };
     d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; spinPose(g); };
@@ -6587,7 +6724,7 @@ function checkAnimation(A) {
 }
 /* a pack -> loadScene config */
 function packToScene(P, src) {
-  const cfg = { ...P.scene, name: P.title, _pack: { id: P.id, src, revision: P.revision, category: P.category, title: P.title } };
+  const cfg = { ...P.scene, name: P.title, _pack: { id: P.id, src, revision: P.revision, category: P.category, title: P.title }, _packObj: P };
   if (P.scene.structure) cfg.local = entryFromFile(P.scene.structure.name, P.scene.structure.text);
   if (P.scene.animation && !cfg.process) cfg.process = 'dataAnim';
   if (!cfg.caption && P.description) cfg.caption = P.description;
@@ -6967,7 +7104,7 @@ function simStep(dt) {
     U.uTime.value += dt; grade.uniforms.uT.value = U.uTime.value % 10;
     if (cellSim && !kit) updateCellSim(dt);
     if (kit) updateKit(dt);
-    theta += +$('spin').value * dt * (cellSim ? cellSim.flux.rotor : 1);   // rotor speed follows the simulated ATP-synthesis flux
+    theta += +$('spin').value * dt * (cellSim ? cellSim.flux.rotor : 1) * (proc?.rotorRate ? proc.rotorRate() : 1);   /* respiratory chain: only while the proton ledger has protons */   // rotor speed follows the simulated ATP-synthesis flux
     for (const g of groups) if (g.spin && g.mesh) spinPose(g);
     if (current?.states && $('morphAuto').checked) {   // ease-in-out ping-pong with holds at both ends
       morphT += dt * 0.35; const c = (Math.sin(morphT) + 1) / 2; $('morph').value = ease((c - 0.1) / 0.8); syncOut($('morph'));
@@ -6981,6 +7118,18 @@ function simStep(dt) {
 }
 /* scale bar for every scene (at the rotation centre) + what the time axis means; the whole cell keeps its own µm bar */
 let scaleT = 0;
+/* one slow-motion label per running simulation (the cell corner runs two clocks) */
+function timeLines() {
+  const k = current?.process, c = cellSim?.ctrl || {}, L = [], inv = (x) => x > 0 ? Math.round(1 / x).toLocaleString() : '?';
+  const tl = () => L.push(`翻译：慢放 ×1/${inv(+(c.speed ?? 0.02))}（真实每秒约 10–20 个氨基酸）`);
+  const kc = () => { L.push(`K⁺ 通过：画面 1 秒 = ${+(c.ionSpeed ?? 10)} ns（慢约 ${(1e9 / +(c.ionSpeed ?? 10)).toExponential(0).replace('e+', '×10^')} 倍）`);
+    L.push(`门控：慢放 ×1/${inv(+(c.gateSpeed ?? 0.05))}`); };
+  const rot = (real) => { const rps = +$('spin').value / (2 * Math.PI); L.push(`转子：画面每秒约 ${rps.toFixed(2)} 转（真实${real}）`); };
+  if (current?.states && U.uMorph.value > 0.03 && U.uMorph.value < 0.97) L.push(`构象变化：${current.states.join(' → ')} 之间的线性插值（示意，不是真实路径）`);
+  if (k === 'translation') tl(); else if (k === 'kcsa') kc(); else if (k === 'cellCorner') { tl(); kc(); }
+  else if (k === 'atpSynthase' || k === 'respiratoryChain') rot('每秒 100 多转'); else if (k === 'flagellarMotor') rot('每秒 100–300 转');
+  return L.map(x => x.replace(/×10\^(\d+)/, (m, e) => '×10' + [...e].map(d => '⁰¹²³⁴⁵⁶⁷⁸⁹'[d]).join('')));
+}
 function updateScaleAll(dt) {
   if ((scaleT += dt) < 0.25) return; scaleT = 0;
   const el = $('scaleAll'), own = $('scaleBar'); if (!el) return;
@@ -6989,8 +7138,8 @@ function updateScaleAll(dt) {
   const d = camera.position.distanceTo(controls.target), pxPerA = innerHeight / (2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
   const nice = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000], L = nice.find(x => x * pxPerA >= 60) || nice[nice.length - 1];
   el.querySelector('i').style.width = Math.round(L * pxPerA) + 'px';
-  el.querySelector('.sl').textContent = (L >= 10000 ? `${L / 10000} µm` : L >= 10 ? `${L / 10} nm（${L} Å）` : `${L} Å`) + '（旋转中心处）';
-  const note = !proc ? '时间：静态结构（团块抖动只是示意）' : proc.timeScaleNote || (timeScale === 'fast' ? '时间：快放 · 粒子流表示通量方向和相对大小（仍比真实慢得多）' : '时间：慢放 · 每个分子事件单独画出，比真实慢许多个数量级');
+  el.querySelector('.sl').textContent = (L >= 10000 ? `${L / 10000} µm` : L >= 10 ? `${L / 10} nm（${L} Å）` : `${L} Å`) + '（旋转中心处；透视下近大远小）';
+  const tl = timeLines(), note = !proc ? '时间：静态结构（团块抖动只是示意）' : tl.length ? tl.join('\n') : proc.timeScaleNote || (timeScale === 'fast' ? '时间：快放 · 粒子流表示通量方向和相对大小（仍比真实慢得多）' : '时间：慢放 · 每个分子事件单独画出，比真实慢许多个数量级');
   el.querySelector('.ts').textContent = note + ($('pause').checked ? '（已暂停）' : '');
 }
 function frame() {
@@ -7092,8 +7241,8 @@ window.__viewer.probe = async function probe(sec = 5) {
     counters: proc ? { ...proc.ctx.counters } : {}, fps: Math.round(frames / dt * 10) / 10, worstFrameMs: Math.round(worst),
     geometries: I.memory.geometries, textures: I.memory.textures, drawCalls: I.render.calls, triangles: I.render.triangles, objects,
     overlayObjects, procRootChildren: procRoot.children.length, bulkRootChildren: bulkRoot.children.length, domTags, listeners: listenerCount.controls + listenerCount.window + listenerCount.document + listenerCount.canvas,
-    anims: anims.length, pendingAnims: anims.length, pools: scenePools.size, focus: !!focus, selection: sel.ids.size, ligandTypes: LC.types, ligandCopies: LC.copies,
-    errors: (loadScene.errors || []).slice(), visibility: document.visibilityState, rRNA, procNoEvidence: Object.keys(PROCESSES).filter(k => !procEvidence(k)),
+    anims: anims.length, pendingAnims: animPending, pendingAfterClear: rejectAnims.left ?? 0, pools: scenePools.size, focus: !!focus, selection: sel.ids.size, ligandTypes: LC.types, ligandCopies: LC.copies,
+    errors: (loadScene.errors || []).slice(), visibility: document.visibilityState, rRNA, unnamedParticles: unnamedParticles(), procNoEvidence: Object.keys(PROCESSES).filter(k => !procEvidence(k)),
     jsHeapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, status: $('status')?.textContent || '' };
 };
 Object.defineProperty(window.__viewer, 'lastError', { get: () => loadScene.lastError || null });
@@ -7106,6 +7255,22 @@ window.__viewer.step = async function (dt = 1 / 60, n = 1) {   /* yields between
 };
 window.__viewer.events = () => eventLog.slice();
 window.__viewer.links = { linkFor, openLinked, goBack, depth: () => backStack.length };
+/* A9 regression: cell corner (change a control, step, select) -> linked machine -> back; everything must be as it was */
+window.__viewer.backTest = async function () {
+  $('pause').checked = true; await loadScene({ ...PRESETS[presetName('cell-corner')], name: presetName('cell-corner'), seed: 11 }); $('pause').checked = true;
+  if (!cellSim) return { error: 'no cell simulation' };
+  cellSim.ctrl.TC = 40; await window.__viewer.step(1 / 30, 30); GLOW_CMDS.select.fn('chain AA and resi 10-20');
+  const before = sceneState(); before.ctrl = { ...cellSim.ctrl }; before.counters = { ...proc.ctx.counters };
+  await openLinked('kcsa'); const mid = { key: PRESETS[current?.name]?.key, back: backStack.length };
+  await goBack();
+  const after = sceneState(), diff = [];
+  for (const k of ['seed', 'timeScale', 'sel', 'mode', 'paused']) if (JSON.stringify(before[k]) !== JSON.stringify(after[k])) diff.push(`${k}: ${JSON.stringify(before[k])} → ${JSON.stringify(after[k])}`);
+  if (before.ctrl?.TC !== cellSim?.ctrl?.TC) diff.push(`ctrl.TC: ${before.ctrl?.TC} → ${cellSim?.ctrl?.TC}`);
+  for (const [k, v] of Object.entries(before.counters || {})) if ((proc?.ctx.counters[k] ?? -1) < v) diff.push(`counter ${k}: ${v} → ${proc?.ctx.counters[k]}`);
+  for (const k of ['az', 'el', 'dist']) if (Math.abs((before.camera?.[k] ?? 0) - (after.camera?.[k] ?? 0)) > 0.02) diff.push(`camera.${k}: ${before.camera?.[k]} → ${after.camera?.[k]}`);
+  if (PRESETS[current?.name]?.key !== 'cell-corner') diff.push('scene: ' + current?.name);
+  return { mid, diff, title: current?.name };
+};
 window.__viewer.pickAt = (x, y) => { const h = pickAt(x, y); return h ? { part: h.g?.name || null, residue: h.a ? resLabel(h.a) : null, ligand: h.lig?.comp || null, crowd: h.crowd ? { label: h.crowd.label, id: h.crowd.id } : null } : null; };
 window.__viewer.crowdScreen = () => { const C = crowdSets.find(c => c.root.parent); if (!C) return null; C.root.updateMatrixWorld(); const out = []; for (const b of C.bodies.slice(0, 400)) { const w = b.c0.clone().applyMatrix4(C.root.matrixWorld); if (inCut(w)) continue; const v = w.clone().project(camera); if (Math.abs(v.x) < 0.9 && Math.abs(v.y) < 0.9 && v.z < 1) out.push({ x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, label: C.types[b.i].label }); } return out.slice(0, 30); };
 /* determinism + activity check (regression): load paused with a seed, step a fixed number of times, return counters and the event texts */
@@ -7118,6 +7283,21 @@ window.__viewer.seededRun = async function (load, seed = 1, dt = 1 / 30, steps =
   return { seed: randSeed, t: r.t, counters: r.counters, events: eventLog.map(e => e.t + ' ' + e.text), ms: Math.round(performance.now() - t0) };
 };
 window.__viewer.seed = (v) => { setSeed(v); return randSeed; };
+/* A11: waitable animations are counted; some run mid-scene, none survive clearScene */
+window.__viewer.animTest = async function () {
+  $('pause').checked = true; await loadScene({ ...PRESETS[presetName('atp-synthase')], name: presetName('atp-synthase'), seed: 3 }); $('pause').checked = true;
+  let mid = 0; for (let i = 0; i < 40 && !mid; i++) { await window.__viewer.step(0.05, 2); mid = Math.max(mid, animPending); }
+  await loadScene({ ...PRESETS[presetName('kcsa')], name: presetName('kcsa') });
+  return { mid, afterClear: rejectAnims.left ?? 0, now: animPending };
+};
+/* A1: a page that is not on the list gets nothing back before consent, and never the unsafe commands */
+window.__viewer.bridgeTest = async function () {
+  const got = [], ev = (cmd, origin) => ({ origin, data: { glow: 'cmd', id: cmd, cmd, args: {} }, source: { postMessage: (m) => got.push(m) } });
+  const o = 'https://example.org';
+  await handleBridge(ev('snapshot', o)); await handleBridge(ev('exportPack', o));
+  const unsafe = got.filter(m => m.ok).map(m => m.id);
+  return { trustedOfficial: bridgeTrusted('https://nimenta727.github.io'), trustedOther: bridgeTrusted(o), trustedNull: bridgeTrusted('null'), unsafeAnswered: unsafe, replies: got.length };
+};
 /* regression "rapid switch": start several loads without waiting (each cancels the previous), then measure the last one */
 window.__viewer.rapid = async function (list, settle = 2, sec = 3) {
   const cfgs = list.map(c => typeof c === 'string' ? { ...PRESETS[presetName(c)], name: presetName(c) } : c), t = performance.now();
@@ -7140,7 +7320,7 @@ window.__viewer.loadAndProbe = async function (cfg, settle = 2, sec = 5) {
    window.glow: COMMAND API for developers, scripts and AI agents (small, like ChimeraX commands / the Mol* plugin API)
    - JSON in, JSON out; every command is async and returns plain data. glow.help() lists them with their arguments.
    - Same commands from another window: postMessage({ glow: 'cmd', id, cmd, args }) -> { glow: 'reply', id, ok, result | error }.
-     Accepted only from the parent window (when embedded, ?embed=1) or from a window of the same origin.
+     Full access only for EMBED_ORIGINS (or the same origin with ?dev=1); other https pages get BRIDGE_SAFE after the viewer's user allows it.
    - Commands run one after another (a queue), and each is logged in glow.log (last 200): glow.replay(glow.log) repeats a session.
    - Scenes from outside go in only as packs, through sanitizePack (escaped text, built-in processes only) — never raw configs.
    ============================================================================= */
@@ -7151,7 +7331,7 @@ const URL_OK = (U0) => U0.protocol === 'https:' && (U0.href.startsWith(WS_BASE) 
 const presetExact = (q) => presetName(q);   /* API: exact key (or the exact display name); no fuzzy matching */
 class CmdError extends Error {}
 const glowSel = { expr: 'none', r: [], l: [] };   /* the last selection: color / camera focus default to it ('sele') */
-const SEL_HELP = 'all | none | protein | nucleic | ligands | sele（上一次的选择）| chain A[,B] | resi 10-50[,60] | resn HIS[,CYS] | entity "名字的一部分" | ligand HEM[,ATP] | within 5 of <选择>；用 and / or / not 和括号组合。残基按 Cα（核酸按 P）计；chain / resi 用作者编号（auth_asym_id / auth_seq_id，和论文、PDB 文件一致，可写插入码 52A，可以是 0 或负数）；label_asym A / label_seq 10-50 用 mmCIF 的 label 编号。';
+const SEL_HELP = 'all | none | protein | nucleic | ligands | sele（上一次的选择）| chain A[,B] | resi 10-50[,60] | resn HIS[,CYS] | entity "名字的一部分" | ligand HEM[,ATP] | within 5 of <选择>；用 and / or / not 和括号组合。残基按 Cα（核酸按 P）计；chain / resi 用作者编号（auth_asym_id / auth_seq_id，和论文、PDB 文件一致，可写插入码 52A，可以是 0 或负数）；label_asym A / label_seq 10-50 用 mmCIF 的 label 编号（label_asym 包括全部对称拷贝；asym C_2 只选第 2 个拷贝）。';
 function selTokens(s) {
   const T = [], re = /\s*(?:"([^"]*)"|'([^']*)'|(\(|\))|([^\s()]+))/y; s = String(s ?? '').trim(); let m;
   while (re.lastIndex < s.length && (m = re.exec(s))) T.push(m[1] != null || m[2] != null ? { v: m[1] ?? m[2], q: true } : { v: m[3] ?? m[4], q: false });
@@ -7171,6 +7351,7 @@ function parseSel(src) {
     if (['all', 'none', 'protein', 'nucleic', 'ligands', 'sele'].includes(w)) return { op: w };
     if (w === 'chain') return { op: 'chain', v: list('链名') };
     if (w === 'label_asym') return { op: 'label_asym', v: list('label_asym_id') };
+    if (w === 'asym') return { op: 'asym', v: list('asym（含拷贝号，如 C_2）') };
     if (w === 'label_seq') return { op: 'label_seq', v: list('label_seq_id').map(x => { const m = /^(\d+)(?:-(\d+))?$/.exec(x); if (!m) throw new CmdError('label_seq 写成 10-50：' + x); return [+m[1], m[2] != null ? +m[2] : +m[1]]; }) };
     if (w === 'resn') return { op: 'resn', v: list('残基名').map(x => x.toUpperCase()) };
     if (w === 'ligand') return { op: 'ligand', v: list('小分子代码').map(x => x.toUpperCase()) };
@@ -7206,6 +7387,7 @@ function evalSel(node) {
       case 'ligands': return { r: new Set(), l: new Set(L) };
       case 'sele': return { r: new Set(glowSel.r), l: new Set(glowSel.l) };
       case 'chain': return { r: new Set(R.filter(a => n.v.includes(ch(a)))), l: new Set(L.filter(x => n.v.includes(ch(x)))) };
+      case 'asym': return { r: new Set(R.filter(a => n.v.includes(String(a.asym)))), l: new Set(L.filter(x => n.v.includes(String(x.asym)))) };
       case 'label_asym': return { r: new Set(R.filter(a => n.v.includes(String(a.asym).split('_')[0]))), l: new Set(L.filter(x => n.v.includes(String(x.asym).split('_')[0]))) };
       case 'label_seq': return { r: new Set(R.filter(a => n.v.some(([u, v]) => a.seq >= u && a.seq <= v))), l: new Set() };
       case 'resn': return { r: new Set(R.filter(a => n.v.includes(String(a.resn || '').toUpperCase()))), l: new Set() };
@@ -7559,14 +7741,42 @@ for (const [cmd, d] of Object.entries(GLOW_CMDS)) glow[cmd] = (...a) => glowRun(
 /* postMessage bridge (X1): only with ?embed=1 or ?dev=1; the sender must be same-origin or listed in ?origin=https://a,https://b
    (exact https origins); origin "null" (file://, sandboxed frames) is never accepted; replies go only to the sender's origin */
 const BRIDGE_ON = params.get('embed') === '1' || params.get('dev') === '1';
-const BRIDGE_ALLOW = new Set((params.get('origin') || '').split(',').map(x => x.trim()).filter(x => /^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(x)));
-const bridgeOk = (o) => typeof o === 'string' && o !== 'null' && ((o === location.origin && location.origin !== 'null') || BRIDGE_ALLOW.has(o));
-if (BRIDGE_ON) addEventListener('message', async (e) => {
-  const d = e.data; if (!d || typeof d !== 'object' || d.glow !== 'cmd') return;
-  if (!bridgeOk(e.origin) || !e.source) return;
+/* A1: who may drive the viewer. The list is in the code, never in the URL (the embedder would write itself in).
+   Trusted = the official site, or the same origin with ?dev=1 (the workbench). Any other https page gets only the
+   SAFE commands, and only after the person looking at the viewer clicks "允许"; it never gets data back
+   (no snapshot, export, log, or info while a local file is open). */
+const EMBED_ORIGINS = new Set(['https://nimenta727.github.io']);
+const BRIDGE_SAFE = new Set(['help', 'load', 'select', 'color', 'represent', 'style', 'camera', 'animate', 'sequence', 'measure', 'validatePack', 'info']);
+const bridgeTrusted = (o) => typeof o === 'string' && o !== 'null' && (EMBED_ORIGINS.has(o) || (params.get('dev') === '1' && o === location.origin && location.origin !== 'null'));
+const bridgeConsent = new Map();   /* origin -> 'yes' | 'no' | [pending messages] */
+function askBridgeConsent(origin) {
+  if (document.getElementById('bridgeAsk')) return;
+  const d = document.createElement('div'); d.id = 'bridgeAsk';
+  d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:50;background:#fff;color:#1c2233;border:1px solid rgba(0,0,0,.2);border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:13px;max-width:min(520px,92vw)';
+  d.innerHTML = `<div>网页 <b></b> 想控制这个查看器（只能换场景、选择、上色、改镜头和动画；不能截图、导出或读取你打开的文件）。</div>
+    <div style="margin-top:8px;text-align:right"><button data-a="no">拒绝</button> <button data-a="yes">允许此网页控制查看器</button></div>`;
+  d.querySelector('b').textContent = origin; document.body.appendChild(d);
+  d.onclick = (ev) => { const a = ev.target.dataset?.a; if (!a) return; const pend = bridgeConsent.get(origin); bridgeConsent.set(origin, a); d.remove();
+    if (a === 'yes' && Array.isArray(pend)) for (const m of pend) handleBridge(m); };
+}
+async function handleBridge(e) {
+  const d = e.data, trusted = bridgeTrusted(e.origin);
   const reply = (m) => { try { e.source.postMessage({ glow: 'reply', id: d.id ?? null, ...m }, e.origin); } catch (err) { console.warn('glow reply', err); } };
+  if (!trusted) {
+    const cmd = d.cmd;
+    if (!BRIDGE_SAFE.has(cmd) || (cmd === 'info' && current?.local) || (cmd === 'load' && (d.args?.pack != null || d.args?.packText != null))) { reply({ ok: false, error: `这个网页不能使用 ${cmd}` }); return; }
+  }
   try { reply({ ok: true, result: d.cmd === 'replay' ? await glow.replay(d.args) : d.cmd === 'log' ? glowLog.slice() : await glowRun(d.cmd, d.args) }); }
   catch (err) { reply({ ok: false, error: String(err?.message || err) }); }
+}
+if (BRIDGE_ON) addEventListener('message', (e) => {
+  const d = e.data; if (!d || typeof d !== 'object' || d.glow !== 'cmd' || !e.source) return;
+  if (bridgeTrusted(e.origin)) { handleBridge(e); return; }
+  if (typeof e.origin !== 'string' || !/^https:\/\//.test(e.origin)) return;   /* file:// (null) and http pages: never */
+  const st = bridgeConsent.get(e.origin);
+  if (st === 'yes') { handleBridge(e); return; }
+  if (st === 'no') return;
+  const pend = Array.isArray(st) ? st : []; if (pend.length < 20) pend.push(e); bridgeConsent.set(e.origin, pend); askBridgeConsent(e.origin);   /* no reply before the click */
 });
 if (params.get('embed') === '1') { document.body.classList.add('embed'); $('panel').classList.add('hidden'); }
 if (BRIDGE_ON && window.parent !== window) try { window.parent.postMessage({ glow: 'ready', api: GLOW_API }, '*'); } catch (e) {}   /* no data in it */

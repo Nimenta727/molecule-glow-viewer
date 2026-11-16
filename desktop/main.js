@@ -129,6 +129,10 @@ function createWindow() {
           const a = await run(w.load), b = await run(w.load); (report.twice ??= []).push({ key: w.key, a, b });
           console.log('[regress] twice', w.key, JSON.stringify({ geometries: [a.geometries, b.geometries], listeners: [a.listeners, b.listeners], domTags: [a.domTags, b.domTags], error: a.error || b.error }));
         }
+        for (const k of ['backTest', 'animTest', 'bridgeTest']) {   // round 4: back navigation (A9), pending animations (A11), bridge (A1)
+          report[k] = await win.webContents.executeJavaScript(`window.__viewer.${k}()`).catch(e => ({ error: String(e.message || e) }));
+          console.log('[regress]', k, JSON.stringify(report[k]));
+        }
       } catch (e) { report.fatal = String(e.message || e); }
       fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 1)); app.quit();
     }, 3000));

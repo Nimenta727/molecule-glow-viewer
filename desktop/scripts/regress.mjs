@@ -91,6 +91,13 @@ for (const w of rep.twice || []) {   // the same scene twice in a row
   if (b.domTags > a.domTags + 5) fails.push(`连载两次 ${w.key}：DOM 标签 ${a.domTags} → ${b.domTags}`);
   if (b.geometries > a.geometries + 10) fails.push(`连载两次 ${w.key}：几何体 ${a.geometries} → ${b.geometries}`);
 }
+/* round 4 checks */
+for (const sc of rep.scenes || []) if (sc.unnamedParticles) fails.push(`${sc.key}：${sc.unnamedParticles} 个粒子没有名字`);
+for (const sc of rep.scenes || []) if (sc.pendingAfterClear) fails.push(`${sc.key}：清场后还有 ${sc.pendingAfterClear} 个等待中的动画`);
+{ const B = rep.backTest; if (!B) warns.push('没有返回导航测试'); else if (B.error) fails.push('返回导航：' + B.error); else { console.log(`返回导航：${B.mid?.key} → ${B.title}，差异 ${B.diff.length}`); for (const d of B.diff) fails.push('返回导航：' + d); } }
+{ const A = rep.animTest; if (!A) warns.push('没有动画计数测试'); else if (A.error) fails.push('动画计数：' + A.error); else { console.log(`等待中的动画：运行中 ${A.mid}，清场后 ${A.afterClear}`); if (A.afterClear) fails.push(`清场后还有 ${A.afterClear} 个等待中的动画`); if (!(A.mid > 0)) warns.push('运行中没有测到等待中的动画（pendingAnims 计数可能没接上）'); } }
+{ const G = rep.bridgeTest; if (!G) warns.push('没有桥接测试'); else if (G.error) fails.push('桥接：' + G.error); else { console.log(`桥接：官方站 ${G.trustedOfficial}，其他站 ${G.trustedOther}，null ${G.trustedNull}`);
+  if (!G.trustedOfficial || G.trustedOther || G.trustedNull) fails.push('桥接：信任名单不对'); if (G.unsafeAnswered.length) fails.push('桥接：未授权网页拿到了 ' + G.unsafeAnswered.join('、')); } }
 /* T10: console errors from the page fail the run, except known, harmless ones (whitelist) */
 const ERR_OK = [/ResizeObserver loop/, /favicon/i, /net::ERR_INTERNET_DISCONNECTED/];
 for (const e of pageErrors) (ERR_OK.some(re => re.test(e)) ? warns : fails).push(e);
