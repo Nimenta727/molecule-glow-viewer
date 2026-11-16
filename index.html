@@ -79,6 +79,7 @@
   #energy .eh{color:#ffe680;font-weight:600;margin-right:6px}
   #energy .e{padding:2px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .25s,color .25s}
   #energy .e.on{background:#ffe680;color:#1b1b24;font-weight:600}
+  #energy .e.fol{margin-left:8px;border-color:rgba(255,230,128,.45)} .fbtn.wide{width:auto;padding:1px 8px}
   #energy .e:hover{border-color:#ffe680}
   #energy i{font-style:normal;color:#7b86a3}
   body.lightbg #energy{background:rgba(255,255,255,.9);color:#2a3045;border-color:rgba(0,0,0,.1)}
@@ -268,6 +269,7 @@ const PRESETS = {
     /* E. coli AdK domains (Müller et al. 1996): CORE 1-29/60-121/160-214, NMP-binding 30-59, LID 122-159 */
     domains: [['CORE', [[1, 29], [60, 121], [160, 214]]], ['NMP', [[30, 59]]], ['LID', [[122, 159]]]],
     energyStage: 'morph',
+    energyHL: [[{ aseqs: [[7, 15]] }], [{ aseqs: [[30, 59], [122, 159]] }], [{ aseqs: [[13, 13], [123, 123], [156, 156], [167, 167]] }], [{ aseqs: [[122, 159]] }]],
     energy: [
       ['底物结合', 'ATP（带 Mg²⁺）结合在 CORE 的 P-loop 上、被 LID 覆盖；AMP 结合在 NMP 结合域。结合能使构象平衡偏向闭合态（没有底物时酶也会短暂闭合；Henzler-Wildman 等 2007）。'],
       ['LID / NMP 闭合', '两个结构域向 CORE 关闭，把水挤出活性位点、把两个底物的磷酸对准，LID 与 P-loop 上带正电的残基稳定过渡态。转动角度由 4AKE 与 1AKE 两套坐标计算（聚焦 Ap5A 可看到）。'],
@@ -377,7 +379,7 @@ function rowsToEntry(rows, entities) {
     if (r.alt && r.alt !== '.' && r.alt !== '?' && r.alt !== 'A') continue;   // alternate locations: keep the first
     if (r.g === 'ATOM') {
       if ((r.an === 'CA' && r.el !== 'CA') || r.an === 'P')
-        atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq || parseInt(r.aseq) || 0, na: r.an === 'P', resn: r.comp });
+        atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq || parseInt(r.aseq) || 0, na: r.an === 'P', resn: r.comp, aseq: r.aseq });
     } else if (r.g === 'HETATM' && !IGNORE_LIGANDS.has(r.comp)) {
       if (r.el === 'H' || r.el === 'D') continue;
       if (r.poly) {   // modified residue inside a chain (MSE, M3L, SEP ...): one blob at its CA
@@ -1441,6 +1443,168 @@ function defaultSimple(g) {
    One label per part (largest parts first, max 16), anchored on the outside of the part, following rotation.
    Text comes from the preset's notes {key: [name, one-line role, explanation]}; otherwise entity name + size. */
 let labels = [];
+
+/* ----------------------------------------------------------------------------- selection set (iCn3D-style)
+   Every way of choosing something - a click in 3D, a legend row, a part label, an energy step - writes ids into ONE set,
+   and applySelection() does the same things for all of them: the rest is dimmed, selected residues get a marker, then
+   (by the caller) the camera flies and the info card explains. ids: part:<group index> | residue:<asym>:<label seq>.
+   Ligands are not selected here: clicking one opens its binding site (focusLigand). */
+const sel = { ids: new Set(), source: null, soft: false, mats: [], hidden: [], markers: [] };
+const MARK_GEO = new THREE.SphereGeometry(1, 16, 12);
+const CHEM_NAME = { ASP: '酸性（带负电）', GLU: '酸性（带负电）', LYS: '碱性（带正电）', ARG: '碱性（带正电）', HIS: '组氨酸（可带正电）', SER: '极性', THR: '极性', ASN: '极性', GLN: '极性',
+  CYS: '含硫', MET: '含硫', TYR: '芳香', PHE: '芳香', TRP: '芳香', GLY: '甘氨酸（主链最柔）', PRO: '脯氨酸（主链转折）' };
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function restoreSelVisuals() {
+  for (const [m, o] of sel.mats) { m.transparent = o.t; m.opacity = o.o; m.depthWrite = o.d; m.needsUpdate = true; }
+  for (const x of sel.hidden) x.visible = true;
+  for (const mk of sel.markers) { mk.parent?.remove(mk); mk.material.dispose(); }
+  sel.mats = []; sel.hidden = []; sel.markers = [];
+  labels.forEach(l => l.el.classList.remove('on'));
+}
+function clearSelection() { restoreSelVisuals(); sel.ids.clear(); sel.source = null; sel.soft = false; }
+function partSphere(g) {   // centre / radius of a part in its own frame (cached per loaded part)
+  if (!g._bs) { const c = new THREE.Vector3(); g.atoms.forEach(a => c.add(a.p)); c.multiplyScalar(1 / Math.max(1, g.atoms.length));
+    let r = 0; for (const a of g.atoms) r = Math.max(r, a.p.distanceTo(c), a.p2 ? a.p2.distanceTo(c) : 0); g._bs = { c, r }; }
+  return g._bs;
+}
+const morphed = (a) => a.p2 ? a.p.clone().lerp(a.p2, U.uMorph.value) : a.p.clone();
+function applySelection() {
+  restoreSelVisuals();
+  if (!sel.ids.size) return;
+  const selG = new Set(), resBy = new Map();
+  if (sel._for !== groups) { sel._for = groups; sel._res = new Map(); groups.forEach(g => g.atoms.forEach(a => sel._res.set(a.asym + ':' + a.seq, [g, a]))); }
+  for (const id of sel.ids) {
+    const [t, x, y] = id.split(':');
+    if (t === 'part' && groups[+x]) selG.add(groups[+x]);
+    if (t === 'residue') { const ga = sel._res.get(x + ':' + y); if (ga) { selG.add(ga[0]); if (!resBy.has(ga[0])) resBy.set(ga[0], []); resBy.get(ga[0]).push(ga[1]); } }
+  }
+  /* dim everything that is not selected (materials shared with a selected part stay as they are) */
+  if (selG.size && selG.size < groups.filter(g => g.visible).length) {
+    const keep = new Set(), seen = new Set();
+    for (const g of selG) g.mesh?.traverse(x => { if (x.material) keep.add(x.material); });
+    for (const g of groups) if (!selG.has(g) && g.mesh) g.mesh.traverse(x => {
+      if (x.userData.outline === true) { if (x.visible) { x.visible = false; sel.hidden.push(x); } return; }
+      const m = x.material; if (!x.isMesh || !m || Array.isArray(m) || keep.has(m) || seen.has(m)) return; seen.add(m);
+      sel.mats.push([m, { t: m.transparent, o: m.opacity, d: m.depthWrite }]);
+      m.transparent = true; m.opacity = Math.min(m.opacity, sel.soft ? 0.32 : 0.14); m.depthWrite = false; m.needsUpdate = true;
+    });
+  }
+  /* residue markers: see-through gold spheres (drawn on top, so buried residues such as a channel filter still show) */
+  for (const [g, list] of resBy) {
+    if (!g.mesh) continue;
+    const many = list.length > 30, mat = new THREE.MeshBasicMaterial({ color: illustrative() ? 0xe39b00 : 0xc99a1e, transparent: true, opacity: many ? 0.3 : 0.55, depthTest: false, depthWrite: false });
+    const mk = new THREE.InstancedMesh(MARK_GEO, mat, list.length), m4 = new THREE.Matrix4(), sc = many ? 2.2 : 3.0;
+    list.forEach((a, i) => mk.setMatrixAt(i, m4.makeScale(sc, sc, sc).setPosition(morphed(a))));
+    mk.renderOrder = 7; mk.frustumCulled = false; mk.userData.selMarker = true; g.mesh.add(mk); sel.markers.push(mk);
+  }
+  labels.forEach(l => l.el.classList.toggle('on', selG.has(l.g)));
+}
+/* smooth camera moves (ease-out cubic); any drag by the user cancels the move */
+let camFly = null;
+function flyView(pos, target, ms = 650) { camFly = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), s: performance.now(), ms }; }
+function flyTo(target, dist, ms) {
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  flyView(target.clone().addScaledVector(dir, dist ?? camera.position.distanceTo(controls.target)), target, ms);
+}
+function updateFly() {
+  if (!camFly) return;
+  const k = Math.min(1, (performance.now() - camFly.s) / camFly.ms), e = 1 - (1 - k) ** 3;
+  camera.position.lerpVectors(camFly.p0, camFly.p1, e); controls.target.lerpVectors(camFly.t0, camFly.t1, e); controls.update();
+  if (k >= 1) camFly = null;
+}
+controls.addEventListener('start', () => { camFly = null; });
+const fitDist = (r) => { const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * camera.aspect)); return r / Math.sin(half); };
+/* what the info card says about a part or one residue of it */
+function showSelInfo(g, a) {
+  const notes = current?.notes, nk = findKey(notes, g.name), note = nk != null ? notes[nk] : null;
+  const nm = note ? note[0] : g.name.length > 34 ? g.name.slice(0, 32) + '…' : g.name;
+  $('infoT').innerHTML = `<span class="sw" style="background:${g.fixed && $('palette').value === 'neon' ? g.fixed : g.color}"></span>`;
+  $('infoT').append(a ? `${nm} · ${a.na ? a.resn : (AA1[a.resn] || a.resn)}${a.aseq || a.seq}` : nm);
+  let h = '';
+  if (a) {
+    const core = (g.coreIdx || []).includes(g.atoms.indexOf(a));
+    let near = '', bd = 1e9, bl = null;
+    for (const l of model?.ligands || []) { if (LIPIDS.has(l.comp)) continue; for (const x of l.atoms) { const d = x.p.distanceTo(a.p); if (d < bd) { bd = d; bl = l; } } }
+    if (bl && bd < 12) near = `；${a.na ? 'P' : 'Cα'} 离 ${esc(bl.comp)} 最近原子 ${bd.toFixed(1)} Å`;
+    h += `<div>链 ${esc(a.asym.split('_')[0])} · ${a.na ? '核苷酸' : CHEM_NAME[a.resn] || '疏水'}${near}</div>`;
+    h += `<div class="sec"><b>${core ? '① 功能核心' : g.faded ? '③ 支架' : g.simple ? '② 功能部件' : '原子细节'}</b>：${core ? '保留原子细节、按化学性质着色（小分子 8 Å 内或预设的关键残基）'
+      : g.faded ? '不直接参与机制，画成半透明' : g.simple ? '画成由真实坐标算出的低分辨率形状，随构象一起运动' : '这个部件按原子细节显示'}</div>`;
+  } else {
+    const chains = new Set(g.atoms.map(x => x.asym)).size;
+    h += `<div>${chains > 1 ? chains + ' 条链 · ' : ''}${g.atoms.length.toLocaleString()} 个残基${g.coreIdx?.length ? `，其中 ${g.coreIdx.length} 个属于功能核心（原子细节）` : ''}</div>`;
+  }
+  h += note ? `<div class="sec">${note[2]}</div>` : a ? '' : `<div class="sec" style="color:var(--dim)">${esc(g.name)}（预设里加 notes 可写讲解）</div>`;
+  h += `<div class="sec" style="color:var(--dim)">点空白处或按 Esc 取消选择${(model?.ligands || []).some(l => !l.hidden) ? '；点小分子看结合位点' : ''}。</div>`;
+  $('infoB').innerHTML = h; $('infoCard').style.display = 'block';
+}
+function selectPart(g, fly = true) {
+  if (focus) clearFocus();
+  clearSelection(); sel.ids.add('part:' + groups.indexOf(g)); sel.source = 'part'; applySelection(); showSelInfo(g);
+  if (fly && g.mesh) { const b = partSphere(g); g.mesh.updateMatrixWorld(); flyTo(g.mesh.localToWorld(b.c.clone()), fitDist(b.r + 10) * 1.05); }
+}
+function selectResidue(g, a) {
+  clearSelection(); sel.ids.add(`residue:${a.asym}:${a.seq}`); sel.source = 'click'; applySelection(); showSelInfo(g, a);
+  g.mesh.updateMatrixWorld();
+  const cur = camera.position.distanceTo(controls.target);
+  flyTo(g.mesh.localToWorld(morphed(a)), Math.min(cur, Math.max(fitDist(38), cur * 0.7)));
+}
+/* picking: ray against residue spheres (all representations are built from the same residues, so one test serves blobs,
+   cartoon, schematic shapes and surfaces; ~150k residues take a few ms). Ghosted scaffold is picked only if nothing else is
+   on the ray; residues inside the cut-away wedge are skipped; ligands win over the protein surface around them. */
+const _ray = new THREE.Ray(), _inv = new THREE.Matrix4(), _rc = new THREE.Raycaster(), _pw = new THREE.Vector3(), _pv = new THREE.Vector2();
+const inCut = (w) => { const A = U.uCutA.value, B = U.uCutB.value; return A.x * w.x + A.y * w.y + A.z * w.z + A.w > 0 && B.x * w.x + B.y * w.y + B.z * w.z + B.w > 0; };
+function pickAt(cx, cy) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  _rc.setFromCamera(_pv.set((cx - rect.left) / rect.width * 2 - 1, -(cy - rect.top) / rect.height * 2 + 1), camera);
+  const mo = U.uMorph.value, R = 3.6, R2 = R * R; let best = null;
+  const scan = (P, rad, bias, mw, cutOn, mk) => {   // P: [x,y,z] getter list in the frame of mw
+    const o = _ray.origin, d = _ray.direction;
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i], x = p[0], y = p[1], z = p[2], vx = x - o.x, vy = y - o.y, vz = z - o.z, t = vx * d.x + vy * d.y + vz * d.z;
+      if (t <= 0) continue; const q = vx * vx + vy * vy + vz * vz - t * t, rr = rad[i] ?? rad; if (q > rr * rr) continue;
+      const th = t - Math.sqrt(rr * rr - q) + bias; if (best && th >= best.t) continue;
+      if (cutOn && inCut(_pw.set(x, y, z).applyMatrix4(mw))) continue;
+      best = { t: th, ...mk(i) };
+    }
+  };
+  for (const g of groups) {
+    if (!g.visible || !g.mesh?.visible || !g.atoms.length) continue;
+    g.mesh.updateMatrixWorld(); _ray.copy(_rc.ray).applyMatrix4(_inv.copy(g.mesh.matrixWorld).invert());
+    const b = partSphere(g); if (_ray.distanceSqToPoint(b.c) > (b.r + R) ** 2) continue;
+    if (!g._pickP || g._pickM !== mo) { g._pickM = mo; g._pickP = g.atoms.map(a => a.p2 && mo ? [a.p.x + (a.p2.x - a.p.x) * mo, a.p.y + (a.p2.y - a.p.y) * mo, a.p.z + (a.p2.z - a.p.z) * mo] : [a.p.x, a.p.y, a.p.z]); }
+    scan(g._pickP, R, g.faded ? 30 : 0, g.mesh.matrixWorld, !!g.ghost, (i) => ({ g, a: g.atoms[i] }));
+  }
+  if ($('ligOn').checked && !focus) for (const lg of ligGroups) {
+    if (!lg.visible || !lg.obj.visible) continue;
+    const s = +$('ligScale').value, mols = (model?.ligands || []).filter(l => !l.hidden && l.comp === lg.comp && (l.state || 0) === lg.state);
+    lg.obj.updateMatrixWorld(); _ray.copy(_rc.ray).applyMatrix4(_inv.copy(lg.obj.matrixWorld).invert());
+    for (const L of mols) { const c = L.centre; scan(L.atoms.map(x => [c.x + (x.p.x - c.x) * s, c.y + (x.p.y - c.y) * s, c.z + (x.p.z - c.z) * s]), 1.1 * s, -6, lg.obj.matrixWorld, false, () => ({ lig: L, list: mols })); }
+  }
+  return best;
+}
+let _pd = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { _pd = e.button === 0 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  const d = _pd; _pd = null;
+  if (!d || !model || focus || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 6 || performance.now() - d.t > 600) return;   // a drag rotates, only a tap selects
+  const hit = pickAt(e.clientX, e.clientY);
+  if (!hit) { if (sel.ids.size) { clearSelection(); $('infoCard').style.display = 'none'; } return; }
+  if (hit.lig) { clearSelection(); focusLigand(hit.lig, hit.list.indexOf(hit.lig), hit.list.length); return; }
+  selectResidue(hit.g, hit.a);
+});
+/* energy steps -> selection: `energyHL[i]` lists what step i involves: part keys ('subunit beta', '/re/') or
+   { part?: key, aseqs: [[from, to], ...] } residue ranges in author (literature) numbering */
+let energyFollow = false;
+const energyHLList = () => proc?.energyHL || current?.energyHL || null;
+function selectSpecs(specs, soft) {
+  clearSelection(); if (!specs || !specs.length) return;
+  for (const sp of specs) {
+    if (typeof sp === 'string') groups.forEach((g, i) => { if (kwMatch(g.name, sp)) sel.ids.add('part:' + i); });
+    else groups.forEach(g => { if (sp.part && !kwMatch(g.name, sp.part)) return;
+      for (const a of g.atoms) { const n = parseInt(a.aseq) || a.seq; if (sp.aseqs.some(([u, v]) => n >= u && n <= v)) sel.ids.add(`residue:${a.asym}:${a.seq}`); } });
+  }
+  sel.source = 'step'; sel.soft = !!soft; applySelection();
+}
 function rebuildLabels() {
   const box = $('labels'); box.innerHTML = ''; labels = []; $('infoCard').style.display = 'none';
   if (!$('labelsOn').checked || !groups.length) return;
@@ -1463,12 +1627,7 @@ function rebuildLabels() {
     const sub = note ? note[1] : `${chains > 1 ? chains + ' 条链 · ' : ''}${g.atoms.length.toLocaleString()} 个残基`;
     const el = document.createElement('div'); el.className = 'lab'; el.innerHTML = `<b></b><i></i>`;
     el.querySelector('b').textContent = nm; el.querySelector('i').textContent = sub;
-    el.onclick = () => {
-      labels.forEach(l => l.el.classList.remove('on')); el.classList.add('on');
-      $('infoT').innerHTML = `<span class="sw" style="background:${g.fixed && $('palette').value === 'neon' ? g.fixed : g.color}"></span>`; $('infoT').append(nm);
-      $('infoB').textContent = note ? note[2] : `${g.name}。${chains} 条链，${g.atoms.length.toLocaleString()} 个残基。（预设里加 notes 可写讲解）`;
-      $('infoCard').style.display = 'block';
-    };
+    el.onclick = () => selectPart(g);
     box.appendChild(el); labels.push({ el, g, anchor: best.p.clone().addScaledVector(dir, 6) });
   });
 }
@@ -1610,6 +1769,7 @@ function tickAnims(dt) {
    ============================================================================= */
 const PROCESSES = {
   atpSynthase: {
+    energyHL: [['/subunit a$/'], ['/subunit a$/', 'subunit C1'], ['subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1', 'subunit beta'], ['subunit beta', 'subunit alpha'], ['subunit beta', 'subunit gamma']],
     energy: [
       ['质子动力势', '呼吸链把 H⁺ 泵到膜间隙，建立跨线粒体内膜的电化学梯度（质子动力势 Δp 约 180–200 mV，主要是膜电位，ΔpH 只占一小部分）。这是 ATP 合酶的能量来源。'],
       ['H⁺ 流过 → c 环转动', 'H⁺ 从膜间隙一侧的 a 亚基半通道进入，结合到 c 亚基的 Glu58 上（中和负电荷后，这个 c 亚基才能转进疏水的脂双层）；c 环转一圈后，它在 a 亚基 Arg159 旁边把 H⁺ 交给通往基质的另一个半通道。电化学能在这里变成转动的机械能。c8 环转一圈要 8 个 H⁺。'],
@@ -1762,6 +1922,7 @@ const PROCESSES = {
   },
 
   flagellarMotor: {
+    energyHL: [['定子'], ['定子'], ['定子'], ['定子', 'C 环'], ['C 环', 'M-ring', 'MS ring', 'rod', 'hook protein', '鞭毛丝']],
     energy: [
       ['质子动力势', '细菌质膜内外的 H⁺ 电化学梯度（Δp 约 −150 mV 量级）。鞭毛马达直接用这个梯度，不用 ATP。'],
       ['H⁺ 经定子', 'H⁺ 从周质经 MotA/MotB 定子的通道流入胞质，途中结合并离开 MotB 跨膜段上一个保守的天冬氨酸。'],
@@ -1791,6 +1952,7 @@ const PROCESSES = {
   },
 
   ionChannel: {
+    energyHL: [[], [{ aseqs: [[62, 74]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[75, 79]] }], [{ aseqs: [[79, 81]] }]],
     energy: [
       ['电化学梯度', '细胞内 K⁺ 浓度高（约 140 mM，胞外约 5 mM），K⁺ 顺电化学梯度外流。通道不消耗 ATP，只提供一条能垒很低的通路（被动运输）。'],
       ['水合 K⁺ 进入中央腔', '中央腔里充满水，K⁺ 仍带着水合壳；四个孔螺旋的偶极负端指向中央腔，稳定腔里的阳离子（Doyle 等 1998）。'],
@@ -2048,6 +2210,7 @@ function colourFnRaw(g, gi) {
 }
 function disposeObj(o) { o.traverse(x => { if (x.geometry) x.geometry.dispose(); if (x.material) x.material.dispose(); }); }
 function rebuildMeshes() {
+  clearSelection();
   const pal = PALETTES[$('palette').value], rep = $('repMode').value;
   groups.forEach((g, i) => {
     if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
@@ -2151,6 +2314,7 @@ function renderLegend() {
     d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; g.mesh.rotation.y = g.spin ? theta : 0; };
     d.querySelector('[data-k=ghost]').onchange = (ev) => { g.ghost = ev.target.checked; if (g.ghost) aimCut(); rebuildMeshes(); applyCut(); };
     d.querySelector('[data-k=simple]').onchange = (ev) => { g.simple = ev.target.checked; rebuildMeshes(); applyCut(); };
+    const nmEl = d.querySelector('.nm'); nmEl.style.cursor = 'pointer'; nmEl.onclick = () => selectPart(g);
     L.appendChild(d);
   });
   for (const lg of ligGroups) {
@@ -2186,15 +2350,17 @@ const AA1 = { ALA: 'Ala', ARG: 'Arg', ASN: 'Asn', ASP: 'Asp', CYS: 'Cys', GLN: '
   MET: 'Met', PHE: 'Phe', PRO: 'Pro', SER: 'Ser', THR: 'Thr', TRP: 'Trp', TYR: 'Tyr', VAL: 'Val' };
 const ITYPE = { hbond: ['氢键', '#2f9bff'], salt: ['盐桥', '#ff4fa3'], metal: ['金属 / 离子配位', '#a56bff'] };
 let focus = null;
-function clearFocus() {
+function clearFocus(restoreCam = true) {
   if (!focus) return;
+  focus.token = null;
   procRoot.remove(focus.obj); world.remove(focus.obj); disposeObj(focus.obj);
   focus.labs.forEach(l => l.el.remove());
   for (const g2 of ligGroups) g2.obj.visible = g2.visible && $('ligOn').checked;
   procRoot.visible = focus.procVis !== false;
   for (const g of groups) g.mesh?.traverse(x => { if (x.userData.focusHidden) { x.visible = true; x.userData.focusHidden = false; }
     const m = x.material; if (m?.userData?.focusSaved) { const f = m.userData.focusSaved; m.transparent = f.t; m.opacity = f.o; m.depthWrite = f.d; m.needsUpdate = true; delete m.userData.focusSaved; } });
-  if (focus.cam) { camera.position.copy(focus.cam[0]); controls.target.copy(focus.cam[1]); controls.update(); }   // back to the view before focusing
+  if (restoreCam) focusLigand._cam = null;
+  if (focus.cam && restoreCam) flyView(focus.cam[0], focus.cam[1]);   // back to the view before focusing
   focus = null;
 }
 function dashes(pairs, color, r = 0.16) {   // dashed cylinders between atom pairs
@@ -2218,7 +2384,7 @@ function domainTurns(g, at, pFrom, pTo, names) {   // rigid rotation of each dom
   });
 }
 async function focusLigand(L, idx = 0, n = 1) {
-  clearFocus();
+  clearFocus(false); clearSelection();
   if (!L.src) { status('这个小分子没有来源条目，无法下载结合位点'); return; }
   status(`下载 ${L.comp} 结合位点的全原子坐标 …`, true);
   let txt;
@@ -2252,8 +2418,10 @@ async function focusLigand(L, idx = 0, n = 1) {
   const nearO = (x, el, d) => [...lig, ...het].some(y => y !== x && y.el === el && y.q.distanceTo(x.q) < d);
   const isAnionO = (x) => x.el === 'O' && (nearO(x, 'P', 1.75) || [...lig, ...het].some(c => c.el === 'C' && c.q.distanceTo(x.q) < 1.45 && [...lig, ...het].filter(o => o.el === 'O' && o !== x && o.q.distanceTo(c.q) < 1.45).length === 1));
   const isCation = (r) => r.comp === 'LYS' && r.an === 'NZ' || r.comp === 'ARG' && /^(NE|NH1|NH2)$/.test(r.an) || r.comp === 'HIS' && /^(ND1|NE2)$/.test(r.an);
+  let clash = 0;   // N/O pairs closer than 2.4 A are not real contacts (alternate conformers / errors in the deposited model)
   for (const la of partners) for (const rr of res.values()) for (const ra of rr.atoms) {
     const d = la.q.distanceTo(ra.q);
+    if (d < 2.4 && !METALS.has(la.el) && /^[ON]$/.test(la.el) && /^[ON]$/.test(ra.el)) { clash++; continue; }
     if (METALS.has(la.el) && /^[ON]$/.test(ra.el) && d <= (la.el === 'K' || la.el === 'NA' ? 3.2 : 2.8)) inter.push({ type: 'metal', a: la, b: ra, rr, d });
     else if (isCation(ra) && d <= 4.0 && isAnionO(la)) inter.push({ type: 'salt', a: la, b: ra, rr, d });
     else if (/^[ON]$/.test(la.el) && /^[ON]$/.test(ra.el) && d <= 3.5) inter.push({ type: 'hbond', a: la, b: ra, rr, d });
@@ -2273,10 +2441,31 @@ async function focusLigand(L, idx = 0, n = 1) {
   const lg = ligGroups.find(l => l.comp === L.comp && l.state === (L.state || 0));
   for (const g2 of ligGroups) g2.obj.visible = false;   // enlarged display copies would bury the site; the focused one is drawn at true size
   const mats = new Set();
-  for (const g of groups) g.mesh?.traverse(x => { if ((x.userData.core || x.userData.outline) && x.visible) { x.visible = false; x.userData.focusHidden = true; return; }   // core beads + outlines off: the site is redrawn at full detail
+  for (const g of groups) g.mesh?.traverse(x => { if ((x.userData.core || x.userData.outline === true) && x.visible) { x.visible = false; x.userData.focusHidden = true; return; }   // core beads + outlines off: the site is redrawn at full detail
     if (x.isMesh && x.material && !Array.isArray(x.material) && !x.material.userData.focusSaved) mats.add(x.material); });
   for (const m of mats) { m.userData.focusSaved = { t: m.transparent, o: m.opacity, d: m.depthWrite }; m.transparent = true; m.opacity = Math.min(m.opacity, 0.18); m.depthWrite = false; m.needsUpdate = true; }
   world.add(obj);
+  /* pocket surface: Gaussian molecular surface of the site residues (no ligand), computed in a Web Worker, coloured by
+     residue chemistry, cropped to the region around the ligand -> the shape of the pocket the ligand sits in */
+  const token = {};
+  {
+    const sAt = [...res.values()].flatMap(rr => rr.atoms.map(x => ({ x, rr })));
+    const VDW = { C: 1.7, N: 1.55, O: 1.52, S: 1.8 }, CL = Object.keys(RES_CHEM);
+    const lc = lig.reduce((t, x) => t.add(x.p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, lig.length));
+    const job = { pos: new Float32Array(sAt.flatMap(({ x }) => [x.p.x, x.p.y, x.p.z])), rad: new Float32Array(sAt.map(({ x }) => VDW[x.el] || 1.8)),
+      cls: new Uint8Array(sAt.map(({ rr }) => { const k = CL.indexOf(rr.comp); return k < 0 ? 255 : k; })),
+      centre: [lc.x, lc.y, lc.z], cut: Math.max(...lig.map(x => x.p.distanceTo(lc)), 3) + 5 };
+    runPocketJob(job).then((out) => {
+      if (!focus || focus.token !== token || !out.idx.length) return;
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(out.pos, 3)); geo.setIndex(new THREE.BufferAttribute(out.idx, 1)); geo.computeVertexNormals();
+      const cols = new Float32Array(out.cls.length * 3), cc = new THREE.Color();
+      out.cls.forEach((k, i) => { cc.set(k === 255 ? '#d8d1b8' : RES_CHEM[CL[k]]); cols.set([cc.r, cc.g, cc.b], i * 3); });
+      geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
+      mesh.renderOrder = 4; mesh.userData.pocket = true; obj.add(mesh);
+      const b = $('pocketBtn'); if (b) { b.disabled = false; b.textContent = '口袋表面：开'; }
+    });
+  }
   /* residue labels (only residues that make an interaction, plus the closest others up to 14) */
   const box = $('labels'), labs = [];
   const key = new Set(inter.filter(i => i.rr).map(i => i.rr));
@@ -2286,11 +2475,11 @@ async function focusLigand(L, idx = 0, n = 1) {
     const el = document.createElement('div'); el.className = 'rlab'; el.textContent = nameOf(rr); box.appendChild(el);
     labs.push({ el, p: pts.reduce((s, x) => s.add(x.clone()), new THREE.Vector3()).multiplyScalar(1 / pts.length) });
   }
-  focus = { L, obj, labs, lg, procVis: procRoot.visible, cam: [camera.position.clone(), controls.target.clone()] }; procRoot.visible = false;   // animated particles would bury the site
+  focus = { token, L, obj, labs, lg, procVis: procRoot.visible, cam: focusLigand._cam || [camera.position.clone(), controls.target.clone()] }; focusLigand._cam = focus.cam; procRoot.visible = false;   // animated particles would bury the site
   /* camera: centre the ligand, keep the viewing direction */
   world.updateMatrixWorld(); const c = Lc.clone().applyMatrix4(world.matrixWorld), dir = camera.position.clone().sub(controls.target).normalize();
   const r = Math.max(14, ...L.atoms.map(x => x.p.distanceTo(Lc))) + 16;
-  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9); controls.update();
+  flyTo(c, r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9, 800);
   /* info card */
   const fmt = (i) => `${i.rr ? nameOf(i.rr) : i.b.comp} ${i.b.an}…${i.a.comp === L.comp ? '' : i.a.comp + ' '}${i.a.an} ${i.d.toFixed(1)} Å`;
   const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(fmt).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
@@ -2317,10 +2506,70 @@ async function focusLigand(L, idx = 0, n = 1) {
   $('infoB').innerHTML = `<div>位于 <b>${hostName}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${L.src.toUpperCase()}）。虚线由坐标计算：</div>`
     + sec('hbond') + sec('salt') + sec('metal')
     + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(nameOf).join('、')}</div>` : '')
+    + (clash ? `<div class="sec" style="color:var(--dim)">另有 ${clash} 对 N/O 原子距离 < 2.4 Å（沉积模型里的交替构象或几何冲突，不是真实接触），未计入。</div>` : '')
     + conf + (note ? `<div class="sec"><b>机制</b>：${note}</div>` : '')
-    + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 退出聚焦。</div>`;
+    + `<div class="sec"><button class="fbtn wide" id="pocketBtn" disabled>口袋表面计算中…</button> 半透明表面＝结合口袋的形状（位点残基的分子表面，不含小分子），颜色＝残基化学性质：红 酸性、蓝 碱性、青绿 极性、紫 芳香、黄 含硫、沙色 疏水。</div>`
+    + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 或按 Esc 退出聚焦。</div>`;
   $('infoCard').style.display = 'block';
+  $('pocketBtn').onclick = () => { const m = focus?.obj.children.find(x => x.userData.pocket); if (!m) return; m.visible = !m.visible; $('pocketBtn').textContent = '口袋表面：' + (m.visible ? '开' : '关'); };
   status(`聚焦 ${L.comp}：${inter.length} 个极性相互作用`);
+}
+
+/* ----------------------------------------------------------------------------- pocket surface (Web Worker)
+   Gaussian molecular surface (the Mol* / NGL "gaussian surface" idea): each atom adds exp(-2 d^2 / R^2), R = vdW radius;
+   the iso-level exp(-2) puts an isolated atom's surface at its vdW radius, neighbours blend into a smooth skin.
+   Iso-surface by surface nets on a 0.5 A grid; quads farther than `cut` from the ligand centre are dropped. */
+function pocketSurfaceJob(J) {
+  const { pos, rad, cls, centre, cut } = J, n = rad.length, h = 0.5, lvl = Math.exp(-2);
+  let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
+  for (let i = 0; i < n; i++) { const x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2]; if (x < mnx) mnx = x; if (y < mny) mny = y; if (z < mnz) mnz = z; if (x > mxx) mxx = x; if (y > mxy) mxy = y; if (z > mxz) mxz = z; }
+  mnx -= 4; mny -= 4; mnz -= 4; mxx += 4; mxy += 4; mxz += 4;
+  const nx = Math.ceil((mxx - mnx) / h) + 1, ny = Math.ceil((mxy - mny) / h) + 1, nz = Math.ceil((mxz - mnz) / h) + 1;
+  if (nx * ny * nz > 6e6) return { pos: new Float32Array(0), idx: new Uint32Array(0), cls: new Uint8Array(0) };
+  const D = new Float32Array(nx * ny * nz), best = new Float32Array(nx * ny * nz), near = new Int32Array(nx * ny * nz).fill(-1);
+  const id = (i, j, k) => i + nx * (j + ny * k);
+  for (let a = 0; a < n; a++) {
+    const px = pos[3 * a], py = pos[3 * a + 1], pz = pos[3 * a + 2], R = rad[a], inv = 2 / (R * R), rc = Math.ceil(2 * R / h), cut2 = 4 * R * R;
+    const ci = Math.round((px - mnx) / h), cj = Math.round((py - mny) / h), ck = Math.round((pz - mnz) / h);
+    for (let k = Math.max(0, ck - rc); k <= Math.min(nz - 1, ck + rc); k++) { const dz = mnz + k * h - pz;
+      for (let j = Math.max(0, cj - rc); j <= Math.min(ny - 1, cj + rc); j++) { const dy = mny + j * h - py;
+        for (let i = Math.max(0, ci - rc); i <= Math.min(nx - 1, ci + rc); i++) { const dx = mnx + i * h - px, r2 = dx * dx + dy * dy + dz * dz;
+          if (r2 > cut2) continue; const v = Math.exp(-r2 * inv), q = id(i, j, k); D[q] += v; if (v > best[q]) { best[q] = v; near[q] = a; } } } }
+  }
+  const cid = (i, j, k) => i + (nx - 1) * (j + (ny - 1) * k), vIdx = new Int32Array((nx - 1) * (ny - 1) * (nz - 1)).fill(-1);
+  const P = [], C = [], keep = [], cv = new Float32Array(8), cx = centre[0], cy = centre[1], cz = centre[2], cut2 = cut * cut;
+  const corner = [[0,0,0],[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],[0,1,1],[1,1,1]], edges = [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    let inside = 0; for (let c = 0; c < 8; c++) { cv[c] = D[id(i + corner[c][0], j + corner[c][1], k + corner[c][2])] - lvl; if (cv[c] > 0) inside++; }
+    if (inside === 0 || inside === 8) continue;
+    let sx = 0, sy = 0, sz = 0, m = 0;
+    for (const [a, b] of edges) { if ((cv[a] > 0) === (cv[b] > 0)) continue; const t = cv[a] / (cv[a] - cv[b]);
+      sx += corner[a][0] + t * (corner[b][0] - corner[a][0]); sy += corner[a][1] + t * (corner[b][1] - corner[a][1]); sz += corner[a][2] + t * (corner[b][2] - corner[a][2]); m++; }
+    const x = mnx + (i + sx / m) * h, y = mny + (j + sy / m) * h, z = mnz + (k + sz / m) * h;
+    vIdx[cid(i, j, k)] = P.length / 3; P.push(x, y, z);
+    keep.push((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2 < cut2);
+    let nb = -1, bv = -1; for (let c = 0; c < 8; c++) { const q = id(i + corner[c][0], j + corner[c][1], k + corner[c][2]); if (near[q] >= 0 && best[q] > bv) { bv = best[q]; nb = near[q]; } }
+    C.push(nb >= 0 ? cls[nb] : 255);
+  }
+  const I = [], quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0 || !(keep[a] && keep[b] && keep[c] && keep[d])) return; flip ? I.push(a, c, b, a, d, c) : I.push(a, b, c, a, c, d); };
+  for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = D[id(i, j, k)] > lvl, b = D[id(i + 1, j, k)] > lvl; if (a !== b) quad(vIdx[cid(i, j - 1, k - 1)], vIdx[cid(i, j, k - 1)], vIdx[cid(i, j, k)], vIdx[cid(i, j - 1, k)], b); }
+  for (let k = 1; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) { const a = D[id(i, j, k)] > lvl, b = D[id(i, j + 1, k)] > lvl; if (a !== b) quad(vIdx[cid(i - 1, j, k - 1)], vIdx[cid(i - 1, j, k)], vIdx[cid(i, j, k)], vIdx[cid(i, j, k - 1)], b); }
+  for (let k = 0; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) { const a = D[id(i, j, k)] > lvl, b = D[id(i, j, k + 1)] > lvl; if (a !== b) quad(vIdx[cid(i - 1, j - 1, k)], vIdx[cid(i, j - 1, k)], vIdx[cid(i, j, k)], vIdx[cid(i - 1, j, k)], b); }
+  return { pos: new Float32Array(P), idx: new Uint32Array(I), cls: new Uint8Array(C) };
+}
+let pocketWorker = null, pocketSeq = 0;
+const pocketWaiting = new Map();
+function runPocketJob(job) {
+  try {
+    if (!pocketWorker) {
+      const src = `const pocketSurfaceJob = ${pocketSurfaceJob.toString()};\nself.onmessage = (e) => { const r = pocketSurfaceJob(e.data.job); self.postMessage({ id: e.data.id, r }, [r.pos.buffer, r.idx.buffer, r.cls.buffer]); };`;
+      pocketWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      pocketWorker.onmessage = (e) => { const f = pocketWaiting.get(e.data.id); pocketWaiting.delete(e.data.id); f && f(e.data.r); };
+      pocketWorker.onerror = () => { pocketWorker = 'none'; for (const [, f] of pocketWaiting) f(null); pocketWaiting.clear(); };
+    }
+    if (pocketWorker !== 'none') return new Promise((ok) => { const id = ++pocketSeq; pocketWaiting.set(id, (r) => ok(r || pocketSurfaceJob(job))); pocketWorker.postMessage({ id, job }); });
+  } catch (e) { pocketWorker = 'none'; }
+  return new Promise((ok) => setTimeout(() => ok(pocketSurfaceJob(job)), 0));   // no worker (file:// policy etc.): same code on the main thread
 }
 const _fv = new THREE.Vector3();
 function updateFocusLabels() {
@@ -2335,9 +2584,14 @@ let energyKey = null;
 function renderEnergy() {
   const E = proc?.energy || current?.energy, box = $('energy');
   energyKey = null; if (!E) { box.style.display = 'none'; box.innerHTML = ''; return; }
-  box.innerHTML = '<span class="eh">能量转化</span>' + E.map((e, i) => `${i ? '<i>→</i>' : ''}<span class="e" data-i="${i}">${e[0]}</span>`).join('');
+  const HL = energyHLList();
+  box.innerHTML = '<span class="eh">能量转化</span>' + E.map((e, i) => `${i ? '<i>→</i>' : ''}<span class="e" data-i="${i}">${e[0]}</span>`).join('')
+    + (HL ? `<span class="e fol${energyFollow ? ' on' : ''}" title="播放时自动高亮当前步骤涉及的结构">◎ 跟随</span>` : '');
   box.style.display = 'flex';
-  box.querySelectorAll('.e').forEach(el => el.onclick = () => { const e = E[+el.dataset.i]; $('infoT').textContent = '能量转化 · ' + e[0]; $('infoB').innerHTML = e[1]; $('infoCard').style.display = 'block'; });
+  box.querySelectorAll('.e[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i, e = E[i];
+    if (focus) clearFocus(); if (HL) selectSpecs(HL[i], false);
+    $('infoT').textContent = '能量转化 · ' + e[0]; $('infoB').innerHTML = e[1] + (HL?.[i]?.length ? '<div class="sec" style="color:var(--dim)">高亮＝这一步涉及的结构（金色＝关键残基）。点空白处取消。</div>' : ''); $('infoCard').style.display = 'block'; });
+  const fol = box.querySelector('.fol'); if (fol) fol.onclick = () => { energyFollow = !energyFollow; fol.classList.toggle('on', energyFollow); energyKey = null; if (!energyFollow) clearSelection(); };
 }
 let _morphPrev = 0, _morphDir = 1;
 function updateEnergy() {
@@ -2347,7 +2601,8 @@ function updateEnergy() {
   else if (current?.energyStage === 'morph') { const m = U.uMorph.value; if (Math.abs(m - _morphPrev) > 1e-4) _morphDir = Math.sign(m - _morphPrev); _morphPrev = m;
     k = m < 0.15 ? 0 : m > 0.85 ? 2 : _morphDir > 0 ? 1 : 3; }
   if (k === energyKey) return; energyKey = k;
-  $('energy').querySelectorAll('.e').forEach(el => el.classList.toggle('on', +el.dataset.i === k));
+  $('energy').querySelectorAll('.e[data-i]').forEach(el => el.classList.toggle('on', +el.dataset.i === k));
+  if (energyFollow && !focus && (!sel.ids.size || sel.source === 'step')) selectSpecs(energyHLList()?.[k], true);   // a user's own pick is not overridden
 }
 
 /* ----------------------------------------------------------------------------- camera */
@@ -2427,7 +2682,7 @@ $('bgMode').onchange = () => { applyBg(); if (model) { rebuildMeshes(); rebuildL
 $('simpRes').onchange = $('simpStyle').onchange = () => { if (groups.some(g => g.simple)) { rebuildMeshes(); applyCut(); } };
 let labelsTouched = false;
 $('labelsOn').onchange = () => { labelsTouched = true; rebuildLabels(); };
-$('infoX').onclick = () => { $('infoCard').style.display = 'none'; labels.forEach(l => l.el.classList.remove('on')); if (focus) { clearFocus(); status('已退出聚焦'); } };
+$('infoX').onclick = () => { $('infoCard').style.display = 'none'; clearSelection(); if (focus) { clearFocus(); status('已退出聚焦'); } };
 $('shellOn').onchange = () => { if ($('repMode').value === 'cartoon') { rebuildMeshes(); applyCut(); } };
 $('shot').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = `${$('tId').textContent.replace(/\W+/g, '_')}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
 $('toggle').onclick = () => $('panel').classList.toggle('hidden');
@@ -2435,6 +2690,7 @@ addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
   if (e.key === 'h' || e.key === 'H') $('panel').classList.toggle('hidden');
   if (e.key === ' ') { $('pause').checked = !$('pause').checked; e.preventDefault(); }
+  if (e.key === 'Escape') { if (focus) { clearFocus(); status('已退出聚焦'); } clearSelection(); $('infoCard').style.display = 'none'; }
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -2484,7 +2740,7 @@ function frame() {
   const dist = camera.position.distanceTo(controls.target);
   bokeh.uniforms.focus.value = dist;
   bokeh.uniforms.aperture.value = illustrative() ? 0 : +$('dofAmt').value * 0.00003 * Math.min(1, dist / 600);   // weaker when close; journal style = sharp
-  composer.render(); updateLabels(); updateFocusLabels(); updateEnergy();
+  composer.render(); updateFly(); updateLabels(); updateFocusLabels(); updateEnergy();
   fpsT += dt; fpsN++;
   if (fpsT > 2) { window.__fps = fpsN / fpsT; $('fpsOut').textContent = '帧率：' + window.__fps.toFixed(1) + ' fps'; fpsT = 0; fpsN = 0; }
 }

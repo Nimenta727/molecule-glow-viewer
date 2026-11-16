@@ -56,3 +56,8 @@
 - **浏览器预览里 `?preset=` 不生效**：预览把本地文件转成 data: URL，`location.search` 为空；测试时用 `__viewer.loadScene({...__viewer.PRESETS[k], name: k})`。
 - **某个部件不该是半透明背景**：它被判成③支架（简化、无核心、不转、无构象）。给预设加 `keepDetail` 或 `core`，或在“组成”里取消“简”。
 - **找不到预设**：预设键是中文名（如 '钾离子通道（K⁺ 通过）'），用正则在 `Object.keys(PRESETS)` 里找。
+
+## v5 常见问题
+- **选中后别的部件不变淡 / 选中的部件消失**：判断描边要用 `x.userData.outline === true`（主网格的 `userData.outline` 是描边对象引用）。
+- **能量步骤高亮了错误的残基**：`energyHL` 的 `aseqs` 是作者编号（文献编号），不是 label_seq_id。
+- **聚焦列出 < 2.4 Å 的接触**：已排除；如果看到“另有 N 对 … 未计入”，是沉积模型的交替构象 / 冲突。
