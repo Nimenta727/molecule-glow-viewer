@@ -1,0 +1,35 @@
+name: 投稿场景（创意工坊）
+description: 把你做的场景（.glow）投到社区工坊
+title: "投稿：<场景标题>"
+labels: [scene-submission]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        在查看器里点 **导出场景** 得到 `.glow` 文件，**压缩成 .zip**（GitHub 不接受 .glow 扩展名）后拖进下面的“场景包”栏。
+        机器人会用查看器自己的规则自动检查，通过后整理成一个 Pull Request，维护者审核合并后上架。格式说明见 `workshop/SCHEMA.md`。
+  - type: textarea
+    id: file
+    attributes:
+      label: 场景包
+      description: 把 .zip（里面是 .glow）或改名为 .json 的场景包拖到这里
+    validations: { required: true }
+  - type: dropdown
+    id: category
+    attributes:
+      label: 分类
+      options: [细胞, 局部系统, 单个蛋白]
+    validations: { required: true }
+  - type: textarea
+    id: about
+    attributes:
+      label: 说明
+      description: 这个场景展示什么？用了哪些结构和文献？动画里哪些是示意？
+    validations: { required: true }
+  - type: checkboxes
+    id: agree
+    attributes:
+      label: 确认
+      options:
+        - label: 场景按包里写的许可证（CC-BY-4.0 / CC-BY-SA-4.0 / CC0-1.0）公开，引用的结构和论文已写进 citations
+          required: true

@@ -1,0 +1,48 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.adk-reaction-data",
+ "revision": 1,
+ "title": "腺苷酸激酶催化反应（纯数据动画示例）",
+ "category": "single",
+ "tags": ["酶", "示例", "数据动画"],
+ "author": { "name": "molecule-glow-viewer", "url": "https://github.com/Nimenta727/molecule-glow-viewer" },
+ "license": "CC-BY-4.0",
+ "description": "示范反应（reactions）怎么写：ATP 和 AMP 从溶液扩散进闭合的腺苷酸激酶（1AKE，活性位点位置取自抑制剂 Ap5A），磷酰基转移后两个 ADP 扩散回溶液。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [{ "pdb": "1AKE", "ref": "Müller & Schulz (1992) J. Mol. Biol. 224, 159" }],
+ "scene": {
+  "id": "1AKE", "chains": ["A"], "axis": "long", "blob": 4.4, "assembly": false, "colorMode": "rainbow",
+  "domains": [["CORE", [[1, 29], [60, 121], [160, 214]]], ["NMP", [[30, 59]]], ["LID", [[122, 159]]]],
+  "ligOff": ["AP5"],
+  "camera": { "az": -0.6, "el": 0.2, "dist": 1.5 },
+  "energy": [
+   ["底物扩散进来", "ATP（带 Mg²⁺）结合在 CORE 的 P-loop 上，AMP 结合在 NMP 结合域。"],
+   ["磷酰基转移", "ATP 的 γ-磷酸转移到 AMP 上：ATP + AMP → 2 ADP，反应接近平衡。"],
+   ["产物释放", "LID 打开，两个 ADP 扩散回溶液（限速步骤）。"]
+  ],
+  "animation": {
+   "version": 1,
+   "species": { "AMP": { "col": "#7ee0a0", "r": 2.8 } },
+   "compartments": { "溶液": { "r": 1.6 } },
+   "pools": [
+    { "species": "ATP", "in": "溶液", "n": 5 },
+    { "species": "AMP", "in": "溶液", "n": 5 },
+    { "species": "ADP", "in": "溶液", "n": 3 }
+   ],
+   "reactions": [
+    {
+     "name": "磷酰基转移",
+     "site": { "ligand": "AP5" },
+     "in": [{ "species": "ATP", "from": "溶液" }, { "species": "AMP", "from": "溶液" }],
+     "out": [{ "species": "ADP", "to": "溶液" }, { "species": "ADP", "to": "溶液" }],
+     "text": "ATP + AMP → 2 ADP（γ-磷酸转移）",
+     "rate": 0.3,
+     "counter": "ADP 生成"
+    }
+   ]
+  }
+ }
+}

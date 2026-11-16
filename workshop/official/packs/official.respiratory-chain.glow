@@ -1,0 +1,182 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.respiratory-chain",
+ "revision": 1,
+ "title": "线粒体呼吸链（电子传递 → ATP）",
+ "category": "system",
+ "tags": [
+  "线粒体",
+  "电子传递",
+  "能量",
+  "实时模拟"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "复合体 I、III、IV 和 ATP 合酶在同一层膜上：电子从 NADH 经铁硫簇和血红素传到 O₂，泵出的 H⁺ 回流合成 ATP；膜两侧 pH 和电位实时模拟。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "5GUP"
+  },
+  {
+   "pdb": "6ZPO"
+  },
+  {
+   "pdb": "1HRC"
+  }
+ ],
+ "scene": {
+  "id": "5GUP",
+  "blob": 5,
+  "axisFit": [
+   "NADH-ubiquinone oxidoreductase chain",
+   "/^Cytochrome b$/",
+   "Cytochrome c oxidase subunit 1",
+   "Cytochrome c oxidase subunit 3"
+  ],
+  "up": "flavoprotein 1",
+  "groupParts": [
+   [
+    "复合体 IV",
+    "oxidase"
+   ],
+   [
+    "复合体 III",
+    "b-c1",
+    "/^Cytochrome b$/",
+    "Cytochrome c1"
+   ],
+   [
+    "复合体 I",
+    "NADH",
+    "Acyl carrier"
+   ]
+  ],
+  "membranes": [
+   {
+    "at": "/^Cytochrome b$/",
+    "offset": 0
+   }
+  ],
+  "memR": 0.95,
+  "cut": 0,
+  "cutWhat": "mem",
+  "spin": [
+   "subunit gamma",
+   "subunit delta",
+   "subunit epsilon",
+   "subunit C1"
+  ],
+  "components": [
+   {
+    "id": "6ZPO",
+    "label": "ATP 合酶",
+    "axisFrom": [
+     "subunit C1",
+     "subunit beta"
+    ],
+    "alignTo": {
+     "own": "subunit C1",
+     "anchor": "/^Cytochrome b$/"
+    },
+    "beside": {
+     "part": "oxidase",
+     "gap": 45
+    },
+    "split": true,
+    "pivot": "subunit C1"
+   },
+   {
+    "id": "1HRC",
+    "label": "细胞色素 c",
+    "axis": "long"
+   }
+  ],
+  "process": "respiratoryChain",
+  "frameAll": true,
+  "solid": [
+   "细胞色素 c"
+  ],
+  "core": [
+   {
+    "near": {
+     "part": "/subunit a$/",
+     "seq": 159
+    },
+    "r": 13,
+    "with": [
+     "subunit C1"
+    ]
+   }
+  ],
+  "colors": {
+   "/^复合体 I$/": "#5b9dff",
+   "/^复合体 III$/": "#e64fc8",
+   "/^复合体 IV$/": "#3fc864",
+   "细胞色素 c": "#ff6b4a",
+   "subunit alpha": "#f0b0e0",
+   "subunit beta": "#b6d4ff",
+   "subunit gamma": "#e3e7f2",
+   "subunit delta": "#e3e7f2",
+   "subunit epsilon": "#e3e7f2",
+   "subunit C1": "#9be6a8",
+   "/subunit a$/": "#2448e8"
+  },
+  "notes": {
+   "/^复合体 I$/": [
+    "复合体 I",
+    "NADH 脱氢酶：泵 4 H⁺",
+    "约 45 个亚基、近 1 MDa，L 形：伸进基质的外周臂（NADH 结合位点 FMN 和 8 个铁硫簇）+ 埋在膜里的膜臂（3 个类反向转运体亚基 ND2/ND4/ND5 等，质子通道）。每氧化 1 个 NADH 泵出 4 个 H⁺。"
+   ],
+   "/^复合体 III$/": [
+    "复合体 III（二聚体）",
+    "细胞色素 bc1：Q 循环",
+    "同二聚体。每个单体有细胞色素 b（血红素 bL、bH）、细胞色素 c1 和 Rieske 铁硫蛋白；Rieske 的头部在 Qo 位点和 c1 之间摆动传电子。"
+   ],
+   "/^复合体 IV$/": [
+    "复合体 IV",
+    "细胞色素 c 氧化酶：O₂ → H₂O",
+    "电子从细胞色素 c 进入 CuA（双铜中心），经血红素 a 到 a3–CuB 双核中心还原 O₂。每 4 个电子还原 1 个 O₂ 成 2 个 H₂O，同时泵出 4 个 H⁺。"
+   ],
+   "细胞色素 c": [
+    "细胞色素 c",
+    "膜间隙里的电子穿梭体",
+    "约 104 个残基的小蛋白，共价连着一个血红素 c；在复合体 III 和 IV 之间一次运 1 个电子。它从线粒体释放到胞质也是细胞凋亡的信号。"
+   ],
+   "subunit C1": [
+    "c 环（c8）",
+    "ATP 合酶膜内转子",
+    "H⁺ 经 a 亚基半通道结合、离开 c 亚基的 Glu58，推动 c 环转动；8 个 H⁺ 转一圈。"
+   ],
+   "subunit beta": [
+    "β 亚基 ×3",
+    "ATP 合酶催化位点",
+    "γ 转动依次改变三个 β 的构象（开放 / 松弛 / 紧密），每转一圈合成 3 个 ATP。"
+   ],
+   "subunit gamma": [
+    "γ 亚基",
+    "ATP 合酶中心柄",
+    "与 c 环一起转动，偏心轴驱动 β 构象变化。"
+   ]
+  },
+  "siteNotes": {
+   "SF4": "[4Fe-4S] 铁硫簇：由 4 个半胱氨酸的硫配位，一次只接受 / 给出 1 个电子。复合体 I 的簇沿外周臂排成一条“电线”，相邻簇边到边 < 14 Å，电子靠量子隧穿在毫秒内传过。",
+   "FES": "[2Fe-2S] 铁硫簇。在复合体 III 中是 Rieske 蛋白的簇：一个 Fe 由两个组氨酸配位（不是半胱氨酸），所以电位较高（约 +0.28 V），能从 Qo 位点的 QH₂ 接受电子。",
+   "HEM": "血红素 b（复合体 III 的细胞色素 b 上有 bL 和 bH 两个）：Q 循环的低电位链，把第二个电子从 Qo 跨膜送到 Qi。",
+   "HEC": "血红素 c：通过两个硫醚键共价连在蛋白上（CXXCH 基序）。复合体 III 的 c1 把电子交给细胞色素 c。",
+   "HEA": "血红素 a：复合体 IV 的两个血红素 a 中，a 负责传电子，a3 与 CuB 组成还原 O₂ 的双核中心。",
+   "CU": "铜中心：复合体 IV 的 CuA（双铜，接受细胞色素 c 的电子）和 CuB（与血红素 a3 一起结合并还原 O₂）。"
+  },
+  "camera": {
+   "broadside": true,
+   "el": 0.1,
+   "dist": 0.95
+  }
+ }
+}

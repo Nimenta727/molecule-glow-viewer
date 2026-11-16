@@ -1,0 +1,33 @@
+name: workshop
+# Check every scene pack with the viewer's own rules; on main, rebuild the workshop indexes and commit them.
+on:
+  pull_request:
+    paths: ['workshop/**', 'web/index.html']
+  push:
+    branches: [main]
+    paths: ['workshop/**', 'web/index.html']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: { group: workshop-index, cancel-in-progress: false }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Validate packs
+        run: node workshop/tools/validate.mjs
+      - name: Rebuild indexes
+        run: node workshop/tools/build-index.mjs
+      - name: Commit indexes (main only)
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -n "$(git status --porcelain -- workshop)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add workshop
+            git commit -m "workshop: rebuild index"
+            git push
+          fi

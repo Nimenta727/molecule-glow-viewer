@@ -1,0 +1,185 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.flagellar-motor",
+ "revision": 1,
+ "title": "鞭毛马达",
+ "category": "system",
+ "tags": [
+  "分子马达",
+  "细菌",
+  "膜蛋白"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "细菌鞭毛马达：H⁺ 流过 11 个定子产生力矩，带动 C 环、杆、钩和鞭毛丝一起转动。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "7CGO"
+  },
+  {
+   "pdb": "8YJT"
+  },
+  {
+   "pdb": "6YKM"
+  },
+  {
+   "pdb": "1UCU"
+  }
+ ],
+ "scene": {
+  "id": "7CGO",
+  "axis": "long",
+  "up": "hook protein",
+  "blob": 5,
+  "horizontal": true,
+  "spin": [
+   "rod",
+   "hook",
+   "M-ring",
+   "MS ring",
+   "FliE",
+   "FliP",
+   "FliQ",
+   "FliR",
+   "C 环",
+   "flagellin",
+   "鞭毛丝",
+   "Dc loop"
+  ],
+  "membranes": [
+   {
+    "at": "M-ring",
+    "offset": 18
+   },
+   {
+    "at": "L-ring",
+    "offset": 0
+   }
+  ],
+  "memR": 1.3,
+  "cut": 0,
+  "cutWhat": "mem",
+  "process": "flagellarMotor",
+  "keepDetail": [
+   "定子"
+  ],
+  "components": [
+   {
+    "id": "8YJT",
+    "label": "C 环（FliG/FliM/FliN）",
+    "axis": "short",
+    "anchor": "M-ring",
+    "side": "below",
+    "gap": -40
+   },
+   {
+    "id": "6YKM",
+    "label": "定子 MotA/MotB",
+    "axis": "long",
+    "anchor": "M-ring",
+    "side": "at",
+    "dy": 10,
+    "arrange": {
+     "kind": "ring",
+     "n": 11,
+     "radius": 215
+    },
+    "spin": false
+   },
+   {
+    "id": "1UCU",
+    "label": "鞭毛丝（鞭毛蛋白）",
+    "axis": "native",
+    "anchor": "hook protein",
+    "side": "above",
+    "gap": 0,
+    "arrange": {
+     "kind": "helix",
+     "n": 130,
+     "rise": 4.7,
+     "twist": 65.8
+    }
+   }
+  ],
+  "colors": {
+   "C 环": "#d93fbf",
+   "定子": "#3fc864",
+   "鞭毛丝": "#e9ecf5",
+   "hook protein": "#e64fc8",
+   "M-ring": "#6aa8ff",
+   "MS ring": "#6aa8ff",
+   "L-ring": "#2448e8",
+   "P-ring": "#3a64ff",
+   "rod": "#b8c8ff",
+   "FliE": "#b8c8ff",
+   "Dc loop": "#b8c8ff",
+   "FliP": "#ff9a50",
+   "FliQ": "#ff9a50",
+   "FliR": "#ff9a50"
+  },
+  "camera": {
+   "az": -0.75,
+   "el": 0.22,
+   "dist": 1.3
+  },
+  "notes": {
+   "定子": [
+    "定子 MotA/MotB ×11",
+    "利用 H⁺ 流产生力矩",
+    "每个定子是 MotA5B2 复合物，MotB 锚定在细胞壁（肽聚糖）上。H⁺ 经 MotA/MotB 通道流入细胞，使 MotA 五聚体转动，像齿轮一样拨动 C 环。（本模型的定子结构 6YKM 来自空肠弯曲菌，转子部分来自沙门氏菌，为拼接示意。）"
+   ],
+   "C 环": [
+    "C 环（FliG/FliM/FliN）",
+    "转子 + 换向开关",
+    "位于胞质侧的大环。FliG 与定子接触接受力矩；CheY-P 结合 FliM 后 C 环构象改变，使电机由逆时针（前进）切换为顺时针（翻滚）。"
+   ],
+   "M-ring": [
+    "MS 环",
+    "膜内转子基座",
+    "FliF 组成的环嵌在内膜中，与 C 环相连，一起转动。"
+   ],
+   "MS ring": [
+    "MS 环",
+    "膜内转子基座",
+    "FliF 组成的环嵌在内膜中，与 C 环相连，一起转动。"
+   ],
+   "L-ring": [
+    "L 环",
+    "外膜轴承",
+    "嵌在外膜（LPS 层）中，像轴承一样让杆在其中转动。"
+   ],
+   "P-ring": [
+    "P 环",
+    "肽聚糖层轴承",
+    "位于细胞壁肽聚糖层，与 L 环一起组成轴承。"
+   ],
+   "rod": [
+    "杆",
+    "传动轴",
+    "把转子的转动穿过细胞壁传到外面的钩。"
+   ],
+   "hook protein": [
+    "钩",
+    "柔性万向节",
+    "弯曲的短管，把转动传给鞭毛丝，同时允许方向改变。"
+   ],
+   "鞭毛丝": [
+    "鞭毛丝",
+    "螺旋桨",
+    "由上万个鞭毛蛋白组装成的长螺旋管，转动时推动细菌前进。"
+   ],
+   "FliP": [
+    "输出装置",
+    "组装鞭毛的输出通道",
+    "FliP/FliQ/FliR 组成输出门，把鞭毛蛋白从中央通道送到顶端组装。动画里它随转子一起转，但输出门是否随转子转动在文献中尚有争议。"
+   ]
+  }
+ }
+}

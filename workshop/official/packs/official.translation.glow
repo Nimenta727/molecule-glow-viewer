@@ -1,0 +1,63 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.translation",
+ "revision": 1,
+ "title": "核糖体翻译（mRNA → 蛋白质，可加抗生素）",
+ "category": "system",
+ "tags": [
+  "核糖体",
+  "翻译",
+  "抗生素",
+  "实时模拟"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "70S 核糖体按真实速率读 mRNA：tRNA 选择、校对、肽键形成、移位；可加抗生素，并放大到解码中心和肽基转移中心的真实原子。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "4V6F"
+  }
+ ],
+ "scene": {
+  "id": "4V6F",
+  "axis": "native",
+  "axisFrom": [
+   "16S",
+   "23S"
+  ],
+  "frameAll": true,
+  "cut": 0,
+  "cutWhat": "all",
+  "process": "translation",
+  "blob": 3.4,
+  "keepDetail": [
+   ""
+  ],
+  "coreLigands": [],
+  "ligOff": [
+   "MG",
+   "ZN",
+   "K",
+   "NA",
+   "CL",
+   "SF4",
+   "MIA",
+   "PAR",
+   "SPD"
+  ],
+  "colors": {
+   "16S": "#efd3a0",
+   "23S": "#e3c08e",
+   "5S": "#e3c08e",
+   "/30S/": "#b8c8dc",
+   "/50S/": "#c6d3b6"
+  }
+ }
+}

@@ -16,7 +16,7 @@ const APP_DIR = path.join(ROOT, 'app');
 const THREE_DIR = path.join(ROOT, 'vendor', 'three');   // filled by scripts/sync.js
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
 const CACHE_FIRST = new Set(['files.rcsb.org', 'models.rcsb.org']);
-const NETWORK_FIRST = new Set(['data.rcsb.org', 'rest.uniprot.org', 'search.rcsb.org']);
+const NETWORK_FIRST = new Set(['data.rcsb.org', 'rest.uniprot.org', 'search.rcsb.org', 'raw.githubusercontent.com']);   // + workshop indexes / packs / covers
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 
 let cacheDir;
@@ -89,10 +89,19 @@ function createWindow() {
   // GLOW_SMOKE=<seconds>: self-test for CI / builds — print console errors and cache stats, save a screenshot, quit.
   if (process.env.GLOW_SMOKE) {
     win.webContents.on('console-message', (e) => { const lv = e.level ?? e.params?.level; if (lv === 'error' || lv === 3) console.log('[page error]', e.message ?? e.params?.message); });
+    // GLOW_SMOKE_JS=<file>: a script run in the page 3 s after load (tests: open a .glow, switch modes ...); its result is printed
+    if (process.env.GLOW_SMOKE_JS) win.webContents.once('did-finish-load', () => setTimeout(async () => {
+      try { console.log('[smoke-js]', JSON.stringify(await win.webContents.executeJavaScript(fs.readFileSync(process.env.GLOW_SMOKE_JS, 'utf8')))); }
+      catch (e) { console.log('[smoke-js error]', e.message); }
+    }, 3000));
     setTimeout(async () => {
       const img = await win.webContents.capturePage();
       fs.writeFileSync(path.join(app.getPath('temp'), 'glow-smoke.png'), img.toPNG());
-      console.log('[smoke]', JSON.stringify({ status: await win.webContents.executeJavaScript("document.getElementById('status')?.textContent || ''"), ...cacheInfo() }));
+      if (process.env.GLOW_SHOT) {   // a 16:9 640x360 JPEG (workshop covers)
+        const { width: w, height: h } = img.getSize(), ch = Math.min(h, Math.round(w * 9 / 16)), cw = Math.round(ch * 16 / 9);
+        fs.writeFileSync(process.env.GLOW_SHOT, img.crop({ x: Math.round((w - cw) / 2), y: Math.round((h - ch) / 2), width: cw, height: ch }).resize({ width: 640, height: 360, quality: 'best' }).toJPEG(82));
+      }
+      console.log('[smoke]', JSON.stringify({ status: await win.webContents.executeJavaScript("document.getElementById('status')?.textContent || ''"), result: await win.webContents.executeJavaScript('window.__smoke ?? null'), ...cacheInfo() }));
       app.quit();
     }, +process.env.GLOW_SMOKE * 1000);
   }

@@ -1,0 +1,50 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.kcsa-data",
+ "title": "钾通道 KcsA（纯数据动画示例）",
+ "category": "single",
+ "tags": ["离子通道", "示例", "数据动画"],
+ "author": { "name": "molecule-glow-viewer" },
+ "license": "CC-BY-4.0",
+ "description": "示范：不写代码、只用数据描述的动画。K⁺ 从胞内溶液扩散到中央腔，脱水后沿选择性过滤器的 5 个 K⁺ 位点（取自 1K4C 晶体结构）单列通过，到胞外重新水合、回到胞外溶液。",
+ "citations": [{ "pdb": "1K4C", "ref": "Zhou, Morais-Cabral, Kaufman & MacKinnon (2001) Nature 414, 43" }],
+ "scene": {
+  "id": "1K4C", "chains": ["C"], "axis": "sym", "blob": 3.6, "keepDetail": [""], "colorMode": "chain",
+  "membranes": [{ "at": "", "offset": 0 }], "memR": 2.6, "cut": 0.0, "cutWhat": "all",
+  "ligOff": ["F09", "DGA", "K"], "coreLigands": [],
+  "camera": { "az": 0.4, "el": 0.08, "dist": 1.6 },
+  "energy": [
+   ["水合 K⁺ 进入中央腔", "胞内 K⁺ 约 140 mM，带着水合壳扩散进中央腔。"],
+   ["过滤器：羰基氧替代水", "TVGYG 的羰基氧围成和水合壳几何相同的氧笼，K⁺ 脱水的代价被补偿。"],
+   ["出胞外重新水合", "离开过滤器后重新水合，进入胞外液。"]
+  ],
+  "animation": {
+   "version": 1,
+   "orient": { "up": { "ligands": "K" } },
+   "compartments": {
+    "胞内": { "side": "below", "membrane": 0, "gap": 24 },
+    "胞外": { "side": "above", "membrane": 0, "gap": 24 }
+   },
+   "pools": [
+    { "species": "K⁺", "in": "胞内", "n": 10 },
+    { "species": "K⁺", "in": "胞外", "n": 3 },
+    { "species": "Na⁺", "in": "胞外", "n": 8 }
+   ],
+   "flows": [
+    {
+     "name": "K⁺ 外流",
+     "species": "K⁺",
+     "from": "胞内",
+     "to": "胞外",
+     "via": [[0, -14, 0], [0, -4, 0], { "ligands": "K", "order": "up" }],
+     "labelVia": "K⁺（脱水，羰基氧配位）",
+     "events": [{ "at": 2, "text": "脱水：羰基氧替代水分子" }, { "at": 6, "text": "离开过滤器，重新水合" }],
+     "rate": 0.8,
+     "counter": "K⁺ 外流",
+     "free": 4
+    }
+   ]
+  }
+ }
+}

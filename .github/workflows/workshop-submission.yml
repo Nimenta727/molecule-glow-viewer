@@ -1,0 +1,52 @@
+name: workshop submission
+# A "submit a scene" issue -> download the attached pack, check it, open a pull request (or say what is wrong).
+# The issue body is untrusted: it is passed only as an environment variable to a Node script that treats it as data.
+on:
+  issues:
+    types: [opened, edited, labeled]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+concurrency: { group: 'submission-${{ github.event.issue.number }}', cancel-in-progress: true }
+jobs:
+  submit:
+    if: contains(github.event.issue.labels.*.name, 'scene-submission') && github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Check the attached pack
+        id: check
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: node workshop/tools/submission.mjs
+      - name: Open or update the pull request
+        id: pr
+        if: steps.check.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUM: ${{ github.event.issue.number }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+          TITLE: ${{ steps.check.outputs.title }}
+          ID: ${{ steps.check.outputs.id }}
+        run: |
+          BR="submission/issue-$NUM"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BR"
+          git add "workshop/community/packs/$ID.glow"
+          git commit -m "workshop: community scene $ID (issue #$NUM)"
+          git push -f origin "$BR"
+          if [ -z "$(gh pr list --head "$BR" --json number --jq '.[].number')" ]; then
+            printf 'Closes #%s\n\n投稿人：@%s\n场景：%s（`%s`）\n\n由投稿 issue 自动生成，已通过 `workshop/tools/validate.mjs` 检查。合并后目录会自动重建。\n' "$NUM" "$AUTHOR" "$TITLE" "$ID" > "$RUNNER_TEMP/pr.md"
+            gh pr create --head "$BR" --base main --title "社区场景：$TITLE" --body-file "$RUNNER_TEMP/pr.md" \
+              || echo "PR 需要在仓库设置里允许 GitHub Actions 创建 PR；分支已推送：$BR" >> "$RUNNER_TEMP/result.md"
+          fi
+      - name: Comment on the issue
+        if: always() && steps.check.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUM: ${{ github.event.issue.number }}
+        run: test -f "$RUNNER_TEMP/result.md" && gh issue comment "$NUM" --body-file "$RUNNER_TEMP/result.md" || true

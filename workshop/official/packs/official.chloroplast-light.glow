@@ -1,0 +1,305 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.chloroplast-light",
+ "revision": 1,
+ "title": "叶绿体光反应（光 → NADPH + ATP）",
+ "category": "system",
+ "tags": [
+  "叶绿体",
+  "光合作用",
+  "电子传递",
+  "实时模拟"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "PSII、b6f、PSI 和 ATP 合酶排在类囊体膜上：光子激发 P680 / P700，电子从水出发经 Z 方案生成 NADPH，H⁺ 回流合成 ATP。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "3JCU"
+  },
+  {
+   "pdb": "6RQF"
+  },
+  {
+   "pdb": "5L8R"
+  },
+  {
+   "pdb": "6FKF"
+  },
+  {
+   "pdb": "1PLC"
+  },
+  {
+   "pdb": "1A70"
+  },
+  {
+   "pdb": "1FNB"
+  }
+ ],
+ "scene": {
+  "id": "3JCU",
+  "blob": 5,
+  "axisFit": [
+   "Photosystem II protein D1",
+   "D2 protein",
+   "CP47",
+   "CP43"
+  ],
+  "down": "Oxygen-evolving enhancer protein 1",
+  "groupParts": [
+   [
+    "放氧复合体蛋白",
+    "Oxygen-evolving"
+   ],
+   [
+    "LHCII 天线",
+    "Chlorophyll a-b binding"
+   ],
+   [
+    "PSII 核心",
+    "/./"
+   ]
+  ],
+  "membranes": [
+   {
+    "at": "Photosystem II protein D1",
+    "offset": 0
+   }
+  ],
+  "memR": 0.95,
+  "cut": 0,
+  "cutWhat": "mem",
+  "spin": [
+   "gamma chain",
+   "epsilon chain",
+   "subunit c,"
+  ],
+  "components": [
+   {
+    "id": "6RQF",
+    "label": "Cyt b6f",
+    "axisFrom": [
+     "/^Cytochrome b6$/",
+     "/^Cytochrome f$/"
+    ],
+    "flip": true,
+    "alignTo": {
+     "own": "/^Cytochrome b6$/",
+     "anchor": "Photosystem II protein D1"
+    },
+    "beside": {
+     "dir": "row",
+     "gap": 30
+    }
+   },
+   {
+    "id": "5L8R",
+    "label": "PSI-LHCI",
+    "axisFrom": [
+     "P700 chlorophyll a apoprotein",
+     "iron-sulfur center"
+    ],
+    "alignTo": {
+     "own": "P700 chlorophyll a apoprotein",
+     "anchor": "Photosystem II protein D1"
+    },
+    "beside": {
+     "dir": "row",
+     "gap": 45
+    }
+   },
+   {
+    "id": "6FKF",
+    "label": "ATP 合酶",
+    "axisFrom": [
+     "subunit c,",
+     "subunit beta"
+    ],
+    "alignTo": {
+     "own": "subunit c,",
+     "anchor": "Photosystem II protein D1"
+    },
+    "beside": {
+     "dir": "row",
+     "gap": 45
+    },
+    "split": true,
+    "pivot": "subunit c,"
+   },
+   {
+    "id": "1PLC",
+    "label": "质体蓝素",
+    "axis": "long",
+    "at": {
+     "part": "/^Cytochrome f$/",
+     "dy": -30
+    }
+   },
+   {
+    "id": "1A70",
+    "label": "铁氧还蛋白",
+    "axis": "long",
+    "at": {
+     "part": "Photosystem I iron-sulfur center",
+     "dy": 24
+    }
+   },
+   {
+    "id": "1FNB",
+    "label": "FNR",
+    "axis": "long",
+    "at": {
+     "part": "Photosystem I iron-sulfur center",
+     "dy": 52,
+     "along": 42
+    }
+   }
+  ],
+  "process": "chloroplast",
+  "frameAll": true,
+  "solid": [
+   "质体蓝素",
+   "铁氧还蛋白",
+   "FNR"
+  ],
+  "coreLigands": [
+   "OEX",
+   "PHO",
+   "PL9",
+   "FE2",
+   "BCT",
+   "CL",
+   "HEM",
+   "HEC",
+   "FES",
+   "SF4",
+   "CU",
+   "PQN",
+   "CL0",
+   "FAD",
+   "ATP",
+   "ADP",
+   "MG"
+  ],
+  "ligOff": [
+   "CLA",
+   "CHL",
+   "BCR",
+   "LUT",
+   "XAT",
+   "NEX",
+   "ZEX",
+   "A86",
+   "HTG",
+   "6PL",
+   "LMT",
+   "LMG",
+   "DGD",
+   "SQD",
+   "LHG",
+   "PGV",
+   "CA",
+   "UNL"
+  ],
+  "colors": {
+   "PSII 核心": "#3fc864",
+   "LHCII 天线": "#a8e05a",
+   "放氧复合体蛋白": "#ffb84a",
+   "Cyt b6f": "#e64fc8",
+   "PSI-LHCI": "#5b9dff",
+   "质体蓝素": "#4ad6ff",
+   "铁氧还蛋白": "#ff6b4a",
+   "FNR": "#ffd34a",
+   "subunit alpha": "#f0b0e0",
+   "subunit beta": "#b6d4ff",
+   "gamma chain": "#e3e7f2",
+   "epsilon chain": "#e3e7f2",
+   "subunit c,": "#9be6a8",
+   "/subunit a,/": "#2448e8"
+  },
+  "notes": {
+   "PSII 核心": [
+    "光系统 II（PSII）",
+    "用光把水里的电子“拔”出来",
+    "二聚体，每个单体的反应中心是 D1/D2 异二聚体，结合 P680（一对叶绿素 a）、去镁叶绿素、质体醌 QA/QB 和非血红素铁；CP47、CP43 是内周天线。P680 被激发后失去电子变成 P680⁺（约 +1.2 V），是生物界最强的氧化剂，强到能从水里夺电子。"
+   ],
+   "放氧复合体蛋白": [
+    "放氧增强蛋白 PsbO/P/Q",
+    "保护锰簇，固定 Ca²⁺/Cl⁻",
+    "位于类囊体腔一侧，像盖子一样罩住 Mn₄CaO₅ 簇，稳定放氧所需的 Ca²⁺ 和 Cl⁻。"
+   ],
+   "LHCII 天线": [
+    "LHCII / CP29 / CP26 天线",
+    "收集光能",
+    "每个天线蛋白结合十几个叶绿素 a/b 和类胡萝卜素（面板“小分子”里默认未勾选，勾上可见），吸收光子后通过共振能量转移（不是电子）在几十皮秒内把激发能传到反应中心。"
+   ],
+   "Cyt b6f": [
+    "细胞色素 b6f（二聚体）",
+    "质体醌氧化：Q 循环，泵 H⁺",
+    "相当于线粒体复合体 III：Rieske 铁硫蛋白 + 细胞色素 f（高电位链），血红素 bL、bH、cn（低电位链）。氧化 PQH₂、还原质体蓝素，同时把 H⁺ 送进类囊体腔。"
+   ],
+   "PSI-LHCI": [
+    "光系统 I + LHCI",
+    "第二次光激发，把电子推到 −1.3 V",
+    "反应中心 PsaA/PsaB 结合 P700（叶绿素 a/a′ 对）、A0、A1（叶绿醌）和铁硫簇 FX；基质侧的 PsaC 带 FA、FB。外面一圈 4 个 LHCI 天线（Lhca1–4）。"
+   ],
+   "质体蓝素": [
+    "质体蓝素",
+    "类囊体腔里的电子穿梭体（Cu）",
+    "约 99 个残基的小蓝铜蛋白，铜离子 Cu²⁺ ⇌ Cu⁺，一次运 1 个电子，从 b6f 的细胞色素 f 送到 PSI 的 P700⁺。"
+   ],
+   "铁氧还蛋白": [
+    "铁氧还蛋白 Fd",
+    "基质里的电子穿梭体（2Fe-2S）",
+    "约 97 个残基，[2Fe-2S] 簇（−0.42 V），一次运 1 个电子，从 PSI 的 FB 交给 FNR；也能把电子送回 PQ（环式电子流）或给其他代谢途径。"
+   ],
+   "FNR": [
+    "铁氧还蛋白–NADP⁺ 还原酶",
+    "2 个 Fd 电子 → NADPH",
+    "含 FAD：FAD 依次接收两个 Fd 送来的单电子（经半醌），再以氢负离子（H⁻）形式一次交给 NADP⁺，得到 NADPH。"
+   ],
+   "subunit c,": [
+    "c 环（c14）",
+    "ATP 合酶膜内转子",
+    "叶绿体 ATP 合酶的 c 环有 14 个 c 亚基：转一圈要 14 个 H⁺ 从腔流回基质，合成 3 个 ATP（约 4.7 H⁺/ATP，比线粒体 c8 多）。"
+   ],
+   "subunit beta": [
+    "β 亚基 ×3",
+    "CF1 催化位点",
+    "γ 转动依次改变三个 β 的构象（开放 / 松弛 / 紧密），每转一圈合成 3 个 ATP。"
+   ],
+   "gamma chain": [
+    "γ 亚基",
+    "中心柄（带氧化还原开关）",
+    "叶绿体 γ 有一段特有的二硫键环：光照下经硫氧还蛋白还原后酶才被激活，黑暗中关闭，避免夜里水解 ATP。"
+   ]
+  },
+  "siteNotes": {
+   "OEX": "Mn₄CaO₅ 簇（放氧中心）：4 个 Mn、1 个 Ca 和 5 个氧桥组成的“歪椅子”。每吸收 1 个光子前进一个 S 态（S0 → S4），攒够 4 个氧化当量后把 2 个 H₂O 变成 1 个 O₂，同时放出 4 个 H⁺ 到类囊体腔。",
+   "PHO": "去镁叶绿素 a（Pheo）：P680* 的电子在约 3 皮秒内先跳到这里（D1 一侧的分支才有活性）。",
+   "PL9": "质体醌：QA 固定在 D2 上，一次只接 1 个电子；QB 在 D1 上，接满 2 个电子并从基质摄取 2 个 H⁺ 后变成 PQH₂，离开进入膜里的醌池。b6f 里也结合着一个质体醌。",
+   "FE2": "非血红素铁：位于 QA 和 QB 之间，由 4 个组氨酸和一个碳酸氢根（BCT）配位，调节两个醌之间的电子传递。",
+   "HEM": "血红素 b：b6f 的 bL（腔侧）和 bH（基质侧）组成 Q 循环的低电位链，把第二个电子跨膜送回 Qi 位点。",
+   "HEC": "血红素 c：细胞色素 f 的血红素（腔侧，把电子交给质体蓝素）；b6f 还有一个特有的血红素 cn（基质侧 Qi 位点旁）。",
+   "FES": "[2Fe-2S] 铁硫簇：b6f 里是 Rieske 蛋白的簇（两个 His 配位，电位高），铁氧还蛋白里是 4 个 Cys 配位的簇（−0.42 V）。",
+   "SF4": "[4Fe-4S] 铁硫簇：PSI 的 FX（PsaA/B 之间）、FA 和 FB（PsaC 上），把电子从 A1 一路送到基质表面。",
+   "CU": "质体蓝素的铜离子：由 2 个 His、1 个 Cys、1 个 Met 配位成扭曲四面体，这种“张力态”几何让 Cu²⁺/Cu⁺ 转换几乎不需要重排，电子转移很快。",
+   "PQN": "叶绿醌（维生素 K1，A1）：PSI 里两条对称分支上各一个，接收 A0 的电子再交给 FX。",
+   "CL0": "叶绿素 a′（P700 的一半）：P700 是叶绿素 a / a′ 的异二聚体，吸收 700 nm 光子后变成 −1.3 V 的强还原剂。",
+   "FAD": "FAD（FNR 的辅基）：接收铁氧还蛋白的两个单电子，再以 H⁻ 形式交给 NADP⁺。",
+   "ATP": "ATP：CF1 的催化位点（β 亚基）上的核苷酸。"
+  },
+  "camera": {
+   "broadside": true,
+   "el": 0.12,
+   "dist": 0.92
+  }
+ }
+}

@@ -67,6 +67,7 @@ cp "<本skill目录>/assets/viewer.html" "<目标目录>/分子光影查看器.h
 | 自动模式：任意编号自动定膜、搜孔道、生成说明与简介卡 | §31 |
 | 整个细胞（2 µm → 原子的嵌套缩放）+ 细胞 / 局部系统 / 单个蛋白三个选项卡 | §32 |
 | 运动工具包（池、布朗路径、避开蛋白、名字 / 事件标签）、pH 体积、快放粒子流、核糖体原子近景 | §33 |
+| 场景包 .glow、纯数据动画（dataAnim）、创意工坊（GitHub 后端、投稿机器人） | §34、`references/scene_packs.md` |
 
 ## 验证清单（每次改动后必做）
 
@@ -104,3 +105,4 @@ cp "<本skill目录>/assets/viewer.html" "<目标目录>/分子光影查看器.h
 - `references/troubleshooting.md`：症状 → 原因 → 解决；自动化测试脚本
 - `references/rebuild_from_scratch.md`：在别的环境从零重做时的实现顺序与验收
 - `references/build_log.md`：开发和调试记录（每轮看到什么、为什么那样改）
+- `references/scene_packs.md`：场景包 `.glow` 和纯数据动画的格式（做可分享 / 上传工坊的场景时先看这个）

@@ -1,0 +1,88 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.cell-corner",
+ "revision": 1,
+ "title": "细胞一角：核糖体 + 钾通道（同时模拟）",
+ "category": "system",
+ "tags": [
+  "细胞",
+  "核糖体",
+  "离子通道",
+  "实时模拟"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "细胞质里的核糖体在翻译，上方细胞膜里的 KcsA 按胞内 pH 开关，两套模拟同时运行。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "4V6F"
+  },
+  {
+   "pdb": "1K4C"
+  }
+ ],
+ "scene": {
+  "id": "4V6F",
+  "axis": "native",
+  "axisFrom": [
+   "16S",
+   "23S"
+  ],
+  "frameAll": true,
+  "cut": 0,
+  "cutWhat": "all",
+  "process": "cellCorner",
+  "blob": 3.4,
+  "keepDetail": [
+   ""
+  ],
+  "membranes": [
+   {
+    "at": "",
+    "offset": 0
+   }
+  ],
+  "memR": 2.6,
+  "components": [
+   {
+    "id": "1K4C",
+    "chains": [
+     "C"
+    ],
+    "axis": "sym",
+    "label": "KcsA 钾通道"
+   }
+  ],
+  "coreLigands": [],
+  "ligOff": [
+   "MG",
+   "ZN",
+   "K",
+   "NA",
+   "CL",
+   "SF4",
+   "MIA",
+   "PAR",
+   "SPD",
+   "F09",
+   "DGA",
+   "TBA",
+   "BA"
+  ],
+  "colors": {
+   "16S": "#efd3a0",
+   "23S": "#e3c08e",
+   "5S": "#e3c08e",
+   "/30S/": "#b8c8dc",
+   "/50S/": "#c6d3b6",
+   "KcsA": "#9d86e6"
+  }
+ }
+}

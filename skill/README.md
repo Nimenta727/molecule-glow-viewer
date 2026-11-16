@@ -24,6 +24,7 @@
 | `references/troubleshooting.md` | 常见问题（画面全白、发黑、穿模……） |
 | `references/rebuild_from_scratch.md` | 从零重建 |
 | `references/build_log.md` | 每个版本改了什么、为什么改 |
+| `references/scene_packs.md` | 场景包 `.glow` 和纯数据动画的格式：做能分享、能上传创意工坊的场景时先看这个 |
 
 ## 动画质量标准
 - 粒子从周围溶液扩散过来，不凭空出现、不闪光。

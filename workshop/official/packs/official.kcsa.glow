@@ -1,0 +1,62 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.kcsa",
+ "revision": 1,
+ "title": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）",
+ "category": "single",
+ "tags": [
+  "离子通道",
+  "膜蛋白",
+  "实时模拟"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "K⁺ 按敲击机制单列通过选择性过滤器，Na⁺ 被排斥；胞内 pH 控制门的开关和失活，可调膜电位、浓度，加 TBA / Ba²⁺ 阻断。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "1K4C"
+  }
+ ],
+ "scene": {
+  "id": "1K4C",
+  "chains": [
+   "C"
+  ],
+  "axis": "sym",
+  "blob": 3.6,
+  "keepDetail": [
+   ""
+  ],
+  "colorMode": "chain",
+  "membranes": [
+   {
+    "at": "",
+    "offset": 0
+   }
+  ],
+  "memR": 2.6,
+  "cut": 0,
+  "cutWhat": "all",
+  "process": "kcsa",
+  "coreLigands": [],
+  "ligOff": [
+   "F09",
+   "DGA",
+   "K",
+   "TBA",
+   "BA"
+  ],
+  "camera": {
+   "az": 0.4,
+   "el": 0.08,
+   "dist": 1.6
+  }
+ }
+}

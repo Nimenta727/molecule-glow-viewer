@@ -1,0 +1,22 @@
+name: 举报社区场景
+description: 社区工坊里的场景有错误、侵权或不当内容
+title: "举报：<场景 id>"
+labels: [scene-report]
+body:
+  - type: input
+    id: id
+    attributes:
+      label: 场景 id
+      description: 工坊卡片上的场景，例如 someone.my-scene
+    validations: { required: true }
+  - type: dropdown
+    id: why
+    attributes:
+      label: 原因
+      options: [科学错误, 侵权 / 未注明来源, 不当内容, 无法打开 / 显示异常, 其他]
+    validations: { required: true }
+  - type: textarea
+    id: detail
+    attributes:
+      label: 详细说明
+    validations: { required: true }

@@ -1,0 +1,33 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.spike",
+ "revision": 1,
+ "title": "SARS-CoV-2 刺突蛋白（三聚体）",
+ "category": "single",
+ "tags": [
+  "病毒",
+  "膜蛋白"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "SARS-CoV-2 刺突蛋白三聚体（6VXX，闭合构象）。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "6VXX"
+  }
+ ],
+ "scene": {
+  "id": "6VXX",
+  "axis": "long",
+  "assembly": true,
+  "blob": 3.6,
+  "colorMode": "chain"
+ }
+}

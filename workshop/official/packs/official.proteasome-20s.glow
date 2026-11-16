@@ -1,0 +1,31 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.proteasome-20s",
+ "revision": 1,
+ "title": "20S 蛋白酶体（核心颗粒）",
+ "category": "single",
+ "tags": [
+  "蛋白降解",
+  "酶"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "20S 蛋白酶体核心颗粒：四个七聚体环叠成的桶，蛋白水解活性位点在内部。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "5LE5"
+  }
+ ],
+ "scene": {
+  "id": "5LE5",
+  "axis": "long",
+  "blob": 3.8
+ }
+}

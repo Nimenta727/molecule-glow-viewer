@@ -165,6 +165,31 @@
   #infoCard .sec b{color:#ffe680} body.lightbg #infoCard .sec b{color:#9a6b00}
   #infoCard .k{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:4px;border-radius:2px}
   .fbtn{background:none;border:0;padding:0;color:var(--acc2);cursor:pointer;font-size:13px;line-height:1}
+  /* v17 workshop */
+  .presets button.subp{border-color:rgba(224,122,216,.55)}
+  #shop{position:fixed;inset:0;z-index:30;display:none;background:rgba(10,12,20,.45);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px}
+  #shop.on{display:flex}
+  #shop .box{width:min(1080px,100%);max-height:calc(100% - 20px);display:flex;flex-direction:column;background:#11141d;color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+  #shop .hd{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  #shop .hd h3{margin:0;font-size:16px;margin-right:6px}
+  #shop .seg{display:flex;gap:4px;flex-wrap:wrap} #shop .seg button{background:transparent;color:inherit;border:1px solid rgba(127,127,127,.45);padding:4px 10px;font-size:12.5px}
+  #shop .seg button.on{background:linear-gradient(135deg,#c95fc4,#6f8ff0);color:#fff;border-color:transparent}
+  #shop input[type=search]{flex:1;min-width:140px;padding:5px 9px;border-radius:7px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;font:inherit}
+  #shop .x{margin-left:auto;cursor:pointer;font-size:20px;line-height:1;padding:0 4px;opacity:.7}
+  #shopGrid{overflow:auto;padding:14px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+  #shopGrid .card{border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;background:rgba(255,255,255,.03)}
+  #shopGrid .cov{position:relative;aspect-ratio:16/9;background:#e9ecf2;overflow:hidden} #shopGrid .cov img{width:100%;height:100%;object-fit:cover;display:block}
+  #shopGrid .badge{position:absolute;left:8px;top:8px;font-size:11px;padding:1px 7px;border-radius:9px;background:#2448e8;color:#fff} #shopGrid .badge.community{background:#2f9e44}
+  #shopGrid .cb{padding:9px 11px 11px;display:flex;flex-direction:column;gap:4px;flex:1} #shopGrid .meta{font-size:11.5px;color:var(--dim)} #shopGrid .upd{color:#e8590c;font-weight:600}
+  #shopGrid .desc{font-size:12px;color:var(--dim);flex:1} #shopGrid .tags span{display:inline-block;font-size:11px;padding:0 6px;margin:0 4px 2px 0;border-radius:8px;border:1px solid var(--line)}
+  #shopGrid .acts{display:flex;gap:6px;margin-top:4px} #shopGrid .acts button{padding:4px 10px;font-size:12px}
+  .shopMsg{grid-column:1/-1;padding:30px 10px;text-align:center;color:var(--dim)}
+  #shop .ft{padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  #shopPub{display:none;padding:10px 16px;border-top:1px solid var(--line);font-size:12.5px;line-height:1.6}
+  #shopPub ol{margin:4px 0 0 18px;padding:0}
+  body.lightbg #shop .box{background:#fff;color:#1c2233;border-color:rgba(0,0,0,.1)} body.lightbg #shopGrid .card{background:#fff;border-color:rgba(0,0,0,.1)}
+  body.lightbg #shop .hd,body.lightbg #shop .ft,body.lightbg #shopPub{border-color:rgba(0,0,0,.08)} body.lightbg #shopGrid .tags span{border-color:rgba(0,0,0,.12)}
+  @media (max-width:600px){#shop{padding:6px} #shopGrid{grid-template-columns:1fr}}
 </style>
 <script type="importmap">
 { "imports": {
@@ -190,7 +215,15 @@
 <div id="kitLabs"></div>
 <div id="procLabs"></div>
 <div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
-<div id="drop">松开鼠标导入结构文件（.cif / .pdb）</div>
+<div id="shop"><div class="box">
+  <div class="hd"><h3>🧩 创意工坊</h3><div class="seg" id="shopTabs"><button data-src="official">官方</button><button data-src="community">社区</button><button data-src="subs">已订阅</button></div>
+    <div class="seg" id="shopCats"><button data-cat="all">全部</button><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button></div>
+    <input type="search" id="shopQ" placeholder="搜索标题、标签、PDB 编号、作者"><span class="x" id="shopX">×</span></div>
+  <div id="shopGrid"></div>
+  <div id="shopPub"><b>场景包已下载。</b>投稿到社区工坊：<ol><li>打开 <a id="shopIssue" target="_blank" rel="noopener">投稿页面</a>（需要 GitHub 账号），填写标题和说明，把刚下载的 .glow 文件拖进去。</li><li>自动检查通过、维护者审核后，场景就会出现在“社区”里。</li></ol>熟悉 GitHub 也可以直接提 Pull Request，把文件放进 <code>workshop/community/packs/</code>。</div>
+  <div class="ft"><span>官方场景由项目维护；社区场景由作者上传，经过自动检查。社区动画只能用数据描述（粒子、隔室、路径、反应），不会运行任何代码。</span><button class="ghost" id="shopPublish" style="margin-left:auto">发布我的场景</button></div>
+</div></div>
+<div id="drop">松开鼠标导入结构文件（.cif / .pdb）或场景包（.glow）</div>
 
 <div id="panel">
   <h1>分子光影查看器</h1>
@@ -201,6 +234,7 @@
   <div class="tabs" id="modeTabs"><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button></div>
   <div class="sub" id="modeNote"></div>
   <div class="presets" id="presets"></div>
+  <div class="row" style="margin-top:6px"><button class="ghost" id="shopBtn">🧩 创意工坊</button><button class="ghost" id="packExport" title="把当前场景（结构、配色、剖面、镜头、讲解、动画）存成一个 .glow 文件">导出场景</button><button class="ghost" id="packImport">导入 .glow</button><input type="file" id="packFile" accept=".glow,.json" hidden></div>
 
   <h2>过程动画</h2>
   <label class="chk"><input type="checkbox" id="procOn" checked>显示相互作用过程（质子 / 离子 / ATP 合成）</label>
@@ -6131,6 +6165,338 @@ function resetCamera(cam) {
   if (current?.frameAll) applyCut();
 }
 
+/* =============================================================================
+   v17: SCENE PACKS (.glow), DATA-ONLY ANIMATION, WORKSHOP
+   A scene pack is one JSON file ("glow-scene" v1): metadata + `scene` (the same keys as a preset) + optional `animation`
+   (pure data: compartments, pools, flows, reactions) that the built-in engine below plays with the v16 motion kit.
+   Packs never carry code: `process` may only name a built-in process; community strings are HTML-escaped; regex keys
+   are compiled defensively. Spec: workshop/SCHEMA.md in the repo.
+   ============================================================================= */
+const GLOW_FORMAT = 'glow-scene', GLOW_VERSION = 1, ANIM_VERSION = 1;
+const WS_BASE = 'https://raw.githubusercontent.com/Nimenta727/molecule-glow-viewer/main/workshop/';
+const WS_REPO = 'https://github.com/Nimenta727/molecule-glow-viewer';
+const WS_SRC = { official: { name: '官方', url: WS_BASE + 'official/' }, community: { name: '社区', url: WS_BASE + 'community/' } };
+const SCENE_KEYS = new Set([...Object.values(PRESETS).flatMap(p => Object.keys(p)), 'caption', 'structure', 'animation', 'memY', 'states', 'chains', 'assembly', 'auto', 'axis']);
+const PACK_CATS = { cell: '细胞', system: '局部系统', single: '单个蛋白' };
+const PDB_ID = /^[0-9][A-Za-z0-9]{3}$/;
+class PackError extends Error {}
+
+/* ---- defensive copy of untrusted JSON: plain data only, bounded, HTML-escaped strings, regex keys that compile */
+function cleanData(v, trusted, depth = 0) {
+  if (depth > 14) throw new PackError('嵌套太深');
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') { if (!Number.isFinite(v)) throw new PackError('数字无效'); return v; }
+  if (typeof v === 'string') return cleanStr(v, trusted);
+  if (Array.isArray(v)) { if (v.length > 5000) throw new PackError('数组太长'); return v.map(x => cleanData(x, trusted, depth + 1)); }
+  if (typeof v === 'object') {
+    const o = {}; let n = 0;
+    for (const [k, x] of Object.entries(v)) { if (k === '__proto__' || k === 'constructor' || k === 'prototype') continue; if (++n > 2000) throw new PackError('字段太多');
+      o[cleanStr(k, trusted)] = cleanData(x, trusted, depth + 1); }
+    return o;
+  }
+  throw new PackError('不支持的数据类型');
+}
+function cleanStr(s, trusted) {
+  if (s.length > 40000) s = s.slice(0, 40000);
+  if (!trusted) s = s.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (s.length > 2 && s[0] === '/' && s.lastIndexOf('/') > 0) {   /* a regex key ('/subunit a$/'): must compile, short, sane flags */
+    const i = s.lastIndexOf('/'), body = s.slice(1, i), fl = s.slice(i + 1);
+    let ok = body.length <= 200 && /^[imsu]*$/.test(fl); try { if (ok) new RegExp(body, fl || 'i'); } catch (e) { ok = false; }
+    if (!ok) return s.replace(/\//g, '');
+  }
+  return s;
+}
+/* validate + clean a parsed pack. trusted = the official source (may use HTML in notes); throws PackError with a reason */
+function sanitizePack(raw, trusted = false) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new PackError('不是场景包');
+  if (raw.format !== GLOW_FORMAT) throw new PackError('不是 .glow 场景包（format 应为 glow-scene）');
+  if (!(raw.version >= 1)) throw new PackError('缺少版本号');
+  if (raw.version > GLOW_VERSION) throw new PackError(`这个场景包是 v${raw.version} 格式，请更新查看器`);
+  const P = cleanData(raw, trusted);
+  if (!/^[a-z0-9][a-z0-9._-]{2,63}$/.test(P.id || '')) throw new PackError('id 只能用小写字母、数字、. _ -（3–64 个字符）');
+  if (typeof P.title !== 'string' || !P.title.trim()) throw new PackError('缺少标题');
+  P.title = P.title.slice(0, 80); P.revision = Math.max(1, Math.floor(+P.revision || 1));
+  if (!PACK_CATS[P.category]) P.category = 'single';
+  P.tags = Array.isArray(P.tags) ? P.tags.filter(t => typeof t === 'string').slice(0, 8).map(t => t.slice(0, 20)) : [];
+  if (P.author && typeof P.author === 'object') { if (P.author.url && !/^https:\/\//.test(P.author.url)) delete P.author.url; } else P.author = { name: '匿名' };
+  if (P.cover && !/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(P.cover)) delete P.cover;
+  if (P.cover && P.cover.length > 600000) delete P.cover;
+  const S = P.scene; if (!S || typeof S !== 'object') throw new PackError('缺少 scene');
+  for (const k of Object.keys(S)) if (!SCENE_KEYS.has(k)) delete S[k];
+  if (S.structure) {
+    if (typeof S.structure.text !== 'string' || !/\.(cif|mmcif|pdb|ent)$/i.test(S.structure.name || '')) throw new PackError('structure 需要 name（.cif / .pdb）和 text');
+    if (S.structure.text.length > 30e6) throw new PackError('内嵌结构太大（上限 30 MB）');
+    S.structure.text = raw.scene.structure.text;   /* coordinates are parsed, never shown: keep them byte-exact */
+  } else if (!PDB_ID.test(S.id || '')) throw new PackError('scene.id 应是 4 位 PDB 编号（或内嵌 structure）');
+  if (S.states && !(Array.isArray(S.states) && S.states.length === 2 && S.states.every(x => PDB_ID.test(x)))) delete S.states;
+  if (S.components) { if (!Array.isArray(S.components) || S.components.length > 16) throw new PackError('components 最多 16 个');
+    S.components = S.components.filter(c => c && PDB_ID.test(c.id || '')); }
+  if (S.process && !(S.process in PROCESSES)) throw new PackError(`未知的内置过程 “${S.process}”（社区场景请用 animation 描述动画）`);
+  if (S.process === 'dataAnim') delete S.process;
+  if (S.animation) checkAnimation(S.animation);
+  return P;
+}
+function checkAnimation(A) {
+  const fail = (m) => { throw new PackError('animation：' + m); };
+  if ((A.version || 1) > ANIM_VERSION) fail(`v${A.version} 需要更新查看器`);
+  const comps = A.compartments || { '溶液': {} };
+  if (Object.keys(comps).length > 6) fail('compartments 最多 6 个');
+  for (const [k, c] of Object.entries(comps)) if (c.side && !['above', 'below'].includes(c.side)) fail(`隔室 ${k} 的 side 只能是 above / below`);
+  const inComp = (k, what) => { if (k != null && !(k in comps)) fail(`${what} 用到了未定义的隔室 “${k}”`); };
+  if ((A.species && Object.keys(A.species).length > 24)) fail('species 最多 24 种');
+  if ((A.pools || []).length > 24) fail('pools 最多 24 个');
+  for (const p of A.pools || []) { inComp(p.in, 'pool'); if (!(p.n >= 0 && p.n <= 40)) fail('pool 的 n 应在 0–40'); }
+  if ((A.flows || []).length > 16) fail('flows 最多 16 条');
+  for (const f of A.flows || []) { inComp(f.from, 'flow'); inComp(f.to, 'flow'); if (!f.species) fail('flow 缺少 species');
+    if (!Array.isArray(f.via) || !f.via.length || f.via.length > 40) fail('flow.via 应有 1–40 个锚点');
+    if (!(f.rate > 0 && f.rate <= 30)) fail('flow.rate 应在 0–30 次 / 秒'); }
+  if ((A.reactions || []).length > 16) fail('reactions 最多 16 个');
+  for (const r of A.reactions || []) { if (!r.site) fail('reaction 缺少 site'); if (!(r.rate > 0 && r.rate <= 30)) fail('reaction.rate 应在 0–30');
+    for (const s of [...(r.in || []), ...(r.out || [])]) { if (!s.species) fail('reaction 的 in / out 要写 species'); inComp(s.from ?? s.to, 'reaction'); }
+    if ((r.in || []).length + (r.out || []).length > 8) fail('一个 reaction 最多 8 个分子'); }
+}
+/* a pack -> loadScene config */
+function packToScene(P, src) {
+  const cfg = { ...P.scene, name: P.title, _pack: { id: P.id, src, revision: P.revision, category: P.category, title: P.title } };
+  if (P.scene.structure) cfg.local = entryFromFile(P.scene.structure.name, P.scene.structure.text);
+  if (P.scene.animation && !cfg.process) cfg.process = 'dataAnim';
+  if (!cfg.caption && P.description) cfg.caption = P.description;
+  return cfg;
+}
+async function openPack(P, src = 'local') {
+  setMode(P.category);
+  $('pdb').value = P.scene.id || '';
+  await loadScene(packToScene(P, src));
+}
+
+/* ---- snapshot of what is on screen -> pack */
+function cameraNow() {
+  if (!model) return undefined;
+  const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * safeAspect()));
+  const R = model.focus.radius + 6, off = camera.position.clone().sub(controls.target), L = off.length();
+  const r3 = (x) => Math.round(x * 1000) / 1000;
+  return { az: r3(Math.atan2(off.x, off.z)), el: r3(Math.asin(THREE.MathUtils.clamp(off.y / L, -1, 1))), dist: r3(L / (R / Math.sin(half))) };
+}
+function coverNow(w = 480) {
+  composer.render();
+  const src = renderer.domElement, h = Math.round(w * src.height / src.width), c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(src, 0, 0, w, h); return c.toDataURL('image/jpeg', 0.78);
+}
+const slugOf = (s) => (s || 'scene').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'scene';
+function packFromCurrent(meta = {}) {
+  if (!current) throw new PackError('还没有打开任何场景');
+  const S = {};
+  for (const [k, v] of Object.entries(current)) if (SCENE_KEYS.has(k) && k !== 'name') S[k] = v;
+  if (current.local && !current.structure) throw new PackError('这个本地结构没有保存原文，请重新导入文件后再导出');
+  if (S.auto) delete S.caption;   /* regenerated on load */
+  S.camera = cameraNow(); S.cut = +$('cut').value; S.cutWhat = $('cutWhat').value;
+  const pk = current._pack, id = pk?.id || ('my.' + slugOf(current.name || current.id) + '-' + Date.now().toString(36));
+  const title = current.name || current.id;
+  const P = { format: GLOW_FORMAT, version: GLOW_VERSION, id, revision: (pk?.revision || 0) + 1, title: meta.title || title,
+    category: pk?.category || (PRESETS[current.name] ? presetCat(current.name) : 'single'), tags: meta.tags || [],
+    author: meta.author || { name: '' }, license: meta.license || 'CC-BY-4.0',
+    description: current.caption || '', created: new Date().toISOString().slice(0, 10), viewer: 17,
+    citations: [...new Set([S.id, ...(S.states || []), ...(S.components || []).map(c => c.id)].filter(Boolean))].map(pdb => ({ pdb })),
+    cover: coverNow(), scene: JSON.parse(JSON.stringify(S)) };
+  return P;
+}
+function downloadPack(P) {
+  const blob = new Blob([JSON.stringify(P, null, 1)], { type: 'application/json' }), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = (P.id.replace(/^my\./, '') || 'scene') + '.glow'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+async function importPackText(text, name = '') {
+  let raw; try { raw = JSON.parse(text); } catch (e) { throw new PackError(`${name} 不是有效的 JSON`); }
+  const P = sanitizePack(raw, false); await openPack(P, 'local'); return P;
+}
+
+/* ---- the data-only animation engine. Anchors (model coordinates):
+     [x,y,z] | {ligand:'K', index:0} | {ligands:'K', order:'up'|'down'} (expands to all of them) | {residue:77, part:'kcsa'}
+     | {part:'subunit a'} | {membrane:0} | {centre:true}, each with an optional offset:[dx,dy,dz] */
+PROCESSES.dataAnim = {
+  caption: '',
+  async setup(ctx) {
+    const A = current.animation; this.A = A; this.ctx = ctx;
+    const at = ctx.allAtoms, bb = new THREE.Box3(); for (const a of at) bb.expandByPoint(a.p);
+    this.c = bb.getCenter(V3n()); this.R = bb.getSize(V3n()).length() / 2;
+    /* orient.up: the anchor's side of the model faces up (the PCA axis sign is arbitrary). Turn everything 180 deg about a
+       horizontal axis through the centre (keeps handedness); runs before the meshes are built, like the KcsA process */
+    if (A.orient?.up && this.anchor(A.orient.up)[0].y < this.c.y) {
+      const O = this.c, fl = (p) => { p.y = 2 * O.y - p.y; p.z = 2 * O.z - p.z; }, seen = new Set(), F = (p) => { if (!seen.has(p)) { seen.add(p); fl(p); } };
+      for (const a of at) F(a.p); for (const g of ctx.partGroups(/./)) for (const a of g.atoms || []) F(a.p);
+      for (const L of ctx.ligands) { L.atoms.forEach(x => F(x.p)); F(L.centre); }
+      for (const e of Object.values(model.entityStats)) { [e.min, e.max] = [2 * O.y - e.max, 2 * O.y - e.min]; e.mean = 2 * O.y - e.mean; }
+      ctx.membraneY.forEach((y, i) => { ctx.membraneY[i] = 2 * O.y - y; $(i ? 'mem2' : 'mem1').value = ctx.membraneY[i] / model.radius; });
+      model._occ = null;
+    }
+    for (const [name, s] of Object.entries(A.species || {})) if (!SPECIES[name]) SPECIES[name] = { col: new THREE.Color(s.col || '#ffffff').getHex(), r: THREE.MathUtils.clamp(+s.r || 2.4, 0.8, 6) };
+    const mem = ctx.membraneY; this.comp = {}; this.keepF = {};
+    for (const [k, d] of Object.entries(A.compartments || { '溶液': {} })) {
+      const y = mem[d.membrane ?? 0] ?? this.c.y, g = d.gap ?? 20;
+      const ok = d.side === 'above' ? (p) => p.y > y + g : d.side === 'below' ? (p) => p.y < y - g : () => true;
+      this.comp[k] = shellRegion(this.c, 0, (d.r ?? 1.2) * this.R, ok);
+      this.keepF[k] = d.side === 'above' ? (p) => { if (p.y < y + g) p.y = y + g; } : d.side === 'below' ? (p) => { if (p.y > y - g) p.y = y - g; } : undefined;
+    }
+    this.pool = (sp, comp) => spPool(sp, comp, this.comp[comp], 0);
+    for (const p of A.pools || []) spPool(p.species, p.in, this.comp[p.in], p.n ?? 6);
+    const hot = [];
+    this.flows = (A.flows || []).map(f => { const pts = f.via.flatMap(a => this.anchor(a)); hot.push(...pts); return { ...f, pts: pts.length > 1 ? pts : [pts[0], pts[0].clone().add(V3n(0, 0.01, 0))], t: Math.random(), busy: 0 }; });
+    this.reacts = (A.reactions || []).map(r => { const site = this.anchor(r.site)[0]; hot.push(site); return { ...r, site, t: Math.random(), busy: 0 }; });
+    for (const x of [...this.flows, ...this.reacts]) if (x.counter) ctx.counters[x.counter] = 0;
+    if (hot.length) ctx.markHot(hot, 8);
+    this.layer = null;
+  },
+  anchor(a) {
+    const off = Array.isArray(a?.offset) ? V3n(+a.offset[0] || 0, +a.offset[1] || 0, +a.offset[2] || 0) : V3n();
+    const ctx = this.ctx, one = (p) => [p.clone().add(off)];
+    if (Array.isArray(a)) return one(V3n(+a[0] || 0, +a[1] || 0, +a[2] || 0));
+    if (a.ligand != null || a.ligands != null) {
+      const comp = String(a.ligand ?? a.ligands).toUpperCase(), L = ctx.ligands.filter(x => x.comp === comp);
+      if (!L.length) { console.warn('animation: no ligand', comp); return one(this.c); }
+      if (a.ligand != null) return one(L[Math.min(L.length - 1, a.index || 0)].centre);
+      const P = []; for (const x of L) if (!P.some(q => q.distanceTo(x.centre) < 1)) P.push(x.centre.clone());   /* symmetry copies coincide */
+      P.forEach(p => p.add(off)); if (a.order === 'up') P.sort((p, q) => p.y - q.y); if (a.order === 'down') P.sort((p, q) => q.y - p.y); return P;
+    }
+    if (a.residue != null) {
+      const r = ctx.allAtoms.find(x => +x.aseq === +a.residue && (!a.part || kwMatch(x.part || '', a.part)) && (!a.chain || x.asym?.split('_')[0] === a.chain));
+      if (!r) console.warn('animation: no residue', a); return one(r ? r.p : this.c);
+    }
+    if (a.part != null) { const S = ctx.allAtoms.filter(x => kwMatch(x.part || '', a.part)); if (!S.length) console.warn('animation: no part', a.part);
+      return one(S.length ? S.reduce((s, x) => s.add(x.p), V3n()).multiplyScalar(1 / S.length) : this.c); }
+    if (a.membrane != null) return one(V3n(this.c.x, ctx.membraneY[a.membrane] ?? this.c.y, this.c.z));
+    return one(this.c);
+  },
+  wait(s) { return new Promise(res => anim(null, s, () => {}, res)); },
+  async runFlow(f) {
+    const ctx = this.ctx, k = ctx.pace(), P = f.pts, sp = f.species;
+    const obj = f.from ? this.pool(sp, f.from).take(P[0]) : mkSp(sp);
+    if (!f.from) { obj.position.copy(P[0]); setAlpha(obj, 0); }
+    const a0 = obj.userData.alpha ?? 1;
+    if (f.from) await travel(obj, brownPath(obj.position.clone(), P[0], { free1: f.free ?? 6, keep: this.keepF[f.from] }), (f.tIn ?? 1.6) / k, { fadeIn: a0 < 1 ? 0.3 : 0, tumble: f.tumble });
+    else await travel(obj, [P[0], P[0].clone().add(V3n(0, 0.01, 0))], 0.4, { fadeIn: 1 });
+    if (f.labelVia) obj.userData.tag?.set(f.labelVia);
+    const dur = (f.tVia ?? 0.45 * P.length) / k;
+    for (const e of f.events || []) { const i = THREE.MathUtils.clamp(e.at | 0, 0, P.length - 1); this.wait(dur * i / Math.max(1, P.length - 1)).then(() => eventTag(e.text, P[i].clone().add(V3n(0, 7, 0)), 2.2)); }
+    await travel(obj, P, dur, { ease: true });
+    obj.userData.tag?.set(sp);
+    if (f.counter) ctx.counters[f.counter]++;
+    const end = P[P.length - 1];
+    if (f.to) { const pool = this.pool(sp, f.to), dest = pool.region.sample(false) || end.clone().add(V3n(0, 30, 0));
+      await travel(obj, brownPath(end.clone(), dest.lerp(end, 0.45), { free0: f.free ?? 6, free1: 0, keep: this.keepF[f.to] }), (f.tOut ?? 1.4) / k); pool.give(obj); }
+    else await travel(obj, [end, end.clone().add(V3n(0, 0.01, 0))], 0.6, { fadeOut: 1, remove: true });
+  },
+  async runReaction(r) {
+    const ctx = this.ctx, k = ctx.pace(), at = r.site;
+    const ins = await Promise.all((r.in || []).map((s, i) => { const o = this.pool(s.species, s.from).take(at), tgt = at.clone().add(V3n(Math.cos(i * 2.4) * 3, Math.sin(i * 2.4) * 3, 0));
+      return travel(o, brownPath(o.position.clone(), tgt, { free1: r.free ?? 10, keep: this.keepF[s.from] }), (r.tIn ?? 2.2) / k, { fadeIn: (o.userData.alpha ?? 1) < 1 ? 0.3 : 0, tumble: true }); }));
+    await this.wait((r.hold ?? 0.5) / k);
+    for (const o of ins) o.parent?.remove(o);
+    if (r.text) eventTag(r.text, at.clone().add(V3n(0, 8, 0)), 2.2);
+    if (r.counter) ctx.counters[r.counter]++;
+    await Promise.all((r.out || []).map((s, i) => { const m = mkSp(s.species); m.position.copy(at).add(V3n(Math.cos(i * 2.4) * 2, 0, Math.sin(i * 2.4) * 2));
+      if (!s.to) return travel(m, [m.position.clone(), m.position.clone().add(V3n(0, 6, 0))], 1.0, { fadeOut: 1, remove: true });
+      const pool = this.pool(s.species, s.to), dest = pool.region.sample(false) || at.clone().add(V3n(0, 30, 0));
+      return travel(m, brownPath(m.position.clone(), dest, { free0: r.free ?? 10, free1: 0, keep: this.keepF[s.to] }), (r.tOut ?? 2.4) / k).then(() => pool.give(m)); }));
+  },
+  /* fast mode: one particle stream per flow / per reactant and product, paths from the bulk through the anchors to the bulk */
+  buildLayer() {
+    const defs = [], S = (n) => SPECIES[n] || { col: 0xffffff, r: 2.4 }, smp = (c, near) => this.comp[c]?.sample(false) || near.clone().add(V3n(0, 40, 0));
+    const paths = (mk) => [0, 1, 2].map(mk);
+    for (const f of this.flows) defs.push({ label: f.name || f.species, col: S(f.species).col, r: S(f.species).r, per: f.rate * (f.stoich || 1), v: 70,
+      paths: paths(() => { const a = f.from ? brownPath(smp(f.from, f.pts[0]), f.pts[0], { free1: 6, keep: this.keepF[f.from] }) : [f.pts[0]];
+        const e = f.pts[f.pts.length - 1], b = f.to ? brownPath(e.clone(), smp(f.to, e), { free0: 6, free1: 0, keep: this.keepF[f.to] }) : [e];
+        return [...a, ...f.pts.slice(1), ...b.slice(1)]; }) });
+    for (const r of this.reacts) {
+      for (const s of r.in || []) defs.push({ label: s.species + ' → ' + (r.name || '反应'), col: S(s.species).col, r: S(s.species).r, per: r.rate, v: 60, paths: paths(() => brownPath(smp(s.from, r.site), r.site, { free1: 10, keep: this.keepF[s.from] })) });
+      for (const s of r.out || []) if (s.to) defs.push({ label: s.species, col: S(s.species).col, r: S(s.species).r, per: r.rate, v: 60, paths: paths(() => brownPath(r.site.clone(), smp(s.to, r.site), { free0: 10, free1: 0, keep: this.keepF[s.to] })) });
+    }
+    return new FlowLayer(defs);
+  },
+  update(ctx, dt) {
+    const pace = ctx.pace();
+    if (fastMode()) { this.layer ||= this.buildLayer(); this.layer.visible = true; this.layer.update(dt, pace);
+      for (const x of [...this.flows, ...this.reacts]) if (x.counter) { x.acc = (x.acc || 0) + dt * pace * x.rate; while (x.acc >= 1) { x.acc--; ctx.counters[x.counter]++; } }
+      return; }
+    if (this.layer) this.layer.visible = false;
+    for (const f of this.flows) { f.t += dt * f.rate * pace; if (f.t >= 1 && f.busy < (f.max ?? 3)) { f.t = 0; f.busy++; this.runFlow(f).catch(e => console.warn(e)).finally(() => f.busy--); } else if (f.t > 1) f.t = 1; }
+    for (const r of this.reacts) { r.t += dt * r.rate * pace; if (r.t >= 1 && r.busy < (r.max ?? 2)) { r.t = 0; r.busy++; this.runReaction(r).catch(e => console.warn(e)).finally(() => r.busy--); } else if (r.t > 1) r.t = 1; }
+  },
+};
+
+/* ---- workshop: two sources (official / community), each a folder with index.json + packs/ + covers/ in the GitHub repo */
+const shop = { src: 'official', cat: 'all', q: '', idx: {}, err: {} };
+const subsGet = () => { try { return JSON.parse(localStorage.getItem('glowSubs') || '{}'); } catch (e) { return {}; } };
+const subsSet = (s) => { try { localStorage.setItem('glowSubs', JSON.stringify(s)); } catch (e) {} };
+async function sha256Hex(text) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+async function shopIndex(src, force) {
+  if (shop.idx[src] && !force) return shop.idx[src];
+  try { const r = await fetch(WS_SRC[src].url + 'index.json', { cache: 'no-cache' }); if (!r.ok) throw new Error('HTTP ' + r.status);
+    const I = await r.json(); if (I.format !== 'glow-index') throw new Error('目录格式不对'); shop.err[src] = null;
+    return shop.idx[src] = I; }
+  catch (e) { shop.err[src] = e.message; return null; }
+}
+async function shopFetchPack(src, entry) {
+  const r = await fetch(WS_SRC[src].url + entry.file, { cache: 'no-cache' }); if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
+  const text = await r.text();
+  if (entry.sha256 && await sha256Hex(text) !== entry.sha256) throw new PackError('文件校验不一致（目录和文件不匹配），已拒绝打开');
+  return sanitizePack(JSON.parse(text), src === 'official');
+}
+const escT = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+async function renderShop() {
+  const grid = $('shopGrid'), subs = subsGet();
+  document.querySelectorAll('#shopTabs button').forEach(b => b.classList.toggle('on', b.dataset.src === shop.src));
+  document.querySelectorAll('#shopCats button').forEach(b => b.classList.toggle('on', b.dataset.cat === shop.cat));
+  let items = [];
+  if (shop.src === 'subs') items = Object.values(subs).map(s => ({ ...s.entry, _src: s.src }));
+  else { grid.innerHTML = '<div class="shopMsg">正在读取目录…</div>'; const I = await shopIndex(shop.src);
+    if (!I) { grid.innerHTML = `<div class="shopMsg">连不上工坊（${escT(shop.err[shop.src])}）。离线时可以打开“已订阅”里看过的场景，或导入本地 .glow 文件。</div>`; return; }
+    items = I.packs.map(e => ({ ...e, _src: shop.src })); }
+  const q = shop.q.trim().toLowerCase();
+  items = items.filter(e => (shop.cat === 'all' || e.category === shop.cat) && (!q || [e.title, e.description, ...(e.tags || []), e.author?.name, ...(e.pdb || [])].join(' ').toLowerCase().includes(q)));
+  if (!items.length) { grid.innerHTML = `<div class="shopMsg">${shop.src === 'subs' ? '还没有订阅的场景。订阅后会出现在左侧预设里，有新版本时自动更新。' : '没有符合条件的场景。'}</div>`; return; }
+  const latest = (e) => shop.idx[e._src]?.packs.find(x => x.id === e.id);
+  grid.innerHTML = items.map(e => { const sub = subs[e.id], upd = sub && latest(e) && latest(e).revision > sub.revision;
+    return `<div class="card" data-id="${escT(e.id)}" data-src="${e._src}">
+      <div class="cov">${e.cover ? `<img loading="lazy" src="${escT(WS_SRC[e._src].url + e.cover)}" alt="">` : ''}<span class="badge ${e._src}">${WS_SRC[e._src].name}</span></div>
+      <div class="cb"><b>${escT(e.title)}</b><div class="meta">${escT(PACK_CATS[e.category] || '')} · ${escT(e.author?.name || '匿名')} · 第 ${e.revision | 0} 版${upd ? ' · <span class="upd">有更新</span>' : ''}</div>
+      <div class="desc">${escT((e.description || '').slice(0, 90))}</div><div class="tags">${(e.tags || []).map(t => `<span>${escT(t)}</span>`).join('')}</div>
+      <div class="acts"><button data-a="open">打开</button><button class="ghost" data-a="sub">${sub ? '取消订阅' : '订阅'}</button>${e._src === 'community' ? '<button class="ghost" data-a="report">举报</button>' : ''}</div></div></div>`; }).join('');
+}
+async function shopAction(a, id, src) {
+  const subs = subsGet();
+  const entry = shop.idx[src]?.packs.find(x => x.id === id) || subs[id]?.entry; if (!entry) return;
+  if (a === 'report') { open(`${WS_REPO}/issues/new?template=report-scene.yml&title=${encodeURIComponent('举报：' + id)}`, '_blank'); return; }
+  if (a === 'sub') { if (subs[id]) delete subs[id]; else subs[id] = { src, revision: entry.revision, entry }; subsSet(subs); renderSubs(); renderShop(); return; }
+  if (a === 'open') {
+    status(`下载场景 ${entry.title} …`, true);
+    try { const P = await shopFetchPack(src, entry); if (subs[id]) { subs[id] = { src, revision: P.revision, entry: { ...entry, revision: P.revision } }; subsSet(subs); renderSubs(); }
+      $('shop').classList.remove('on'); await openPack(P, src); }
+    catch (e) { console.warn(e); status('打不开这个场景：' + e.message); }
+  }
+}
+/* subscribed packs appear among the presets (★), in their category tab */
+function renderSubs() {
+  document.querySelectorAll('#presets button.subp').forEach(b => b.remove());
+  const subs = subsGet(), active = document.querySelector('#modeTabs button.on')?.dataset.cat;
+  for (const [id, s] of Object.entries(subs)) {
+    const b = document.createElement('button'); b.className = 'subp' + (s.entry.category !== active ? ' off' : ''); b.dataset.cat = s.entry.category || 'single';
+    b.textContent = '★ ' + s.entry.title; b.title = `${WS_SRC[s.src]?.name || ''}工坊 · ${s.entry.author?.name || ''}`;
+    b.onclick = () => { shop.src = s.src; shopAction('open', id, s.src); };
+    $('presets').appendChild(b);
+  }
+}
+/* auto-update: compare subscribed versions with the indexes once at start (quietly; offline is fine) */
+async function checkSubUpdates() {
+  const subs = subsGet(), srcs = [...new Set(Object.values(subs).map(s => s.src))]; let n = 0;
+  for (const src of srcs) { const I = await shopIndex(src); if (!I) continue;
+    for (const [id, s] of Object.entries(subs)) if (s.src === src) { const e = I.packs.find(x => x.id === id); if (e && e.revision > s.revision) { subs[id].entry = e; n++; } } }
+  if (n) { subsSet(subs); renderSubs(); status(`${n} 个订阅的场景有新版本，打开时会自动下载最新版`); }
+}
+function publishHelp() {
+  try { const P = packFromCurrent(); downloadPack(P); }
+  catch (e) { status('导出失败：' + e.message); return; }
+  $('shopPub').style.display = 'block';
+}
+
 /* ----------------------------------------------------------------------------- UI wiring */
 function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if (o) o.textContent = (+inp.value).toFixed(inp.step < 0.05 ? 2 : 1); }
 document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
@@ -6147,7 +6513,20 @@ for (const [name, p] of Object.entries(PRESETS)) {
   b.onclick = () => { $('pdb').value = p.id; loadScene({ ...p, name }); };
   $('presets').appendChild(b);
 }
-document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => setMode(b.dataset.cat));
+document.querySelectorAll('#modeTabs button').forEach(b => b.onclick = () => { setMode(b.dataset.cat); renderSubs(); });
+$('shopBtn').onclick = () => { $('shop').classList.add('on'); $('shopPub').style.display = 'none'; renderShop(); };
+$('shopX').onclick = () => $('shop').classList.remove('on');
+$('shop').onclick = (e) => { if (e.target === $('shop')) $('shop').classList.remove('on'); };
+document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => { shop.src = b.dataset.src; renderShop(); });
+document.querySelectorAll('#shopCats button').forEach(b => b.onclick = () => { shop.cat = b.dataset.cat; renderShop(); });
+$('shopQ').oninput = () => { shop.q = $('shopQ').value; renderShop(); };
+$('shopGrid').onclick = (e) => { const b = e.target.closest('button[data-a]'), c = e.target.closest('.card'); if (b && c) shopAction(b.dataset.a, c.dataset.id, c.dataset.src); };
+$('shopIssue').href = `${WS_REPO}/issues/new?template=submit-scene.yml`;
+$('shopPublish').onclick = publishHelp;
+$('packExport').onclick = () => { try { downloadPack(packFromCurrent()); status('已导出场景包（.glow）'); } catch (e) { status('导出失败：' + e.message); } };
+$('packImport').onclick = () => $('packFile').click();
+$('packFile').onchange = async () => { const f = $('packFile').files[0]; $('packFile').value = ''; if (!f) return;
+  try { const P = await importPackText(await f.text(), f.name); status(`已打开场景包：${P.title}`); } catch (e) { console.warn(e); status('打不开场景包：' + e.message); } };
 { let m = 'single'; try { m = localStorage.getItem('glowMode') || m; } catch (e) {} setMode(MODE_NOTE[m] ? m : 'single'); }
 $('load').onclick = () => {
   const id = $('pdb').value.trim().toUpperCase();
@@ -6156,7 +6535,9 @@ $('load').onclick = () => {
   loadScene(preset ? { ...preset[1], name: preset[0] } : { id, auto: true });   /* no preset: automatic membrane / pore / explanation */
 };
 $('pdb').addEventListener('keydown', e => { if (e.key === 'Enter') $('load').click(); });
-async function openFile(f) { status(`读取 ${f.name} …`, true); const text = await f.text(); loadScene({ local: entryFromFile(f.name, text), name: f.name, axis: $('axisMode').value }); }
+async function openFile(f) { status(`读取 ${f.name} …`, true); const text = await f.text();
+  if (/\.(glow|json)$/i.test(f.name)) { try { const P = await importPackText(text, f.name); status(`已打开场景包：${P.title}`); } catch (e) { status('打不开场景包：' + e.message); } return; }
+  loadScene({ local: entryFromFile(f.name, text), name: f.name, axis: $('axisMode').value, structure: { name: f.name, text } }); }
 $('fileBtn').onclick = () => $('file').click();
 $('file').onchange = () => $('file').files[0] && openFile($('file').files[0]);
 addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('on'); });
@@ -6304,8 +6685,15 @@ const presetKey = (q) => {   // exact, then normalised (full/half-width brackets
   const keys = Object.keys(PRESETS);
   return keys.find(k => n(k) === m) || keys.find(k => n(k).includes(m)) || keys.find(k => m.includes(n(k))) || null;
 };
-const startPreset = presetKey(params.get('preset')) || (startId ? null : 'ATP 合酶（合成 ATP）');
-if (startPreset && PRESETS[startPreset]) { $('pdb').value = PRESETS[startPreset].id; loadScene({ ...PRESETS[startPreset], name: startPreset }); }
+const startPreset = presetKey(params.get('preset')) || (startId || params.get('ws') ? null : 'ATP 合酶（合成 ATP）');
+renderSubs(); setTimeout(checkSubUpdates, 4000);
+window.__viewer.packs = { sanitizePack, packFromCurrent, openPack, importPackText, shopIndex, PROCESSES };
+const startWs = params.get('ws');   /* ?ws=official/<id> or community/<id>: open a workshop scene directly */
+if (startWs && /^(official|community)\/[a-z0-9._-]+$/.test(startWs)) {
+  const [src, id] = startWs.split('/');
+  shopIndex(src).then(I => { const e = I?.packs.find(x => x.id === id); if (!e) throw new Error('工坊里没有 ' + id); shop.src = src; return shopAction('open', id, src); }).catch(e => status('打不开工坊场景：' + e.message));
+}
+else if (startPreset && PRESETS[startPreset]) { $('pdb').value = PRESETS[startPreset].id; loadScene({ ...PRESETS[startPreset], name: startPreset }); }
 else if (startId) { $('pdb').value = startId; $('load').click(); }
 </script>
 </body>

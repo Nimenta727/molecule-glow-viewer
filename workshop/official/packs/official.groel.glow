@@ -1,0 +1,43 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.groel",
+ "revision": 1,
+ "title": "GroEL 伴侣蛋白",
+ "category": "single",
+ "tags": [
+  "伴侣蛋白",
+  "蛋白折叠"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "GroEL 两个七聚体环背靠背组成折叠腔，GroES 像盖子一样盖在 cis 环上。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "1AON"
+  }
+ ],
+ "scene": {
+  "id": "1AON",
+  "axis": "sym",
+  "blob": 4,
+  "notes": {
+   "GROEL/GROES": [
+    "GroES 盖子",
+    "共伴侣（七聚体）",
+    "GroES 七聚体像盖子一样盖在 GroEL 的一个环（cis 环）上，与它围成一个封闭的折叠腔。GroES 结合需要该环先结合 ATP；ATP 水解后，下一轮 ATP 结合到对侧环（trans 环）触发 GroES 和折叠好的蛋白离开。GroES 不转动。"
+   ],
+   "GROEL": [
+    "GroEL",
+    "伴侣蛋白（14 聚体）",
+    "两个七聚体环背靠背叠成空心圆柱。每个亚基分三个结构域：赤道域（结合并水解 ATP、连接两环）、中间域（铰链）、顶端域（开口处，用疏水面抓住未折叠蛋白）。在 cis 环里，ATP 与 GroES 结合使顶端域大幅抬起并扭转（约 60° 抬升、90° 扭转；Xu, Horwich & Sigler 1997），疏水面翻向外，底物被释放进亲水的腔里折叠（约 10 秒）。"
+   ]
+  }
+ }
+}

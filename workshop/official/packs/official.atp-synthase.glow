@@ -1,0 +1,161 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.atp-synthase",
+ "revision": 1,
+ "title": "ATP 合酶（合成 ATP）",
+ "category": "single",
+ "tags": [
+  "分子马达",
+  "能量",
+  "膜蛋白"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "H⁺ 顺梯度流过 c 环使其转动，γ 亚基依次改变三个 β 亚基的构象，把 ADP + Pi 合成 ATP（Boyer 结合变构机制）。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "6ZPO"
+  }
+ ],
+ "scene": {
+  "id": "6ZPO",
+  "axisFrom": [
+   "subunit C1",
+   "subunit beta"
+  ],
+  "blob": 4.4,
+  "spin": [
+   "subunit gamma",
+   "subunit delta",
+   "subunit epsilon",
+   "subunit C1"
+  ],
+  "ghost": [
+   "subunit alpha",
+   "subunit beta"
+  ],
+  "membranes": [
+   {
+    "at": "subunit C1",
+    "offset": 0
+   }
+  ],
+  "memR": 1.2,
+  "cut": 0,
+  "cutWhat": "mem",
+  "process": "atpSynthase",
+  "core": [
+   {
+    "near": {
+     "part": "/subunit a$/",
+     "seq": 159
+    },
+    "r": 13,
+    "with": [
+     "subunit C1"
+    ]
+   },
+   {
+    "part": "subunit C1",
+    "seqs": [
+     [
+      56,
+      60
+     ]
+    ]
+   }
+  ],
+  "siteNotes": {
+   "ADP": "催化位点主要在 β 亚基上：P-loop（Walker A 基序 GxxxxGKT）环绕磷酸，Mg²⁺ 由磷酸氧和 P-loop 的 Thr 配位；相邻 α 亚基伸入一个精氨酸（“精氨酸手指”）稳定过渡态。三个 β 位点的结合紧密程度随 γ 的位置而变——这正是 Boyer 结合变构机制。上面的残基和距离由 6ZPO 坐标直接计算。",
+   "ATP": "6ZPO 中的 ATP 结合在 α 亚基的非催化位点（α–β 界面，主要由 α 构成）：这类位点结合核苷酸但不参与催化循环，被认为起结构 / 调节作用。催化用的 ATP 在动画里按 β 位点建模。"
+  },
+  "colors": {
+   "subunit alpha": "#e64fc8",
+   "subunit beta": "#5b9dff",
+   "subunit gamma": "#e3e7f2",
+   "subunit delta": "#e3e7f2",
+   "subunit epsilon": "#e3e7f2",
+   "subunit C1": "#3fc864",
+   "/subunit a$/": "#2448e8",
+   "subunit O": "#ff9a50",
+   "B1": "#ff9a50",
+   "/subunit d,/": "#ff9a50",
+   "factor 6": "#ff9a50",
+   "inhibitor": "#f5e07a"
+  },
+  "camera": {
+   "az": -0.55,
+   "el": 0.12,
+   "dist": 1.05
+  },
+  "notes": {
+   "subunit alpha": [
+    "α 亚基 ×3",
+    "F1 头部，非催化",
+    "与 β 交替排成 α3β3 六聚体（F1 头部）。α 也结合核苷酸，但它的位点不催化，主要起结构和调节作用。催化位点位于 α/β 交界、以 β 为主。"
+   ],
+   "subunit beta": [
+    "β 亚基 ×3",
+    "催化位点：合成 ATP",
+    "三个 β 同一时刻处在三种不同构象：开放（空）、松弛（结合 ADP + Pi）、紧密（ADP + Pi 合成 ATP）。γ 每转 120°，三个 β 依次换一种构象——这就是 Boyer 的“结合变构机制”。本动画中 β 的形状来自 6ZPO（冷冻电镜结构）三条 β 链的真实构象（βE 开放、βDP、βTP）。注意：在 6ZPO 中三个 β 位点其实都结合了 ADP（βE 没有 Mg²⁺），“开放＝空”是 Boyer 模型中的状态，动画按模型画。"
+   ],
+   "subunit gamma": [
+    "γ 亚基",
+    "中心柄（转子）",
+    "细长的 γ 插在 α3β3 中央，形状不对称。它转动时依次顶住不同的 β，迫使 β 改变构象，把转动的机械能变成化学能。"
+   ],
+   "subunit delta": [
+    "δ 亚基",
+    "中心柄",
+    "与 γ、ε 一起组成中心柄，把 c 环的转动传到 F1 头部。注意命名：线粒体的 δ 相当于细菌的 ε。"
+   ],
+   "subunit epsilon": [
+    "ε 亚基",
+    "中心柄（线粒体特有）",
+    "线粒体特有的小亚基（细菌没有对应亚基），与 γ、δ 一起构成中心柄底部，与 c 环接触。"
+   ],
+   "subunit C1": [
+    "c 环（c8）",
+    "膜内转子，运 H⁺",
+    "8 个 c 亚基围成的环嵌在线粒体内膜里。每个 c 亚基中部有一个谷氨酸（Glu58）可接受一个 H⁺。H⁺ 顺电化学梯度（质子动力势，线粒体中主要是膜电位）流过时推动 c 环转动：转一圈运 8 个 H⁺、产生 3 个 ATP（约 2.7 H⁺/ATP）。"
+   ],
+   "/subunit a$/": [
+    "a 亚基",
+    "定子：H⁺ 半通道",
+    "a 亚基紧贴 c 环，提供两个错开的半通道：H⁺ 从膜间隙一侧进入、结合到 c 亚基上，随 c 环转近一圈后从另一个半通道释放到基质。a 亚基上保守的精氨酸防止 H⁺ 直接“短路”。"
+   ],
+   "subunit O": [
+    "OSCP",
+    "外周柄顶端",
+    "OSCP（相当于细菌的 δ 亚基）像帽子扣在 α3β3 顶部，把头部固定在外周柄上，使它不跟着 γ 一起转——否则无法产生相对转动。"
+   ],
+   "B1": [
+    "b 亚基",
+    "外周柄（定子臂）",
+    "长螺旋从膜内一直伸到 F1 头部，与 d、F6 组成外周柄，像定子臂一样把 α3β3 固定住。"
+   ],
+   "/subunit d,/": [
+    "d 亚基",
+    "外周柄",
+    "外周柄组成部分。"
+   ],
+   "factor 6": [
+    "F6",
+    "外周柄",
+    "外周柄组成部分。"
+   ],
+   "inhibitor": [
+    "IF1",
+    "抑制蛋白",
+    "IF1 抑制 ATP 合酶反向水解 ATP（例如缺氧时防止浪费 ATP）。6ZPO 中 IF1 的 N 端插在 αDP/βDP 界面，所以这个结构其实处于被抑制状态；动画中的合成循环是基于该结构的模型演示。"
+   ]
+  }
+ }
+}

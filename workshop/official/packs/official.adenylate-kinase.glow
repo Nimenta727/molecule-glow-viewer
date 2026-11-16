@@ -1,0 +1,173 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.adenylate-kinase",
+ "revision": 1,
+ "title": "腺苷酸激酶（开合）",
+ "category": "single",
+ "tags": [
+  "酶",
+  "构象变化"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "腺苷酸激酶的 LID 和 NMP 结构域在张开（4AKE）和闭合（1AKE）两个晶体结构之间开合，抑制剂 Ap5A 占据活性位点。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "4AKE"
+  },
+  {
+   "pdb": "1AKE"
+  }
+ ],
+ "scene": {
+  "id": "4AKE",
+  "states": [
+   "4AKE",
+   "1AKE"
+  ],
+  "chains": [
+   "A"
+  ],
+  "colorMode": "rainbow",
+  "axis": "long",
+  "blob": 4.4,
+  "assembly": false,
+  "domains": [
+   [
+    "CORE",
+    [
+     [
+      1,
+      29
+     ],
+     [
+      60,
+      121
+     ],
+     [
+      160,
+      214
+     ]
+    ]
+   ],
+   [
+    "NMP",
+    [
+     [
+      30,
+      59
+     ]
+    ]
+   ],
+   [
+    "LID",
+    [
+     [
+      122,
+      159
+     ]
+    ]
+   ]
+  ],
+  "energyStage": "morph",
+  "energyHL": [
+   [
+    {
+     "aseqs": [
+      [
+       7,
+       15
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "aseqs": [
+      [
+       30,
+       59
+      ],
+      [
+       122,
+       159
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "aseqs": [
+      [
+       13,
+       13
+      ],
+      [
+       123,
+       123
+      ],
+      [
+       156,
+       156
+      ],
+      [
+       167,
+       167
+      ]
+     ]
+    }
+   ],
+   [
+    {
+     "aseqs": [
+      [
+       122,
+       159
+      ]
+     ]
+    }
+   ]
+  ],
+  "energy": [
+   [
+    "底物结合",
+    "ATP（带 Mg²⁺）结合在 CORE 的 P-loop 上、被 LID 覆盖；AMP 结合在 NMP 结合域。结合能使构象平衡偏向闭合态（没有底物时酶也会短暂闭合；Henzler-Wildman 等 2007）。"
+   ],
+   [
+    "LID / NMP 闭合",
+    "两个结构域向 CORE 关闭，把水挤出活性位点、把两个底物的磷酸对准，LID 与 P-loop 上带正电的残基稳定过渡态。转动角度由 4AKE 与 1AKE 两套坐标计算（聚焦 Ap5A 可看到）。"
+   ],
+   [
+    "磷酰基转移",
+    "ATP 的 γ-磷酸转移到 AMP 上，生成 2 个 ADP。该反应接近平衡（标准自由能变化约为 0），所以腺苷酸激酶是细胞里缓冲 ATP / ADP / AMP 比例的“换算器”。"
+   ],
+   [
+    "打开释放产物（限速）",
+    "LID 重新打开才能释放 ADP，这是整个催化循环的限速步骤（Wolf-Watz 等 2004）。"
+   ]
+  ],
+  "siteNotes": {
+   "AP5": "Ap5A（P¹,P⁵-二腺苷五磷酸）是双底物类似物：一端的腺苷占 ATP 位点（LID 之下），另一端占 AMP 位点（NMP 结合域），中间的五个磷酸跨越两个位点，模拟磷酰基转移时两个底物靠在一起的状态，所以能把酶“锁”在闭合构象（1AKE）。"
+  },
+  "caption": "腺苷酸激酶：底物结合使平衡偏向闭合态，LID 与 NMP 结构域向核心闭合（4AKE 张开 ⇄ 1AKE 闭合，抑制剂 Ap5A 占据活性位点）",
+  "notes": {
+   "": [
+    "腺苷酸激酶",
+    "ATP + AMP ⇌ 2 ADP",
+    "由 CORE、LID（盖住 ATP）和 NMP 结合域三部分组成。LID 与 NMP 域像两扇门一样向核心关闭（没有底物时也会短暂闭合，底物结合使平衡偏向闭合态；Henzler-Wildman 等 2007），排除水并把两个底物对准，完成磷酸基团转移；产物释放时再打开。勾选“简”后三个结构域分别画成三个叶片（大肠杆菌编号：NMP 结合域约 30–59，LID 约 122–159，其余为 CORE）。"
+   ]
+  },
+  "camera": {
+   "az": -0.6,
+   "el": 0.2,
+   "dist": 1.3
+  }
+ }
+}

@@ -1,0 +1,87 @@
+{
+ "format": "glow-scene",
+ "version": 1,
+ "id": "official.whole-cell",
+ "revision": 1,
+ "title": "整个细胞：大肠杆菌（从 2 µm 缩放到原子）",
+ "category": "cell",
+ "tags": [
+  "细胞",
+  "多尺度"
+ ],
+ "author": {
+  "name": "molecule-glow-viewer",
+  "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+ },
+ "license": "CC-BY-4.0",
+ "description": "一个大肠杆菌从 2 µm 一路缩放到原子：外膜、肽聚糖、内膜、拟核、2.5 万个核糖体、鞭毛，再放大到正在工作的分子机器。",
+ "created": "2026-11-16",
+ "updated": "2026-11-16",
+ "viewer": 17,
+ "citations": [
+  {
+   "pdb": "4V6F"
+  },
+  {
+   "pdb": "1K4C"
+  }
+ ],
+ "scene": {
+  "id": "4V6F",
+  "axis": "native",
+  "axisFrom": [
+   "16S",
+   "23S"
+  ],
+  "frameAll": true,
+  "multiscale": true,
+  "cut": 0,
+  "cutWhat": "all",
+  "process": "wholeCell",
+  "blob": 3.4,
+  "keepDetail": [
+   ""
+  ],
+  "membranes": [
+   {
+    "at": "",
+    "offset": 0
+   }
+  ],
+  "memR": 2.6,
+  "components": [
+   {
+    "id": "1K4C",
+    "chains": [
+     "C"
+    ],
+    "axis": "sym",
+    "label": "KcsA 钾通道"
+   }
+  ],
+  "coreLigands": [],
+  "ligOff": [
+   "MG",
+   "ZN",
+   "K",
+   "NA",
+   "CL",
+   "SF4",
+   "MIA",
+   "PAR",
+   "SPD",
+   "F09",
+   "DGA",
+   "TBA",
+   "BA"
+  ],
+  "colors": {
+   "16S": "#efd3a0",
+   "23S": "#e3c08e",
+   "5S": "#e3c08e",
+   "/30S/": "#b8c8dc",
+   "/50S/": "#c6d3b6",
+   "KcsA": "#9d86e6"
+  }
+ }
+}
