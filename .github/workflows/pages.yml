@@ -1,0 +1,30 @@
+# Online version on GitHub Pages: the viewer (web/index.html), the developer workbench (web/dev.html) and a copy of the workshop
+# (so ?ws=official/<id> links and the workshop also work from https://<owner>.github.io/molecule-glow-viewer/).
+name: pages
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'workshop/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency: { group: pages, cancel-in-progress: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: '${{ steps.d.outputs.page_url }}' }
+    steps:
+      - uses: actions/checkout@v4
+      - name: assemble site
+        run: |
+          mkdir -p _site
+          cp web/*.html _site/
+          cp -r workshop _site/workshop
+          rm -rf _site/workshop/tools
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+      - id: d
+        uses: actions/deploy-pages@v4

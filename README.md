@@ -14,9 +14,12 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
 
+路线图和审计：[docs/ROADMAP.md](docs/ROADMAP.md)（目标：数据、可复现性和工程质量向 Mol\*、NGL、ChimeraX 看齐，同时保留教学上的高可见性和易读性）。
+
 三者共用同一个查看器文件：`web/index.html` 是源头，桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
 
 ## 功能
+- **证据等级**：标题下四个徽章——实验（PDB 原子坐标）、推算（由坐标或注释计算：简化外形、膜位置、朝向）、建模（构象插值、组装位置）、示意（动画粒子、计数、细胞里的分子摆放）。点一下列出这个场景里每一项属于哪一级，学生一眼分清“测的”和“画的”。
 - **三种显示模式**
   - 团块（写实）：每个残基一颗发光团块。
   - 结构示意：α 螺旋、β 折叠箭头、卷曲细管。二级结构取自作者沉积的 PDB 注释（`_struct_conf` / `_struct_sheet_range`）。

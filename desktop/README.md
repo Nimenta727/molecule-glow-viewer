@@ -24,6 +24,16 @@ npm start
 
 自检：`GLOW_SMOKE=25` 会在 25 秒后打印页面报错和缓存命中情况、截一张图到临时目录，然后退出；`GLOW_QUERY='?pdb=1K4C'` 指定打开的结构。
 
+## 回归测试（每次改查看器都要跑）
+```bash
+node scripts/regress.mjs           # 跑 6 个固定场景，和 regress/baseline.json 比较
+node scripts/regress.mjs --accept  # 确认这次结果正确后，存为新基线
+```
+场景列表在 `scripts/regress-scenes.json`（4HHB 自动模式、6ZPO ATP 合酶、1K4C KcsA、4V6F 翻译、7CGO 鞭毛马达、细胞一角）。每个场景记录：能否载入、载入时间、实体 / 链 / 残基 / 配体数量、GPU 几何体 / 纹理 / 绘制调用、FPS、最差帧、过程计数，并截图到 `regress/latest/`。最后回到第一个场景：几何体、纹理、场景对象数量变多 = `clearScene()` 漏释放。
+- **不通过**（退出码 1）：载入失败、内容数量变化、资源泄漏、几何体多 25% 以上。
+- **只警告**：FPS 下降、载入变慢（和机器有关）。
+- 页面里也能用：控制台 `await __viewer.probe(3)`。
+
 打包 Windows 便携版 exe，输出在 `dist/`：
 ```bash
 npm run dist
@@ -34,6 +44,7 @@ npm run dist
 |---|---|
 | `main.js` | 窗口；`app://glow/` 协议加载查看器；拦截 jsDelivr 的 Three.js 请求改读本地；RCSB / UniProt 磁盘缓存 |
 | `preload.js` | 给页面暴露 `window.glowDesktop`（版本、缓存大小、清缓存） |
+| `scripts/regress.mjs`、`scripts/regress-scenes.json`、`regress/baseline.json` | 回归测试（`GLOW_REGRESS=<目录>` 模式由 main.js 执行） |
 | `scripts/sync.js` | 把网页版复制进 `app/`，把 Three.js r160 复制进 `vendor/three/`（electron-builder 默认会去掉 node_modules 里的 examples 目录，所以要单独放） |
 
 查看器本身不改：网页版和桌面版跑的是同一个文件。

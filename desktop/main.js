@@ -79,13 +79,34 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 900, backgroundColor: '#ffffff', title: '分子光影',
     autoHideMenuBar: true,
-    webPreferences: { preload: path.join(ROOT, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true },
+    webPreferences: { preload: path.join(ROOT, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: !(process.env.GLOW_REGRESS || process.env.GLOW_SMOKE) },
   });
   // Links (DOI, UniProt pages) open in the user's browser, not inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); shell.openExternal(url); } });
   win.loadURL('app://glow/index.html' + (process.env.GLOW_QUERY || ''));
   if (process.env.GLOW_DEVTOOLS) win.webContents.openDevTools({ mode: 'detach' });
+  // GLOW_REGRESS=<dir>: regression baseline (scripts/regress.mjs). Loads every scene in scripts/regress-scenes.json one after the
+  // other in this window, measures it (__viewer.loadAndProbe), saves <dir>/<n>.jpg, then loads the first scene again: if the
+  // geometry / texture counts grew, something was not disposed. Writes <dir>/report.json and quits.
+  if (process.env.GLOW_REGRESS) {
+    const out = process.env.GLOW_REGRESS; fs.mkdirSync(out, { recursive: true });
+    const scenes = JSON.parse(fs.readFileSync(path.join(__dirname, 'scripts', 'regress-scenes.json'), 'utf8'));
+    win.webContents.on('console-message', (e) => { const lv = e.level ?? e.params?.level; if (lv === 'error' || lv === 3) console.log('[page error]', e.message ?? e.params?.message); });
+    win.webContents.once('did-finish-load', () => setTimeout(async () => {
+      const run = (cfg) => win.webContents.executeJavaScript(`window.__viewer.loadAndProbe(${JSON.stringify(cfg)}, ${scenes.settle ?? 2}, ${scenes.seconds ?? 5})`);
+      const report = { size: win.getContentSize(), scenes: [] };
+      try {
+        for (const [i, s] of scenes.list.entries()) {
+          const r = await run(s.load); r.key = s.key;
+          const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, `${s.key}.jpg`), img.resize({ width: 640 }).toJPEG(80));
+          report.scenes.push(r); console.log('[regress]', s.key, JSON.stringify({ loadMs: r.loadMs, fps: r.fps, geometries: r.geometries, error: r.error }));
+        }
+        const again = await run(scenes.list[0].load); report.revisit = { key: scenes.list[0].key, geometries: again.geometries, textures: again.textures, objects: again.objects, jsHeapMB: again.jsHeapMB };
+      } catch (e) { report.fatal = String(e.message || e); }
+      fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 1)); app.quit();
+    }, 3000));
+  }
   // GLOW_SMOKE=<seconds>: self-test for CI / builds — print console errors and cache stats, save a screenshot, quit.
   if (process.env.GLOW_SMOKE) {
     win.webContents.on('console-message', (e) => { const lv = e.level ?? e.params?.level; if (lv === 'error' || lv === 3) console.log('[page error]', e.message ?? e.params?.message); });
