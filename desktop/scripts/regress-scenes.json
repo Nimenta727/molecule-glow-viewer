@@ -3,11 +3,46 @@
  "settle": 3,
  "seconds": 5,
  "list": [
-  { "key": "4HHB-hemoglobin", "load": { "id": "4HHB", "auto": true } },
-  { "key": "6ZPO-atp-synthase", "load": "ATP 合酶（合成 ATP）" },
-  { "key": "1K4C-kcsa", "load": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）" },
-  { "key": "4V6F-translation", "load": "核糖体翻译（mRNA → 蛋白质，可加抗生素）" },
-  { "key": "7CGO-flagellar-motor", "load": "鞭毛马达" },
-  { "key": "cell-corner", "load": "细胞一角：核糖体 + 钾通道（同时模拟）" }
- ]
+  {
+   "key": "4HHB-hemoglobin",
+   "load": {
+    "id": "4HHB",
+    "auto": true
+   }
+  },
+  {
+   "key": "6ZPO-atp-synthase",
+   "load": "ATP 合酶（合成 ATP）"
+  },
+  {
+   "key": "1K4C-kcsa",
+   "load": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）"
+  },
+  {
+   "key": "4V6F-translation",
+   "load": "核糖体翻译（mRNA → 蛋白质，可加抗生素）"
+  },
+  {
+   "key": "7CGO-flagellar-motor",
+   "load": "鞭毛马达"
+  },
+  {
+   "key": "cell-corner",
+   "load": "细胞一角：核糖体 + 钾通道（同时模拟）"
+  }
+ ],
+ "rapid": {
+  "about": "start these loads without waiting (each cancels the previous); the result must equal loading the last one alone (scene `compare`)",
+  "compare": "1K4C-kcsa",
+  "list": [
+   "ATP 合酶（合成 ATP）",
+   {
+    "id": "4HHB",
+    "auto": true
+   },
+   "细胞一角：核糖体 + 钾通道（同时模拟）",
+   "鞭毛马达",
+   "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）"
+  ]
+ }
 }

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>开发者工作台 · 分子光影</title>
+<style>
+  :root{--bg:#f4f5f8;--card:#fff;--ink:#1c2233;--dim:#5a6275;--line:rgba(0,0,0,.1);--acc:#c95fc4;--acc2:#2a5fae;--err:#d43c3c;--errBg:#fdecec;--warn:#a8690f;--warnBg:#fff6e0;--ok:#2f7d4f;--okBg:#e9f6ee;--code:#f7f8fb;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,"Microsoft YaHei Mono",monospace}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,"Microsoft YaHei",sans-serif}
+  header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--card)}
+  header h1{font-size:15px;margin:0;letter-spacing:.5px} header .sub{color:var(--dim);font-size:12px} header a{margin-left:auto;color:var(--acc2);text-decoration:none;font-size:12.5px}
+  main{padding:12px 16px 40px;display:grid;gap:12px;grid-template-columns:minmax(380px,42%) 1fr;grid-template-areas:"ed view" "con val" "ref ref" "ai ai"}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0;display:flex;flex-direction:column}
+  .card h2{font-size:11.5px;letter-spacing:1.2px;color:var(--dim);margin:0 0 8px;font-weight:600}
+  #edCard{grid-area:ed;height:min(70vh,720px)} #viewCard{grid-area:view;height:min(70vh,720px);padding:0;overflow:hidden;position:relative}
+  #conCard{grid-area:con;height:340px} #valCard{grid-area:val;height:340px} #refCard{grid-area:ref} #aiCard{grid-area:ai}
+  .bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  button{background:linear-gradient(135deg,#c95fc4,#6f8ff0);border:0;color:#fff;border-radius:7px;padding:5px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+  button.ghost{background:#f3f4f8;color:var(--ink);border:1px solid rgba(0,0,0,.16)} button.ghost:hover{border-color:var(--acc)}
+  button:disabled{opacity:.5;cursor:wait}
+  .ed{flex:1;min-height:0;display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--code)}
+  #gut{margin:0;padding:8px 6px 8px 8px;min-width:42px;text-align:right;color:#9aa1b2;font:12px/1.55 var(--mono);background:#eef0f5;overflow:hidden;user-select:none;white-space:pre}
+  #src{flex:1;min-width:0;border:0;outline:0;resize:none;padding:8px 10px;font:12px/1.55 var(--mono);background:transparent;color:var(--ink);white-space:pre;overflow:auto;tab-size:2}
+  #edInfo{font-size:11.5px;color:var(--dim);margin-top:6px;min-height:1.5em}
+  iframe{border:0;width:100%;height:100%;display:block;background:#f4f5f8}
+  #viewTag{position:absolute;left:10px;top:10px;font-size:11px;color:var(--dim);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:9px;padding:1px 8px;pointer-events:none}
+  #out{flex:1;min-height:0;overflow:auto;font:12px/1.5 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre-wrap;word-break:break-word}
+  #out .in{color:var(--acc2)} #out .ok{color:var(--ink)} #out .er{color:var(--err)} #out .pend{color:var(--dim)} #out img{max-width:240px;display:block;margin:4px 0;border:1px solid var(--line);border-radius:6px}
+  .cin{display:flex;gap:6px;margin-top:6px} .cin input{flex:1;min-width:0;font:12.5px var(--mono);padding:6px 8px;border:1px solid rgba(0,0,0,.18);border-radius:7px;background:#fff;color:var(--ink)}
+  .chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px} .chips span{font:11.5px var(--mono);padding:1px 7px;border-radius:9px;border:1px solid var(--line);cursor:pointer;background:#fafbfd} .chips span:hover{border-color:var(--acc)}
+  #val{flex:1;min-height:0;overflow:auto;margin:0;padding:0;list-style:none}
+  #val li{padding:5px 9px;border-radius:7px;margin:0 0 5px;font-size:12.5px;border-left:3px solid}
+  #val li.e{background:var(--errBg);border-color:var(--err);color:#8a1f1f} #val li.w{background:var(--warnBg);border-color:var(--warn);color:#6b4300} #val li.o{background:var(--okBg);border-color:var(--ok);color:#1f5535}
+  #val li.n{border-color:var(--line);color:var(--dim)}
+  details summary{cursor:pointer;font-weight:600;font-size:13px} details[open] summary{margin-bottom:8px}
+  #ref table{width:100%;border-collapse:collapse;font-size:12.5px} #ref td,#ref th{text-align:left;vertical-align:top;padding:5px 8px;border-top:1px solid var(--line)}
+  #ref th{color:var(--dim);font-weight:600;font-size:11.5px} #ref code{font:12px var(--mono);background:var(--code);padding:0 4px;border-radius:4px;word-break:break-word}
+  #ref .sel{margin-top:8px;font-size:12.5px;color:var(--dim)}
+  #ai pre{margin:0;max-height:340px;overflow:auto;white-space:pre-wrap;font:12px/1.55 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .muted{color:var(--dim);font-size:12px}
+  @media (max-width:900px){ main{grid-template-columns:1fr;grid-template-areas:"view" "ed" "con" "val" "ref" "ai";padding:10px 10px 30px}
+    #viewCard{height:56vh} #edCard{height:60vh} #conCard,#valCard{height:300px} header a{margin-left:0} }
+</style>
+</head>
+<body>
+<header><h1>开发者 / AI 场景工作台</h1><span class="sub">编辑 .glow 场景包 · 校验 · 预览 · 用命令 API（window.glow）控制查看器</span><a href="index.html">← 返回查看器</a></header>
+<main>
+  <section class="card" id="edCard">
+    <h2>场景包 JSON（.glow）</h2>
+    <div class="bar">
+      <button class="ghost" id="bNew" title="一个能直接预览的示例：血红蛋白 + O₂ 结合的数据动画">新建（模板）</button>
+      <button class="ghost" id="bExport" title="右边查看器当前显示的场景 → JSON">从当前场景导出</button>
+      <button class="ghost" id="bCheck">校验</button>
+      <button id="bPreview">预览</button>
+      <button class="ghost" id="bDown">下载 .glow</button>
+      <button class="ghost" id="bSubmit" title="打开 GitHub 投稿页（需要账号），把下载的 .glow 拖进去">投稿到工坊</button>
+    </div>
+    <div class="ed"><pre id="gut">1</pre><textarea id="src" spellcheck="false" wrap="off" aria-label="场景包 JSON"></textarea></div>
+    <div id="edInfo"></div>
+  </section>
+  <section class="card" id="viewCard"><iframe id="view" title="查看器" src="index.html?embed=1&pdb=1K4C"></iframe><span id="viewTag">查看器（嵌入模式：面板默认收起，☰ 打开）</span></section>
+  <section class="card" id="conCard">
+    <h2>命令控制台</h2>
+    <div class="chips" id="chips"></div>
+    <div id="out"><span class="pend">等待查看器就绪…</span>
+</div>
+    <div class="cin"><input id="cmd" placeholder="select chain A　或　{&quot;cmd&quot;:&quot;color&quot;,&quot;args&quot;:[&quot;chain A&quot;,&quot;#e05a4a&quot;]}" autocomplete="off" spellcheck="false"><button id="bRun">执行</button></div>
+  </section>
+  <section class="card" id="valCard">
+    <h2>校验结果</h2>
+    <ul id="val"><li class="n">点“校验”或“预览”检查编辑器里的场景包。错误（红）会阻止打开；提醒（黄）不影响打开，但投稿时请处理。</li></ul>
+  </section>
+  <section class="card" id="refCard"><details id="ref"><summary>API 参考（由 glow.help() 生成）</summary><div id="refBody" class="muted">查看器就绪后显示。</div></details></section>
+  <section class="card" id="aiCard"><details id="ai" open><summary>给 AI 的说明</summary>
+    <p class="muted" style="margin:0 0 6px">把下面这段复制给 AI 助手（Claude、ChatGPT 等），它就能写出可以直接预览的场景包，或者生成命令序列。<button class="ghost" id="bCopy" style="margin-left:6px">复制</button></p>
+    <pre id="aiText"></pre></details></section>
+</main>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+const ISSUE_URL = 'https://github.com/Nimenta727/molecule-glow-viewer/issues/new?template=submit-scene.yml';
+const view = $('view'), src = $('src'), gut = $('gut'), out = $('out');
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+/* ---- editor: line numbers that follow the textarea, a draft kept in this browser */
+function syncGutter() { const n = src.value.split('\n').length; if (gut._n !== n) { gut._n = n; gut.textContent = Array.from({ length: n }, (_, i) => i + 1).join('\n'); } gut.scrollTop = src.scrollTop; }
+src.addEventListener('input', () => { syncGutter(); try { localStorage.setItem('glowDevDraft', src.value); } catch (e) {} });
+src.addEventListener('scroll', () => { gut.scrollTop = src.scrollTop; });
+src.addEventListener('keydown', (e) => { if (e.key === 'Tab') { e.preventDefault(); const s = src.selectionStart; src.setRangeText('  ', s, src.selectionEnd, 'end'); syncGutter(); } });
+function setSrc(text) { src.value = text; src.scrollTop = 0; syncGutter(); try { localStorage.setItem('glowDevDraft', text); } catch (e) {} }
+function edInfo(msg) { $('edInfo').textContent = msg; }
+
+const TEMPLATE = {
+  format: 'glow-scene', version: 1, id: 'yourname.hemoglobin-o2', revision: 1,
+  title: '血红蛋白：O₂ 结合血红素', category: 'single', tags: ['血红蛋白', '氧气运输', '示例'],
+  author: { name: '你的名字' }, license: 'CC-BY-4.0',
+  description: '血红蛋白四聚体（2α + 2β），每个亚基一个血红素。O₂ 从溶液扩散过来，结合在血红素的 Fe²⁺ 上，再解离回溶液（示意）。',
+  citations: [{ pdb: '4HHB', ref: 'Fermi, Perutz, Shaanan & Fourme (1984) J Mol Biol 175, 159' }],
+  scene: {
+    id: '4HHB', axis: 'long', colorMode: 'entity',
+    colors: { alpha: '#e0685a', beta: '#5a8de0' },
+    notes: {
+      alpha: ['α 亚基', '每条链结合一个血红素', 'α 链 141 个残基；近端 His87 与血红素铁配位。'],
+      beta: ['β 亚基', '每条链结合一个血红素', 'β 链 146 个残基；β 亚基之间的空腔结合 2,3-BPG，稳定 T 态。']
+    },
+    siteNotes: { HEM: '血红素：卟啉环中心的 Fe²⁺ 可逆结合一个 O₂；四个亚基的协同结合让氧解离曲线呈 S 形。' },
+    caption: '血红蛋白：每个血红素结合一个 O₂（粒子数量和速度为示意）。',
+    camera: { az: -0.9, el: 0.25, dist: 1.2 },
+    animation: {
+      version: 1,
+      species: { 'O₂': { col: '#ff6b6b', r: 2.2 } },
+      pools: [{ species: 'O₂', in: '溶液', n: 12 }],
+      reactions: [{ name: 'O₂ 结合', site: { ligand: 'HEM', index: 0 }, in: [{ species: 'O₂', from: '溶液' }], out: [{ species: 'O₂', to: '溶液' }],
+        text: 'O₂ 结合 Fe²⁺，随后解离', rate: 0.4, counter: 'O₂ 结合' }]
+    }
+  }
+};
+
+/* ---- talking to the viewer: postMessage({glow:'cmd', id, cmd, args}) -> {glow:'reply', id, ok, result|error} */
+let seq = 0, ready = false; const pending = new Map();
+const target = () => (location.origin && location.origin !== 'null' ? location.origin : '*');
+function call(cmd, args) {
+  return new Promise((res, rej) => { const id = ++seq; pending.set(id, { res, rej }); view.contentWindow.postMessage({ glow: 'cmd', id, cmd, args }, target()); });
+}
+addEventListener('message', (e) => {
+  if (e.source !== view.contentWindow) return;
+  const d = e.data; if (!d || typeof d !== 'object') return;
+  if (d.glow === 'ready') { onReady(); return; }
+  if (d.glow === 'reply' && pending.has(d.id)) { const p = pending.get(d.id); pending.delete(d.id); d.ok ? p.res(d.result) : p.rej(new Error(d.error)); }
+});
+view.addEventListener('load', () => setTimeout(() => { if (!ready) onReady(); }, 4000));   /* fallback if the ready message was missed */
+
+/* ---- console */
+function show(cls, html) { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; out.appendChild(d); out.scrollTop = out.scrollHeight; return d; }
+function fmt(v) {
+  if (typeof v === 'string' && v.startsWith('data:image/')) return `<img src="${esc(v)}" alt="截图">${esc(v.slice(0, 40))}…（${v.length.toLocaleString()} 字符）`;
+  const s = JSON.stringify(v, (k, x) => typeof x === 'string' && x.length > 300 ? x.slice(0, 120) + `…（${x.length} 字符）` : x, 1);
+  return esc(s && s.length > 6000 ? s.slice(0, 6000) + '\n…' : s);
+}
+function parseLine(line) {
+  line = line.trim(); if (!line) return null;
+  if (line[0] === '{') { const o = JSON.parse(line); return { cmd: o.cmd, args: o.args }; }
+  const m = /^(\S+)\s*([\s\S]*)$/.exec(line), cmd = m[1].replace(/^glow\./, '').replace(/\(\)$/, ''); let rest = m[2].trim(), args;
+  if (rest && /^[\[{"]|^-?\d+(\.\d+)?$|^(true|false|null)$/.test(rest)) { try { args = JSON.parse(rest); } catch (e) { args = rest; } } else args = rest || undefined;
+  return { cmd, args };
+}
+const hist = []; let hi = 0;
+async function runLine(line) {
+  let p; try { p = parseLine(line); } catch (e) { show('er', '✗ ' + esc(e.message)); return; }
+  if (!p) return; hist.push(line); hi = hist.length;
+  show('in', '&gt; ' + esc(line)); const w = show('pend', '…');
+  try { const r = await call(p.cmd, p.args); w.className = 'ok'; w.innerHTML = fmt(r); return r; }
+  catch (e) { w.className = 'er'; w.textContent = '✗ ' + e.message; }
+}
+$('bRun').onclick = () => { const v = $('cmd').value; $('cmd').value = ''; runLine(v); };
+$('cmd').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('bRun').click();
+  else if (e.key === 'ArrowUp' && hi > 0) { $('cmd').value = hist[--hi]; e.preventDefault(); }
+  else if (e.key === 'ArrowDown') { hi = Math.min(hist.length, hi + 1); $('cmd').value = hist[hi] || ''; e.preventDefault(); }
+});
+const EXAMPLES = ['help', 'info', 'load 4HHB', 'select chain A', 'select within 5 of ligand HEM', 'color sele #e39b00', 'camera focus ligand HEM', 'represent cartoon', 'style glow', 'animate fast', 'snapshot {"width":480}', 'color reset', 'camera reset'];
+$('chips').innerHTML = EXAMPLES.map(x => `<span>${esc(x)}</span>`).join('');
+$('chips').onclick = (e) => { if (e.target.tagName === 'SPAN') { $('cmd').value = e.target.textContent; $('cmd').focus(); } };
+
+/* ---- validation list */
+function showReport(r) {
+  const L = [];
+  if (r.ok) L.push(`<li class="o">✓ 可以打开${r.warnings.length ? `（${r.warnings.length} 条提醒）` : '，没有提醒'}</li>`);
+  for (const e of r.errors) L.push(`<li class="e">错误：${esc(e)}</li>`);
+  for (const w of r.warnings) L.push(`<li class="w">提醒：${esc(w)}</li>`);
+  $('val').innerHTML = L.join('');
+}
+async function validate() {
+  const r = await call('validatePack', src.value); showReport(r); return r;
+}
+function busy(b, f) { return async () => { b.disabled = true; try { await f(); } catch (e) { edInfo('出错：' + e.message); } finally { b.disabled = false; } }; }
+$('bNew').onclick = () => { setSrc(JSON.stringify(TEMPLATE, null, 1)); edInfo('已填入模板：把 id 改成 <你的名字>.<场景名>，再点“预览”。'); };
+$('bExport').onclick = busy($('bExport'), async () => { const P = await call('exportPack', {}); setSrc(JSON.stringify(P, null, 1)); edInfo(`已导出当前场景（${P.id}）。cover 是自动截取的封面。`); });
+$('bCheck').onclick = busy($('bCheck'), async () => { const r = await validate(); edInfo(r.ok ? '校验通过。' : '校验没通过，见下方。'); });
+$('bPreview').onclick = busy($('bPreview'), async () => {
+  const r = await validate(); if (!r.ok) { edInfo('有错误，没有预览。'); return; }
+  edInfo('正在加载预览…'); const s = await call('load', { packText: src.value });
+  edInfo(s.cancelled ? '预览被新的加载取代。' : `预览：${s.title} · ${s.entities} 个部件 · ${s.residues} 个残基 · ${s.ligands} 种小分子`);
+});
+$('bDown').onclick = () => {
+  let id = 'scene'; try { id = JSON.parse(src.value).id || id; } catch (e) { edInfo('JSON 无效，先点“校验”。'); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([src.value], { type: 'application/json' }));
+  a.download = String(id).replace(/[^a-z0-9._-]/gi, '_') + '.glow'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  edInfo(`已下载 ${a.download}。文件名必须是 <id>.glow。`);
+};
+$('bSubmit').onclick = () => { window.open(ISSUE_URL, '_blank', 'noopener'); edInfo('已打开投稿页：填写标题和说明，把下载的 .glow 拖进去。自动检查会用和“校验”相同的规则。'); };
+
+/* ---- AI brief + API reference from help() */
+const AI_BRIEF = `你在为“分子光影查看器”写场景。场景包是一个 UTF-8 JSON 文件（扩展名 .glow），只有数据，没有代码。
+
+顶层（✓ 必填）：
+  format ✓ "glow-scene" · version ✓ 1 · id ✓ 小写字母/数字/._-，3–64 字，如 "author.scene-name"（文件名 = <id>.glow）
+  title ✓ ≤80 字 · category ✓ cell | system | single · tags ≤8 · author {name, url(https)} · license CC-BY-4.0 | CC-BY-SA-4.0 | CC0-1.0
+  description 一两句 · citations [{pdb, ref}] · revision 每次更新 +1 · scene ✓
+scene（和内置预设同样的字段）：
+  id 4 位 PDB 编号（或 structure {name:"x.cif", text:"<mmCIF/PDB 原文>"}）· chains ["A"] · components [{id, label, axis}] ≤16
+  states ["4AKE","1AKE"]（两个构象间变形）· axis long|sym|short|native · colors {部件名的一部分 或 "/正则/": "#rrggbb"}
+  notes {部件名: [标签, 一句话作用, 详细讲解]} · siteNotes {小分子代码: 讲解} · energy [[步骤, 解释], ...]
+  membranes [{at: 部件名, offset: Å}] · memR · cut / cutWhat (mem|all) · camera {az, el (弧度), dist (倍数)} · ligOff [代码] · caption
+  process 只能用内置过程名；自己的动画用 animation。
+animation（纯数据，v1）：
+  species {名字: {col:"#hex", r: 0.8–6 Å}} ≤24（内置：H⁺ e⁻ K⁺ Na⁺ O₂ H₂O NADH NAD⁺ NADPH NADP⁺ ATP ADP Pi PQH₂ QH₂ CO₂ …）
+  compartments {名字: {side: above|below, membrane: 0, gap: Å, r}} ≤6（不写就只有 "溶液"）
+  pools [{species, in: 隔室, n ≤40}] · flows [{name, species, from, to, via: [锚点…] (≤40), labelVia, events [{at, text}], rate ≤30/秒, counter}] ≤16
+  reactions [{name, site: 锚点, in [{species, from}], out [{species, to}], text, rate, counter}] ≤16，每个 ≤8 个分子
+  锚点：[x,y,z] | {ligand:"HEM", index:0} | {ligands:"K", order:"up"} | {residue:77, chain:"A", part:"…"} | {part:"…"} | {membrane:0} | {centre:true}，可加 offset [dx,dy,dz]
+规则：文字里的 < > 会被转义（不能写 HTML）；未知字段会被忽略；只写真实的 PDB 编号和文献；粒子数量和速度是示意，请在 caption 里说明。
+
+命令 API（在查看器页面里 window.glow.<命令>(…)，或从嵌入它的页面 postMessage({glow:'cmd', id, cmd, args})，回复 {glow:'reply', id, ok, result|error}）：
+`;
+let helpData = null;
+function renderHelp(h) {
+  helpData = h;
+  $('refBody').innerHTML = `<table><tr><th>命令</th><th>说明</th><th>参数</th><th>例子</th></tr>${h.commands.map(c => `<tr><td><code>${esc(c.cmd)}</code></td><td>${esc(c.doc)}</td><td>${c.args.map(a => `<code>${esc(a.name)}: ${esc(a.type)}</code>`).join('<br>') || '—'}</td><td>${c.example ? `<code>${esc(c.example)}</code>` : ''}</td></tr>`).join('')}</table>
+    <div class="sel"><b>选择语法：</b>${esc(h.selection)}</div><div class="sel"><b>postMessage：</b>${esc(h.postMessage)}</div><div class="sel"><b>日志：</b>${esc(h.log)}</div>`;
+  $('aiText').textContent = AI_BRIEF + h.commands.map(c => `  ${c.cmd}(${c.args.map(a => a.name).join(', ')}) — ${c.doc}${c.example ? '　例：' + c.example : ''}`).join('\n') + `\n选择语法：${h.selection}\n`;
+}
+$('aiText').textContent = AI_BRIEF + '（查看器就绪后在这里列出命令）';
+$('bCopy').onclick = async () => { try { await navigator.clipboard.writeText($('aiText').textContent); $('bCopy').textContent = '已复制'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('aiText')); getSelection().removeAllRanges(); getSelection().addRange(r); $('bCopy').textContent = '已选中，按 Ctrl+C'; } setTimeout(() => $('bCopy').textContent = '复制', 1800); };
+
+async function onReady() {
+  if (ready) return; ready = true;
+  out.innerHTML = ''; show('pend', '查看器就绪。输入命令（help 列出全部），↑↓ 翻历史。');
+  try { renderHelp(await call('help')); } catch (e) { show('er', '✗ help 失败：' + esc(e.message)); }
+}
+{ let d = null; try { d = localStorage.getItem('glowDevDraft'); } catch (e) {} setSrc(d || JSON.stringify(TEMPLATE, null, 1)); }
+window.__dev = { call, runLine, validate, setSrc, ready: () => ready, TEMPLATE };
+</script>
+</body>
+</html>

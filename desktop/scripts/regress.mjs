@@ -34,6 +34,7 @@ for (const s of rep.scenes) {
   row(s.key, (s.loadMs / 1000).toFixed(1), s.entities, s.chains, s.residues, s.ligands, s.fps, s.geometries,
     Object.entries(s.counters || {}).map(([k, v]) => `${k} ${v}`).join(' ').slice(0, 30));
   if (s.error || /^出错/.test(s.status)) fails.push(`${s.key}：载入失败 ${s.error || s.status}`);
+  for (const e of s.errors || []) fails.push(`${s.key}：${e}`);   // component / process failures inside a load
   if (!s.residues) fails.push(`${s.key}：没有画出任何残基`);
   if (!b) continue;
   for (const k of CONTENT) if (s[k] !== b[k]) fails.push(`${s.key}：${k} ${b[k]} → ${s[k]}`);
@@ -48,10 +49,27 @@ if (rep.revisit && first) {
   if (rep.revisit.textures > first.textures + 2) fails.push(`资源泄漏：纹理多了 ${rep.revisit.textures - first.textures} 个`);
   if (rep.revisit.objects > first.objects + 5) fails.push(`资源泄漏：场景对象多了 ${rep.revisit.objects - first.objects} 个`);
 }
+if (rep.revisit && first) {
+  for (const k of ['overlayObjects', 'domTags', 'listeners']) if (first[k] != null && rep.revisit[k] > first[k] + (k === 'overlayObjects' ? 5 : 0))
+    fails.push(`残留：回到 ${rep.revisit.key} 后 ${k} ${first[k]} → ${rep.revisit[k]}`);
+}
+if (rep.rapid) {   // rapid switch must end exactly like loading the last scene alone
+  const R = rep.rapid, S = rep.scenes.find(x => x.key === R.compare);
+  console.log(`连切 ${R.compare}：残基 ${R.residues}，覆盖层对象 ${R.overlayObjects}，DOM 标签 ${R.domTags}，监听器 ${R.listeners}${S ? `（单独加载：${S.residues} / ${S.overlayObjects} / ${S.domTags} / ${S.listeners}）` : ''}`);
+  if (R.error) fails.push(`连切：载入失败 ${R.error}`);
+  for (const e of R.errors || []) fails.push(`连切：${e}`);
+  if (S) {
+    for (const k of CONTENT) if (R[k] !== S[k]) fails.push(`连切：${k} ${S[k]} → ${R[k]}（应和单独加载 ${R.compare} 一样）`);
+    if (R.domTags > S.domTags + 5) fails.push(`连切：DOM 标签残留 ${S.domTags} → ${R.domTags}`);
+    if (R.listeners > S.listeners) fails.push(`连切：监听器 ${S.listeners} → ${R.listeners}`);
+    if (R.procRootChildren > S.procRootChildren * 1.5 + 10) fails.push(`连切：过程对象残留 ${S.procRootChildren} → ${R.procRootChildren}`);
+    if (R.pools > S.pools) fails.push(`连切：粒子池 ${S.pools} → ${R.pools}`);
+  }
+}
 for (const e of pageErrors) warns.push(e);
 console.log('');
 warns.forEach(w => console.log('⚠ ' + w)); fails.forEach(f => console.log('✗ ' + f));
 if (accept) { fs.writeFileSync(basef, JSON.stringify(rep, null, 1) + '\n'); console.log(`已存为基线：${path.relative(root, basef)}`); }
-else if (!base) console.log('还没有基线：用 --accept 把这次结果存为基线');
+else if (!base) { console.log('还没有基线：用 --accept 把这次结果存为基线'); process.exit(2); }
 console.log(fails.length ? `\n${fails.length} 项不通过` : '\n全部通过' + (base ? '（和基线一致）' : ''));
 process.exit(fails.length && !accept ? 1 : 0);

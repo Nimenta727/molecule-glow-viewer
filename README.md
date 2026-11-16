@@ -9,7 +9,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 ## 三个部分
 | 目录 | 是什么 | 给谁 |
 |---|---|---|
-| [`web/`](web/) | **网页版**：一个 HTML 文件，双击就能用 | 想直接看的人 |
+| [`web/`](web/) | **网页版**：一个 HTML 文件，双击就能用；[在线版](https://nimenta727.github.io/molecule-glow-viewer/) | 想直接看的人 |
 | [`desktop/`](desktop/) | **桌面版**：Windows exe，结构缓存在本地，断网也能看已经下载过的结构；以后会接入创意工坊。下载见 [Releases](https://github.com/Nimenta727/molecule-glow-viewer/releases) | 经常用、想离线用的人 |
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
@@ -19,6 +19,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 三者共用同一个查看器文件：`web/index.html` 是源头，桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
 
 ## 功能
+- **开发者 / AI 工作台**（[`web/dev.html`](web/dev.html)，[在线打开](https://nimenta727.github.io/molecule-glow-viewer/dev.html)）：左边编辑 `.glow` 场景包 JSON（模板、校验、预览、下载、投稿到工坊），右边是实时查看器；下面是命令台。查看器有稳定的命令接口 `window.glow`（`load`、`info`、`select`、`color`、`represent`、`camera`、`animate`、`measure`、`snapshot`、`exportPack`、`validatePack`…），也可以从别的网页用 `postMessage` 调用（`?embed=1` 嵌入）。选择语言：`chain A and resi 10-50`、`within 5 of ligand HEM`、`ligand ATP`。每条命令都记进日志，可以重放；`?seed=` 固定随机数，同一个种子动画完全一样。
 - **证据等级**：标题下四个徽章——实验（PDB 原子坐标）、推算（由坐标或注释计算：简化外形、膜位置、朝向）、建模（构象插值、组装位置）、示意（动画粒子、计数、细胞里的分子摆放）。点一下列出这个场景里每一项属于哪一级，学生一眼分清“测的”和“画的”。
 - **三种显示模式**
   - 团块（写实）：每个残基一颗发光团块。

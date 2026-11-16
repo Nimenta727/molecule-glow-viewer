@@ -84,7 +84,9 @@ function createWindow() {
   // Links (DOI, UniProt pages) open in the user's browser, not inside the app.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); shell.openExternal(url); } });
-  win.loadURL('app://glow/index.html' + (process.env.GLOW_QUERY || ''));
+  // GLOW_PAGE=dev.html opens another page of app/ (tests of the developer workbench)
+  const page = /^[\w.-]+\.html$/.test(process.env.GLOW_PAGE || '') ? process.env.GLOW_PAGE : 'index.html';
+  win.loadURL('app://glow/' + page + (process.env.GLOW_QUERY || (process.env.GLOW_REGRESS ? '?noauto=1' : '')));   // regression: no automatic quality changes
   if (process.env.GLOW_DEVTOOLS) win.webContents.openDevTools({ mode: 'detach' });
   // GLOW_REGRESS=<dir>: regression baseline (scripts/regress.mjs). Loads every scene in scripts/regress-scenes.json one after the
   // other in this window, measures it (__viewer.loadAndProbe), saves <dir>/<n>.jpg, then loads the first scene again: if the
@@ -102,7 +104,12 @@ function createWindow() {
           const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, `${s.key}.jpg`), img.resize({ width: 640 }).toJPEG(80));
           report.scenes.push(r); console.log('[regress]', s.key, JSON.stringify({ loadMs: r.loadMs, fps: r.fps, geometries: r.geometries, error: r.error }));
         }
-        const again = await run(scenes.list[0].load); report.revisit = { key: scenes.list[0].key, geometries: again.geometries, textures: again.textures, objects: again.objects, jsHeapMB: again.jsHeapMB };
+        const again = await run(scenes.list[0].load); report.revisit = { key: scenes.list[0].key, geometries: again.geometries, textures: again.textures, objects: again.objects, jsHeapMB: again.jsHeapMB, overlayObjects: again.overlayObjects, procRootChildren: again.procRootChildren, domTags: again.domTags, listeners: again.listeners };
+        if (scenes.rapid) {   // rapid switch: fire several loads without waiting, measure the last
+          const r = await win.webContents.executeJavaScript(`window.__viewer.rapid(${JSON.stringify(scenes.rapid.list)}, ${scenes.settle ?? 2}, ${scenes.seconds ?? 5})`);
+          r.key = 'rapid-switch'; r.compare = scenes.rapid.compare; report.rapid = r;
+          console.log('[regress] rapid', JSON.stringify({ loadMs: r.loadMs, residues: r.residues, domTags: r.domTags, listeners: r.listeners, error: r.error }));
+        }
       } catch (e) { report.fatal = String(e.message || e); }
       fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 1)); app.quit();
     }, 3000));
