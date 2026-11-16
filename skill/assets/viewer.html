@@ -420,6 +420,11 @@ const PRESETS = {
     } },
   '钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）': { id: '1K4C', chains: ['C'], axis: 'sym', blob: 3.6, keepDetail: [''], colorMode: 'chain', membranes: [{ at: '', offset: 0 }], memR: 2.6, cut: 0.0, cutWhat: 'all',
     process: 'kcsa', coreLigands: [], ligOff: ['F09', 'DGA', 'K', 'TBA', 'BA'], camera: { az: 0.4, el: 0.08, dist: 1.6 } },
+  '细胞一角：核糖体 + 钾通道（同时模拟）': { id: '4V6F', axis: 'native', axisFrom: ['16S', '23S'], frameAll: true, cut: 0.0, cutWhat: 'all', process: 'cellCorner', blob: 3.4,
+    keepDetail: [''], membranes: [{ at: '', offset: 0 }], memR: 2.6,   /* the membrane height is set by the process (above the ribosome) */
+    components: [{ id: '1K4C', chains: ['C'], axis: 'sym', label: 'KcsA 钾通道' }],
+    coreLigands: [], ligOff: ['MG', 'ZN', 'K', 'NA', 'CL', 'SF4', 'MIA', 'PAR', 'SPD', 'F09', 'DGA', 'TBA', 'BA'],
+    colors: { '16S': '#efd3a0', '23S': '#e3c08e', '5S': '#e3c08e', '/30S/': '#b8c8dc', '/50S/': '#c6d3b6', 'KcsA': '#9d86e6' } },
   '腺苷酸激酶（开合）': { id: '4AKE', states: ['4AKE', '1AKE'], chains: ['A'], colorMode: 'rainbow', axis: 'long', blob: 4.4, assembly: false,
     /* E. coli AdK domains (Müller et al. 1996): CORE 1-29/60-121/160-214, NMP-binding 30-59, LID 122-159 */
     domains: [['CORE', [[1, 29], [60, 121], [160, 214]]], ['NMP', [[30, 59]]], ['LID', [[122, 159]]]],
@@ -3002,7 +3007,7 @@ const PROCESSES = {
     randPt(edge) { const H = this.H; for (let k = 0; k < 50; k++) {
       const p = new THREE.Vector3((Math.random() * 2 - 1) * H, (Math.random() * 2 - 1) * H * 0.75, (Math.random() * 2 - 1) * H);
       if (edge) { const ax = Math.floor(Math.random() * 3); p.setComponent(ax, Math.sign(p.getComponent(ax) || 1) * H * (ax === 1 ? 0.75 : 1)); }
-      if (p.length() > this.Rr + 40) return p.add(this.C0); } return this.C0.clone().add(new THREE.Vector3(H, 0, 0)); },
+      if (p.length() > this.Rr + 40 && (this.yMax == null || p.y + this.C0.y < this.yMax)) return p.add(this.C0); } return this.C0.clone().add(new THREE.Vector3(H, 0, 0)); },   /* yMax: membrane above (cell scene) */
     place(cr, edge) { const p = this.randPt(edge), q = randQ(); cr.q0.copy(q); cr.q1.copy(q); cr.t0.copy(p); cr.t1.copy(p); cr.w = 1; },
 
     /* ---------------------------------------------------------------- tweens (animated transitions) */
@@ -3222,7 +3227,8 @@ const PROCESSES = {
     updPool(dt, c) {
       const H = this.H, keep = (cr) => { const t = cr.t1;
         for (const ax of ['x', 'y', 'z']) { const lim = ax === 'y' ? H * 0.75 : H, d = t[ax] - this.C0[ax]; if (Math.abs(d) > lim) t[ax] = this.C0[ax] + Math.sign(d) * lim; }
-        const r = t.clone().sub(this.C0), L = r.length(), m = this.Rr + 30; if (L < m) t.copy(this.C0).addScaledVector(r.normalize(), m); };
+        const r = t.clone().sub(this.C0), L = r.length(), m = this.Rr + 30; if (L < m) t.copy(this.C0).addScaledVector(r.normalize(), m);
+        if (this.yMax != null && t.y > this.yMax) t.y = this.yMax; };
       const drift = (it, D) => { const cr = it.cr; if (cr.w < 1) return;
         cr.t1.x += (Math.random() - 0.5) * D * dt; cr.t1.y += (Math.random() - 0.5) * D * dt; cr.t1.z += (Math.random() - 0.5) * D * dt; keep(cr); cr.t0.copy(cr.t1);
         cr.q1.multiply(_pq.setFromEuler(new THREE.Euler((Math.random() - 0.5) * dt * 0.8, (Math.random() - 0.5) * dt * 0.8, (Math.random() - 0.5) * dt * 0.8))); cr.q0.copy(cr.q1); };
@@ -3240,7 +3246,7 @@ const PROCESSES = {
         while (L.length < tgt) { const mol = this.ctx.makeMol(this.tpls[d], true, TL_DRUG[d].col); mol.visible = true; mol.position.copy(this.randPt(false)); mol.quaternion.copy(randQ()); L.push(mol); }
         while (L.length > tgt) { const mol = L.pop(); procRoot.remove(mol); disposeObj(mol); }
         for (const mol of L) { mol.position.x += (Math.random() - 0.5) * 900 * dt; mol.position.y += (Math.random() - 0.5) * 900 * dt; mol.position.z += (Math.random() - 0.5) * 900 * dt;
-          const r = mol.position.clone().sub(this.C0); if (r.length() > this.H || r.length() < this.Rr) mol.position.copy(this.randPt(false)); mol.rotation.x += dt; mol.rotation.y += dt * 0.7; }
+          const r = mol.position.clone().sub(this.C0); if (r.length() > this.H || r.length() < this.Rr || (this.yMax != null && mol.position.y > this.yMax)) mol.position.copy(this.randPt(false)); mol.rotation.x += dt; mol.rotation.y += dt * 0.7; }
       }
     },
     draw(dt) {
@@ -3390,21 +3396,23 @@ const PROCESSES = {
       const V = () => new THREE.Vector3();
       const g = this.g = ctx.partGroups(/potassium channel|KcsA/i)[0]; if (!g) throw new Error('找不到 KcsA');
       const A = g.atoms, key = (a) => parseInt(a.aseq) || a.seq;
+      /* the pore axis is vertical through the channel's centroid (the channel may sit anywhere in a bigger scene) */
+      const O = A.reduce((s, a) => s.add(a.p), V()).multiplyScalar(1 / A.length), rA = Math.max(...A.map(a => a.p.distanceTo(O)));
+      const mine = (L) => L.centre.distanceTo(O) < rA + 6, offAx = (p) => Math.hypot(p.x - O.x, p.z - O.z);
       /* the four K+ in the 1K4C filter sit on the 4-fold axis (symmetry copies coincide) */
       let Ks = [];
-      for (const L of ctx.ligands) { if (L.comp === 'K' && Math.hypot(L.centre.x, L.centre.z) < 3 && !Ks.some(q => q.distanceTo(L.centre) < 1)) Ks.push(L.centre.clone()); if (L.comp === 'K') ctx.hideLigand(L); }
-      /* extracellular (filter) side up: flip the scene if the filter came out below the centre */
-      const cy = A.reduce((s, a) => s + a.p.y, 0) / A.length, fy = Ks.length ? Ks.reduce((s, p) => s + p.y, 0) / Ks.length : cy;
-      if (fy < cy) {
-        const fl = (p) => { p.y = -p.y; p.z = -p.z; };
-        for (const a of ctx.allAtoms) fl(a.p); for (const L of ctx.ligands) { L.atoms.forEach(x => fl(x.p)); fl(L.centre); } Ks.forEach(fl);
-        fl(model.focus.centre); for (const k in model.entityStats) { const e = model.entityStats[k]; [e.min, e.max] = [-e.max, -e.min]; e.mean = -e.mean; }
-        $('mem1').value = -(+$('mem1').value); ctx.membraneY = ctx.membraneY.map(y => -y);
+      for (const L of ctx.ligands) { if (!mine(L)) continue; if (L.comp === 'K' && offAx(L.centre) < 3 && !Ks.some(q => q.distanceTo(L.centre) < 1)) Ks.push(L.centre.clone()); if (L.comp === 'K') ctx.hideLigand(L); }
+      /* extracellular (filter) side up: turn the channel (and its own small molecules) 180 deg about a horizontal axis through its centroid */
+      const fy = Ks.length ? Ks.reduce((s, p) => s + p.y, 0) / Ks.length : O.y;
+      if (fy < O.y) {
+        const fl = (p) => { p.y = 2 * O.y - p.y; p.z = 2 * O.z - p.z; };
+        const myL = ctx.ligands.filter(mine); for (const a of A) fl(a.p); for (const L of myL) { L.atoms.forEach(x => fl(x.p)); fl(L.centre); } Ks.forEach(fl);
+        for (const k in model.entityStats) if (/potassium channel|kcsa/i.test(k)) { const e = model.entityStats[k]; [e.min, e.max] = [2 * O.y - e.max, 2 * O.y - e.min]; e.mean = 2 * O.y - e.mean; }
       }
       Ks.sort((a, b) => b.y - a.y);
       const yOf = (k) => { const r = A.filter(a => key(a) === k); return r.reduce((s, a) => s + a.p.y, 0) / Math.max(1, r.length); };
       const yT = yOf(75), yG = yOf(79), inF = Ks.filter(p => p.y > yT - 2.5 && p.y < yG + 2.5);
-      const ax = (y) => new THREE.Vector3(0, y, 0);
+      const ax = (y) => new THREE.Vector3(O.x, y, O.z); this.O = O;
       const S = this.site = {};
       if (inF.length >= 4) inF.slice(0, 4).forEach((p, i) => S['S' + (i + 1)] = ax(p.y));
       else { const top = Math.max(yT, yG), bot = Math.min(yT, yG); for (let i = 0; i < 4; i++) S['S' + (i + 1)] = ax(top + 1.5 - i * (top - bot + 3) / 4); }
@@ -3448,8 +3456,8 @@ const PROCESSES = {
       this.path = path; this.st = st;
       /* blockers at their crystal positions */
       const near = (L) => L.atoms.reduce((s, x) => s.add(x.p), V()).multiplyScalar(1 / L.atoms.length);
-      const pick = (r, comp) => r?.ligs.filter(L => L.comp === comp).sort((a, b) => Math.hypot(near(a).x, near(a).z) - Math.hypot(near(b).x, near(b).z))[0];
-      const Ltba = pick(tba, 'TBA'), Lba = pick(ba, 'BA');
+      const pick = (r, comp) => r?.ligs.filter(L => L.comp === comp).sort((a, b) => offAx(near(a)) - offAx(near(b)))[0];
+      const Ltba = pick(tba, 'TBA'), Lba = ba?.ligs.filter(L => L.comp === 'BA' && offAx(near(L)) < 2.5).sort((x, y) => near(x).y - near(y).y)[0] || pick(ba, 'BA');   /* several Ba2+ on the axis in 2ITD: the innermost one (entered from the cytoplasm) */
       let tTBA = null; try { tTBA = await ctx.template('TBA'); } catch (e) { console.warn(e); }
       this.tbaMol = null; if (Ltba && tTBA) { const pose = fitPose(tTBA, Ltba.atoms); if (pose) { this.tbaMol = ctx.makeMol(tTBA, true, '#ff8c00'); this.tbaMol.quaternion.copy(pose.q); this.tbaMol.position.copy(pose.t); } }
       this.baPos = Lba ? near(Lba) : S.S4.clone();
@@ -3648,6 +3656,84 @@ const PROCESSES = {
       explain: () => proc?.explain?.() || '',
     },
   },
+
+  /* ============================================================================= a corner of a bacterial cell: the translation
+     station (70S ribosome in the cytoplasm) and the KcsA station (in the plasma membrane above it) simulated at the same time.
+     Each station keeps its own engine and clocks; they share the cell (one control panel, one intracellular compartment,
+     the same counters). The channel is moved into the plane of the ribosome's cross-section (E -> A axis = screen right)
+     so one cut shows both. Sub-station cell callbacks refer to the global `proc`; `wrapSub` points it at the sub-station
+     while they run. */
+  cellCorner: {
+    caption: '细菌细胞的一角：细胞质里的 70S 核糖体正在把 mRNA 翻译成蛋白质，上方细胞膜里的 KcsA 钾通道按胞内 pH 开关、让 K⁺ 通过。两套模拟同时运行，各有自己的时钟（翻译以毫秒–秒计，离子通过以纳秒计）。右上角同时控制两者：EF-Tu / EF-G 浓度、抗生素、mRNA；膜电位、两侧离子浓度、胞内 pH、通道阻断剂。用“镜头”按钮在全景、核糖体和通道之间切换。',
+    stage() { const s = this.sub?.[this.view === 'k' ? 1 : 0]; return s?.stage ? s.stage(s.ctx) : 0; },
+    get energy() { return this.sub?.[this.view === 'k' ? 1 : 0]?.energy; },
+    get energyHL() { if (this.view !== 'k') return this.sub?.[0]?.energyHL || null;
+      return this._khl ||= (this.sub?.[1]?.energyHL || []).map(L => L.map(sp => typeof sp === 'string' ? sp : { part: 'KcsA', ...sp })); },
+    async setup(ctx) {
+      const V = THREE.Vector3, cen = (A) => A.reduce((s, a) => s.add(a.p), new V()).multiplyScalar(1 / Math.max(1, A.length));
+      const kg = ctx.partGroups(/KcsA/i)[0]; if (!kg) throw new Error('找不到 KcsA 组件（1K4C）');
+      const kset = new Set(kg.atoms), all = model.allAtoms, rib = all.filter(a => !kset.has(a));
+      const tl = Object.create(PROCESSES.translation), kc = Object.create(PROCESSES.kcsa); tl.ctx = ctx; kc.ctx = ctx;
+      this.sub = [tl, kc]; this.view = 'all';
+      /* the ribosome station sees only the ribosome (its tunnel search and size must not include the channel) */
+      model.allAtoms = rib; try { await tl.setup(ctx); } finally { model.allAtoms = all; }
+      /* membrane 60 A above the top of the ribosome; channel in the cut plane, a little left of the ribosome's centre (clear of the panels on the right) */
+      const cR = cen(rib); let top = -1e9; for (const a of rib) top = Math.max(top, a.p.y);
+      const az = current?.camera?.az ?? 0, right = new V(Math.cos(az), 0, -Math.sin(az)), ym = top + 60;
+      const d = cR.clone().setY(ym).addScaledVector(right, -tl.Rr * 0.3).sub(cen(kg.atoms));
+      for (const a of kg.atoms) a.p.add(d);
+      for (const L of ctx.ligands) if (L.compLabel === 'KcsA 钾通道') { L.atoms.forEach(x => x.p.add(d)); L.centre.add(d); }
+      let rmax = 0, mainR = 0; for (const a of all) { rmax = Math.max(rmax, a.p.length()); mainR = Math.max(mainR, Math.hypot(a.p.x, a.p.z)); }
+      const fc = cen(all); let fr = 0; for (const a of all) fr = Math.max(fr, a.p.distanceTo(fc));
+      Object.assign(model, { radius: rmax, mainR, focus: { centre: fc, radius: fr } });
+      $('mem1').value = ym / rmax; $('mem2On').checked = false; ctx.membraneY = [ym];
+      await kc.setup(ctx);
+      tl.yMax = ym - 30;   /* cytoplasmic factors and drugs stay below the membrane */
+      /* overview framing: from the bottom of the ribosome to just above the membrane (the cut plane stays vertical through the same x, z) */
+      let bot = 1e9; for (const a of rib) bot = Math.min(bot, a.p.y);
+      const topS = ym + 45; model.focus.centre.y = (bot + topS) / 2; model.focus.radius = Math.max((topS - bot) / 2, tl.Rr * 1.15);
+      this.ym = ym; if (current) current.camera = { az, el: 0.1, dist: 1.45 };
+      this.kTag = makeTag('KcsA 钾通道（细胞膜）', { p: kc.O.clone().setY(kc.site.S0.y + 26), cls: 'hl' });
+      console.log('cellCorner: 膜 y =', ym.toFixed(0), '，核糖体顶 y =', top.toFixed(0), '，通道轴', kc.O.toArray().map(v => v.toFixed(0)).join(','));
+    },
+    update(ctx, dt) { for (const s of this.sub) s.update(ctx, dt); },
+    look(v) {
+      this.view = v; renderEnergy();
+      const [tl, kc] = this.sub, M = world.matrixWorld;
+      if (v === 'all') { resetCamera(current?.camera); return; }
+      const t = (v === 'k' ? kc.O.clone().setY(kc.site.cav.y + 4) : tl.C0.clone()).applyMatrix4(M);
+      flyTo(t, fitDist(v === 'k' ? 48 : tl.Rr * 0.8), 900);
+    },
+    explain() {
+      const [tl, kc] = this.sub, c = kc.conc();
+      const L = ['━━ 核糖体（细胞质）━━', tl.explain(), '', '━━ KcsA 钾通道（细胞膜）━━', kc.explain()];
+      if (c.pH < 6) L.push('', `⚠ 胞内 pH ${c.pH.toFixed(1)}：KcsA 只在这样的酸性条件下打开（实验条件）。真实细胞质约 pH 7.5，这么酸时翻译也会停止；本模型没有包含 pH 对翻译的影响。`);
+      else L.push('', `胞内 pH ${c.pH.toFixed(1)}（接近生理）：KcsA 的门几乎总是关着。把胞内 pH 拖到 4 左右可以看到它打开（实验条件）。`);
+      return L.join('\n');
+    },
+    get cell() {
+      if (this._cell) return this._cell;
+      const wrapSub = (fn, i) => function (...a) { const o = proc, s = o?.sub?.[i]; if (!s) return fn.apply(this, a); proc = s; try { return fn.apply(this, a); } finally { proc = o; } };
+      const W = (obj, i) => Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, typeof v === 'function' ? wrapSub(v, i) : v]));
+      const T = PROCESSES.translation.cell, K = PROCESSES.kcsa.cell;
+      return this._cell = {
+        title: '细胞一角 · 核糖体 + 钾通道（同时模拟）', wide: true, noWarmup: true,
+        init: () => ({}), step: () => ({ rate: 1, rotor: 0 }),
+        timeLabel: () => `翻译 ${wrapSub(T.timeLabel, 0)()} · 通道 ${wrapSub(K.timeLabel, 1)()}`,
+        comps: wrapSub(K.comps, 1), dots: K.dots.map(x => W(x, 1)),
+        controls: [
+          { type: 'section', label: '镜头' },
+          { type: 'button', label: '全景', run: () => proc?.look?.('all') },
+          { type: 'button', label: '看核糖体', run: () => proc?.look?.('rib') },
+          { type: 'button', label: '看钾通道', run: () => proc?.look?.('k') },
+          { type: 'section', label: '━ 核糖体（细胞质）' }, ...T.controls.map(x => W(x, 0)),
+          { type: 'section', label: '━ KcsA 钾通道（细胞膜）' }, ...K.controls.map(x => W(x.id === 'pH' ? { ...x, value: 7.2 } : x, 1)),
+        ],
+        series: [...T.series.map(x => W(x, 0)), ...K.series.map(x => W(x, 1))],
+        explain: () => proc?.explain?.() || '',
+      };
+    },
+  },
 };
 
 /* ----------------------------------------------------------------------------- component placement */
@@ -3754,6 +3840,8 @@ async function loadScene(cfg) {
       try {
         status(`下载组件 ${comp.id} …`, true);
         const c = await loadEntry(comp.id, true); live();
+        if (comp.chains) { const ok = (x) => comp.chains.includes(x.split('_')[0]); c.atoms = c.atoms.filter(a => ok(a.asym));   // e.g. drop the Fab fragments of a crystal
+          c.ligands = c.ligands.filter(L => ok(L.asym) || L.atoms.some(x => c.atoms.some(a => a.p.distanceTo(x.p) < 6))); }
         const en = (a) => c.entities?.[a.ent]?.name || '', ofC = (kw) => c.atoms.filter(a => kwMatch(en(a), kw));
         const shiftC = (v) => { for (const a of c.atoms) a.p.add(v); for (const L of c.ligands) for (const x of L.atoms) x.p.add(v); };
         if (comp.axisFrom && ofC(comp.axisFrom[0]).length && ofC(comp.axisFrom[1]).length) {   // e.g. ATP synthase: c-ring -> F1 head = rotor axis
