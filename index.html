@@ -650,6 +650,7 @@ async function loadEntry(id, useAssembly, withLigands = true) {
 function entryFromFile(name, text) {
   const isCif = /_atom_site\./.test(text);
   const rows = isCif ? parseAtomSite(text) : parsePDB(text);
+  if (!rows.length) throw new Error('文件中没有可识别的原子坐标（需要 .cif/.mmcif/.pdb/.ent 结构数据）');
   const entities = {};
   if (isCif) {   // entity names from the _entity loop when present
     const lines = text.split(/\r?\n/); let i = lines.findIndex(l => l.startsWith('_entity.')); const cols = [];
@@ -4947,7 +4948,20 @@ $('load').onclick = () => {
   loadScene(preset ? { ...preset[1], name: preset[0] } : { id });
 };
 $('pdb').addEventListener('keydown', e => { if (e.key === 'Enter') $('load').click(); });
-async function openFile(f) { status(`读取 ${f.name} …`, true); const text = await f.text(); loadScene({ local: entryFromFile(f.name, text), name: f.name, axis: $('axisMode').value }); }
+const LOCAL_EXTENSIONS = /\.(cif|mmcif|pdb|ent)$/i;
+const MAX_LOCAL_FILE_SIZE = 50 * 1024 * 1024;
+async function openFile(f) {
+  if (!f || !LOCAL_EXTENSIONS.test(f.name)) { status('不支持的文件类型，请选择 .cif、.mmcif、.pdb 或 .ent'); return; }
+  if (f.size > MAX_LOCAL_FILE_SIZE) { status('文件过大（最大支持 50 MB），请先裁剪结构或使用 PDB 编号'); return; }
+  status(`读取 ${f.name} …`, true);
+  try {
+    const text = await f.text();
+    loadScene({ local: entryFromFile(f.name, text), name: f.name, axis: $('axisMode').value });
+  } catch (e) {
+    console.error(e);
+    status(`本地文件加载失败：${e.message}`, true);
+  }
+}
 $('fileBtn').onclick = () => $('file').click();
 $('file').onchange = () => $('file').files[0] && openFile($('file').files[0]);
 addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add('on'); });

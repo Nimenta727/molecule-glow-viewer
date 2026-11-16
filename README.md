@@ -33,6 +33,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - **小分子**：用化学组分字典（CCD）的理想构型画成真实的球棍模型。
 - **剖开与膜**：剖开的楔形固定在模型上，旋转时结构不会闪烁或消失；脂双层可剖开。
 - **本地文件**：可拖入 .cif/.pdb（AlphaFold、自建模型）。
+- **本地文件保护**：导入会检查 `.cif` / `.mmcif` / `.pdb` / `.ent` 扩展名和 50 MB 大小上限；格式错误或没有原子坐标时会显示可操作的错误提示。
 - **自动画质**：按显卡自动选择画质，没有独立显卡也能运行。
 
 ## 使用 Web 版（原有 HTML 方式）
@@ -72,6 +73,16 @@ npm run dist:portable
 构建产物写入 `dist/`，不会提交到仓库。推荐在 Windows x64 本机执行最终打包和安装验证；Linux/macOS 可先运行 `npm test`、`npm start`（若有 GUI）以及 `npm run dist:dir` 验证配置和入口文件。
 
 Web 版由浏览器直接运行，适合静态服务器部署；桌面版提供独立窗口和原生截图保存，但仍需要联网访问 RCSB 和 jsDelivr CDN。两种版本都不能在无网络时下载新的结构或 Three.js 资源，本地结构文件导入不需要联网。
+
+## 开发进度
+
+当前已完成的渐进式改进：
+
+- Electron Windows x64 安装版与 portable 打包。
+- Web 与桌面版共用 `index.html`，并保留本地文件导入和截图能力。
+- 本地结构文件扩展名、大小和坐标内容校验，避免无效文件让页面停在加载状态。
+
+后续改进方向包括加载阶段进度、大结构解析优化、结构点击聚焦、教学时间轴和移动端快捷操作；这些功能会继续以小步提交，避免影响现有 Web 版本。
 
 ## 给 AI 的 skill
 `skill/` 是一个 Claude Code skill（`SKILL.md` + `references/`），说明如何添加预设、编写过程动画、从论文做动画、从零重建，以及如何调试。
