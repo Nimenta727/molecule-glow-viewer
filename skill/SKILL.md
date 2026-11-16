@@ -68,6 +68,8 @@ cp "<本skill目录>/assets/viewer.html" "<目标目录>/分子光影查看器.h
 | 整个细胞（2 µm → 原子的嵌套缩放）+ 细胞 / 局部系统 / 单个蛋白三个选项卡 | §32 |
 | 运动工具包（池、布朗路径、避开蛋白、名字 / 事件标签）、pH 体积、快放粒子流、核糖体原子近景 | §33 |
 | 场景包 .glow、纯数据动画（dataAnim）、创意工坊（GitHub 后端、投稿机器人） | §34、`references/scene_packs.md` |
+| 证据等级徽章（实验 / 推算 / 建模 / 示意）、`__viewer.probe` 诊断、回归基线 `desktop/scripts/regress.mjs`（改查看器后必跑） | §35 |
+| 命令接口 `window.glow`（选择语言、测量、截图、导出、日志重放）、postMessage 嵌入、开发者 / AI 工作台 `assets/dev.html`、种子与定步推进、审计 P0 修正 | §36 |
 
 ## 验证清单（每次改动后必做）
 

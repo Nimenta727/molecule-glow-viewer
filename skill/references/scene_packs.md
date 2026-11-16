@@ -1,7 +1,5 @@
 # 场景包格式 `.glow`（glow-scene v1）
 
-> 本文件与仓库 `workshop/SCHEMA.md` 相同。给用户做可以分享、上传工坊的场景时，优先做成 `.glow` 场景包（纯数据），而不是改查看器代码；只有数据格式表达不了的机制才写新的内置过程（见 processes.md）。
-
 一个场景包就是一个 UTF-8 JSON 文件，扩展名为 `.glow`，里面只有数据，没有代码。查看器和工坊的自动检查用的是同一套规则：`web/index.html` 里的 `sanitizePack` 和 `checkAnimation`。
 
 ## 顶层字段
@@ -30,7 +28,7 @@
 | 字段 | 说明 |
 |---|---|
 | `id` | PDB 编号（4 位，首位是数字）。没有 PDB 编号时用 `structure` |
-| `structure` | 内嵌结构，用于 AlphaFold 或自己建的模型：`{ "name": "model.cif", "text": "<mmCIF 或 PDB 原文>" }`，上限 30 MB |
+| `structure` | 内嵌结构，用于 AlphaFold 或自己建的模型：`{ "name": "model.cif", "text": "<mmCIF 或 PDB 原文>" }`，上限 30 MB。证据徽章把它算作“建模”；如果它其实是某个 PDB 条目的实验坐标，加 `"source": { "pdb": "1ABC" }` |
 | `chains` | 只显示这些链，如 `["A"]` |
 | `components` | 再放进来的其他结构：`[{ "id": "1HRC", "label": "细胞色素 c", "axis": "long" }]`，最多 16 个 |
 | `states` | 两个构象之间变形：`["4AKE", "1AKE"]` |
@@ -46,8 +44,14 @@
 | `caption` | 底部说明文字 |
 | `process` | 内置过程动画的名字，如 `atpSynthase`、`kcsa`。只能用查看器自带的；社区作品请用 `animation` |
 | `animation` | 纯数据动画，见下 |
+| `evidence` | 证据等级补充说明，显示在标题下的徽章里：`{ "experimental": [...], "derived": [...], "modelled": [...], "illustrative": [...] }`，每项一句话。查看器会自动列出它能推出来的（PDB 坐标、简化外形、插值、动画粒子……），这里补充只有作者知道的，例如“复合体之间的距离按冷冻电镜断层图估计” |
+| `seed` | 随机数种子（整数）。同一个种子，粒子路径、拥挤分子摆放、随机事件每次都一样，便于讲课和截图对比 |
 
 社区作品里的文字会被转义（`<` → `&lt;`），不能插入 HTML；`/正则/` 写错或超过 200 字会当成普通文字处理。
+
+## 用工作台和命令接口制作
+- 打开 [`web/dev.html`](../web/dev.html)（[在线版](https://nimenta727.github.io/molecule-glow-viewer/dev.html)）：左边编辑 JSON，“校验”用的就是查看器和 CI 同一套规则，“预览”在右边实时打开，“下载 .glow”后可“投稿到工坊”。
+- AI 或脚本可以直接调用查看器的 `window.glow`（同页）或 `postMessage`（嵌入时）：`glow.help()` 列出全部命令；`glow.validatePack(pack)` 校验；`glow.load({pack})` 预览；`glow.exportPack({title, ...})` 从当前画面生成场景包。
 
 ## `animation`：纯数据动画（v1）
 
@@ -108,5 +112,5 @@
 每种写法都可以加 `"offset": [dx, dy, dz]`。
 
 ## 示例
-- 仓库 `workshop/official/packs/official.kcsa-data.glow`：flows，离子通过通道。
-- 仓库 `workshop/official/packs/official.adk-reaction-data.glow`：reactions，酶催化。
+- `official/packs/official.kcsa-data.glow`：flows，离子通过通道。
+- `official/packs/official.adk-reaction-data.glow`：reactions，酶催化。

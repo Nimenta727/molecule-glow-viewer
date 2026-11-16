@@ -179,3 +179,10 @@
 - 做法：场景 = 纯数据（不让社区上传代码），动画用数据描述、由 v16 运动工具包播放；GitHub 仓库当第一阶段后端（目录 + Actions 自动检查 + issue 投稿机器人）。
 - 验证：KcsA 纯数据版（flows，`orient.up` 自动把过滤器朝上）慢放 / 快放；腺苷酸激酶反应（reactions）；恶意包测试（HTML、javascript: 链接、`__proto__`、坏正则、未知过程）全部被清理或拒绝。
 - 调试：浏览器窗格隐藏时 requestAnimationFrame 不跑，动画计数为 0 —— 改用桌面版的 `GLOW_SMOKE_JS` 测；Windows 上 `userData/cache` 和 Chromium 自己的 `Cache` 是同一个文件夹会被清空 → 改名 `structure-cache`；electron-builder 默认去掉 node_modules 里的 `examples` 目录 → Three.js 复制到 `vendor/`。
+
+### v18：专业化（2026-11）
+- 用户：读第一轮审计文档，“更加专业化，结合专业软件的特点，但不能抛弃形象性；教学意义在于高度可见性与易读性”；要三个模拟器（细胞、局部系统、蛋白质）各自的效果、开发者界面（给开发者或 AI 直接做模型）、创意工坊后端；用一个审计智能体（严厉）+ 一个执行智能体。
+- 创意工坊第二阶段：每个场景一个 GitHub 讨论帖（👍/👎 评分、回复评论、GitHub 账号登录），CI 每 6 小时写 `workshop/stats.json`，卡片显示点赞 / 评论数 / 最新评论，按热度排序。
+- 回归基线 + 证据徽章（§35）。
+- 调试：第一次回归卡在第二个场景——窗口被遮挡时 Chromium 停掉 requestAnimationFrame，probe 永远等不到帧 → 测试模式 `backgroundThrottling: false` + probe 定时器兜底 + 载入 180 秒超时。
+- 第二轮（审计 → 执行）：审计智能体逐项核对第一轮审计并给出 15 步清单和 R1–R16 风险，指出 P0：ATP 合酶快放计数比例错、呼吸链把 Q 循环释放的 H⁺ 说成“泵出”、证据徽章把用户模型标成实验、回归测不出叠加层粒子泄漏。执行智能体做了 `window.glow` + `dev.html` + 这些 P0 + 生命周期 / 取消请求 / 种子 / 定步推进 / 性能 / 比例尺 / 来源面板（§36）。我独立复跑回归：全部通过，连切与单独加载一致。
