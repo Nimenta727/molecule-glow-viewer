@@ -136,6 +136,8 @@
 
   <h2>外观</h2>
   <div class="row"><label>画风</label><select id="bgMode"><option value="dark">视频光影（黑底辉光）</option><option value="light">插画（白底平涂描边）</option></select></div>
+  <div class="row illusOnly"><label>插画线条</label><input type="range" id="inkAmt" min="0" max="1.5" step="0.05" value="1"><output></output></div>
+  <div class="row illusOnly"><label>远处淡出</label><input type="range" id="fogAmt" min="0" max="1" step="0.05" value="0.5"><output></output></div>
   <div class="row"><label>显示模式</label><select id="repMode"><option value="blob">团块（写实）</option><option value="cartoon">结构示意（螺旋 / 折叠）</option></select></div>
   <label class="chk"><input type="checkbox" id="shellOn" checked>结构示意模式显示外形轮廓</label>
   <div class="row"><label>配色</label><select id="colorMode"><option value="entity">按蛋白种类</option><option value="chain">按链</option><option value="rainbow">彩虹（N→C）</option></select></div>
@@ -195,7 +197,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { Pass } from 'three/addons/postprocessing/Pass.js';
+import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
@@ -248,7 +250,7 @@ const PRESETS = {
       { id: '6ZPO', label: 'ATP 合酶', axisFrom: ['subunit C1', 'subunit beta'], alignTo: { own: 'subunit C1', anchor: '/^Cytochrome b$/' }, beside: { part: 'oxidase', gap: 45 }, split: true, pivot: 'subunit C1' },
       { id: '1HRC', label: '细胞色素 c', axis: 'long' },
     ],
-    process: 'respiratoryChain', frameAll: true,
+    process: 'respiratoryChain', frameAll: true, solid: ['细胞色素 c'],
     core: [{ near: { part: '/subunit a$/', seq: 159 }, r: 13, with: ['subunit C1'] }],
     colors: { '/^复合体 I$/': '#5b9dff', '/^复合体 III$/': '#e64fc8', '/^复合体 IV$/': '#3fc864', '细胞色素 c': '#ff6b4a',
               'subunit alpha': '#f0b0e0', 'subunit beta': '#b6d4ff', 'subunit gamma': '#e3e7f2', 'subunit delta': '#e3e7f2', 'subunit epsilon': '#e3e7f2', 'subunit C1': '#9be6a8', '/subunit a$/': '#2448e8' },
@@ -284,7 +286,7 @@ const PRESETS = {
       { id: '1A70', label: '铁氧还蛋白', axis: 'long', at: { part: 'Photosystem I iron-sulfur center', dy: 24 } },
       { id: '1FNB', label: 'FNR', axis: 'long', at: { part: 'Photosystem I iron-sulfur center', dy: 52, along: 42 } },
     ],
-    process: 'chloroplast', frameAll: true,
+    process: 'chloroplast', frameAll: true, solid: ['质体蓝素', '铁氧还蛋白', 'FNR'],
     coreLigands: ['OEX', 'PHO', 'PL9', 'FE2', 'BCT', 'CL', 'HEM', 'HEC', 'FES', 'SF4', 'CU', 'PQN', 'CL0', 'FAD', 'ATP', 'ADP', 'MG'],
     ligOff: ['CLA', 'CHL', 'BCR', 'LUT', 'XAT', 'NEX', 'ZEX', 'A86', 'HTG', '6PL', 'LMT', 'LMG', 'DGD', 'SQD', 'LHG', 'PGV', 'CA', 'UNL'],
     colors: { 'PSII 核心': '#3fc864', 'LHCII 天线': '#a8e05a', '放氧复合体蛋白': '#ffb84a', 'Cyt b6f': '#e64fc8', 'PSI-LHCI': '#5b9dff',
@@ -729,7 +731,68 @@ overlay.add(new THREE.HemisphereLight(0x9fb7ff, 0x000000, 0.3));
   const r2 = new THREE.DirectionalLight(0x8fb4ff, 1.5); r2.position.set(-0.6, 0.5, -1.0); overlay.add(r2); }
 
 const composer = new EffectComposer(renderer);
+for (const rt of [composer.renderTarget1, composer.renderTarget2]) { rt.depthTexture = new THREE.DepthTexture(); rt.depthTexture.type = THREE.UnsignedIntType; }
 composer.addPass(new RenderPass(scene, camera));
+/* illustration ink (screen space, from the depth buffer, so it works for every representation and every custom vertex
+   shader): bold lines where one object passes in front of another (depth gap), fine lines in the grooves between residues /
+   domains (depth Laplacian = Goodsell's texture lines), and depth cueing: far parts fade toward the paper colour. Line width
+   is constant in pixels; thresholds scale with the size of a pixel at that depth. */
+class InkPass extends Pass {
+  constructor() {
+    super();
+    this.uniforms = { tDiffuse: { value: null }, tDepth: { value: null }, uRes: { value: new THREE.Vector2(1, 1) }, uNear: { value: 1 }, uFar: { value: 1000 },
+      uPx: { value: 0.001 }, uLine: { value: 1 }, uFog: { value: 0.5 }, uFogN: { value: 0 }, uFogF: { value: 1 }, uLW: { value: 2 }, uShade: { value: 1 }, uMacro: { value: 7 }, uT1: { value: 2.0 }, uT2: { value: 1.2 }, uG1: { value: 0.3 }, uG2: { value: 1.2 }, uBg: { value: new THREE.Color() }, uInk: { value: new THREE.Color(0x0b0c14) } };
+    this.fsq = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: this.uniforms,
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse, tDepth; uniform vec2 uRes; uniform float uNear, uFar, uPx, uLine, uFog, uFogN, uFogF, uLW, uShade, uMacro, uT1, uT2, uG1, uG2; uniform vec3 uBg, uInk; varying vec2 vUv;
+        float lz(vec2 uv) { float z = texture2D(tDepth, uv).x; return z >= 0.99999 ? 1e6 : uNear * uFar / (uFar - z * (uFar - uNear)); }
+        void main() {
+          vec4 c = texture2D(tDiffuse, vUv); vec2 p = 1.0 / uRes;
+          float d0 = lz(vUv), dl = lz(vUv - vec2(p.x, 0.0)), dr = lz(vUv + vec2(p.x, 0.0)), dd = lz(vUv - vec2(0.0, p.y)), du = lz(vUv + vec2(0.0, p.y));
+          float dn = min(d0, min(min(dl, dr), min(dd, du)));
+          float dq[8];
+          for (int i = 0; i < 8; i++) { float an = float(i) * 0.785398; dq[i] = lz(vUv + vec2(cos(an), sin(an)) * uLW * p); dn = min(dn, dq[i]); }
+          if (dn > 1e5) { gl_FragColor = c; return; }
+          float px = dn * uPx;                                                    // Angstrom per pixel here
+          float gap = max(max(d0 - dl, d0 - dr), max(d0 - dd, d0 - du));          // on the far side of an edge -> line just outside the nearer object
+          float strong = clamp((gap - (uT1 + uT2 * px)) / (1.0 + px), 0.0, 1.0);
+          float tagW = 1.0;
+          for (int i = 0; i < 8; i++) {   // silhouettes uLW px wide (ring of 8 samples at radius uLW); thin + light where the nearer object is tagged (lipids)
+            float an = float(i) * 0.785398; vec2 o = vec2(cos(an), sin(an)) * uLW * p;
+            float st = clamp((d0 - dq[i] - (uT1 + uT2 * uLW * px)) / (1.0 + uLW * px), 0.0, 1.0);
+            if (texture2D(tDiffuse, vUv + o).a < 0.75) st *= 0.0;
+            strong = max(strong, st);
+          }
+          if (c.a < 0.75 || texture2D(tDiffuse, vUv + vec2(p.x, 0.0)).a < 0.75 || texture2D(tDiffuse, vUv - vec2(p.x, 0.0)).a < 0.75) tagW = 0.4;
+          float lap = d0 < 1e5 && max(max(dl, dr), max(dd, du)) < 1e5 ? 4.0 * d0 - dl - dr - dd - du : 0.0;   // > 0 in a groove
+          float groove = smoothstep(uG1 * px + 0.2, uG2 * px + 1.0, lap) * 0.5;
+          float ink = clamp(max(strong * tagW, groove) * uLine, 0.0, 1.0);
+          /* macro shading: normal from the depth gradient over ~uMacro px -> whole domains look rounded, single residues stay flat */
+          vec3 col = c.rgb;
+          if (d0 < 1e5) {
+            float r = uMacro, rx = r * p.x, ry = r * p.y;
+            float a = lz(vUv + vec2(rx, 0.0)), b = lz(vUv - vec2(rx, 0.0)), u2 = lz(vUv + vec2(0.0, ry)), e = lz(vUv - vec2(0.0, ry));
+            float w = 2.0 * r * px, lim = 2.5 * w;
+            float gx = (a < 1e5 && b < 1e5 && abs(a - b) < lim) ? (a - b) / w : (a < 1e5 && abs(a - d0) < lim) ? 2.0 * (a - d0) / w : (b < 1e5 && abs(d0 - b) < lim) ? 2.0 * (d0 - b) / w : 0.0;
+            float gy = (u2 < 1e5 && e < 1e5 && abs(u2 - e) < lim) ? (u2 - e) / w : (u2 < 1e5 && abs(u2 - d0) < lim) ? 2.0 * (u2 - d0) / w : (e < 1e5 && abs(d0 - e) < lim) ? 2.0 * (d0 - e) / w : 0.0;
+            vec3 n = normalize(vec3(gx, gy, 1.0));
+            float lam = dot(n, normalize(vec3(-0.45, 0.6, 0.66)));
+            col *= mix(1.0, min(1.0, 0.72 + 0.34 * lam), uShade);
+          }
+          float f = d0 < 1e5 ? uFog * smoothstep(uFogN, uFogF, d0) : 0.0;
+          col = mix(col, uBg, f);
+          col = mix(col, uInk, ink * (1.0 - 0.55 * f));
+          gl_FragColor = vec4(col, 1.0);
+        }` }));
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    const u = this.uniforms; u.tDiffuse.value = readBuffer.texture; u.tDepth.value = readBuffer.depthTexture; u.uRes.value.set(readBuffer.width, readBuffer.height);
+    u.uNear.value = camera.near; u.uFar.value = camera.far; u.uMacro.value = Math.max(3, 8 * readBuffer.height / 900); u.uLW.value = Math.max(1.5, 2.2 * readBuffer.height / 900); u.uPx.value = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / readBuffer.height;
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer); this.fsq.render(renderer);
+  }
+}
+const inkPass = new InkPass(); inkPass.enabled = false;
+composer.addPass(inkPass);
 let aoPass = null;
 try {
   const { GTAOPass } = await import('three/addons/postprocessing/GTAOPass.js');
@@ -800,7 +863,7 @@ function blobMaterial(opts = {}) {   // opts.cutaway: wedge cutaway; opts.shell:
      OUTERMOST surface is drawn once (no build-up into fog); alpha comes from the Fresnel term -> glowing silhouette */
   if (opts.shell === 'depth') { m.colorWrite = false; m.transparent = true; }
   if (opts.shell === 'color') { m.transparent = true; m.depthWrite = false; m.depthFunc = THREE.LessEqualDepth; m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -1; }
-  m.customProgramCacheKey = () => 'blob-' + (opts.shell || '');
+  m.customProgramCacheKey = () => 'blob-' + (opts.shell || '') + (opts.tag ? 't' : '');
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, { uCutOn: { value: opts.cutaway ? 1 : 0 } });
     sh.vertexShader = sh.vertexShader
@@ -836,7 +899,10 @@ function blobMaterial(opts = {}) {   // opts.cutaway: wedge cutaway; opts.shell:
         totalEmissiveRadiance = mix(totalEmissiveRadiance, baseC * (0.62 + 0.12 * up) * mix(0.3, 1.0, front), uIllus);   // illustrative: flat colour (Mol* / PDB-101)
         diffuseColor.rgb *= 1.0 - 0.8 * uIllus;`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, baseC * (0.78 + 0.22 * up) * mix(0.35, 1.0, front), uIllus);   // illustrative: flat colour, no gloss`)
+        { vec3 Ld = normalize(uUpView * 0.75 + vec3(-0.35, 0.0, 0.55)); float lam = saturate(dot(normal, Ld));
+          vec3 ic = baseC * (0.86 + 0.14 * lam);   // nearly flat per residue; volume comes from the screen-space macro shading (InkPass)
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, ic * mix(0.35, 1.0, front), uIllus); }   // illustrative: soft volume, no gloss
+        ${opts.tag ? 'if (uIllus > 0.5) gl_FragColor.a = 0.5;   // tag for InkPass: thin, light lines (membrane lipids)' : ''}`)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
         ${opts.shell === 'color' ? `{ float fr = pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.2);
           gl_FragColor = vec4(baseC * (0.12 + 1.5 * fr), 0.025 + 0.42 * fr); }` : ''}`);
@@ -860,7 +926,9 @@ function cartoonMaterial() {
         totalEmissiveRadiance = mix(totalEmissiveRadiance, baseC * (0.62 + 0.12 * up), uIllus);
         diffuseColor.rgb *= 1.0 - 0.8 * uIllus;`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, baseC * (0.78 + 0.22 * up), uIllus);`);
+        { vec3 Ld = normalize(uUpView * 0.75 + vec3(-0.35, 0.0, 0.55)); float lam = saturate(dot(normal, Ld));
+          vec3 ic = baseC * (0.86 + 0.14 * lam);   // nearly flat per residue; volume comes from the screen-space macro shading (InkPass)
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, ic, uIllus); }`);
   };
   return m;
 }
@@ -1214,6 +1282,7 @@ function outlineMaterial(opts = {}) {   // opts.blob: instanced residue blobs (a
 }
 /* outline twin of any mesh (shares geometry and, for instanced meshes, the instance matrices) */
 function outlineOf(mesh, opts) {
+  if (illustrative()) { const e = new THREE.Group(); e.userData = { outline: true }; return e; }   // illustration: silhouettes come from the screen-space ink pass
   const o = mesh.isInstancedMesh ? new THREE.InstancedMesh(mesh.geometry, outlineMaterial(opts), mesh.count) : new THREE.Mesh(mesh.geometry, outlineMaterial(opts));
   if (mesh.isInstancedMesh) { o.instanceMatrix = mesh.instanceMatrix; o.count = mesh.count; }
   if (mesh.morphTargetInfluences) o.morphTargetInfluences = mesh.morphTargetInfluences;   // same array -> follows morphs
@@ -1226,7 +1295,8 @@ function chainPoints(g, asym, posOf) {
 }
 function buildSurfaces(g, colorOf, posOf = (a) => a.p) {
   const res = +$('simpRes').value, style = $('simpStyle').value, grp = new THREE.Group();
-  const mat = surfaceMaterial(style), out = style === 'illus' && illustrative() ? outlineMaterial() : null, col = new THREE.Color();
+  const mat = surfaceMaterial(style), out = null,   // illustration silhouettes: InkPass
+    col = new THREE.Color();
   for (const asym of [...new Set(g.atoms.map(a => a.asym))]) {
     const { at, P, W } = chainPoints(g, asym, posOf); if (at.length < 3) continue;
     const { geo, nearOf } = lowpassSurface(P, W, res);
@@ -1364,12 +1434,13 @@ function domainSplit(at, posOf, per = 330) {
   return C.map((_, j) => at.filter((_, t) => lab[t] === j)).filter(x => x.length >= 8);
 }
 function buildSchematic(g, colorOf, posOf = (a) => a.p) {
-  const grp = new THREE.Group(), mat = surfaceMaterial('schem'), out = outlineMaterial(), col = new THREE.Color();
-  if (g.faded) { mat.transparent = true; mat.opacity = 0.42; mat.depthWrite = false; }   // (3) scaffold: ghosted, functional parts show through
+  const grp = new THREE.Group(), mat = surfaceMaterial('schem'), out = illustrative() ? null : outlineMaterial(), col = new THREE.Color();
+  if (g.faded) { mat.transparent = true; mat.opacity = 0.42; mat.depthWrite = false;   // (3) scaffold: ghosted, functional parts show through
+    mat.blending = THREE.CustomBlending; mat.blendSrc = THREE.SrcAlphaFactor; mat.blendDst = THREE.OneMinusSrcAlphaFactor; mat.blendSrcAlpha = THREE.ZeroFactor; mat.blendDstAlpha = THREE.OneFactor; }   // keep the ink tag (alpha) of what lies behind
   const add = (geo, centre, extra = {}) => {
     const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.userData = { surface: true, schem: true, centre, ...extra };
     if (g.faded) mesh.renderOrder = 2;
-    if (!g.faded) { const o = new THREE.Mesh(geo, out); o.frustumCulled = false; o.userData = { outline: true }; mesh.userData.outline = o; mesh.add(o); }
+    if (out && !g.faded) { const o = new THREE.Mesh(geo, out); o.frustumCulled = false; o.userData = { outline: true }; mesh.userData.outline = o; mesh.add(o); }
     grp.add(mesh); return mesh;
   };
   const ring = ringOf(g), fade = (c) => { if (g.faded) c.lerp(FADE_TO(), illustrative() ? 0.5 : 0.55); return c; };
@@ -2635,7 +2706,7 @@ function clearScene() {
 
 function colourFn(g, gi) {
   const f = colourFnRaw(g, gi); if (!f || !illustrative()) return f;
-  const hsl = {}; return (a) => { const c = f(a).clone(); c.getHSL(hsl); return c.setHSL(hsl.h, Math.min(hsl.s, 0.58), THREE.MathUtils.clamp(hsl.l, 0.5, 0.7)); };   // muted illustration palette
+  const hsl = {}; return (a) => { const c = f(a).clone(); c.getHSL(hsl); return c.setHSL(hsl.h, Math.min(hsl.s, 0.66), THREE.MathUtils.clamp(hsl.l, 0.46, 0.64)); };   // muted illustration palette
 }
 function colourFnRaw(g, gi) {
   const mode = $('colorMode').value, pal = PALETTES[$('palette').value];
@@ -2663,11 +2734,11 @@ function rebuildMeshes() {
     g.color = ($('palette').value === 'neon' && g.fixed) ? g.fixed : pal[i % pal.length];
     if (!g.fixed && g.atoms[0]?.na) g.color = illustrative() ? '#e3a35a' : '#ffb347';   // nucleic acids in the warm sector (Goodsell convention)
     if (illustrative()) { const c = new THREE.Color(g.color), hsl = {}; c.getHSL(hsl);   // illustration palette: muted, mid-light (PDB-101 / Goodsell), white parts get contrast
-      g.color = '#' + c.setHSL(hsl.h, hsl.l > 0.78 ? Math.max(hsl.s, 0.18) : Math.min(hsl.s, 0.58), hsl.l > 0.78 ? 0.66 : THREE.MathUtils.clamp(hsl.l, 0.5, 0.7)).getHexString(); }
+      g.color = '#' + c.setHSL(hsl.h, hsl.l > 0.78 ? Math.max(hsl.s, 0.18) : Math.min(hsl.s, 0.66), hsl.l > 0.78 ? 0.62 : THREE.MathUtils.clamp(hsl.l, 0.46, 0.64)).getHexString(); }
     if (g.simple === undefined) g.simple = defaultSimple(g);
     const cf = g._colorOf = colourFn(g, i);
     g.coreIdx = computeCore(g);
-    g.faded = g.simple && groups.length > 2 && !g.atoms[0]?.na && !g.spin && !g.confKeys && !g.atoms.some(a => a.p2) && !g.coreIdx.length;
+    g.faded = g.simple && groups.length > 2 && !g.atoms[0]?.na && !g.spin && !g.confKeys && !g.atoms.some(a => a.p2) && !g.coreIdx.length && !(current?.solid || []).some(k => kwMatch(g.name, k));   // preset `solid`: moving shuttles etc. never ghosted
     g.mesh = g.simple ? ($('simpStyle').value === 'schem' ? buildSchematic(g, cf) : buildSurfaces(g, cf)) : rep === 'cartoon' ? buildCartoon(g, cf) : buildGroup(g, cf);
     if (g.simple && g.coreIdx.length) {   // (1) functional core: atomic blobs on top of the simplified shape
       const pore = !!g.mesh.userData.pore, sets = pore ? [...new Set(g.coreIdx.map(k => g.atoms[k].asym))].map(k => [k, g.coreIdx.filter(j => g.atoms[j].asym === k)]) : [[null, g.coreIdx]];
@@ -2757,8 +2828,8 @@ function rebuildMembranes() {
         tails.push([jx - 1.4, y0 + leaf * 9.5, jz], [jx + 1.4, y0 + leaf * 9.5, jz]);
       }
     }
-    const hMesh = new THREE.InstancedMesh(withAttrs(new THREE.IcosahedronGeometry(1, 1), heads.length), blobMaterial({ roughness: 0.25 }), heads.length);
-    const tMesh = new THREE.InstancedMesh(withAttrs(new THREE.CylinderGeometry(0.6, 0.4, 15, 5, 1), tails.length), blobMaterial({ roughness: 0.4 }), tails.length);
+    const hMesh = new THREE.InstancedMesh(withAttrs(new THREE.IcosahedronGeometry(1, 1), heads.length), blobMaterial({ roughness: 0.25, tag: true }), heads.length);
+    const tMesh = new THREE.InstancedMesh(withAttrs(new THREE.CylinderGeometry(0.6, 0.4, 15, 5, 1), tails.length), blobMaterial({ roughness: 0.4, tag: true }), tails.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), v = new THREE.Vector3(), e = new THREE.Euler(), c = new THREE.Color();
     heads.forEach((h, i) => { s.setScalar(2.5 + Math.random() * 0.4); m.compose(v.set(...h), q.identity(), s); hMesh.setMatrixAt(i, m); hMesh.setColorAt(i, c.set(illustrative() ? '#d9a3c9' : '#e64fc8').offsetHSL((Math.random() - .5) * .03, 0, (Math.random() - .5) * .08)); });
     tails.forEach((t, i) => { e.set((Math.random() - .5) * .35, 0, (Math.random() - .5) * .35); q.setFromEuler(e); s.set(1, 1, 1); m.compose(v.set(...t), q, s); tMesh.setMatrixAt(i, m); tMesh.setColorAt(i, c.set(illustrative() ? '#a7afc0' : '#eef1f8').offsetHSL(0, 0, (Math.random() - .5) * .1)); });
@@ -3174,11 +3245,15 @@ function applyBg() {
   const light = $('bgMode').value === 'light';
   scene.background.set(light ? 0xf4f5f8 : 0x000000);
   bloom.strength = light ? 0 : +$('bloom').value;
-  grade.uniforms.uVig.value = light ? 0 : 0.45; grade.uniforms.uGrain.value = light ? 0 : 0.018;
+  grade.uniforms.uSat.value = light ? 1.0 : 1.3; grade.uniforms.uCon.value = light ? 1.03 : 1.12;
+  grade.uniforms.uVig.value = light ? 0.1 : 0.45; grade.uniforms.uGrain.value = light ? 0.01 : 0.018;
+  document.querySelectorAll('.illusOnly').forEach(r => r.style.display = light ? '' : 'none');
   document.body.classList.toggle('lightbg', light);
   U.uIllus.value = light ? 1 : 0;
+  renderer.toneMapping = light ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;   // illustration: colours exactly as specified (ACES greys pastels)
 }
 $('bgMode').onchange = () => { applyBg(); if (model) { rebuildMeshes(); rebuildLigands(); renderLegend(); rebuildMembranes(); applyCut(); } };
+document.querySelectorAll('.illusOnly').forEach(r => r.style.display = $('bgMode').value === 'light' ? '' : 'none');
 $('simpRes').onchange = $('simpStyle').onchange = () => { if (groups.some(g => g.simple)) { rebuildMeshes(); applyCut(); } };
 let labelsTouched = false;
 $('labelsOn').onchange = () => { labelsTouched = true; rebuildLabels(); };
@@ -3240,6 +3315,10 @@ function frame() {
   const dist = camera.position.distanceTo(controls.target);
   bokeh.uniforms.focus.value = dist;
   bokeh.uniforms.aperture.value = illustrative() ? 0 : +$('dofAmt').value * 0.00003 * Math.min(1, dist / 600);   // weaker when close; journal style = sharp
+  inkPass.enabled = illustrative() && !!model;
+  if (inkPass.enabled) { const R = Math.max(20, model.focus.radius), iu = inkPass.uniforms;
+    iu.uLine.value = +$('inkAmt').value; iu.uFog.value = +$('fogAmt').value * 0.85; iu.uBg.value.copy(scene.background);
+    iu.uFogN.value = dist - 0.25 * R; iu.uFogF.value = dist + 1.3 * R; }
   composer.render(); updateFly(); updateLabels(); updateFocusLabels(); updateEnergy();
   fpsT += dt; fpsN++;
   if (fpsT > 2) { window.__fps = fpsN / fpsT; $('fpsOut').textContent = '帧率：' + window.__fps.toFixed(1) + ' fps'; fpsT = 0; fpsN = 0; }
@@ -3247,7 +3326,7 @@ function frame() {
 frame();
 
 /* ----------------------------------------------------------------------------- start */
-window.__viewer = { loadScene, PRESETS, PROCESSES, groups: () => groups, ligands: () => ligGroups, model: () => model, camera, controls, proc: () => proc, entryFromFile };
+window.__viewer = { ink: inkPass, loadScene, PRESETS, PROCESSES, groups: () => groups, ligands: () => ligGroups, model: () => model, camera, controls, proc: () => proc, entryFromFile };
 const params = new URLSearchParams(location.search);
 (() => {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');
