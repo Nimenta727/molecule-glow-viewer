@@ -204,7 +204,7 @@
     "name": "molecule-glow-viewer",
     "url": "https://github.com/Nimenta727/molecule-glow-viewer"
    },
-   "revision": 1,
+   "revision": 2,
    "license": "CC-BY-4.0",
    "description": "复合体 I、III、IV 和 ATP 合酶在同一层膜上：电子从 NADH 经铁硫簇和血红素传到 O₂，泵出的 H⁺ 回流合成 ATP；膜两侧 pH 和电位实时模拟。",
    "pdb": [
@@ -216,8 +216,8 @@
    "updated": "2026-11-16",
    "file": "packs/official.respiratory-chain.glow",
    "cover": "covers/official.respiratory-chain.jpg",
-   "size": 5287,
-   "sha256": "77fca4f7f80f003577bd0f722a6d87afd4e38e2b18fa641c1f7e12abdf2b71cf"
+   "size": 5320,
+   "sha256": "818da1c09171ae7ef3466409f699044b22ac05052cf59ce46d0afdc350518a8a"
   },
   {
    "id": "official.adenylate-kinase",
@@ -285,7 +285,7 @@
     "name": "molecule-glow-viewer",
     "url": "https://github.com/Nimenta727/molecule-glow-viewer"
    },
-   "revision": 1,
+   "revision": 2,
    "license": "CC-BY-4.0",
    "description": "PSII、b6f、PSI 和 ATP 合酶排在类囊体膜上：光子激发 P680 / P700，电子从水出发经 Z 方案生成 NADPH，H⁺ 回流合成 ATP。",
    "pdb": [
@@ -301,8 +301,8 @@
    "updated": "2026-11-16",
    "file": "packs/official.chloroplast-light.glow",
    "cover": "covers/official.chloroplast-light.jpg",
-   "size": 8965,
-   "sha256": "7fe7f7b5d6f81fd728287f74d1f755eeccec6bdc86ea4c5998200e776ccd2c8b"
+   "size": 8977,
+   "sha256": "b358b662cc58e734fdd8228076f9775cc08f1b36c749a34e4ce79931f82ef4ce"
   },
   {
    "id": "official.whole-cell",

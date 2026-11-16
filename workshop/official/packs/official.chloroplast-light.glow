@@ -2,7 +2,7 @@
  "format": "glow-scene",
  "version": 1,
  "id": "official.chloroplast-light",
- "revision": 1,
+ "revision": 2,
  "title": "叶绿体光反应（光 → NADPH + ATP）",
  "category": "system",
  "tags": [
@@ -242,7 +242,7 @@
    ],
    "Cyt b6f": [
     "细胞色素 b6f（二聚体）",
-    "质体醌氧化：Q 循环，泵 H⁺",
+    "质体醌氧化：Q 循环，向腔内释放 H⁺",
     "相当于线粒体复合体 III：Rieske 铁硫蛋白 + 细胞色素 f（高电位链），血红素 bL、bH、cn（低电位链）。氧化 PQH₂、还原质体蓝素，同时把 H⁺ 送进类囊体腔。"
    ],
    "PSI-LHCI": [

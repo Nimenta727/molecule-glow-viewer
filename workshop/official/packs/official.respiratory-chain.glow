@@ -2,7 +2,7 @@
  "format": "glow-scene",
  "version": 1,
  "id": "official.respiratory-chain",
- "revision": 1,
+ "revision": 2,
  "title": "线粒体呼吸链（电子传递 → ATP）",
  "category": "system",
  "tags": [
@@ -142,7 +142,7 @@
    "/^复合体 IV$/": [
     "复合体 IV",
     "细胞色素 c 氧化酶：O₂ → H₂O",
-    "电子从细胞色素 c 进入 CuA（双铜中心），经血红素 a 到 a3–CuB 双核中心还原 O₂。每 4 个电子还原 1 个 O₂ 成 2 个 H₂O，同时泵出 4 个 H⁺。"
+    "电子从细胞色素 c 进入 CuA（双铜中心），经血红素 a 到 a3–CuB 双核中心还原 O₂。每 4 个电子还原 1 个 O₂ 成 2 个 H₂O，同时泵出 4 个 H⁺（即每 2 个电子泵 2 个）。"
    ],
    "细胞色素 c": [
     "细胞色素 c",

@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'regress'), latest = path.join(dir, 'latest'), basef = path.join(dir, 'baseline.json');
@@ -26,6 +27,11 @@ const rep = JSON.parse(fs.readFileSync(repf, 'utf8')); rep.pageErrors = pageErro
 const base = fs.existsSync(basef) ? JSON.parse(fs.readFileSync(basef, 'utf8')) : null;
 
 const fails = [], warns = [], CONTENT = ['entities', 'chains', 'residues', 'ligands'];
+/* T8: the app must run the same bytes as the viewer source (web/index.html in the repo, glow_viewer/index.html in the working folder) */
+{ const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+  for (const name of ['index.html', 'dev.html']) {
+    const src = [path.join(root, '..', 'web', name), path.join(root, '..', 'glow_viewer', name)].find(f => fs.existsSync(f)), app = path.join(root, 'app', name);
+    if (src && fs.existsSync(app)) { const a = sha(src), b = sha(app); console.log(`sha256 ${name}：${a.slice(0, 16)}…${a === b ? '' : '　✗ app 里的副本不同 ' + b.slice(0, 16) + '…'}`); if (a !== b) fails.push(`app/${name} 和源文件 ${path.relative(root, src)} 不一致（同步失败？）`); } } }
 if (rep.fatal) fails.push('运行中断：' + rep.fatal);
 const row = (...c) => console.log(c.map((x, i) => String(x ?? '—').padEnd([22, 8, 8, 8, 9, 7, 7, 8, 30][i] || 10)).join(''));
 row('场景', '载入s', '实体', '链', '残基', '配体', 'FPS', '几何体', '过程计数');
@@ -66,7 +72,28 @@ if (rep.rapid) {   // rapid switch must end exactly like loading the last scene 
     if (R.pools > S.pools) fails.push(`连切：粒子池 ${S.pools} → ${R.pools}`);
   }
 }
-for (const e of pageErrors) warns.push(e);
+{ const miss = new Set((rep.scenes || []).flatMap(x => x.procNoEvidence || [])); if (miss.size) fails.push(`这些内置过程没有声明证据等级（evidence）：${[...miss].join('、')}`); }
+const RRNA = { '16S': [1450, 1560], '23S': [2780, 2930], '5S': [105, 125] };   // 4V6F is Thermus thermophilus: 16S ~1518, 23S ~2915, 5S ~122 nt; allow unmodelled ends
+for (const sc of rep.scenes || []) if (Object.keys(sc.rRNA || {}).length) console.log(`rRNA 长度 ${sc.key}：${Object.entries(sc.rRNA).map(([k, n]) => `${k} ${n}`).join('，')}`);
+for (const sc of rep.scenes || []) for (const [k, n] of Object.entries(sc.rRNA || {})) if (RRNA[k] && (n < RRNA[k][0] || n > RRNA[k][1])) fails.push(`${sc.key}：${k} rRNA 有 ${n} 个核苷酸（应在 ${RRNA[k].join('–')}）`);
+for (const d of rep.determinism || []) {   // seed + fixed steps: run twice, must be identical; and something must have happened
+  const { a, b } = d, same = JSON.stringify(a.counters) === JSON.stringify(b.counters) && JSON.stringify(a.events) === JSON.stringify(b.events);
+  console.log(`可重复 ${d.key}：seed ${a.seed}，${Object.entries(a.counters || {}).map(([k, v]) => `${k} ${v}`).join('，')}；事件 ${a.events?.length}（${a.ms} ms）${same ? '' : '　✗ 两次不同'}`);
+  if (a.error || b.error) { fails.push(`可重复 ${d.key}：${a.error || b.error}`); continue; }
+  if (!same) fails.push(`可重复 ${d.key}：同一 seed 两次结果不同`);
+  for (const [k, min] of Object.entries(d.expect)) if (!((a.counters?.[k] ?? 0) >= min)) fails.push(`活动 ${d.key}：${k} = ${a.counters?.[k] ?? 0}（应 ≥ ${min}）`);
+}
+for (const w of rep.twice || []) {   // the same scene twice in a row
+  const { a, b } = w; console.log(`连载两次 ${w.key}：几何体 ${a.geometries} → ${b.geometries}，监听器 ${a.listeners} → ${b.listeners}，DOM 标签 ${a.domTags} → ${b.domTags}`);
+  if (a.error || b.error) fails.push(`连载两次 ${w.key}：${a.error || b.error}`);
+  for (const k of CONTENT) if (a[k] !== b[k]) fails.push(`连载两次 ${w.key}：${k} ${a[k]} → ${b[k]}`);
+  if (b.listeners > a.listeners) fails.push(`连载两次 ${w.key}：监听器 ${a.listeners} → ${b.listeners}`);
+  if (b.domTags > a.domTags + 5) fails.push(`连载两次 ${w.key}：DOM 标签 ${a.domTags} → ${b.domTags}`);
+  if (b.geometries > a.geometries + 10) fails.push(`连载两次 ${w.key}：几何体 ${a.geometries} → ${b.geometries}`);
+}
+/* T10: console errors from the page fail the run, except known, harmless ones (whitelist) */
+const ERR_OK = [/ResizeObserver loop/, /favicon/i, /net::ERR_INTERNET_DISCONNECTED/];
+for (const e of pageErrors) (ERR_OK.some(re => re.test(e)) ? warns : fails).push(e);
 console.log('');
 warns.forEach(w => console.log('⚠ ' + w)); fails.forEach(f => console.log('✗ ' + f));
 if (accept) { fs.writeFileSync(basef, JSON.stringify(rep, null, 1) + '\n'); console.log(`已存为基线：${path.relative(root, basef)}`); }

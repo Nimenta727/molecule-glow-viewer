@@ -28,7 +28,7 @@ const stable = (o) => JSON.stringify(o);
 for (const [name, preset] of Object.entries(R.PRESETS)) {
   const m = META[name]; if (!m) { console.log('⚠ 没有元数据，跳过：' + name); continue; }
   const [slug, tags, description] = m, id = 'official.' + slug, file = path.join(dir, id + '.glow');
-  const scene = JSON.parse(JSON.stringify(preset));
+  const scene = JSON.parse(JSON.stringify(preset)); delete scene.key; delete scene.tier;   /* runtime fields added by the viewer (v18) */
   const old = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
   if (old && stable(old.scene) === stable(scene) && old.title === name && old.description === description && stable(old.tags) === stable(tags)) { console.log('= ' + id); continue; }
   const ids = [...new Set([scene.id, ...(scene.states || []), ...(scene.components || []).map(c => c.id)].filter(Boolean))];

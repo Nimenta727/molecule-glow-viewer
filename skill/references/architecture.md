@@ -360,3 +360,15 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - **证据等级修正**：用户文件 / 内嵌结构算“建模”（除非包里写明 `structure.source.pdb`）；预设手放的膜算“建模”，只有自动模式的膜是“推算”（写明来源）；示意里列出团块大小抖动、热抖动、随机脂质、配体放大；配体数统一为“N 种 / M 个”；切换或载入失败时徽章清空；`evidence`、`seed` 进 `SCENE_KEYS`，文字只转义一次。
 - **性能**：`preserveDrawingBuffer: false`（截图在 render 后同步读）；面板布局读取降到 4 Hz，标签 30 Hz；FPS 连续 4 秒 < 24 自动降一级画质并提示。每个场景都有比例尺和时间尺度说明；“来源”面板列出主结构和每个组件的方法、分辨率、物种、文献 DOI。
 - 注意：开发机是 Hyper-V 虚拟机，Electron 走 SwiftShader 软件渲染，回归里的 FPS（4HHB 约 10）只代表这台机器；真实显卡上要高一个数量级。
+
+## 37. v18.1：第二次复审后的修正（审计 → 执行 → 我独立复核）
+- **postMessage 桥只在 `?embed=1` / `?dev=1` 时监听**；父窗口必须同源或在 `?origin=https://…` 白名单里，永不接受 `null`；`load({url})` 只接受工坊、files.rcsb.org、alphafold.ebi.ac.uk 或同源；回复只发给请求方 origin。所以 dev.html 要通过 http(s) 打开（file:// 下 origin 是 null，桥不通——用 GitHub Pages 在线版或 `python -m http.server`）。
+- **动画协程**：clearScene 时挂起的 anim 以 `Stale` reject，协程捕获后退出；probe 报 `pendingAnims`。
+- **呼吸链守恒**：每个 QH₂ 在 Qo 给 2 e⁻ 并释放 2 H⁺（一轮 Q 循环 2 个 QH₂ → 4 H⁺，Qi 还原 1 个 Q 吸收 2 H⁺），细胞色素 c 每趟 1 e⁻，复合体 IV 按电子计；每个 NADH：泵出 6（I 4 + IV 2）、Q 循环释放 4；ATP = 回流 H⁺ × 3/8（牛 c8），说明文字写明；快放也计数。
+- **随机数**：`rand()`（模拟）和 `randVis()`（布景）两条流，`randDir()` 取代 randomDirection；`glow.animate({seed, step, steps})`；`load({seed})` 后暂停；回归里同一种子跑两次必须完全一致（kcsa、atp-synthase、translation）。
+- **编号约定**：`chain` / `resi` = 作者编号（auth_asym / auth_seq，支持插入码 52A、0 和负数）；`label_asym` / `label_seq` = mmCIF 内部编号。4V6F 的作者链名是两个字母（如 “AA”）。
+- **预设键**：`PRESET_META` 给每个预设一个稳定的英文键和层级（cell / system / single）；`presetName(q)` 把键或中文名解析成中文名；`?preset=`、回归、`glow.load` 用键。工坊脚本 `glow-lib.mjs` 一并截取这段（`PRESET_META` 到 `presetName`），`export-presets.mjs` 去掉运行时加的 `key` / `tier`。
+- **序列条**（Q 键 / “序列条”链接 / `glow.sequence`）：每链一行，按二级结构着色，缺失残基虚线；点击 / 拖选 = 选择，其他地方的选择同步高亮。**按选择集换表示**：`represent('chain A','cartoon')`（目前按部件生效），存为 `scene.reps`。
+- **三层导航**：部件和拥挤分子的信息卡有“打开这个机器：…→”，标题旁“← 返回”回到上一场景和视角；拥挤分子可点选（名字、PDB、“位置为示意”）。
+- **证据**：每个 PROCESS 必须声明 evidence（回归检查）；包里声明 `structure.source.pdb` 的显示“未核对”；信息卡有证据行。
+- **画质**：墨线风格下像素比 ≥ 1；只有已经是“低”且持续 < 8 fps（没有独立显卡的机器）才降到 0.75，> 30 fps 恢复；每个场景恢复用户选的画质。回归检查 app 副本和源文件 sha256 一致、页面控制台无报错。

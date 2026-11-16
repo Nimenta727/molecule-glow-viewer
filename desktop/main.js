@@ -44,9 +44,19 @@ async function writeCache(url, res) {
   const buf = Buffer.from(await res.arrayBuffer()), f = path.join(cacheDir, keyOf(url));
   fs.writeFileSync(f + '.bin', buf);
   fs.writeFileSync(f + '.json', JSON.stringify({ url, type: res.headers.get('content-type'), at: new Date().toISOString(), size: buf.length }));
+  if (++writes % 40 === 0) setImmediate(pruneCache);
   return new Response(buf, { status: res.status, headers: { 'content-type': res.headers.get('content-type') || 'application/octet-stream', 'access-control-allow-origin': '*' } });
 }
-const passThrough = (req) => net.fetch(req, { bypassCustomProtocolHandlers: true });
+/* L6: the page's AbortController (a newer scene cancels old downloads) reaches the real request */
+const passThrough = (req) => net.fetch(req, { bypassCustomProtocolHandlers: true, signal: req.signal });
+/* the disk cache keeps at most 2 GB: oldest files (by last write) go first; checked at start and every 40 new files */
+const CACHE_MAX = 2 * 1024 ** 3; let writes = 0;
+function pruneCache() {
+  try { const F = fs.readdirSync(cacheDir).filter(f => f.endsWith('.bin')).map(f => { const st = fs.statSync(path.join(cacheDir, f)); return { f, size: st.size, t: st.mtimeMs }; });
+    let total = F.reduce((n, x) => n + x.size, 0); if (total <= CACHE_MAX) return;
+    for (const x of F.sort((a, b) => a.t - b.t)) { if (total <= CACHE_MAX * 0.9) break; const b = path.join(cacheDir, x.f); fs.rmSync(b, { force: true }); fs.rmSync(b.replace(/\.bin$/, '.json'), { force: true }); total -= x.size; }
+  } catch (e) { console.warn('cache prune', e); }
+}
 
 async function handleHttps(req) {
   const u = new URL(req.url);
@@ -110,6 +120,15 @@ function createWindow() {
           r.key = 'rapid-switch'; r.compare = scenes.rapid.compare; report.rapid = r;
           console.log('[regress] rapid', JSON.stringify({ loadMs: r.loadMs, residues: r.residues, domTags: r.domTags, listeners: r.listeners, error: r.error }));
         }
+        for (const d of scenes.determinism || []) {   // same seed twice -> identical counters and events; plus minimum activity
+          const go = () => win.webContents.executeJavaScript(`window.__viewer.seededRun(${JSON.stringify(d.load)}, ${JSON.stringify(d.seed ?? 1)}, ${d.dt ?? 1 / 30}, ${d.steps ?? 600})`);
+          const a = await go(), b = await go(); (report.determinism ??= []).push({ key: d.key, expect: d.expect || {}, a, b });
+          console.log('[regress] determinism', d.key, JSON.stringify({ seed: a.seed, counters: a.counters, events: a.events?.length, ms: a.ms, error: a.error || b.error }));
+        }
+        for (const w of scenes.twice || []) {   // load a scene twice: the second load must not leave more behind than the first
+          const a = await run(w.load), b = await run(w.load); (report.twice ??= []).push({ key: w.key, a, b });
+          console.log('[regress] twice', w.key, JSON.stringify({ geometries: [a.geometries, b.geometries], listeners: [a.listeners, b.listeners], domTags: [a.domTags, b.domTags], error: a.error || b.error }));
+        }
       } catch (e) { report.fatal = String(e.message || e); }
       fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 1)); app.quit();
     }, 3000));
@@ -138,7 +157,7 @@ function createWindow() {
 app.whenReady().then(() => {
   // not 'cache': on Windows that is the same folder as Chromium's own HTTP cache (userData/Cache), which it wipes
   cacheDir = path.join(app.getPath('userData'), 'structure-cache');
-  fs.mkdirSync(cacheDir, { recursive: true });
+  fs.mkdirSync(cacheDir, { recursive: true }); setTimeout(pruneCache, 5000);
   protocol.handle('app', (req) => {
     const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
     const f = inside(APP_DIR, rel);

@@ -1,5 +1,5 @@
 {
- "about": "Fixed regression scenes (docs/ROADMAP.md, audit Sprint 1). key = file name; load = a preset name or a loadScene config.",
+ "about": "Fixed regression scenes (docs/ROADMAP.md, audit Sprint 1). key = file name; load = a preset key (ascii, see PRESET_META) or a loadScene config.",
  "settle": 3,
  "seconds": 5,
  "list": [
@@ -12,37 +12,77 @@
   },
   {
    "key": "6ZPO-atp-synthase",
-   "load": "ATP 合酶（合成 ATP）"
+   "load": "atp-synthase"
   },
   {
    "key": "1K4C-kcsa",
-   "load": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）"
+   "load": "kcsa"
   },
   {
    "key": "4V6F-translation",
-   "load": "核糖体翻译（mRNA → 蛋白质，可加抗生素）"
+   "load": "translation"
   },
   {
    "key": "7CGO-flagellar-motor",
-   "load": "鞭毛马达"
+   "load": "flagellar-motor"
   },
   {
    "key": "cell-corner",
-   "load": "细胞一角：核糖体 + 钾通道（同时模拟）"
+   "load": "cell-corner"
   }
  ],
  "rapid": {
   "about": "start these loads without waiting (each cancels the previous); the result must equal loading the last one alone (scene `compare`)",
   "compare": "1K4C-kcsa",
   "list": [
-   "ATP 合酶（合成 ATP）",
+   "atp-synthase",
    {
     "id": "4HHB",
     "auto": true
    },
-   "细胞一角：核糖体 + 钾通道（同时模拟）",
-   "鞭毛马达",
-   "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）"
+   "cell-corner",
+   "whole-cell",
+   "flagellar-motor",
+   "kcsa"
   ]
- }
+ },
+ "determinism": [
+  {
+   "key": "kcsa",
+   "load": "kcsa",
+   "seed": 7,
+   "dt": 0.1,
+   "steps": 200,
+   "expect": {
+    "K⁺ 外流": 1
+   }
+  },
+  {
+   "key": "atp-synthase",
+   "load": "atp-synthase",
+   "seed": 7,
+   "dt": 0.1,
+   "steps": 300,
+   "expect": {
+    "ATP": 3
+   }
+  },
+  {
+   "key": "translation",
+   "load": "translation",
+   "seed": 7,
+   "dt": 0.1,
+   "steps": 300,
+   "expect": {
+    "肽键": 1
+   }
+  }
+ ],
+ "twice": [
+  {
+   "key": "whole-cell",
+   "load": "whole-cell"
+  }
+ ],
+ "about_determinism": "determinism: load with seed, step `steps` × dt paused, twice — counters and event texts must be identical; expect = minimum counters (audit C9). twice: same scene loaded twice in a row (T9)."
 }

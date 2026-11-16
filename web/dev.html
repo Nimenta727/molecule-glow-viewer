@@ -14,7 +14,7 @@
   main{padding:12px 16px 40px;display:grid;gap:12px;grid-template-columns:minmax(380px,42%) 1fr;grid-template-areas:"ed view" "con val" "ref ref" "ai ai"}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0;display:flex;flex-direction:column}
   .card h2{font-size:11.5px;letter-spacing:1.2px;color:var(--dim);margin:0 0 8px;font-weight:600}
-  #edCard{grid-area:ed;height:min(70vh,720px)} #viewCard{grid-area:view;height:min(70vh,720px);padding:0;overflow:hidden;position:relative}
+  #edCard{grid-area:ed;height:min(70vh,720px)} #viewCard{grid-area:view;height:min(70vh,720px);padding:0;overflow:hidden;position:relative} #viewCard iframe{flex:1;min-height:0;height:auto}
   #conCard{grid-area:con;height:340px} #valCard{grid-area:val;height:340px} #refCard{grid-area:ref} #aiCard{grid-area:ai}
   .bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
   button{background:linear-gradient(135deg,#c95fc4,#6f8ff0);border:0;color:#fff;border-radius:7px;padding:5px 11px;font:inherit;font-size:12.5px;cursor:pointer}
@@ -25,7 +25,8 @@
   #src{flex:1;min-width:0;border:0;outline:0;resize:none;padding:8px 10px;font:12px/1.55 var(--mono);background:transparent;color:var(--ink);white-space:pre;overflow:auto;tab-size:2}
   #edInfo{font-size:11.5px;color:var(--dim);margin-top:6px;min-height:1.5em}
   iframe{border:0;width:100%;height:100%;display:block;background:#f4f5f8}
-  #viewTag{position:absolute;left:10px;top:10px;font-size:11px;color:var(--dim);background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:9px;padding:1px 8px;pointer-events:none}
+  #viewBar{flex:none;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:11.5px;color:var(--dim);border-top:1px solid var(--line);padding:4px 10px;background:var(--card)}
+  #viewBar button{padding:2px 9px;font-size:11.5px} #viewBar input{font:inherit;padding:1px 4px} #vState{flex:1;min-width:140px}
   #out{flex:1;min-height:0;overflow:auto;font:12px/1.5 var(--mono);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:6px 8px;white-space:pre-wrap;word-break:break-word}
   #out .in{color:var(--acc2)} #out .ok{color:var(--ink)} #out .er{color:var(--err)} #out .pend{color:var(--dim)} #out img{max-width:240px;display:block;margin:4px 0;border:1px solid var(--line);border-radius:6px}
   .cin{display:flex;gap:6px;margin-top:6px} .cin input{flex:1;min-width:0;font:12.5px var(--mono);padding:6px 8px;border:1px solid rgba(0,0,0,.18);border-radius:7px;background:#fff;color:var(--ink)}
@@ -60,7 +61,10 @@
     <div class="ed"><pre id="gut">1</pre><textarea id="src" spellcheck="false" wrap="off" aria-label="场景包 JSON"></textarea></div>
     <div id="edInfo"></div>
   </section>
-  <section class="card" id="viewCard"><iframe id="view" title="查看器" src="index.html?embed=1&pdb=1K4C"></iframe><span id="viewTag">查看器（嵌入模式：面板默认收起，☰ 打开）</span></section>
+  <section class="card" id="viewCard"><iframe id="view" title="查看器" src="index.html?embed=1&pdb=4HHB"></iframe>
+    <div id="viewBar"><span id="viewTag">查看器（嵌入模式：☰ 打开面板）</span><span id="vState" class="muted"></span>
+      <label class="muted">seed <input id="vSeed" type="number" min="0" step="1" style="width:70px" placeholder="随机"></label>
+      <button class="ghost" id="bPause">暂停</button><button class="ghost" id="bStep" title="暂停后推进 1 秒（30 步 × 1/30 s）">单步</button></div></section>
   <section class="card" id="conCard">
     <h2>命令控制台</h2>
     <div class="chips" id="chips"></div>
@@ -106,14 +110,16 @@ const TEMPLATE = {
       beta: ['β 亚基', '每条链结合一个血红素', 'β 链 146 个残基；β 亚基之间的空腔结合 2,3-BPG，稳定 T 态。']
     },
     siteNotes: { HEM: '血红素：卟啉环中心的 Fe²⁺ 可逆结合一个 O₂；四个亚基的协同结合让氧解离曲线呈 S 形。' },
-    caption: '血红蛋白：每个血红素结合一个 O₂（粒子数量和速度为示意）。',
+    caption: '血红蛋白四聚体：4 个血红素各自可逆结合一个 O₂。4HHB 是脱氧态晶体结构，O₂ 的结合和解离是在这个结构上画出来的示意。',
+    evidence: { illustrative: ['O₂ 的结合 / 解离过程画在脱氧态结构（4HHB）上，没有画 T → R 构象变化', 'O₂ 粒子的数量和速度'],
+      modelled: ['每个血红素一个结合位点（4 个），按血红素中心定位'] },
     camera: { az: -0.9, el: 0.25, dist: 1.2 },
     animation: {
       version: 1,
       species: { 'O₂': { col: '#ff6b6b', r: 2.2 } },
       pools: [{ species: 'O₂', in: '溶液', n: 12 }],
-      reactions: [{ name: 'O₂ 结合', site: { ligand: 'HEM', index: 0 }, in: [{ species: 'O₂', from: '溶液' }], out: [{ species: 'O₂', to: '溶液' }],
-        text: 'O₂ 结合 Fe²⁺，随后解离', rate: 0.4, counter: 'O₂ 结合' }]
+      reactions: [{ name: 'O₂ 结合', site: { ligands: 'HEM' }, in: [{ species: 'O₂', from: '溶液' }], out: [{ species: 'O₂', to: '溶液' }],
+        text: 'O₂ 结合血红素 Fe²⁺，随后解离', rate: 0.15, counter: 'O₂ 结合' }]
     }
   }
 };
@@ -151,7 +157,7 @@ async function runLine(line) {
   let p; try { p = parseLine(line); } catch (e) { show('er', '✗ ' + esc(e.message)); return; }
   if (!p) return; hist.push(line); hi = hist.length;
   show('in', '&gt; ' + esc(line)); const w = show('pend', '…');
-  try { const r = await call(p.cmd, p.args); w.className = 'ok'; w.innerHTML = fmt(r); return r; }
+  try { const r = await call(p.cmd, p.args); w.className = 'ok'; w.innerHTML = fmt(r); if (p.cmd !== 'info' && p.cmd !== 'help') refreshState(); return r; }
   catch (e) { w.className = 'er'; w.textContent = '✗ ' + e.message; }
 }
 $('bRun').onclick = () => { const v = $('cmd').value; $('cmd').value = ''; runLine(v); };
@@ -165,13 +171,35 @@ $('chips').innerHTML = EXAMPLES.map(x => `<span>${esc(x)}</span>`).join('');
 $('chips').onclick = (e) => { if (e.target.tagName === 'SPAN') { $('cmd').value = e.target.textContent; $('cmd').focus(); } };
 
 /* ---- validation list */
+/* where a JSON path ("scene.animation.flows[2].rate") starts in the editor text: a small JSON scanner that records value offsets */
+function locate(text, path) {
+  const at = new Map(); let i = 0;   /* path -> offset of its value */
+  const ws = () => { while (i < text.length && /\s/.test(text[i])) i++; };
+  const str = () => { const s0 = ++i; while (i < text.length && text[i] !== '"') i += text[i] === '\\' ? 2 : 1; return JSON.parse('"' + text.slice(s0, i++) + '"'); };
+  const val = (p) => { ws(); at.set(p, i); const c = text[i];
+    if (c === '{') { i++; ws(); if (text[i] === '}') { i++; return; } for (;;) { ws(); const k = str(); ws(); i++; val(p ? p + '.' + k : k); ws(); if (text[i++] !== ',') return; } }
+    if (c === '[') { i++; ws(); if (text[i] === ']') { i++; return; } for (let n = 0; ; n++) { val(`${p}[${n}]`); ws(); if (text[i++] !== ',') return; } }
+    if (c === '"') { str(); return; } while (i < text.length && !/[,}\]\s]/.test(text[i])) i++; };
+  try { val(''); } catch (e) {}
+  for (let q = String(path); q; q = q.replace(/(\.[^.[\]]*|\[\d+\])$/, '')) { if (at.has(q)) return at.get(q); if (!/(\.[^.[\]]*|\[\d+\])$/.test(q)) break; }
+  return -1;
+}
+function jumpTo(off) {
+  if (off < 0) return; const line = src.value.slice(0, off).split('\n').length, end = src.value.indexOf('\n', off);
+  src.focus(); src.setSelectionRange(off, end < 0 ? src.value.length : end);
+  const lh = parseFloat(getComputedStyle(src).lineHeight) || 18; src.scrollTop = Math.max(0, (line - 4) * lh); edInfo(`第 ${line} 行`);
+}
+const lineOff = (n) => { let off = 0; for (let k = 1; k < n; k++) { const j = src.value.indexOf('\n', off); if (j < 0) break; off = j + 1; } return off; };
 function showReport(r) {
   const L = [];
   if (r.ok) L.push(`<li class="o">✓ 可以打开${r.warnings.length ? `（${r.warnings.length} 条提醒）` : '，没有提醒'}</li>`);
-  for (const e of r.errors) L.push(`<li class="e">错误：${esc(e)}</li>`);
+  r.errors.forEach((e, k) => { const p = r.errorPaths?.[k], go = p ? ` data-path="${esc(p)}"` : r.line ? ` data-line="${r.line}"` : '';
+    L.push(`<li class="e${go ? ' go' : ''}"${go}>错误：${esc(e)}${go ? '　<u>跳到这一行</u>' : ''}</li>`); });
   for (const w of r.warnings) L.push(`<li class="w">提醒：${esc(w)}</li>`);
   $('val').innerHTML = L.join('');
 }
+$('val').onclick = (e) => { const li = e.target.closest('li.go'); if (!li) return;
+  jumpTo(li.dataset.path ? locate(src.value, li.dataset.path) : lineOff(+li.dataset.line)); };
 async function validate() {
   const r = await call('validatePack', src.value); showReport(r); return r;
 }
@@ -181,7 +209,7 @@ $('bExport').onclick = busy($('bExport'), async () => { const P = await call('ex
 $('bCheck').onclick = busy($('bCheck'), async () => { const r = await validate(); edInfo(r.ok ? '校验通过。' : '校验没通过，见下方。'); });
 $('bPreview').onclick = busy($('bPreview'), async () => {
   const r = await validate(); if (!r.ok) { edInfo('有错误，没有预览。'); return; }
-  edInfo('正在加载预览…'); const s = await call('load', { packText: src.value });
+  edInfo('正在加载预览…'); const sd = $('vSeed').value.trim(); const s = await call('load', { packText: src.value, ...(sd !== '' ? { seed: +sd } : {}) }); refreshState();
   edInfo(s.cancelled ? '预览被新的加载取代。' : `预览：${s.title} · ${s.entities} 个部件 · ${s.residues} 个残基 · ${s.ligands} 种小分子`);
 });
 $('bDown').onclick = () => {
@@ -211,7 +239,16 @@ animation（纯数据，v1）：
   pools [{species, in: 隔室, n ≤40}] · flows [{name, species, from, to, via: [锚点…] (≤40), labelVia, events [{at, text}], rate ≤30/秒, counter}] ≤16
   reactions [{name, site: 锚点, in [{species, from}], out [{species, to}], text, rate, counter}] ≤16，每个 ≤8 个分子
   锚点：[x,y,z] | {ligand:"HEM", index:0} | {ligands:"K", order:"up"} | {residue:77, chain:"A", part:"…"} | {part:"…"} | {membrane:0} | {centre:true}，可加 offset [dx,dy,dz]
-规则：文字里的 < > 会被转义（不能写 HTML）；未知字段会被忽略；只写真实的 PDB 编号和文献；粒子数量和速度是示意，请在 caption 里说明。
+证据等级（scene.evidence，必写）：查看器自动列出它能确定的部分（实验坐标、推算外形、膜位置……），作者把自己画的东西按等级补上，
+  它们会出现在右上角的徽章里：{"experimental": [...], "derived": [...], "modelled": ["按文献搭的位置 / 速率"], "illustrative": ["示意的粒子数量、路径、速度"]}
+  例："evidence": { "illustrative": ["O₂ 粒子的数量和速度"], "modelled": ["每个血红素一个结合位点"] }
+  内嵌结构（structure）默认算“建模”；若坐标就是某个 PDB 条目，写 structure.source: {"pdb": "1ABC"}（查看器标“包里声明，未核对”）。
+seed：scene.seed 让粒子、路径、拥挤分子可重复（同一 seed 每次一样）。
+编号约定：选择和锚点里的 chain 是作者链名（auth_asym_id），resi / residue 是作者残基号（auth_seq_id），与论文一致；
+  label_asym / label_seq 用 mmCIF 的 label 编号。
+规则：文字里的 < > 会被转义（不能写 HTML）；未知字段会被忽略；只写真实的 PDB 编号和文献；不要把示意内容写成测得的。
+自检流程：validatePack(包) → 没有错误后 load({packText}) → info() 看计数、证据和报错（errors）。
+内置预设用稳定的英文 key 打开：load({preset: 'kcsa'})（help() 里的 load 说明列出全部 key）；represent('chain A', 'cartoon') 按选择改显示方式，导出时保存在 scene.reps；可重复的演示：load({..., seed: 7}) 后 animate({step: 1/30, steps: 300})。
 
 命令 API（在查看器页面里 window.glow.<命令>(…)，或从嵌入它的页面 postMessage({glow:'cmd', id, cmd, args})，回复 {glow:'reply', id, ok, result|error}）：
 `;
@@ -225,13 +262,26 @@ function renderHelp(h) {
 $('aiText').textContent = AI_BRIEF + '（查看器就绪后在这里列出命令）';
 $('bCopy').onclick = async () => { try { await navigator.clipboard.writeText($('aiText').textContent); $('bCopy').textContent = '已复制'; } catch (e) { const r = document.createRange(); r.selectNodeContents($('aiText')); getSelection().removeAllRanges(); getSelection().addRange(r); $('bCopy').textContent = '已选中，按 Ctrl+C'; } setTimeout(() => $('bCopy').textContent = '复制', 1800); };
 
+async function refreshState() {
+  try { const i = await call('info'); paused = !!i.paused;
+    $('vState').textContent = `${i.title || '—'}${i.key ? '（' + i.key + '）' : ''} · 选择：${i.selection?.expr ? i.selection.expr + '（' + i.selection.count + '）' : '无'} · seed：${i.seed ?? '随机'} · ${i.paused ? '已暂停' : '播放中'}`;
+    $('bPause').textContent = i.paused ? '播放' : '暂停'; } catch (e) {}
+}
+let paused = false;
+$('bPause').onclick = busy($('bPause'), async () => { await call('animate', paused ? 'play' : 'pause'); await refreshState(); });
+$('bStep').onclick = busy($('bStep'), async () => { const sd = $('vSeed').value.trim(); const r = await call('animate', { ...(sd !== '' ? { seed: +sd } : {}), step: 1 / 30, steps: 30 });
+  edInfo(`单步：t = ${r.stepped?.t} s，事件 ${r.events} 条${Object.keys(r.counters || {}).length ? '，' + Object.entries(r.counters).map(([k, v]) => k + ' ' + v).join('，') : ''}`); await refreshState(); });
+$('vSeed').onchange = busy($('vSeed'), async () => { const sd = $('vSeed').value.trim(); if (sd !== '') { await call('animate', { seed: +sd }); edInfo(`seed = ${sd}：从现在起随机序列固定；要从头重现，点“预览”重新载入（会带上这个 seed）。`); } await refreshState(); });
 async function onReady() {
   if (ready) return; ready = true;
   out.innerHTML = ''; show('pend', '查看器就绪。输入命令（help 列出全部），↑↓ 翻历史。');
   try { renderHelp(await call('help')); } catch (e) { show('er', '✗ help 失败：' + esc(e.message)); }
+  /* V5: preview the draft that is in the editor, so both sides show the same scene */
+  try { const r = await call('validatePack', src.value); if (r.ok) $('bPreview').click(); else showReport(r); } catch (e) {}
+  refreshState();
 }
 { let d = null; try { d = localStorage.getItem('glowDevDraft'); } catch (e) {} setSrc(d || JSON.stringify(TEMPLATE, null, 1)); }
-window.__dev = { call, runLine, validate, setSrc, ready: () => ready, TEMPLATE };
+window.__dev = { call, runLine, validate, setSrc, ready: () => ready, TEMPLATE, locate };
 </script>
 </body>
 </html>

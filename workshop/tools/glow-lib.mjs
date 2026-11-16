@@ -23,9 +23,11 @@ export function loadRules(viewer = path.join(ROOT, 'web', 'index.html')) {
   const presets = between(html, 'const PRESETS = {', '\n};\n');
   const procBlock = between(html, 'const PROCESSES = {', '\n};\n');
   const procNames = [...new Set([...procBlock.matchAll(/^ {2}([A-Za-z_]\w*): \{/gm), ...html.matchAll(/^PROCESSES\.([A-Za-z_]\w*) = /gm)].map(m => m[1]))];
+  /* v18+: stable ASCII preset keys and tiers (PRESET_META / PRESET_BY_KEY / presetName), which presetCat uses */
+  const keys = html.includes('const PRESET_META = {') ? between(html, 'const PRESET_META = {', '/* key or exact display name -> display name */') : '';
   const presetCat = between(html, 'const presetCat = ', ";\n");
   const rules = between(html, "const GLOW_FORMAT = 'glow-scene'", '/* a pack -> loadScene config */');
-  const code = `${presets}\nconst PROCESSES = Object.fromEntries(${JSON.stringify(procNames)}.map(k => [k, {}]));\n${presetCat}\n${rules}\n` +
+  const code = `${presets}\nconst PROCESSES = Object.fromEntries(${JSON.stringify(procNames)}.map(k => [k, {}]));\n${keys}\n${presetCat}\n${rules}\n` +
     `({ PRESETS, PROCESSES, presetCat, sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS });`;
   return vm.runInNewContext(code, { RegExp, JSON, Math, Number, Object, Array, String, Set, Map, Error, console }, { filename: 'viewer-rules.js' });
 }
