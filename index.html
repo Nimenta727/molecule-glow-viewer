@@ -456,6 +456,8 @@ const PRESETS = {
       'H2A': ['H2A ×2', '组蛋白（二聚体）', '与 H2B 组成 H2A–H2B 二聚体，两个二聚体分别结合在四聚体两侧，包住靠外的 DNA。核小体组装时先装 (H3–H4)₂，再加两个 H2A–H2B。'],
       'H2B': ['H2B ×2', '组蛋白（二聚体）', '与 H2A 配对。H2A–H2B 二聚体比四聚体更容易离开，转录时常被部分移去，让聚合酶通过。'] } },   // schematic: each histone = one globular unit of the octamer (tails dropped), as in textbook figures
   '20S 蛋白酶体（核心颗粒）': { id: '5LE5', axis: 'long', blob: 3.8 },
+  /* SARS-CoV-2 刺突蛋白：6VXX 闭合态三聚体，冷冻电镜 2.8 Å。组装体展开后是三条受体结合域朝上的链。 */
+  'SARS-CoV-2 刺突蛋白（三聚体）': { id: '6VXX', axis: 'long', assembly: true, blob: 3.6, colorMode: 'chain' },
 };
 
 const PALETTES = {
