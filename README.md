@@ -94,6 +94,14 @@ npm run start:server
 
 场景数据默认保存在 `data/scenes.json`（已加入 `.gitignore`），可通过 `DATA_DIR` 指定持久化目录。当前接口不包含登录和权限控制，适合本地或受保护的内网部署，不应直接暴露到公网。
 
+前端可选择通过 URL 参数使用代理，例如：
+
+```text
+http://localhost:8765/index.html?api=http%3A%2F%2F127.0.0.1%3A8787
+```
+
+未提供 `api` 参数时，页面仍按原方式直接访问 RCSB；因此静态 Web 版和 Electron 版不会被后端服务依赖改变。
+
 ## 开发进度
 
 当前已完成的渐进式改进：

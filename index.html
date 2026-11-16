@@ -490,6 +490,7 @@ const IGNORE_LIGANDS = new Set(['HOH', 'WAT', 'DOD', 'UNX', 'UNL']);
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
 const progressEl = $('loadProgress'), progressBar = progressEl.querySelector('i');
+const apiBase = new URLSearchParams(location.search).get('api') || '';
 let statusTimer;
 function loadProgress(value) {
   const active = value > 0 && value < 100;
@@ -507,7 +508,11 @@ async function fetchText(url, opts) {
   const key = url + (opts ? JSON.stringify(opts) : '');
   if (cache.has(key)) return cache.get(key);
   let r;
-  try { r = await fetch(url, opts); } catch (e) { throw new Error(`网络请求失败，请检查网络或 RCSB/CDN 访问权限：${e.message}`); }
+  const canProxy = !opts || !opts.method || opts.method.toUpperCase() === 'GET';
+  const requestUrl = apiBase && canProxy && /^https:\/\/(?:data|models|files)\.rcsb\.org\//.test(url)
+    ? `${apiBase.replace(/\/$/, '')}/api/rcsb?url=${encodeURIComponent(url)}`
+    : url;
+  try { r = await fetch(requestUrl, opts); } catch (e) { throw new Error(`网络请求失败，请检查网络或 RCSB/CDN 访问权限：${e.message}`); }
   if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
   const t = await r.text(); cache.set(key, t); return t;
 }
