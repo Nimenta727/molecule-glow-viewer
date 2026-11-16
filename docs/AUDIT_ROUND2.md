@@ -229,7 +229,7 @@ term := 'all' | 'none' | 'part' <名|/正则/> | 'chain' <ID>[,ID] | 'resi' <n>[
 
 ---
 
-## 6. 实施清单（按顺序；每项单独可验证）
+## 5A. 初版实施清单（按顺序；每项单独可验证；执行者已完成一部分，见第 6 节复审）
 
 通用验收：每项完成后在 `glow_studio` 跑 `node scripts/regress.mjs` 必须“全部通过”；源头改完再 `sync.js`；完成后在 ROADMAP 打勾。
 
@@ -291,3 +291,109 @@ term := 'all' | 'none' | 'part' <名|/正则/> | 'chain' <ID>[,ID] | 'resi' <n>[
     验收：三条链路进入再返回后计数与直接加载一致；点拥挤分子出现名字和等级。
 
 P2（Q1–Q5、E10、T7、D5）在以上完成后统一处理；文档（architecture.md、build_log.md、ROADMAP 路径）每项完成时同步更新。
+
+---
+
+## 6. 复审（执行后）
+
+> 对象：`glow_viewer/index.html` 快照 7275 行、`glow_viewer/dev.html` 237 行、`glow_studio/main.js`、`scripts/regress.mjs`、`regress-scenes.json`、`regress/baseline.json`（09:11）。只读审计，按函数名定位。
+> **已核实成立**：`preserveDrawingBuffer:false`；`clearScene` 补全（焦点、选择、标签、证据、测量、`proc.dispose`）；wholeCell 监听器在 `dispose` 中移除；`netAC` 中断 RCSB / UniProt 下载；ATP 合酶快放按转角计 H⁺；呼吸链拆成“泵出（I/IV）”与“Q 循环释放”两个计数；证据徽章 E1–E6、E9 已修；`probe` 统计 overlay / DOM / 监听器 / errors；回归按 `errors[]` 判失败、无基线时退出码 2、有连切用例；`parseSel/evalSel`、`measure`；比例尺 + 时间说明 + 来源行；FPS 自动降级。
+> **仍有问题**：
+> - 桥接安全与代码注释相反：注释说只接受嵌入时的父窗口，实际任何父窗口都接受。
+> - 呼吸链画面上的物质不守恒。
+> - seed 没覆盖全部随机源，`step()` 的确定性从未被测试。
+> - 回归基线接受了“翻译 8 秒 0 个肽键”。
+> - dev.html 的 AI 说明与证据制度矛盾。
+> - 选择语言混用了 label 链名和作者残基号。
+
+### 6.1 安全（postMessage 桥、`glow.load`）
+
+| # | 级别 | 位置 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|---|
+| X1 | **P0** | 文件末尾 `addEventListener('message', …)` | 注释写“只接受 ?embed=1 时的父窗口或同源”，实际**监听器永远开启**，`fromParent` 也不检查父窗口的 origin。任何网站都能把 GitHub Pages 上的查看器嵌进 iframe，然后调用 `load({url})`（让用户的浏览器去拉任意 https 地址）、`snapshot`、`exportPack`。 | 只在 `embed=1` 或 `dev=1` 时注册监听；父窗口的 origin 必须等于 `location.origin`，或在 `?origin=` 白名单里（只收 https，精确匹配）；其余一律忽略。 | 异源页面嵌入（不带 embed）后发 `help`：无回复。带 embed 但 origin 不在白名单：无回复。同源 dev.html：正常。 |
+| X2 | P1 | `GLOW_CMDS.load` 的 `url` 分支 | 接受任意 `https://`；非 RCSB 地址的请求不挂 `netAC`，无法取消；内容进入 `cache` Map 后永不释放。 | 只允许 `WS_BASE`、`files.rcsb.org`、`alphafold.ebi.ac.uk`；嵌入模式下其他地址直接拒绝；请求挂会话的 signal；`url` 下载的内容不进缓存。 | `load({url:'https://example.com/x.cif'})` 返回 `url-not-allowed`。 |
+| X3 | P1 | `load` 的 `ws` 分支 → `shopAction('open')` | `shopAction` 吞掉异常，所以下载失败时 `load` 返回 `{cancelled:true, reason:'被新的加载取代'}`，失败被报成了“被取代”。 | `shopAction` 在 API 路径下抛出异常；`load` 区分 `cancelled` 和 `failed`。 | 断网时 `load({ws:…})` reject，消息含“下载失败”。 |
+| X4 | P2 | `load('xx')` | 走 `presetKey` 的模糊包含匹配，`load('a')` 会打开某个随机预设。 | API 只接受精确 key，不匹配就报错并列出可用 key。 | `load('a')` reject。 |
+| X5 | P2 | `glowQueue` | 没有超时，一条挂住的命令会堵死后面所有命令。 | 每条命令 180 s 超时，超时后队列继续。 | 人为挂起一条命令后，下一条在超时后照常执行。 |
+| X6 | ✅ | — | 全文没有 eval / new Function；包都经过 `sanitizePack(raw,false)`；`pvLine` 用 `escT`；dev.html 全部 `esc`，并核对 `e.source`。 | — | — |
+
+### 6.2 科学正确性
+
+| # | 级别 | 位置 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|---|
+| C1 | **P0** | `respiratoryChain.cycle` | 一个循环 = 1 NADH = 2 e⁻。画面上**只有 1 个 QH₂ 到 Qo，却放出 4 个 H⁺**（一个 QH₂ 只带 2 个 H）；**细胞色素 c 只跑 1 趟**（标签写“带 1 个 e⁻”），复合体 IV 却按 2 e⁻ 泵 2 个 H⁺、消耗半个 O₂。计数器的数字（4 + 4 + 2 = 10）是对的，但画面和计数对不上，学生数粒子会得到错的化学计量。 | 每个 NADH：Qo 依次氧化 2 个 QH₂；Qi 处 1 个 Q 拿 2 e⁻ 和 2 个基质 H⁺ 变成 QH₂；细胞色素 c 跑 2 趟，每趟 1 e⁻；复合体 IV 每收 1 e⁻ 泵 1 个 H⁺、消耗 1 个基质 H⁺。 | 用 `step` 推进 1 个循环后，`events` 里：Qo 氧化 = 2，Qi 还原 = 1，cyt c 运送 = 2，泵出 = 6，Q 循环释放 = 4，基质 H⁺ 消耗 = 4。 |
+| C2 | **P0** | `respiratoryChain.update`（`kH/kA` 由 `theta` 决定） | ATP 产量只跟转速滑块走，和 NADH 没有耦合。HUD 把两个数并排显示，学生会把它读成 P/O 比，而这个比值可以是任意数。 | 让转子由“返回的 H⁺”驱动（每 8 个 H⁺ 转一圈）；或者在 HUD 写明“理论 ATP/NADH ≈ 2.7（10 ÷ (8/3 + 1)）；当前转速由滑块决定，属示意”。 | 默认参数下模拟 120 s，ATP/NADH 在 2.4–3.0 之间；或 HUD 出现上述说明。 |
+| C3 | **P0** | 呼吸链快放 | 快放时不调用 `cycle()`，`lastH/lastA` 直接追平。结果 NADH、H⁺、ATP 三个计数全部冻结，而粒子流还在跑。 | 快放时按流量累计计数（与 dataAnim 的 `x.acc` 做法相同）。 | 快放 10 s，三个计数都在增长，比例与慢放相差不超过 10 %。 |
+| C4 | P1 | `atpSynthase` 快放 | H⁺ 按转角计，ATP 按位点状态计，两者有相位差，短时间读数偏低（基线：ATP 2、H⁺ 5，比值 2.5）。 | HUD 写明“整圈比 8 H⁺ : 3 ATP（牛 c8 环）”。 | 跑满 10 圈后比值为 2.67 ± 0.1。 |
+| C5 | P1 | `evidenceOf` | 包里只要写了 `structure.source.pdb` 就归入“实验”，但这只是作者的声明，查看器没核对。 | 写成“包里声明来源，查看器未核对”；可选：下载该条目的 Cα 做比对，RMSD < 0.5 Å 才去掉“未核对”。 | 声明了错误 PDB 的测试包显示“未核对”。 |
+| C6 | P1 | `evidenceOf` | KcsA、翻译的速率常数来自文献，却只写“计数器只是示意”，把建模内容说低了；自动模式的孔道（推算）没有列出；`/示意/.test(caption)` 这个启发式还在。 | 每个 PROCESSES 必须自带 `evidence`，缺了回归就失败；删掉 caption 启发式。 | 翻译场景的“建模”里出现文献速率；auto 场景的“推算”里出现孔道。 |
+| C7 | P1 | `SEL_HELP`、`evalSel`、`resLabel`、动画 `residue` 锚点 | `chain` 用的是 label_asym_id，`resi` 用的是作者编号，**两套编号混在一个表达式里**，违反不变量 2.1。4V6F、7CGO 这类条目的 label 链名和论文里的作者链名不同，同一表达式会选错或选空。 | 默认 `chain` = auth_asym_id，`resi` = auth_seq_id；另外提供 `label_asym` / `label_seq`；显示一律用作者编号并注明。 | 在 label 和 auth 链名不同的条目上，`chain <作者链名>` 能正确选中；有测试覆盖。 |
+| C8 | P2 | `evalSel` 的 `num` | 作者号为 0 的残基会退回 label 号；插入码（如 52A）被并到 52。 | 用 `Number.isFinite` 判断；支持 `resi 52A`。 | 含 0 号残基或插入码的条目选择正确。 |
+| C9 | P1 | `regress/baseline.json` | 基线把“4V6F 翻译和细胞一角 8 秒内肽键 0”当正常，无法区分“慢”和“坏了”。4V6F 改用 1 号组装体后直接重新 accept（53 实体 / 55 链 / 10600 残基），没有独立核对。 | 用 seed + `step` 推进到固定模拟时间，断言肽键 ≥ 1、K⁺ 外流 ≥ 1、ATP ≥ 3；另外单独断言 16S ≈ 1500 nt、23S ≈ 2900 nt、5S ≈ 120 nt。 | 让翻译站 `update` 提前返回，回归失败。 |
+
+### 6.3 随机种子与确定性
+
+| # | 级别 | 位置 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|---|
+| R1 | P1 | `wholeCell.setup`（拟核 DNA，`randomDirection()`） | `randomDirection()` 内部用的是 `Math.random`，不受 seed 控制。`grep Math.random` 搜不到，不等于全部覆盖了。 | 写 `randDir()` 基于 `rand()`，替换所有 `randomDirection()`。 | 同 seed 加载两次，DNA 折线的顶点完全一致。 |
+| R2 | P1 | 全局只有一个 `rand` | 视觉代码（脂质排布、团块大小）和模拟共用同一个随机流：用户中途切一次画风，后面的模拟序列就整体错开。 | 拆成 `randSim` 和 `randVis` 两个流，都由 seed 派生。 | 同 seed 下，中途切画风与不切，`step` 300 步后的计数相同。 |
+| R3 | P1 | `__viewer.step` | 只挂在 `__viewer` 上，`glow` API 和 postMessage 调不到；加载后的 settle 阶段在 step 之前已经消耗了随机数；回归从未调用 step。 | 提供 `glow.animate({seed, step, steps})`；带 seed 时场景以暂停状态开始；回归增加“同 seed 跑两次”的比较。 | KcsA、ATP 合酶各跑两次，`counters` 和 `events` 完全相等。 |
+| R4 | P2 | `glow.log` | 日志不记录 seed，重放不可复现。 | `load` 时记录实际用的 `randSeed`。 | `replay` 后 step 的结果与原会话一致。 |
+
+### 6.4 泄漏与竞态
+
+| # | 级别 | 位置 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|---|
+| L1 | **P0** | `clearScene` 的 `anims = []` | 原计划的 S6 没有做：被丢弃的动画 Promise 永远不 resolve，协程挂起并持有旧场景的对象，每切一次场景积累一批。 | 每个 anim 保存 `reject`；`clearScene` 里统一 `reject(new Stale())`；协程吞掉 Stale。 | `rapid` 之后 `pendingAnims = 0`；连切 20 次后 JS 堆变化在 ±10 % 内。 |
+| L2 | P1 | `cache` Map、`kitAtomCache` | 都没有上限，内存只增不减。 | 按字节做 LRU，上限 200 MB。 | 6 个场景轮流加载 3 轮，第 3 轮的堆不超过第 1 轮 + 15 %。 |
+| L3 | P1 | `listenerCount` | `removeEventListener` 不管有没有加过都减一，可能掩盖泄漏；只统计 `controls` 和 `window`。 | 用 WeakMap 记录真正加上的监听器，只在命中时减；把 `document` 和画布也算进来。 | 移除一个从未添加的监听器，计数不变。 |
+| L4 | P1 | `showAutoCard` 里的 setTimeout | 回调不检查场景是否已经换了，旧场景的配体按钮可能加到新卡片上。 | 回调里先比较 `current === cfg`。 | 两个 auto 场景快速切换后，配体按钮只属于第二个。 |
+| L5 | P1 | `for (const comp of cfg.components)` | 组件仍然串行下载（原计划的并行没做）。 | `Promise.allSettled` 并行下载，再按原顺序放置。 | 呼吸链载入时间比基线短；`rapid` 结果不变。 |
+| L6 | P2 | 桌面版 `handleHttps` | 中断信号能否传到 `net.fetch` 没验证；磁盘缓存没有上限。 | 透传 `req.signal`；缓存上限 2 GB。 | 连切时旧请求显示为 canceled。 |
+
+### 6.5 dev.html
+
+| # | 级别 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|
+| V1 | **P0** | “给 AI 的说明”写“粒子数量和速度是示意，请在 caption 里说明”，和证据制度相反；也完全没提 `evidence` 字段和 `structure.source.pdb`。AI 照做写出来的示意内容进不了徽章。 | 在说明里加入 `evidence` 并给示例；删掉“在 caption 里说明”；模板里也加上 `evidence.illustrative`。 | 新会话按说明写一个包，打开后徽章“示意”里有作者写的条目。 |
+| V2 | P1 | 血红蛋白模板写“每个血红素结合一个 O₂”，但动画只有 `{ligand:'HEM', index:0}`，**只有一个血红素在结合**；4HHB 是脱氧态，模板没说明。 | 改成 `{ligands:'HEM'}` 覆盖全部 4 个位点；caption 写明“脱氧态，结合过程为示意”。 | 预览中 4 个血红素都有 O₂ 进出。 |
+| V3 | P1 | 说明缺了这些：内置过程名、`seed`、`orient.up`、flows 的 `stoich/tIn/tVia/tOut/free/max`、`hold`、各字段上限、编号约定（见 C7），以及“先 validatePack → load → info”的自检流程。 | 说明的字段部分由 `glow.help()` 的 schema 自动生成，手写部分只保留风格和证据规则。 | 用脚本比对：说明里的字段与 `sanitizePack`、`checkAnimation` 一一对应。 |
+| V4 | P1 | 校验错误不带 `path`，不能跳到对应行（这一项未做）。 | `PackError` 带 `path`；dev.html 把 path 映射到行号，点击跳行。 | 把 `flows[0].rate` 改成 99，错误显示该 path 并跳到那一行。 |
+| V5 | P2 | iframe 默认加载 `pdb=1K4C`，和左边编辑器里的血红蛋白模板对不上，新用户会困惑。 | 默认预览编辑器里的草稿。 | 首次打开时，左右两边是同一个场景。 |
+| V6 | P2 | 页面上看不到当前选择、seed、是否暂停，也没有单步按钮。 | 加一个状态条，加“单步”按钮和 seed 输入框。 | — |
+
+### 6.6 白底墨线风格与可读性
+
+| # | 级别 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|
+| W1 | P1 | FPS 自动降级会把画质降到 low（像素比 0.6），**插画模式的墨线变粗变糊**；降级后不会回升，还会带到后面的场景。 | 插画模式下像素比不低于 1，先关掉抖动等效果；每加载一个场景恢复用户原来的画质；FPS 持续 > 50 时升回一级。 | 降级后的截图墨线和正常时一致；切到 4HHB 后画质恢复。 |
+| W2 | P2 | 比例尺说明文字透明度 0.85、字号 11 px，对比度只是刚好够；也没说明长度是按“旋转中心处”算的。 | 不透明度改为 1；文案加“（旋转中心处）”。 | 对比度 ≥ 4.5:1。 |
+| W3 | P2 | 选中配体时的橙色半透明球不做深度测试，会盖住配体本身。 | 改成墨色描边环。 | 选中 `ligand HEM` 后仍能看清血红素。 |
+| W4 | ✅ | 测量虚线在插画模式用墨色。 | — | — |
+
+### 6.7 回归脚本
+
+| # | 级别 | 问题 | 修法 | 验收 |
+|---|---|---|---|---|
+| T8 | P1 | 还没有 sha256 源头一致性检查；`regress.mjs` 仍不在仓库的 `desktop/scripts/` 里。 | 按初版清单第 1 项做。 | 改 `web/index.html` 一个字节，回归失败。 |
+| T9 | P1 | `rapid` 列表里没有“整个细胞”，也没有“整个细胞加载两次”的用例，wholeCell 监听器的修复没有回归保护。 | 加入这两个用例。 | 注释掉 `wholeCell.dispose` 后，回归失败。 |
+| T10 | P2 | 页面控制台报错只算警告。 | 改为失败（允许白名单）。 | 人为 `console.error` 一次，回归失败。 |
+
+### 6.8 下一轮执行清单（按顺序；每项完成后 `node scripts/regress.mjs` 全过）
+
+1. **[P0] 桥接安全**：X1，加上 X2、X3。
+2. **[P0] 挂起的 anim 以 Stale 拒绝**：L1；`probe` 增加 `pendingAnims`。
+3. **[P0] 呼吸链物质守恒、快放计数、ATP/NADH 耦合或明示**：C1–C3，用 `step` 和 `events` 断言验收。
+4. **[P0] AI 说明与模板**：V1、V2。
+5. **[P1] 随机覆盖与确定性测试**：R1–R4、C9（含翻译“活动性”断言和 4V6F 组装体核对）、T9。
+6. **[P1] 校验错误路径**：V4，`PackError.path` 从校验一路传到 dev.html 跳行。
+7. **[P1] 编号约定**：C7、C8。
+8. **[P1] 稳定 ASCII 预设 key**：每个预设加 `key` 和 `tier`；`?preset=`、`regress-scenes.json`、`glow.load` 改用 key（旧中文名保留一版作别名）；删掉 `presetCat` 的正则。验收：改一个预设的显示名，回归和外链都不受影响。
+9. **[P1] 组件并行下载**：L5；同时做 L2、L3、L4。
+10. **[P1] 证据补全**：C5、C6；信息卡逐个对象显示证据等级。
+11. **[P1] 序列条（含缺口标记）**：每条链一行，按二级结构着色；缺失残基画虚线，3D 中对应断点也用虚线相连；点击 / 拖选与 `glow.select` 双向联动。验收：4HHB 的 A 链为 141 个；一个有缺口的条目，缺口位置与 RCSB 序列视图一致。
+12. **[P1] 按选择集设置表示**：`glow.represent(expr, 'blob'|'cartoon'|'simplified'|'surface'|'hidden')`，按链生效。验收：`represent('chain A','cartoon')` 只改 A 链；导出再导入后保持不变。
+13. **[P1] 细胞 → 局部系统 → 蛋白质链接 + 返回按钮**：预设和拥挤分子加 `link:<key>`；信息卡上有“打开这个机器”；标题栏有“← 返回”，返回时恢复相机和时间尺度。先打通 ATP 合酶、KcsA、核糖体三条。验收：每条链路进入再返回后，计数与直接加载一致。
+14. **[P1] 拥挤分子可点选、有名字**：记录 `instanceId → {name, pdb, evidence}`，`pickAt` 支持拾取。验收：在细胞一角点任意一个背景分子，都能看到名字、PDB 编号和“位置为示意”。
+15. **[P1] 插画模式的降级策略**（W1）+ **回归补强**（T8、T10）。
+16. **[P2]** X4、X5、L6、V5、V6、W2、W3、C4 的文案、C8。
