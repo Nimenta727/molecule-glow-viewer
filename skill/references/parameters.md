@@ -109,6 +109,7 @@ notes: { '关键词或/正则/': ['标签名', '一句话作用', '点击后显�
 预设字段 `core: [{ near: { part: '/subunit a$/', seq: 159 }, r: 13, with: ['subunit C1'] }, { part: 'subunit C1', seqs: [[56, 60]] }]`：额外的功能核心残基（某残基周围 r Å 内、或指定序号范围），画成原子团块。
 预设字段 `siteNotes: { ADP: '…', ATP: '…' }`：小分子聚焦时信息卡里的位点讲解（按配体三字码）。
 预设 / 过程字段 `energy: [['标签', '解释'], ...]` 与 `energyStage: 'morph'`：底部能量转化条（见 architecture §18）。
+过程字段 `cell`：区室实时模拟（动力学模型 + 开关 + 曲线 + pH 背景 + 浓度小球），写法见 architecture §24 与 PROCESSES.respiratoryChain / chloroplast。
 预设字段 `solid: [部件关键词]`：永不画成半透明支架（动画移动的穿梭蛋白）。插画画风滑块“插画线条”“远处淡出”见 architecture §23。
 预设字段 `down`（与 `up` 相反）、`coreLigands`、`ligOff`、`rowFlip`，组件字段 `beside: { dir: 'row' }`、`at: { part, dy, along }`：见 architecture §22.2。
 预设字段 `axisFit`、`groupParts`、`frameAll`、`camera.broadside`，组件字段 `axisFrom` / `alignTo` / `beside` / `split` / `pivot`：多机器协同场景用，见 architecture §21.2。

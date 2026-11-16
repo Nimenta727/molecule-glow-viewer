@@ -234,3 +234,15 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - 预设字段 `solid: [...]`：这些部件永不画成半透明支架（被动画移动的穿梭蛋白：质体蓝素、铁氧还蛋白、细胞色素 c）。
 
 - 默认画风改为插画（白底墨线），用户选择；黑底辉光仍可在“画风”里切换。
+
+## 24. v9：细胞区室实时模拟（浓度、pH、膜电位随时间变化）
+用户要求：不只看一个蛋白，要看整个过程里细胞各区域的变化（浓度等）和多蛋白协同。
+- 过程定义可带 `cell: { init(), step(s, h, ctrl) → flux, controls, series, comps(s, f), dots, explain(s, f, ctrl) }`。`loadScene` 在 `resetCamera` 之后 `startCellSim(P.cell)`；`clearScene` 调 `stopCellSim`。
+- 积分：每帧把 dt 切成 ≤ 0.02 s 的步长调用 `step`；`step` 返回 `flux`，其中 `rate`（电子流相对值）决定动画节奏：`ctx.pace() = max(0.3, 转速/0.6) × clamp(rate, 0.5, 1.8)`，过程的循环只在 `rate > 0.08` 时开始新一轮（关灯 / 缺氧时动画停下）；`rotor`（ATP 合成速率相对值）乘到转子角速度上。
+- 动力学模型（离线用 Python 调参，结果对上教材数值）：
+  - 线粒体：pmf、NADH、ATP 三个状态；呼吸控制（pmf → 205 mV 时电子传递变慢）、ATP 合酶阈值 140 mV、漏、TCA 供 NADH、细胞耗 ATP。开关：底物 / O₂ / 高耗能 / 寡霉素 / DNP。寡霉素 → 耗氧降到 ~20 %；DNP → 耗氧 ~380 %、ATP≈0；缺氧 → 全部塌陷。
+  - 叶绿体：光强、卡尔文酶激活（τ≈6 s）、ΔpH、NADPH、ATP；b6f 在腔 pH < ~5.8 时减速（光合控制）、环式电子流（只泵 H⁺ 不产 NADPH）、卡尔文循环 3 ATP + 2 NADPH / CO₂。见光稳态：腔 pH ≈ 5.6，基质 ≈ 8.1。开关：光照 / 环式电子流 / 解偶联剂 / 抑制 ATP 合酶。
+- 3D：每个区室（膜上方 `top` / 下方 `bot`，高度 ≥ 106 Å）一块面向镜头的背景板，放在所有原子后面，颜色按 pH（酸红 → 中性黄绿 → 碱蓝），两端和远离膜的一侧淡出；**必须 `DoubleSide`**（按 `atan2` 转向后正面朝向判断不可靠，单面时整块被剔除）。旁边 HTML 标签显示区室名 + 实时 pH，不与左侧面板重叠。
+- 游离分子：每种一个 `InstancedMesh`，数量 = `count(s)`（H⁺ 按 10^(−pH) 换算），在区室盒内布朗漂移。插画模式用 `MeshBasicMaterial` 平涂（墨线由 InkPass 画），视频模式用自发光材质；切换画风时自动换材质。`label` 字段生成图例。
+- HUD（右上）：每个量一行数值 + 迷你曲线（每 0.25 s 一点，保留 240 点），开关按钮，图例，以及按当前状态生成的中文讲解。点标题折叠。信息卡打开时隐藏。
+- 隐藏的浏览器页 / 零尺寸画布：`camera.aspect` 会成 NaN → 相机、剖切平面全部 NaN，three.js 报 “toArray is not a function”。`safeAspect()`、`applyCut` 与 resize 都加了有限值检查。

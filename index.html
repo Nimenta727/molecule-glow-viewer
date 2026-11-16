@@ -64,6 +64,27 @@
        border:1px solid rgba(255,255,255,.16);color:#e6ebf7;font-size:13.5px;line-height:1.7;display:none;backdrop-filter:blur(6px)}
   #infoCard h3{margin:0 0 6px;font-size:16px}#infoCard .x{position:absolute;right:10px;top:6px;cursor:pointer;color:#9aa6c4;font-size:18px}
   #infoCard .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  #cellHud{position:fixed;right:18px;top:72px;width:262px;padding:10px 12px;border-radius:12px;background:rgba(10,12,24,.84);border:1px solid rgba(255,255,255,.14);
+       color:#e6ebf7;font-size:12px;line-height:1.4;display:none;backdrop-filter:blur(6px);z-index:3}
+  #cellHud .hd{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:4px;cursor:pointer}
+  #cellHud .hd span{font-weight:400;color:var(--dim);font-size:11px}
+  #cellHud .r{display:grid;grid-template-columns:78px 62px 1fr;align-items:center;gap:6px;margin:1px 0}
+  #cellHud .r b{font-weight:600;font-variant-numeric:tabular-nums}
+  #cellHud canvas{width:100%;height:20px;display:block}
+  #cellHud .ctl{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+  #cellHud .ctl button{font:inherit;font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid rgba(127,140,170,.6);background:transparent;color:inherit;opacity:.6;cursor:pointer}
+  #cellHud .ctl button.on{opacity:1;background:rgba(127,182,245,.22);border-color:#7fb6f5}
+  #cellHud .key{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:11px;color:var(--dim)}
+  #cellHud .key i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0;border:1px solid rgba(0,0,0,.5)}
+  #cellHud.min .key{display:none}
+  #cellHud .note{margin-top:7px;font-size:11.5px;line-height:1.55;color:#b9c3dc}
+  #cellHud.min .r,#cellHud.min .note{display:none}
+  body.lightbg #cellHud{background:rgba(255,255,255,.93);color:#1c2233;border-color:rgba(0,0,0,.08);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  body.lightbg #cellHud .note{color:#4a5368}
+  body:has(#infoCard[style*="block"]) #cellHud{display:none!important}
+  .compLab{position:fixed;pointer-events:none;font-size:12px;font-weight:600;padding:2px 8px;border-radius:8px;background:rgba(10,12,24,.6);color:#e6ebf7;white-space:nowrap;transform:translate(0,-50%)}
+  body.lightbg .compLab{background:rgba(255,255,255,.85);color:#1c2233;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+  @media (max-width:600px){ #cellHud{top:auto;bottom:110px;right:8px;width:210px;font-size:11px} #cellHud .note{display:none} #cellHud .r{grid-template-columns:64px 52px 1fr} }
   #caption:not(:empty){background:rgba(0,0,0,.55);border-radius:10px;padding:6px 14px;backdrop-filter:blur(4px)}
   body.lightbg #caption{color:#1c2233;text-shadow:none;background:rgba(255,255,255,.88);box-shadow:0 2px 12px rgba(0,0,0,.08)}
   body.lightbg #caption .cnt{color:#9a6b00}
@@ -108,6 +129,7 @@
 <div id="caption"></div>
 <div id="labels"></div>
 <div id="energy"></div>
+<div id="cellHud"><div class="hd" id="cellHd">细胞区室 · 实时模拟 <span id="cellT"></span></div><div id="cellRows"></div><div class="ctl" id="cellCtl"></div><div class="key" id="cellKey"></div><div class="note" id="cellNote"></div></div>
 <div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
 <div id="drop">松开鼠标导入结构文件（.cif / .pdb）</div>
 
@@ -1668,7 +1690,8 @@ function updateFly() {
   if (k >= 1) camFly = null;
 }
 controls.addEventListener('start', () => { camFly = null; });
-const fitDist = (r) => { const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * camera.aspect)); return r / Math.sin(half); };
+const safeAspect = () => Number.isFinite(camera.aspect) && camera.aspect > 0 ? camera.aspect : 1;   // hidden tab / zero-size canvas gives 0/0
+const fitDist = (r) => { const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * safeAspect())); return r / Math.sin(half); };
 /* what the info card says about a part or one residue of it */
 function showSelInfo(g, a) {
   const notes = current?.notes, nk = findKey(notes, g.name), note = nk != null ? notes[nk] : null;
@@ -2153,6 +2176,50 @@ const PROCESSES = {
      (Rieske Fe-S -> c1 and bL -> bH -> Qi); cyt c shuttles III -> IV; IV: CuA -> heme a -> a3/CuB -> O2.
      Proton counts per NADH (2 e-): I 4, III 4 (released to the IMS), IV 2 -> 10 H+; bovine c8 ring: 8 H+ per 3 ATP. */
   respiratoryChain: {
+    /* compartment model (matrix / intermembrane space): pmf mainly membrane potential (~150 mV) + ΔpH ~0.9; respiratory
+       control (electron transport slows as pmf approaches ~205 mV), ATP synthase c8 (8/3 H+ per ATP + 1 for ADP/Pi import),
+       TCA cycle supplies NADH, the cell consumes ATP. */
+    cell: {
+      init: () => ({ pmf: 0, nadh: 0.5, atp: 1.0 }),
+      step(s, h, c) {
+        const NADt = 3, At = 3, pmf = s.pmf, nad = NADt - s.nadh, adp = At - s.atp;
+        const fbp = 1 / (1 + Math.exp((pmf - 205) / 7)), Je = 1.2 * (c.o2 ? 1 : 0) * fbp * s.nadh / (s.nadh + 0.3);
+        const x = Math.max(0, (pmf - 140) / 30), Jatp = c.oligo ? 0 : 1.0 * x / (1 + x) * adp / (adp + 0.15), Jleak = 0.25 * pmf / 180 * (c.dnp ? 30 : 1);
+        s.pmf = Math.max(0, pmf + h * (5 * Je - 11 / 3 * Jatp - Jleak) * 60);
+        s.nadh = Math.min(NADt, Math.max(0, s.nadh + h * (0.8 * (c.sub ? 1 : 0) * nad / (nad + 0.3) - Je / 2)));
+        const Juse = 0.35 * (c.demand ? 3 : 1) * s.atp / (s.atp + 0.4);
+        s.atp = Math.min(At, Math.max(0, s.atp + h * (Jatp - Juse)));
+        return { Je, Jatp, Juse, pmf, rate: Je / 0.3, rotor: Math.min(2.5, Jatp / 0.3) };
+      },
+      controls: [
+        { id: 'sub', label: '底物（NADH）', on: true, tip: '三羧酸循环供应 NADH' },
+        { id: 'o2', label: 'O₂', on: true, tip: '关 = 缺氧 / 氰化物抑制复合体 IV' },
+        { id: 'demand', label: '高耗能（运动）', on: false, tip: '细胞消耗 ATP 加快 3 倍' },
+        { id: 'oligo', label: '寡霉素', on: false, tip: '堵住 ATP 合酶的 H⁺ 通道' },
+        { id: 'dnp', label: 'DNP 解偶联', on: false, tip: '2,4-二硝基苯酚：把 H⁺ 直接带回基质' } ],
+      series: [
+        { label: '膜间隙 pH', range: [6.6, 7.4], color: '#ff7a3d', get: (s) => 7.2 - 0.4 * 0.0045 * s.pmf, fmt: (v) => v.toFixed(2) },
+        { label: '基质 pH', range: [7.0, 8.0], color: '#4f8ff0', get: (s) => 7.2 + 0.6 * 0.0045 * s.pmf, fmt: (v) => v.toFixed(2) },
+        { label: '膜电位 Δψ', range: [0, 180], color: '#c04fd0', get: (s) => s.pmf * (1 - 59 * 0.0045), fmt: (v) => v.toFixed(0) + ' mV' },
+        { label: '耗氧速率', range: [0, 4], color: '#22b8cf', get: (s, f) => f.Je / 0.284, fmt: (v) => (v * 100).toFixed(0) + ' %' },
+        { label: 'ATP', range: [0, 3], color: '#e8a000', get: (s) => s.atp, fmt: (v) => v.toFixed(2) + ' mM' },
+        { label: 'NADH', range: [0, 3], color: '#d9480f', get: (s) => s.nadh, fmt: (v) => v.toFixed(2) + ' mM' } ],
+      comps: (s) => [{ name: '基质（matrix）', pH: 7.2 + 0.6 * 0.0045 * s.pmf }, { name: '膜间隙（IMS）', pH: 7.2 - 0.4 * 0.0045 * s.pmf }],
+      dots: [
+        { label: 'H⁺', comp: 'bot', color: 0xfff27a, ink: 0xf5c400, r: 2.0, max: 60, count: (s) => 1 + 38 * Math.pow(10, 6.82 - (7.2 - 0.0018 * s.pmf)) },
+        { label: 'H⁺', comp: 'top', color: 0xfff27a, ink: 0xf5c400, r: 2.0, max: 30, count: (s) => 1 + 38 * Math.pow(10, 6.82 - (7.2 + 0.0027 * s.pmf)) },
+        { label: 'ATP', comp: 'top', color: 0xff9a2e, ink: 0xf07a12, r: 3.0, max: 40, count: (s) => 30 * s.atp / 3 },
+        { label: 'NADH', comp: 'top', color: 0xff6fa8, ink: 0xd9467e, r: 3.4, max: 30, count: (s) => 24 * s.nadh / 3 } ],
+      explain(s, f, c) {
+        const r = Math.round(f.Je / 0.284 * 100);
+        if (!c.o2) return '缺氧 / 氰化物：复合体 IV 无法把电子交给 O₂，整条链堵住，NADH 无法氧化，质子动力势消失，ATP 合成停止——这就是氰化物致死的原因。';
+        if (c.dnp) return `DNP 把 H⁺ 直接带回基质：质子动力势降到约 ${s.pmf.toFixed(0)} mV，“反压”消失，耗氧速率飙到 ${r}%，但能量变成热，ATP 几乎为零（20 世纪 30 年代曾被当减肥药，致死）。`;
+        if (c.oligo) return `寡霉素堵住 ATP 合酶：H⁺ 回不来，膜电位升到约 ${(s.pmf * 0.73).toFixed(0)} mV，电子传递被“反压”压到 ${r}%（呼吸控制）；细胞继续耗 ATP，ATP 越来越少。`;
+        if (!c.sub) return 'NADH 供应中断：电子来源耗尽，耗氧和质子泵停下，质子动力势逐渐消失。';
+        if (c.demand) return `高耗能：ATP 被快速消耗，ADP 增多，ATP 合酶加速回流 H⁺，质子动力势略降，“反压”减小，电子传递和耗氧自动加快到 ${r}%——这就是呼吸控制。`;
+        return `静息稳态：膜电位约 ${(s.pmf * 0.73).toFixed(0)} mV + ΔpH 约 ${(0.0045 * s.pmf).toFixed(1)}，质子动力势约 ${s.pmf.toFixed(0)} mV。ATP 充足、ADP 少，ATP 合酶转得慢，电子传递也被“反压”压低。试试“高耗能”“寡霉素”“DNP”。`;
+      },
+    },
     energyHL: [['/^复合体 I$/'], ['/^复合体 I$/'], ['/^复合体 I$/', '/^复合体 III$/'], ['/^复合体 III$/'], ['细胞色素 c', '/^复合体 III$/', '/^复合体 IV$/'], ['/^复合体 IV$/'], ['ATP 合酶']],
     energy: [
       ['NADH 交出电子', 'NADH 把 2 个电子（以氢负离子 H⁻ 形式）交给复合体 I 顶端的 FMN。NAD⁺/NADH 的标准还原电位 E°′ ≈ −0.32 V，是整条链的“高能”起点。'],
@@ -2216,13 +2283,13 @@ const PROCESSES = {
       this.t = 0; this.busy = false; this.stg = 0;
     },
     move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
-      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6); let i = 0; p.position.copy(pts[0]);
+      const ctx = this.ctx, k = ctx.pace(); let i = 0; p.position.copy(pts[0]);
       const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
         const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
       go();
     },
     pumpH(from, to, delay = 0) {   // one H+ across the membrane (matrix +y -> IMS -y for the pumps)
-      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6);
+      const ctx = this.ctx, k = ctx.pace();
       ctx.anim(null, Math.max(0.02, delay / k), () => {}, () => { const p = ctx.makeParticle(0xfff27a, 2.6); ctx.counters['H⁺ 泵出']++;
         this.move(p, [from, from.clone().lerp(to, 0.5), to], 1.0, (q) => ctx.anim(q, 0.6 / k, (u) => { q.scale.setScalar(2.6 * (1 - u) + 0.01); })); });
     },
@@ -2243,15 +2310,15 @@ const PROCESSES = {
             const ea = ctx.makeParticle(0x6ff4ff, 3.0);
             this.move(ea, [this.Qo, this.isp, this.c1, this.cytPos.clone().sub(this.c0).add(this.h0)], 0.6, (x) => { x.parent?.remove(x);
               this.stg = 4; this.cytLoaded = true; const a = this.cytPos.clone();
-              ctx.anim(null, 2.2 / Math.max(0.3, ctx.speed / 0.6), (u) => { this.cytPos.lerpVectors(a, this.dock2, ease(u)); }, () => {
+              ctx.anim(null, 2.2 / ctx.pace(), (u) => { this.cytPos.lerpVectors(a, this.dock2, ease(u)); }, () => {
                 this.stg = 5; this.cytLoaded = false; const e4 = ctx.makeParticle(0x6ff4ff, 3.0);
                 this.pumpH(up(this.ha, 34), up(this.ha, -34), 0.6); this.pumpH(up(this.ha, 34).add(V3(5, 0, 0)), up(this.ha, -34).add(V3(5, 0, 0)), 1.1);
                 for (let i = 0; i < 2; i++) { const h = ctx.makeParticle(0xfff27a, 2.6); this.move(h, [up(this.cuB, 34).add(V3(i * 6 - 3, 0, 0)), this.cuB], 1.4, (x) => x.parent?.remove(x)); }
                 this.move(e4, [this.dock2.clone().sub(this.c0).add(this.h0), this.cuA, this.ha, this.a3, this.cuB], 0.55, (x) => { x.parent?.remove(x);
                   const f = ctx.makeParticle(0xff4a4a, 4.5); f.position.copy(this.cuB).add(V3(0, 9, 0));   // O2 -> H2O
                   ctx.anim(f, 1.2, (u) => { f.scale.setScalar(4.5 + u * 3); f.material.color.setHSL(0.0 + u * 0.55, 0.9, 0.6); f.material.emissive?.copy(f.material.color); });
-                  const b = this.cytPos.clone(); ctx.anim(null, 2.2 / Math.max(0.3, ctx.speed / 0.6), (u) => { this.cytPos.lerpVectors(b, this.dock1, ease(u)); });
-                  this.stg = 6; ctx.anim(null, 2.6 / Math.max(0.3, ctx.speed / 0.6), () => {}, () => { this.busy = false; });
+                  const b = this.cytPos.clone(); ctx.anim(null, 2.2 / ctx.pace(), (u) => { this.cytPos.lerpVectors(b, this.dock1, ease(u)); });
+                  this.stg = 6; ctx.anim(null, 2.6 / ctx.pace(), () => {}, () => { this.busy = false; });
                 });
               });
             });
@@ -2260,7 +2327,7 @@ const PROCESSES = {
       });
     },
     update(ctx) {
-      if (!this.busy) this.cycle();
+      if (!this.busy && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle();
       /* cytochrome c follows its animated position; its heme glows while it carries an electron */
       const g = ctx.partGroups(/^细胞色素 c$/)[0];
       if (g?.mesh) g.mesh.position.copy(this.cytPos).sub(this.c0);
@@ -2275,6 +2342,53 @@ const PROCESSES = {
   },
 
   chloroplast: {
+    /* compartment model (stroma / thylakoid lumen): mM, s. Lumen pH 7 -> ~5.6 in light, stroma 7 -> ~8.1; photosynthetic
+       control (b6f slows when lumen pH < ~5.8), ATP synthase driven by pmf above threshold, Calvin cycle 3 ATP + 2 NADPH / CO2
+       (enzymes light-activated via thioredoxin, tau ~6 s), cyclic electron flow when NADPH is high (2 H+/e-, no NADPH). */
+    cell: {
+      init: () => ({ L: 0, act: 0, dpH: 0, nadph: 0.05, atp: 0.5 }),
+      step(s, h, c) {
+        s.L += ((c.light ? 1 : 0) - s.L) * Math.min(1, h / 0.3); s.act += ((c.light ? 1 : 0) - s.act) * Math.min(1, h / 6);
+        const Nt = 0.5, At = 1.5, dpH = s.dpH, nadp = Nt - s.nadph, adp = At - s.atp;
+        const fbp = 1 / (1 + Math.exp((dpH - 2.5) / 0.15));
+        const Je = 0.8 * s.L * fbp * nadp / (nadp + 0.04), Jc = c.cef ? 0.35 * s.L * fbp * (s.nadph / Nt) ** 2 : 0;
+        const dpsi = 20 * (1 - Math.exp(-dpH / 0.6)), pmf = 59 * dpH + dpsi, x = Math.max(0, (pmf - 95) / 45);
+        const Jatp = c.oligo ? 0 : 0.55 * x / (1 + x) * adp / (adp + 0.25), Jleak = 0.07 * dpH * (c.unc ? 20 : 1);
+        s.dpH = Math.max(0, dpH + h * (3 * Je + 2 * Jc - 14 / 3 * Jatp - Jleak) / 1.2);
+        const Jcal = 0.12 * s.act * s.atp / (s.atp + 0.3) * s.nadph / (s.nadph + 0.05);
+        s.nadph = Math.min(Nt, Math.max(0, s.nadph + h * (Je / 2 - 2 * Jcal)));
+        s.atp = Math.min(At, Math.max(0, s.atp + h * (Jatp - 3 * Jcal - 0.01 * s.atp)));
+        return { Je, Jc, Jatp, Jcal, pmf, rate: Je / 0.3, rotor: Math.min(2.5, Jatp / 0.24) };
+      },
+      controls: [
+        { id: 'light', label: '☀ 光照', on: true, tip: '关灯：电子传递停止，看 ΔpH 和 ATP 怎样消退' },
+        { id: 'cef', label: '环式电子流', on: true, tip: 'Fd → PQ → b6f → PSI：只泵 H⁺、不产 NADPH，补足 ATP' },
+        { id: 'unc', label: '解偶联剂', on: false, tip: '例如 NH₄Cl / 尼日利亚菌素：H⁺ 直接漏回基质' },
+        { id: 'oligo', label: '抑制 ATP 合酶', on: false, tip: '例如 tentoxin：H⁺ 出不去' } ],
+      series: [
+        { label: '类囊体腔 pH', range: [5.2, 7.4], color: '#ff7a3d', get: (s) => 7.0 - 0.55 * s.dpH, fmt: (v) => v.toFixed(2) },
+        { label: '基质 pH', range: [6.8, 8.4], color: '#4f8ff0', get: (s) => 7.0 + 0.45 * s.dpH, fmt: (v) => v.toFixed(2) },
+        { label: '质子动力势', range: [0, 190], color: '#c04fd0', get: (s, f) => f.pmf, fmt: (v) => v.toFixed(0) + ' mV' },
+        { label: '电子流', range: [0, 1.5], color: '#22b8cf', get: (s, f) => f.Je / 0.3, fmt: (v) => (v * 100).toFixed(0) + ' %' },
+        { label: 'ATP', range: [0, 1.5], color: '#e8a000', get: (s) => s.atp, fmt: (v) => v.toFixed(2) + ' mM' },
+        { label: 'NADPH', range: [0, 0.5], color: '#d9480f', get: (s) => s.nadph, fmt: (v) => v.toFixed(2) + ' mM' },
+        { label: 'CO₂ 固定', range: [0, 0.1], color: '#2f9e44', get: (s, f) => f.Jcal, fmt: (v) => (v / 0.079 * 100).toFixed(0) + ' %' } ],
+      comps: (s) => [{ name: '基质（stroma）', pH: 7.0 + 0.45 * s.dpH }, { name: '类囊体腔（lumen）', pH: 7.0 - 0.55 * s.dpH }],
+      dots: [
+        { label: 'H⁺', comp: 'bot', color: 0xfff27a, ink: 0xf5c400, r: 2.0, max: 60, count: (s) => 1 + 40 * Math.pow(10, 5.6 - (7.0 - 0.55 * s.dpH)) },
+        { label: 'H⁺', comp: 'top', color: 0xfff27a, ink: 0xf5c400, r: 2.0, max: 20, count: (s) => 1 + 40 * Math.pow(10, 5.6 - (7.0 + 0.45 * s.dpH)) },
+        { label: 'ATP', comp: 'top', color: 0xff9a2e, ink: 0xf07a12, r: 3.0, max: 40, count: (s) => 30 * s.atp / 1.5 },
+        { label: 'NADPH', comp: 'top', color: 0xff6fa8, ink: 0xd9467e, r: 3.4, max: 30, count: (s) => 24 * s.nadph / 0.5 } ],
+      explain(s, f, c) {
+        const lp = (7 - 0.55 * s.dpH).toFixed(1), sp = (7 + 0.45 * s.dpH).toFixed(1);
+        if (!c.light) return s.dpH > 0.3 ? `黑暗：电子传递停止，腔内积累的 H⁺ 经 ATP 合酶和漏流回到基质，ΔpH 正在消退（腔 pH ${lp}）；卡尔文循环的酶随之失活。` : '黑暗：没有质子梯度，ATP 合酶停转，卡尔文循环停止。按“☀ 光照”看光照后几秒内腔内怎样酸化。';
+        if (c.unc) return '解偶联剂让 H⁺ 不经 ATP 合酶直接漏回基质：ΔpH 崩塌，ATP 合酶停转，ATP 耗尽，卡尔文循环停下，NADPH 堆积，电子传递也因没有 NADP⁺ 而停。';
+        if (c.oligo) return `ATP 合酶被抑制：H⁺ 只进不出，腔 pH 降到约 ${lp} 后 b6f 被“反压”抑制（光合控制，保护 PSII），电子流变慢；没有 ATP，卡尔文循环停下。`;
+        if (!c.cef && s.atp < 0.6) return '没有环式电子流：线性电子流每个 NADPH 只配约 1.29 个 ATP，卡尔文循环需要 1.5 → ATP 不够、NADPH 堆积，NADP⁺ 不足又卡住了电子传递。再打开“环式电子流”。';
+        if (s.dpH < 2) return `刚开灯：电子传递把 H⁺ 泵进类囊体腔，腔 pH 迅速下降（${lp}），基质变碱（${sp}）；ΔpH 超过阈值后 ATP 合酶开始转动。`;
+        return `光照稳态：腔 pH ≈ ${lp}，基质 pH ≈ ${sp}，ΔpH ≈ ${s.dpH.toFixed(1)}（叶绿体的质子动力势主要是 ΔpH）。ATP 和 NADPH 被卡尔文循环按 3 : 2 消耗${c.cef ? '，环式电子流补足 ATP' : ''}。`;
+      },
+    },
     energyHL: [['LHCII 天线', 'PSII 核心'], ['PSII 核心', '放氧复合体蛋白'], ['PSII 核心', 'Cyt b6f'], ['质体蓝素', 'Cyt b6f', 'PSI-LHCI'], ['PSI-LHCI'], ['PSI-LHCI', '铁氧还蛋白', 'FNR'], ['ATP 合酶']],
     energy: [
       ['光能捕获', '天线叶绿素吸收光子（680 nm 红光约 1.82 eV，每摩尔光子约 176 kJ），激发能经共振能量转移在几十皮秒内汇集到反应中心 P680。每轮动画 = 2 个电子 = 1 个 NADPH，PSII 和 PSI 各需 2 个光子。'],
@@ -2343,14 +2457,14 @@ const PROCESSES = {
       this.busy = false; this.stg = 0; this.n = 0;
     },
     move(p, pts, per, done) {   // hop a particle through points; per = seconds per 20 A
-      const ctx = this.ctx, k = Math.max(0.3, ctx.speed / 0.6); let i = 0; p.position.copy(pts[0]);
+      const ctx = this.ctx, k = ctx.pace(); let i = 0; p.position.copy(pts[0]);
       const go = () => { if (i >= pts.length - 1) { done ? done(p) : p.parent?.remove(p); return; }
         const a = pts[i].clone(), b = pts[i + 1].clone(); i++; ctx.anim(p, (per * (0.35 + a.distanceTo(b) / 20)) / k, (u) => { p.position.copy(a).lerp(b, ease(u)); }, go); };
       go();
     },
     async cycle() {
       const ctx = this.ctx, V3 = (x, y, z) => new THREE.Vector3(x, y, z), ym = this.ym, up = (p, d) => p.clone().setY(ym + d);
-      const k = () => Math.max(0.3, ctx.speed / 0.6), wait = (s) => new Promise(r => ctx.anim(null, Math.max(0.02, s / k()), () => {}, r));
+      const k = () => ctx.pace(), wait = (s) => new Promise(r => ctx.anim(null, Math.max(0.02, s / k()), () => {}, r));
       const hop = (p, pts, per) => new Promise(r => this.move(p, pts, per, (q) => { q.parent?.remove(q); r(); }));
       const mk = (c, r) => ctx.makeParticle(c, r), E = 0x6ff4ff, H = 0xfff27a;
       const flash = (p, c, r) => { const f = ctx.makeFlash(c); f.visible = true; f.position.copy(p); ctx.anim(f, 0.8 / k(), (u) => { f.scale.setScalar(r * (0.4 + 1.6 * u)); f.material.opacity = 0.9 * (1 - u); }); };
@@ -2410,7 +2524,7 @@ const PROCESSES = {
       this.busy = false;
     },
     update(ctx) {
-      if (!this.busy) this.cycle().catch((e) => console.warn(e));
+      if (!this.busy && (!cellSim || cellSim.flux.rate > 0.08)) this.cycle().catch((e) => console.warn(e));
       for (const [lab, s, col] of [['质体蓝素', this.pc, 0x4ad6ff], ['铁氧还蛋白', this.fd, 0xff8a5a]]) {
         const g = ctx.partGroups(new RegExp('^' + lab + '$'))[0]; if (g?.mesh) g.mesh.position.copy(s.pos).sub(s.c0);
         if (!s.glow) s.glow = ctx.makeParticle(col, 2.2);
@@ -2648,10 +2762,137 @@ async function loadScene(cfg) {
     if (!labelsTouched) $('labelsOn').checked = !!cfg.notes;   // V12: respect the user's own choice
     renderLegend(); rebuildLabels(); renderEnergy();
     resetCamera(cfg.camera); aimCut();
+    if (P?.cell && proc) startCellSim(P.cell);
     const total = groups.reduce((s, g) => s + g.atoms.length, 0);
     status(`完成：${total.toLocaleString()} 个残基团块，${ligands.length} 个小分子`);
   } catch (e) { if (e instanceof Stale) return; console.error(e); status('出错：' + e.message, true); }
   $('load').disabled = false;
+}
+
+/* =============================================================================
+   CELL SIMULATION: compartments, concentrations and coupled fluxes
+   A process may define `cell: { init(), step(st, h, ctrl) -> flux, controls, series, comps, dots, explain }`.
+   The kinetic model runs in real time (seconds); it drives the 3D: `flux.rate` paces the electron-transfer animation
+   (0 = stops, e.g. light off), `flux.rotor` scales the ATP-synthase rotor; pH-coloured backdrops behind the two
+   compartments, free H+ / ATP / NADPH dots whose numbers follow the concentrations, and a live panel of curves.
+   ============================================================================= */
+let cellSim = null;
+const PH_STOPS = [[5.0, '#e8503a'], [5.8, '#ff8a3d'], [6.5, '#f5c84a'], [7.0, '#c9d96a'], [7.5, '#86cfa0'], [8.0, '#6fb1f0'], [8.6, '#5a7fe0']];
+function phColour(pH) {
+  const S = PH_STOPS; if (pH <= S[0][0]) return new THREE.Color(S[0][1]);
+  for (let i = 1; i < S.length; i++) if (pH <= S[i][0]) { const u = (pH - S[i - 1][0]) / (S[i][0] - S[i - 1][0]); return new THREE.Color(S[i - 1][1]).lerp(new THREE.Color(S[i][1]), u); }
+  return new THREE.Color(S[S.length - 1][1]);
+}
+function startCellSim(def) {
+  stopCellSim();
+  const sim = { def, st: def.init(), ctrl: Object.fromEntries(def.controls.map(c => [c.id, c.on])), hist: def.series.map(() => []), t: 0, tH: 0, flux: { rate: 1, rotor: 1 }, objs: [], dots: [], labs: [] };
+  for (let i = 0; i < 40; i++) sim.flux = def.step(sim.st, 0.05, sim.ctrl) || sim.flux;   // short warm-up (dark / resting start)
+  cellSim = sim;
+  /* HUD */
+  const hud = $('cellHud'); hud.style.display = 'block';
+  $('cellRows').innerHTML = def.series.map((se, i) => `<div class="r"><span>${se.label}</span><b id="cv${i}"></b><canvas id="cs${i}" width="240" height="40"></canvas></div>`).join('');
+  $('cellCtl').innerHTML = '';
+  for (const c of def.controls) {
+    const b = document.createElement('button'); b.textContent = c.label; b.title = c.tip || ''; b.classList.toggle('on', !!sim.ctrl[c.id]);
+    b.onclick = () => { sim.ctrl[c.id] = !sim.ctrl[c.id]; b.classList.toggle('on', sim.ctrl[c.id]); };
+    $('cellCtl').appendChild(b);
+  }
+  $('cellHd').onclick = () => hud.classList.toggle('min');
+  buildCellVisuals(sim);
+}
+function stopCellSim() {
+  if (!cellSim) return;
+  for (const o of cellSim.objs) { o.parent?.remove(o); disposeObj(o); }
+  cellSim.labs.forEach(l => l.remove());
+  cellSim = null; $('cellHud').style.display = 'none';
+}
+/* compartments: the strip of membrane the machines sit in; top = +y side, bottom = -y side */
+function cellBoxes() {
+  const A = model.allAtoms, ym = proc?.ctx?.membraneY?.[0] ?? 0, d = model.rowDir || new THREE.Vector3(1, 0, 0), n = new THREE.Vector3(-d.z, 0, d.x), c = model.focus.centre.clone().setY(0);
+  let ulo = 1e9, uhi = -1e9, vlo = 1e9, vhi = -1e9, ylo = 1e9, yhi = -1e9;
+  for (let i = 0; i < A.length; i += 3) { const p = A[i].p, q = new THREE.Vector3(p.x - c.x, 0, p.z - c.z), u = q.dot(d), v = q.dot(n);
+    ulo = Math.min(ulo, u); uhi = Math.max(uhi, u); vlo = Math.min(vlo, v); vhi = Math.max(vhi, v); ylo = Math.min(ylo, p.y); yhi = Math.max(yhi, p.y); }
+  return { ym, d, n, c, ulo: ulo - 20, uhi: uhi + 20, vlo: vlo - 10, vhi: vhi + 10, top: [ym + 24, Math.max(ym + 130, yhi + 15)], bot: [Math.min(ym - 130, ylo - 10), ym - 24] };
+}
+function buildCellVisuals(sim) {
+  const B = sim.box = cellBoxes(), def = sim.def;
+  /* backdrop: one camera-facing panel per compartment, behind the machines, coloured by its pH */
+  sim.panels = ['top', 'bot'].map((k) => {
+    const [y0, y1] = B[k], w = (B.uhi - B.ulo) * 1.15, h = y1 - y0;
+    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      uniforms: { uCol: { value: new THREE.Color() }, uA: { value: 0.2 }, uTop: { value: k === 'top' ? 1 : 0 } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform vec3 uCol; uniform float uA, uTop; varying vec2 vUv;
+        void main(){ float far = uTop > 0.5 ? vUv.y : 1.0 - vUv.y;   // fade away from the membrane and at the ends
+          float a = uA * (1.0 - smoothstep(0.55, 1.0, far)) * smoothstep(0.0, 0.08, vUv.x) * smoothstep(1.0, 0.92, vUv.x);
+          gl_FragColor = vec4(uCol, a); }` });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.renderOrder = -5; m.userData = { y: (y0 + y1) / 2, k }; world.add(m); sim.objs.push(m);
+    const lab = document.createElement('div'); lab.className = 'compLab'; document.body.appendChild(lab); sim.labs.push(lab);
+    return m;
+  });
+  /* free molecules: one instanced mesh per species, count follows the concentration */
+  const geo = new THREE.IcosahedronGeometry(1, 2);
+  sim.dots = def.dots.map((sp) => {
+    const mesh = new THREE.InstancedMesh(geo, dotMaterial(sp), sp.max || 60); mesh.count = 0; mesh.frustumCulled = false; world.add(mesh); sim.objs.push(mesh);
+    const [y0, y1] = B[sp.comp], P = [];
+    for (let i = 0; i < (sp.max || 60); i++) P.push(new THREE.Vector3(B.ulo + Math.random() * (B.uhi - B.ulo), y0 + 4 + Math.random() * (y1 - y0 - 8), B.vlo + Math.random() * (B.vhi - B.vlo)));
+    return { sp, mesh, P, y0, y1, r: sp.r || 2.2, ill: illustrative() };
+  });
+  /* dot legend under the switches */
+  const seen = new Set();
+  $('cellKey').innerHTML = def.dots.filter(sp => sp.label && !seen.has(sp.label) && seen.add(sp.label))
+    .map(sp => `<span><i style="background:#${new THREE.Color(sp.ink || sp.color).getHexString()}"></i>${sp.label}</span>`).join('');
+}
+/* illustrative: flat colour (the ink pass draws the outline); video style: glowing */
+function dotMaterial(sp) {
+  return illustrative() ? new THREE.MeshBasicMaterial({ color: sp.ink || sp.color })
+    : new THREE.MeshStandardMaterial({ color: sp.color, emissive: sp.color, emissiveIntensity: 0.6, roughness: 0.45 });
+}
+const _cm = new THREE.Matrix4(), _cq = new THREE.Quaternion(), _cs = new THREE.Vector3(), _cv = new THREE.Vector3();
+function updateCellSim(dt) {
+  const sim = cellSim; if (!sim) return;
+  const def = sim.def, n = Math.max(1, Math.ceil(dt / 0.02)), h = dt / n;
+  for (let i = 0; i < n; i++) sim.flux = def.step(sim.st, h, sim.ctrl);
+  sim.t += dt; sim.tH += dt;
+  const vals = def.series.map(se => se.get(sim.st, sim.flux));
+  if (sim.tH > 0.25) { sim.tH = 0; vals.forEach((v, i) => { sim.hist[i].push(v); if (sim.hist[i].length > 240) sim.hist[i].shift(); }); drawCellHud(sim, vals); }
+  /* backdrops follow the camera horizontally (always behind the machines), colour = pH */
+  const B = sim.box, toCam = camera.position.clone().sub(B.c.clone().applyMatrix4(world.matrixWorld)).setY(0).normalize();
+  const back = Math.max(Math.abs(B.vlo), Math.abs(B.vhi)) + 15, comps = def.comps(sim.st, sim.flux);
+  sim.panels.forEach((m, i) => {
+    m.position.copy(B.c).addScaledVector(toCam, -back).setY(m.userData.y); m.rotation.set(0, Math.atan2(toCam.x, toCam.z), 0);
+    const cp = comps[i]; m.material.uniforms.uCol.value.copy(phColour(cp.pH)); m.material.uniforms.uA.value = illustrative() ? 0.42 : 0.26;
+    const lab = sim.labs[i]; _cv.copy(m.position).addScaledVector(new THREE.Vector3(toCam.z, 0, -toCam.x), -(B.uhi - B.ulo) * 0.5).applyMatrix4(world.matrixWorld).project(camera);
+    const pr = $('panel').getBoundingClientRect(), minX = pr.right > 0 && pr.width > 0 && getComputedStyle($('panel')).display !== 'none' ? pr.right + 10 : 8;
+    lab.style.display = _cv.z < 1 ? '' : 'none'; lab.style.left = Math.max(minX, (_cv.x * 0.5 + 0.5) * innerWidth) + 'px'; lab.style.top = ((-_cv.y * 0.5 + 0.5) * innerHeight) + 'px';
+    lab.innerHTML = `${cp.name} <span style="color:#${phColour(cp.pH).getHexString()}">pH ${cp.pH.toFixed(2)}</span>`;
+  });
+  /* free molecules: Brownian drift inside their compartment */
+  for (const D of sim.dots) {
+    if (D.ill !== illustrative()) { D.mesh.material.dispose(); D.mesh.material = dotMaterial(D.sp); D.ill = illustrative(); }
+    const want = Math.max(0, Math.min(D.P.length, Math.round(D.sp.count(sim.st, sim.flux)))); D.mesh.count = want;
+    for (let i = 0; i < want; i++) { const p = D.P[i];
+      p.x += (Math.random() - 0.5) * 6 * dt * 10; p.z += (Math.random() - 0.5) * 6 * dt * 10; p.y += (Math.random() - 0.5) * 4 * dt * 10;
+      const q = new THREE.Vector3(p.x - B.c.x, 0, p.z - B.c.z), u = q.dot(B.d), v = q.dot(B.n);
+      if (u < B.ulo || u > B.uhi || v < B.vlo || v > B.vhi) { p.set(B.c.x, 0, B.c.z).addScaledVector(B.d, B.ulo + Math.random() * (B.uhi - B.ulo)).addScaledVector(B.n, B.vlo + Math.random() * (B.vhi - B.vlo)); p.y = D.y0 + 4 + Math.random() * (D.y1 - D.y0 - 8); }
+      p.y = Math.min(D.y1 - 3, Math.max(D.y0 + 3, p.y));
+      _cs.setScalar(D.r); _cm.compose(p, _cq, _cs); D.mesh.setMatrixAt(i, _cm); }
+    D.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+function drawCellHud(sim, vals) {
+  const light = illustrative();
+  sim.def.series.forEach((se, i) => {
+    const el = $('cv' + i); if (!el) return; el.textContent = se.fmt(vals[i]);
+    const cv = $('cs' + i), g = cv.getContext('2d'), H = sim.hist[i], W = cv.width, Hh = cv.height; g.clearRect(0, 0, W, Hh);
+    g.strokeStyle = light ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.1)'; g.beginPath(); g.moveTo(0, Hh - 1); g.lineTo(W, Hh - 1); g.stroke();
+    if (H.length < 2) return; const [lo, hi] = se.range;
+    g.strokeStyle = se.color; g.lineWidth = 2.4; g.beginPath();
+    H.forEach((v, k) => { const x = W - (H.length - 1 - k) * (W / 239), y = Hh - 3 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * (Hh - 6); k ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+  });
+  $('cellNote').textContent = sim.def.explain(sim.st, sim.flux, sim.ctrl);
+  $('cellT').textContent = Math.floor(sim.t) + ' s';
 }
 
 function makeCtx() {
@@ -2667,6 +2908,8 @@ function makeCtx() {
     setConformations: (g, keys) => { g.confKeys = keys; g.blend = {}; },
     setChainBlend: (g, asym, from, to, w) => { g.blend[asym] = [from, to, w]; },
     get ligScale() { return +$('ligScale').value; },
+    pace: () => Math.max(0.3, +$('spin').value / 0.6) * (cellSim ? THREE.MathUtils.clamp(cellSim.flux.rate, 0.5, 1.8) : 1),   // animation tempo follows the simulated flux
+    get cell() { return cellSim; },
     markHot: (points, radius = 10) => { for (const a of model.allAtoms) if (points.some(p => a.p.distanceTo(p) < radius + 4)) a.hot = 1; },
   };
   if ($('memOn').checked) { ctx.membraneY.push(+$('mem1').value * model.radius); if ($('mem2On').checked) ctx.membraneY.push(+$('mem2').value * model.radius); }
@@ -2692,7 +2935,7 @@ function markHotFromLigands() {
 }
 
 function clearScene() {
-  proc = null;
+  proc = null; stopCellSim();
   for (const g of groups) if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
   groups = [];
   for (const lg of ligGroups) { world.remove(lg.obj); disposeObj(lg.obj); }
@@ -2841,7 +3084,7 @@ function applyCut() {
   cutPlane.normal.set(0, 0, -1); cutPlane.constant = v >= 1.04 ? 1e9 : v * (model ? model.radius : 1);
   if (current?.frameAll && model?.focus && v < 1.04) {   // keep what lies behind the vertical plane through the centre, facing the camera
     const c = model.focus.centre.clone().applyMatrix4(world.matrixWorld), d = camera.position.clone().sub(c).setY(0);
-    if (d.lengthSq() > 1) { d.normalize(); cutPlane.normal.copy(d).negate(); cutPlane.constant = d.dot(c) + v * model.focus.radius; }
+    if (d.lengthSq() > 1 && Number.isFinite(d.x + d.z + c.x + c.z)) { d.normalize(); cutPlane.normal.copy(d).negate(); cutPlane.constant = d.dot(c) + v * model.focus.radius; }
   }
   const all = $('cutWhat').value === 'all';
   for (const g of groups) if (g.mesh) g.mesh.traverse(x => {
@@ -3179,7 +3422,7 @@ function resetCamera(cam) {
     c = { ...c, az: Math.atan2(-e.z, e.x) + (c.flipSide ? Math.PI : 0) };
   }
   /* fit the narrower of the two field-of-view axes (portrait / phone screens) and pad for blob / lobe size */
-  const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * camera.aspect));
+  const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * safeAspect()));
   const R = model.focus.radius + 6, d = R / Math.sin(half) * (c.dist || 1);
   const t = model.focus.centre.clone().applyMatrix4(world.matrixWorld);
   t.y -= 0.16 * R * (c.dist || 1);   // frame the molecule in the upper ~75 % (the caption sits at the bottom)
@@ -3268,7 +3511,7 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') { if (focus) { clearFocus(); status('已退出聚焦'); } clearSelection(); $('infoCard').style.display = 'none'; }
 });
 addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  if (innerWidth > 0 && innerHeight > 0) { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
   if (aoPass) aoPass.setSize(innerWidth, innerHeight);
 });
@@ -3281,7 +3524,8 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (!$('pause').checked) {
     U.uTime.value += dt; grade.uniforms.uT.value = U.uTime.value % 10;
-    theta += +$('spin').value * dt;
+    if (cellSim) updateCellSim(dt);
+    theta += +$('spin').value * dt * (cellSim ? cellSim.flux.rotor : 1);   // rotor speed follows the simulated ATP-synthesis flux
     for (const g of groups) if (g.spin && g.mesh) spinPose(g);
     if (current?.states && $('morphAuto').checked) {   // ease-in-out ping-pong with holds at both ends
       morphT += dt * 0.35; const c = (Math.sin(morphT) + 1) / 2; $('morph').value = ease((c - 0.1) / 0.8); syncOut($('morph'));
