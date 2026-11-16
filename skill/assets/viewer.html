@@ -16,8 +16,15 @@
   .row{display:flex;align-items:center;gap:8px;margin:5px 0}
   .row label{flex:0 0 92px;color:var(--dim)}
   .row select{flex:1;min-width:0;max-width:100%;text-overflow:ellipsis}
-  #panel{padding-bottom:48px}
-  @media (max-width:600px){ #panel{width:calc(100% - 24px);max-height:55vh;top:auto;bottom:56px} #panel.hidden{transform:translateY(calc(100% + 70px))} }
+  #panel{padding-bottom:60px}
+  /* keep caption / status in the free area beside the open panel (desktop) */
+  @media (min-width:601px){ body:has(#panel:not(.hidden)) #caption{left:334px;max-width:min(980px,calc(100vw - 360px))}
+    body:has(#panel:not(.hidden)) #status{left:calc(50% + 167px)} }
+  @media (max-width:600px){ #panel{width:calc(100% - 24px);max-height:55vh;top:auto;bottom:56px} #panel.hidden{transform:translateY(calc(100% + 70px))}
+    #caption{top:64px;bottom:auto;max-width:92vw;max-height:4.8em;overflow:auto;font-size:12px;pointer-events:auto}
+    body:has(#panel:not(.hidden)) #caption{display:none}
+    #status{left:auto;right:12px;transform:none;max-width:calc(100vw - 110px);overflow:hidden;text-overflow:ellipsis}
+    #title{max-width:60%} #title .id{font-size:18px} }
   .row input[type=range]{flex:1;accent-color:var(--acc)}
   .row output{flex:0 0 38px;text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
   input[type=text],select{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:6px 8px;font:inherit}
@@ -36,7 +43,7 @@
   #legend .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #legend input{accent-color:var(--acc2);margin:0}
   #status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 16px;color:var(--dim);transition:opacity .4s;pointer-events:none;white-space:nowrap}
-  #caption{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);max-width:min(980px,92vw);text-align:center;color:#dfe6f5;font-size:13px;line-height:1.5;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
+  #caption{position:fixed;bottom:54px;left:0;right:0;margin:0 auto;width:fit-content;max-width:min(980px,92vw);text-align:center;color:#dfe6f5;font-size:13px;line-height:1.5;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
   #caption .cnt{display:block;color:#ffe680;font-size:13px;margin-top:2px;font-variant-numeric:tabular-nums}
   #title{position:fixed;top:16px;right:18px;text-align:right;pointer-events:none;max-width:45%}
   #title .id{font-size:22px;font-weight:600;letter-spacing:2px;background:linear-gradient(90deg,#f08ae6,#8fc0ff);-webkit-background-clip:text;color:transparent}
@@ -65,6 +72,26 @@
   body.lightbg #legend .sw{box-shadow:none}
   body.lightbg #toggle{background:rgba(20,24,40,.85);color:#fff}
   body.lightbg #title{color:#1c2233}
+  body.lightbg #title .t{color:#5a6275}
+  /* energy-conversion strip (top centre) */
+  #energy{position:fixed;top:12px;left:0;right:0;margin:0 auto;width:fit-content;max-width:min(980px,calc(100vw - 260px));display:none;flex-wrap:wrap;justify-content:center;gap:4px 2px;align-items:center;
+          background:rgba(8,10,20,.62);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:6px 10px;backdrop-filter:blur(6px);font-size:12px;color:#c9d2e8;z-index:3}
+  #energy .eh{color:#ffe680;font-weight:600;margin-right:6px}
+  #energy .e{padding:2px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:background .25s,color .25s}
+  #energy .e.on{background:#ffe680;color:#1b1b24;font-weight:600}
+  #energy .e:hover{border-color:#ffe680}
+  #energy i{font-style:normal;color:#7b86a3}
+  body.lightbg #energy{background:rgba(255,255,255,.9);color:#2a3045;border-color:rgba(0,0,0,.1)}
+  body.lightbg #energy .eh{color:#9a6b00} body.lightbg #energy .e.on{background:#2a3045;color:#fff}
+  @media (min-width:601px){ body:has(#panel:not(.hidden)) #energy{left:334px;max-width:min(980px,calc(100vw - 600px))} }
+  @media (max-width:600px){ #energy{top:auto;bottom:100px;max-width:94vw;font-size:11px} }
+  .rlab{position:absolute;transform:translate(-50%,-50%);pointer-events:none;white-space:nowrap;font-size:11px;font-weight:600;color:#fff;
+        text-shadow:0 0 3px #000,0 0 6px #000;padding:0 2px}
+  body.lightbg .rlab{color:#1c2233;text-shadow:0 0 3px #fff,0 0 6px #fff}
+  #infoCard .sec{margin-top:8px;font-size:12.5px;line-height:1.6}
+  #infoCard .sec b{color:#ffe680} body.lightbg #infoCard .sec b{color:#9a6b00}
+  #infoCard .k{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:4px;border-radius:2px}
+  .fbtn{background:none;border:0;padding:0;color:var(--acc2);cursor:pointer;font-size:13px;line-height:1}
 </style>
 <script type="importmap">
 { "imports": {
@@ -78,6 +105,7 @@
 <div id="title"><div class="id" id="tId">—</div><div class="t" id="tName"></div></div>
 <div id="caption"></div>
 <div id="labels"></div>
+<div id="energy"></div>
 <div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
 <div id="drop">松开鼠标导入结构文件（.cif / .pdb）</div>
 
@@ -136,12 +164,15 @@
 
   <h2>组成（显示 / 旋转 / 剖开 / 简化）</h2>
   <div id="legend"></div>
-  <div class="row"><label>默认简化方式</label><select id="simpDefault"><option value="auto">推荐：机制相关部分保留细节</option><option value="all">全部简化</option><option value="none">全部不简化</option></select></div>
+  <div class="row"><label>默认简化方式</label><select id="simpDefault"><option value="auto">推荐：按功能分区</option><option value="all">全部简化</option><option value="none">全部不简化</option></select></div>
   <div class="row"><label>简化分辨率</label><select id="simpRes"><option value="8">8 Å（保留二级结构轮廓）</option><option value="12" selected>12 Å（结构域外形）</option><option value="16">16 Å</option><option value="20">20 Å（亚基外形）</option></select></div>
-  <div class="row"><label>简化样式</label><select id="simpStyle"><option value="schem">示意图（叶片 / 鼓 / 弯管）</option><option value="illus">低分辨率表面（插画）</option><option value="gloss">低分辨率表面（光泽）</option></select></div>
+  <div class="row"><label>简化样式</label><select id="simpStyle"><option value="schem">示意图（结构域形状 / 环分节 / 弯管）</option><option value="illus">低分辨率表面（插画）</option><option value="gloss">低分辨率表面（光泽）</option></select></div>
   
   <label class="chk"><input type="checkbox" id="labelsOn">显示标注与讲解（点标签看详细说明）</label>
-  <div class="note" style="font-size:11px;color:var(--dim);line-height:1.5">“简”= 把该部件画成简化表示。<b>示意图</b>按期刊机制图的画法：球状亚基画成叶片 / 卵形，环状寡聚体（如 c 环）画成一个鼓，长螺旋亚基（如外周柄）画成沿真实走向的弯管；位置、朝向、走向由真实坐标拟合，大小按与残基分布等二阶矩的椭球（近似真实体积），亚基数目不变。<b>低分辨率表面</b>类似 ChimeraX molmap / Mol* 高斯表面（每残基一个高斯，按分子体积取等值面）。平涂 + 描边参照 Mol* / PDB-101 的插画风格。</div>
+  <div class="note" style="font-size:11px;color:var(--dim);line-height:1.5">简化是为了讲清功能，按功能分三层：
+    <b>① 功能核心</b>（小分子 / 离子周围 8 Å 的残基、预设标出的关键界面）保留原子细节，按化学性质着色：<span style="color:#e5484d">■</span>酸性 <span style="color:#3b6fe0">■</span>碱性 <span style="color:#2fb39c">■</span>极性 <span style="color:#b58cf0">■</span>芳香 <span style="color:#e6c84a">■</span>含硫 <span style="color:#c9bf99">■</span>其他疏水；
+    <b>② 会动 / 会变形的部件</b>画成结构域形状（每个结构域一个低分辨率密度形状，体积＝残基数 × 136 Å³，构象变化时整体移动；环状寡聚体每个亚基一节）；
+    <b>③ 支架</b>（不结合小分子、不动的部件）半透明淡化。形状全部由真实坐标计算（同 ChimeraX molmap / Mol* 高斯表面）。“简”复选框可逐个改。</div>
 
   <h2>其他</h2>
   <div class="row"><label>主轴</label><select id="axisMode"><option value="long">最长轴竖直</option><option value="sym">对称轴竖直（环/通道）</option><option value="short">最短轴竖直</option><option value="native">原始坐标</option></select></div>
@@ -179,18 +210,23 @@ const PRESETS = {
     membranes: [{ at: 'subunit C1', offset: 0 }], memR: 1.2, cut: 0.0, cutWhat: 'mem',
     process: 'atpSynthase',
     /* "推荐" simplification: keep atomic detail where the mechanism happens, simplify the scaffold */
-    keepDetail: ['subunit beta', 'subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1', '/subunit a$/'],
+    /* functional cores drawn with atomic detail on top of the simplified shapes (ligand pockets are found automatically):
+       the a/c interface around aArg159 (proton half-channels) and the proton-carrying cGlu58 of every c subunit */
+    core: [{ near: { part: '/subunit a$/', seq: 159 }, r: 13, with: ['subunit C1'] }, { part: 'subunit C1', seqs: [[56, 60]] }],
+    siteNotes: {
+      ADP: '催化位点主要在 β 亚基上：P-loop（Walker A 基序 GxxxxGKT）环绕磷酸，Mg²⁺ 由磷酸氧和 P-loop 的 Thr 配位；相邻 α 亚基伸入一个精氨酸（“精氨酸手指”）稳定过渡态。三个 β 位点的结合紧密程度随 γ 的位置而变——这正是 Boyer 结合变构机制。上面的残基和距离由 6ZPO 坐标直接计算。',
+      ATP: '6ZPO 中的 ATP 结合在 α 亚基的非催化位点（α–β 界面，主要由 α 构成）：这类位点结合核苷酸但不参与催化循环，被认为起结构 / 调节作用。催化用的 ATP 在动画里按 β 位点建模。' },
     colors: { 'subunit alpha': '#e64fc8', 'subunit beta': '#5b9dff', 'subunit gamma': '#e3e7f2', 'subunit delta': '#e3e7f2', 'subunit epsilon': '#e3e7f2',
               'subunit C1': '#3fc864', '/subunit a$/': '#2448e8', 'subunit O': '#ff9a50', 'B1': '#ff9a50', '/subunit d,/': '#ff9a50', 'factor 6': '#ff9a50', 'inhibitor': '#f5e07a' },
     camera: { az: -0.55, el: 0.12, dist: 1.05 },
     /* teaching notes: key (same matching rules as colors) -> [label, one-line role, longer explanation] */
     notes: {
       'subunit alpha': ['α 亚基 ×3', 'F1 头部，非催化', '与 β 交替排成 α3β3 六聚体（F1 头部）。α 也结合核苷酸，但它的位点不催化，主要起结构和调节作用。催化位点位于 α/β 交界、以 β 为主。'],
-      'subunit beta': ['β 亚基 ×3', '催化位点：合成 ATP', '三个 β 同一时刻处在三种不同构象：开放（空）、松弛（结合 ADP + Pi）、紧密（ADP + Pi 合成 ATP）。γ 每转 120°，三个 β 依次换一种构象——这就是 Boyer 的“结合变构机制”。本动画中 β 的形状来自 6ZPO（冷冻电镜结构）三条 β 链的真实构象（βE 开放、βDP、βTP）。'],
+      'subunit beta': ['β 亚基 ×3', '催化位点：合成 ATP', '三个 β 同一时刻处在三种不同构象：开放（空）、松弛（结合 ADP + Pi）、紧密（ADP + Pi 合成 ATP）。γ 每转 120°，三个 β 依次换一种构象——这就是 Boyer 的“结合变构机制”。本动画中 β 的形状来自 6ZPO（冷冻电镜结构）三条 β 链的真实构象（βE 开放、βDP、βTP）。注意：在 6ZPO 中三个 β 位点其实都结合了 ADP（βE 没有 Mg²⁺），“开放＝空”是 Boyer 模型中的状态，动画按模型画。'],
       'subunit gamma': ['γ 亚基', '中心柄（转子）', '细长的 γ 插在 α3β3 中央，形状不对称。它转动时依次顶住不同的 β，迫使 β 改变构象，把转动的机械能变成化学能。'],
       'subunit delta': ['δ 亚基', '中心柄', '与 γ、ε 一起组成中心柄，把 c 环的转动传到 F1 头部。注意命名：线粒体的 δ 相当于细菌的 ε。'],
       'subunit epsilon': ['ε 亚基', '中心柄（线粒体特有）', '线粒体特有的小亚基（细菌没有对应亚基），与 γ、δ 一起构成中心柄底部，与 c 环接触。'],
-      'subunit C1': ['c 环（c8）', '膜内转子，运 H⁺', '8 个 c 亚基围成的环嵌在线粒体内膜里。每个 c 亚基中部有一个谷氨酸（Glu58）可接受一个 H⁺。H⁺ 顺浓度梯度流过时推动 c 环转动：转一圈运 8 个 H⁺、产生 3 个 ATP（约 2.7 H⁺/ATP）。'],
+      'subunit C1': ['c 环（c8）', '膜内转子，运 H⁺', '8 个 c 亚基围成的环嵌在线粒体内膜里。每个 c 亚基中部有一个谷氨酸（Glu58）可接受一个 H⁺。H⁺ 顺电化学梯度（质子动力势，线粒体中主要是膜电位）流过时推动 c 环转动：转一圈运 8 个 H⁺、产生 3 个 ATP（约 2.7 H⁺/ATP）。'],
       '/subunit a$/': ['a 亚基', '定子：H⁺ 半通道', 'a 亚基紧贴 c 环，提供两个错开的半通道：H⁺ 从膜间隙一侧进入、结合到 c 亚基上，随 c 环转近一圈后从另一个半通道释放到基质。a 亚基上保守的精氨酸防止 H⁺ 直接“短路”。'],
       'subunit O': ['OSCP', '外周柄顶端', 'OSCP（相当于细菌的 δ 亚基）像帽子扣在 α3β3 顶部，把头部固定在外周柄上，使它不跟着 γ 一起转——否则无法产生相对转动。'],
       'B1': ['b 亚基', '外周柄（定子臂）', '长螺旋从膜内一直伸到 F1 头部，与 d、F6 组成外周柄，像定子臂一样把 α3β3 固定住。'],
@@ -204,7 +240,7 @@ const PRESETS = {
     spin: ['rod', 'hook', 'M-ring', 'MS ring', 'FliE', 'FliP', 'FliQ', 'FliR', 'C 环', 'flagellin', '鞭毛丝', 'Dc loop'],
     membranes: [{ at: 'M-ring', offset: 18 }, { at: 'L-ring', offset: 0 }],
     memR: 1.3, cut: 0.0, cutWhat: 'mem', process: 'flagellarMotor',
-    keepDetail: ['定子', 'C 环', 'M-ring', 'MS ring'],
+    keepDetail: ['定子'],   // the stator (torque generator) stays atomic; rings / rod / hook / filament are simplified but still turn
     components: [
       { id: '8YJT', label: 'C 环（FliG/FliM/FliN）', axis: 'short', anchor: 'M-ring', side: 'below', gap: -40 },
       { id: '6YKM', label: '定子 MotA/MotB', axis: 'long', anchor: 'M-ring', side: 'at', dy: 10, arrange: { kind: 'ring', n: 11, radius: 215 }, spin: false },
@@ -223,22 +259,37 @@ const PRESETS = {
       'rod': ['杆', '传动轴', '把转子的转动穿过细胞壁传到外面的钩。'],
       'hook protein': ['钩', '柔性万向节', '弯曲的短管，把转动传给鞭毛丝，同时允许方向改变。'],
       '鞭毛丝': ['鞭毛丝', '螺旋桨', '由上万个鞭毛蛋白组装成的长螺旋管，转动时推动细菌前进。'],
-      'FliP': ['输出装置', '组装鞭毛的输出通道', 'FliP/FliQ/FliR 组成输出门，把鞭毛蛋白从中央通道送到顶端组装。'],
+      'FliP': ['输出装置', '组装鞭毛的输出通道', 'FliP/FliQ/FliR 组成输出门，把鞭毛蛋白从中央通道送到顶端组装。动画里它随转子一起转，但输出门是否随转子转动在文献中尚有争议。'],
     } },
   '钾离子通道（K⁺ 通过）': { id: '1BL8', axis: 'sym', blob: 3.6, colorMode: 'chain', membranes: [{ at: '', offset: 0 }], memR: 2.6, cut: 0.0, process: 'ionChannel',
     camera: { az: -0.5, el: 0.12, dist: 1.5 },
-    notes: { '': ['KcsA 四聚体', 'K⁺ 选择性通道', '四个相同亚基围成中央孔。每个亚基有外螺旋、内螺旋和一段短的孔螺旋；孔螺旋后的 TVGYG 序列的羰基氧排成选择性过滤器，恰好替代 K⁺ 的水合壳，所以 K⁺ 能快速通过而更小的 Na⁺ 不能。过滤器的 4 个位点中通常同时有两个 K⁺（与水分子相间，S1/S3 ⇄ S2/S4），后一个离子把前一个“推”出去（敲击机制）；动画为简化起见一次画一个。'] } },
+    notes: { '': ['KcsA 四聚体', 'K⁺ 选择性通道', '四个相同亚基围成中央孔。每个亚基有外螺旋、内螺旋和一段短的孔螺旋；孔螺旋后的 TVGYG 序列的羰基氧排成选择性过滤器，恰好替代 K⁺ 的水合壳，所以 K⁺ 能快速通过而更小的 Na⁺ 不能。过滤器的 4 个位点中通常同时有两个 K⁺（与水分子相间，S1/S3 ⇄ S2/S4），后一个离子把前一个“推”出去（敲击机制）；动画为简化起见一次画一个。1BL8 是关闭态：内螺旋在胞内侧交叉形成闭合的门（门控在过滤器下方，pH 降低时打开）。'] } },
   '腺苷酸激酶（开合）': { id: '4AKE', states: ['4AKE', '1AKE'], chains: ['A'], colorMode: 'rainbow', axis: 'long', blob: 4.4, assembly: false,
     /* E. coli AdK domains (Müller et al. 1996): CORE 1-29/60-121/160-214, NMP-binding 30-59, LID 122-159 */
     domains: [['CORE', [[1, 29], [60, 121], [160, 214]]], ['NMP', [[30, 59]]], ['LID', [[122, 159]]]],
-    caption: '腺苷酸激酶：底物结合后 LID 与 NMP 结构域向核心闭合（4AKE 张开 ⇄ 1AKE 闭合，抑制剂 Ap5A 占据活性位点）',
-    notes: { '': ['腺苷酸激酶', 'ATP + AMP ⇌ 2 ADP', '由 CORE、LID（盖住 ATP）和 NMP 结合域三部分组成。底物结合后 LID 与 NMP 域像两扇门一样向核心关闭，排除水并把两个底物对准，完成磷酸基团转移；产物释放时再打开。勾选“简”后三个结构域分别画成三个叶片（大肠杆菌编号：NMP 结合域约 30–59，LID 约 122–159，其余为 CORE）。'] },
+    energyStage: 'morph',
+    energy: [
+      ['底物结合', 'ATP（带 Mg²⁺）结合在 CORE 的 P-loop 上、被 LID 覆盖；AMP 结合在 NMP 结合域。结合能使构象平衡偏向闭合态（没有底物时酶也会短暂闭合；Henzler-Wildman 等 2007）。'],
+      ['LID / NMP 闭合', '两个结构域向 CORE 关闭，把水挤出活性位点、把两个底物的磷酸对准，LID 与 P-loop 上带正电的残基稳定过渡态。转动角度由 4AKE 与 1AKE 两套坐标计算（聚焦 Ap5A 可看到）。'],
+      ['磷酰基转移', 'ATP 的 γ-磷酸转移到 AMP 上，生成 2 个 ADP。该反应接近平衡（标准自由能变化约为 0），所以腺苷酸激酶是细胞里缓冲 ATP / ADP / AMP 比例的“换算器”。'],
+      ['打开释放产物（限速）', 'LID 重新打开才能释放 ADP，这是整个催化循环的限速步骤（Wolf-Watz 等 2004）。'] ],
+    siteNotes: { AP5: 'Ap5A（P¹,P⁵-二腺苷五磷酸）是双底物类似物：一端的腺苷占 ATP 位点（LID 之下），另一端占 AMP 位点（NMP 结合域），中间的五个磷酸跨越两个位点，模拟磷酰基转移时两个底物靠在一起的状态，所以能把酶“锁”在闭合构象（1AKE）。' },
+    caption: '腺苷酸激酶：底物结合使平衡偏向闭合态，LID 与 NMP 结构域向核心闭合（4AKE 张开 ⇄ 1AKE 闭合，抑制剂 Ap5A 占据活性位点）',
+    notes: { '': ['腺苷酸激酶', 'ATP + AMP ⇌ 2 ADP', '由 CORE、LID（盖住 ATP）和 NMP 结合域三部分组成。LID 与 NMP 域像两扇门一样向核心关闭（没有底物时也会短暂闭合，底物结合使平衡偏向闭合态；Henzler-Wildman 等 2007），排除水并把两个底物对准，完成磷酸基团转移；产物释放时再打开。勾选“简”后三个结构域分别画成三个叶片（大肠杆菌编号：NMP 结合域约 30–59，LID 约 122–159，其余为 CORE）。'] },
     camera: { az: -0.6, el: 0.2, dist: 1.3 } },
-  'GroEL 伴侣蛋白': { id: '1AON', axis: 'sym', blob: 4.0, spin: ['GROES'] },
+  'GroEL 伴侣蛋白': { id: '1AON', axis: 'sym', blob: 4.0,   // not a rotary machine: GroES binds and leaves, nothing spins
+    notes: { 'GROEL/GROES': ['GroES 盖子', '共伴侣（七聚体）', 'GroES 七聚体像盖子一样盖在 GroEL 的一个环（cis 环）上，与它围成一个封闭的折叠腔。GroES 结合需要该环先结合 ATP；ATP 水解后，下一轮 ATP 结合到对侧环（trans 环）触发 GroES 和折叠好的蛋白离开。GroES 不转动。'],
+             'GROEL': ['GroEL', '伴侣蛋白（14 聚体）', '两个七聚体环背靠背叠成空心圆柱。每个亚基分三个结构域：赤道域（结合并水解 ATP、连接两环）、中间域（铰链）、顶端域（开口处，用疏水面抓住未折叠蛋白）。在 cis 环里，ATP 与 GroES 结合使顶端域大幅抬起并扭转（约 60° 抬升、90° 扭转；Xu, Horwich & Sigler 1997），疏水面翻向外，底物被释放进亲水的腔里折叠（约 10 秒）。'] } },
   '核糖体': { id: '4YBB', axis: 'native', blob: 3.8 },
   '核小体': { id: '1KX5', axis: 'native', blob: 3.6,
-    lobes: ['histone'] },   // schematic: each histone = one globular unit of the octamer (tails dropped), as in textbook figures
-  '蛋白酶体': { id: '5LE5', axis: 'long', blob: 3.8 },
+    lobes: ['histone'],
+    notes: {
+      'DNA': ['DNA（147 bp）', '缠绕在八聚体外', '147 个碱基对的 DNA 以约 1.65 圈左手超螺旋缠绕在组蛋白八聚体外（Davey 等 2002，1.9 Å）。DNA 的小沟每次朝向八聚体时，组蛋白就用一个精氨酸插进小沟，共 14 个接触区——这些接触不认序列，所以几乎任何 DNA 都能包成核小体。'],
+      'H3': ['H3 ×2', '组蛋白（四聚体中心）', '两个 H3–H4 二聚体组成 (H3–H4)₂ 四聚体，占据八聚体中心，包住中间约 60 bp 的 DNA（含对称轴处）。组蛋白折叠＝三段螺旋，两个组蛋白像“握手”一样交叉配对。H3 的 N 端尾巴伸出核小体外，其上的乙酰化、甲基化修饰调控染色质开放程度（示意图里尾巴省略）。'],
+      'H4': ['H4 ×2', '组蛋白（四聚体）', '与 H3 握手配对成 H3–H4 二聚体。H4 尾巴（如 K16 乙酰化）影响相邻核小体之间的堆积，从而影响染色质压缩。'],
+      'H2A': ['H2A ×2', '组蛋白（二聚体）', '与 H2B 组成 H2A–H2B 二聚体，两个二聚体分别结合在四聚体两侧，包住靠外的 DNA。核小体组装时先装 (H3–H4)₂，再加两个 H2A–H2B。'],
+      'H2B': ['H2B ×2', '组蛋白（二聚体）', '与 H2A 配对。H2A–H2B 二聚体比四聚体更容易离开，转录时常被部分移去，让聚合酶通过。'] } },   // schematic: each histone = one globular unit of the octamer (tails dropped), as in textbook figures
+  '20S 蛋白酶体（核心颗粒）': { id: '5LE5', axis: 'long', blob: 3.8 },
   '病毒衣壳 HK97': { id: '2FT1', axis: 'native', blob: 3.8, assembly: true },
 };
 
@@ -292,7 +343,7 @@ function parseAtomSite(text) {
   const cols = [];
   for (; i < lines.length && lines[i].startsWith('_atom_site.'); i++) cols.push(lines[i].trim().slice(11));
   const ix = (n) => cols.indexOf(n);
-  const C = { g: ix('group_PDB'), el: ix('type_symbol'), an: ix('label_atom_id'), comp: ix('label_comp_id'), asym: ix('label_asym_id'),
+  const C = { alt: ix('label_alt_id'), g: ix('group_PDB'), el: ix('type_symbol'), an: ix('label_atom_id'), comp: ix('label_comp_id'), asym: ix('label_asym_id'),
     ent: ix('label_entity_id'), seq: ix('label_seq_id'), aseq: ix('auth_seq_id'), x: ix('Cartn_x'), y: ix('Cartn_y'), z: ix('Cartn_z'), m: ix('pdbx_PDB_model_num') };
   const rows = []; let model0 = null;
   for (; i < lines.length; i++) {
@@ -301,7 +352,7 @@ function parseAtomSite(text) {
     if (!L.trim()) continue;
     const t = tokenize(L);
     if (C.m >= 0) { if (model0 === null) model0 = t[C.m]; else if (t[C.m] !== model0) continue; }
-    rows.push({ g: t[C.g], el: (t[C.el] || '').toUpperCase(), an: t[C.an], comp: t[C.comp], asym: t[C.asym], ent: t[C.ent],
+    rows.push({ alt: C.alt >= 0 ? t[C.alt] : '.', g: t[C.g], el: (t[C.el] || '').toUpperCase(), an: t[C.an], comp: t[C.comp], asym: t[C.asym], ent: t[C.ent],
       seq: parseInt(t[C.seq]) || 0, poly: (parseInt(t[C.seq]) || 0) > 0, aseq: C.aseq >= 0 ? t[C.aseq] : '', x: +t[C.x], y: +t[C.y], z: +t[C.z] });
   }
   return rows;
@@ -323,9 +374,10 @@ function parsePDB(text) {
 function rowsToEntry(rows, entities) {
   const atoms = [], ligMap = new Map();
   for (const r of rows) {
+    if (r.alt && r.alt !== '.' && r.alt !== '?' && r.alt !== 'A') continue;   // alternate locations: keep the first
     if (r.g === 'ATOM') {
       if ((r.an === 'CA' && r.el !== 'CA') || r.an === 'P')
-        atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq || parseInt(r.aseq) || 0, na: r.an === 'P' });
+        atoms.push({ p: new THREE.Vector3(r.x, r.y, r.z), ent: r.ent, asym: r.asym, seq: r.seq || parseInt(r.aseq) || 0, na: r.an === 'P', resn: r.comp });
     } else if (r.g === 'HETATM' && !IGNORE_LIGANDS.has(r.comp)) {
       if (r.el === 'H' || r.el === 'D') continue;
       if (r.poly) {   // modified residue inside a chain (MSE, M3L, SEP ...): one blob at its CA
@@ -404,6 +456,7 @@ async function loadEntry(id, useAssembly, withLigands = true) {
   }
   const rows = texts.flatMap(t => t ? parseAtomSite(t) : []).filter(r => r.g === 'ATOM' || r.poly ? (r.an === 'CA' && r.el !== 'CA') || r.an === 'P' : true);
   let { atoms, ligands } = rowsToEntry(rows, entities);
+  for (const L of ligands) { L.src = lid; L.asym0 = L.asym; }   // for the full-atom binding-site download (focus)
   applyDepositedSS(atoms, await header);
   const asm = meta.assemblies && meta.assemblies[0];
   if (useAssembly && asm && asm.pdbx_struct_assembly_gen) {
@@ -955,7 +1008,7 @@ function buildCartoon(g, colorOf) {
     const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false;
     mesh.userData = { cartoon: true, asym, keys, p2Index: hasP2 ? sets.length - 2 : -1 };
     grp.add(mesh);
-    if (illustrative()) { const o = outlineOf(mesh); mesh.add(o); }
+    if (illustrative()) { const o = outlineOf(mesh, { k: '0.0012' }); mesh.add(o); }   // thinner on ribbons
   }
   if ($('shellOn').checked && !illustrative()) for (const kind of ['depth', 'color']) {
     const m = blobMaterial({ cutaway: g.ghost, shell: kind });
@@ -1041,14 +1094,18 @@ function surfaceMaterial(style) {
         ${illus ? 'totalEmissiveRadiance += baseC * (0.62 + 0.12 * up); diffuseColor.rgb *= 0.2;   // flat, poster-like colour (Mol* "ignore light"-like); AO still gives soft shadows'
                 : 'totalEmissiveRadiance += baseC * (uGlow * up + uRim * fres * (0.25 + 1.1 * up));'}`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-        ${illus ? 'gl_FragColor.rgb = baseC * (0.78 + 0.22 * up);' : ''}`);
+        ${illus ? `{ /* illustration shading: mostly flat colour + a soft key light from the upper left + darkened edges,
+             so overlapping shapes (DNA gyres, touching lobes) stay readable (Goodsell / Mol* illustrative) */
+             vec3 L = normalize(vec3(-0.45, 0.65, 0.6)); float lam = saturate(dot(normal, L));
+             float edge = 1.0 - 0.32 * pow(1.0 - saturate(abs(dot(normal, normalize(vViewPosition)))), 2.0);
+             gl_FragColor.rgb = baseC * (0.66 + 0.30 * lam + 0.08 * up) * edge; }` : ''}`);
   };
   return m;
 }
 /* outline = inverted hull: back faces pushed out along the normal, dark (the classic illustration silhouette) */
 function outlineMaterial(opts = {}) {   // opts.blob: instanced residue blobs (aDelta morph + wedge cutaway)
   const m = new THREE.MeshBasicMaterial({ color: 0x0b0c14, side: THREE.BackSide });
-  m.customProgramCacheKey = () => 'outline-' + (opts.blob ? 'b' : '') + (opts.cutaway ? 'c' : '');
+  m.customProgramCacheKey = () => 'outline-' + (opts.blob ? 'b' : '') + (opts.cutaway ? 'c' : '') + (opts.k || '');
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, { uCutOn: { value: opts.cutaway ? 1 : 0 } });
     sh.vertexShader = sh.vertexShader
@@ -1063,8 +1120,9 @@ function outlineMaterial(opts = {}) {   // opts.blob: instanced residue blobs (a
           if (uCutOn > 0.5 && dot(uCutA.xyz, cw0) + uCutA.w > 0.0 && dot(uCutB.xyz, cw0) + uCutB.w > 0.0) mvPosition = vec4(0.0, 0.0, 0.0, 1.0);
         #endif
         mvPosition = modelViewMatrix * mvPosition;
-        mvPosition.xyz += normalize(normalMatrix * nn) * (-mvPosition.z) * ${opts.blob ? '0.0018' : '0.0026'};   // ~constant on-screen line width
-        gl_Position = projectionMatrix * mvPosition;`);
+        mvPosition.xyz += normalize(normalMatrix * nn) * (-mvPosition.z) * ${opts.k || (opts.blob ? '0.0018' : '0.0026')};   // ~constant on-screen line width
+        gl_Position = projectionMatrix * mvPosition;
+        gl_Position.z += 0.0015 * gl_Position.w;   // keep the hull behind the front surface (no creases on concave ribbons)`);
   };
   return m;
 }
@@ -1121,7 +1179,10 @@ function fitLobe(P) {
   let sk = 0, sd = 0; for (const p of P) { const t = p.clone().sub(centre).dot(ax[1]); sk += t * t * t; sd += t * t; }
   sd = Math.sqrt(sd / P.length) || 1; sk /= P.length * sd * sd * sd;
   const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(ax[0], ax[1], new THREE.Vector3().crossVectors(ax[0], ax[1])));
-  return { centre, q, scale: new THREE.Vector3(Math.max(4, ext[0]), Math.max(4, ext[1]), Math.max(4, ext[2])), taper: THREE.MathUtils.clamp(-sk * 0.25, -0.35, 0.35) };
+  /* keep the axis RATIOS from the moments but set the SIZE from the residue count: V = n x 136 A^3 (mean residue volume)
+     x 1.35 (smooth envelope), so a small elongated domain is not drawn bigger than a large compact one */
+  const f = Math.cbrt(P.length * 136 * 1.35 / (4 / 3 * Math.PI * ext[0] * ext[1] * ext[2]));
+  return { centre, q, scale: new THREE.Vector3(Math.max(4, ext[0] * f), Math.max(4, ext[1] * f), Math.max(4, ext[2] * f)), taper: THREE.MathUtils.clamp(-sk * 0.25, -0.35, 0.35) };
 }
 function smoothPath(P, win = 4) {
   return P.map((_, k) => { const c = new THREE.Vector3(); let m = 0; for (let j = Math.max(0, k - win); j <= Math.min(P.length - 1, k + win); j++) { c.add(P[j]); m++; } return c.multiplyScalar(1 / m); });
@@ -1143,8 +1204,46 @@ function ringOf(g) {
   let gap = 2 * Math.PI - (ang[ang.length - 1] - ang[0]); for (let i = 1; i < ang.length; i++) gap = Math.max(gap, ang[i] - ang[i - 1]);
   if (gap * rm > 3 * 2 * Math.PI * rm / chains.length) return null;   // not closed
   const r = g.atoms.map(a => Math.hypot(a.p.x - cen.x, a.p.z - cen.z)).sort((x, y) => x - y), ys = g.atoms.map(a => a.p.y).sort((x, y) => x - y), q = (v, f) => v[Math.floor(v.length * f)];
-  let ri = q(r, 0.1) - 2.5, ro = q(r, 0.9) + 3.5; if (ri < 40) ri = 0;
+  let ri = q(r, 0.1) - 2.5, ro = q(r, 0.9) + 3.5; if (ri < 6) ri = 0;   // keep the real central cavity (c-ring, C-ring)
   return { cen: new THREE.Vector3(cen.x, 0, cen.z), ri, ro, y0: q(ys, 0.05) - 3, y1: q(ys, 0.95) + 3, n: chains.length };
+}
+/* one ring subunit = one rounded wedge of the drum (journal figures keep subunit identity inside rings), with a gap */
+function ringProfile(R) {
+  const H = R.y1 - R.y0, rr = Math.min(H * 0.3, (R.ro - R.ri) * 0.3, 8), pts = [];
+  const arc = (cx, cy, a0, a1) => { for (let i = 0; i <= 5; i++) { const a = a0 + (a1 - a0) * i / 5; pts.push(new THREE.Vector2(cx + rr * Math.cos(a), cy + rr * Math.sin(a))); } };
+  if (R.ri > 0) arc(R.ri + rr, R.y0 + rr, Math.PI, 1.5 * Math.PI); else pts.push(new THREE.Vector2(0.01, R.y0));
+  arc(R.ro - rr, R.y0 + rr, 1.5 * Math.PI, 2 * Math.PI); arc(R.ro - rr, R.y1 - rr, 0, 0.5 * Math.PI);
+  if (R.ri > 0) { arc(R.ri + rr, R.y1 - rr, 0.5 * Math.PI, Math.PI); pts.push(pts[0].clone()); } else pts.push(new THREE.Vector2(0.01, R.y1));
+  return pts;
+}
+function ringSegGeo(R, phi, n) {
+  const pts = ringProfile(R), rm = (R.ri + R.ro) / 2, gap = Math.min(0.5 * 2 * Math.PI / n, 3 / Math.max(rm, 10));
+  const len = 2 * Math.PI / n - gap, p0 = phi - len / 2;
+  const side = new THREE.LatheGeometry(pts, Math.max(4, Math.round(64 / n)), p0, len);
+  const cap = (ph) => {   // flat end face: fan from the profile centroid
+    const c = pts.reduce((s, p) => s.add(p), new THREE.Vector2()).multiplyScalar(1 / pts.length), v = [], idx = [];
+    const at = (p) => v.push(Math.sin(ph) * p.x, p.y, Math.cos(ph) * p.x);
+    at(c); pts.forEach(at); for (let i = 1; i < pts.length; i++) idx.push(0, i, i + 1);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.setIndex(idx); return g;
+  };
+  const geo = mergeGeos([side, cap(p0), cap(p0 + len)]);
+  geo.translate(R.cen.x, 0, R.cen.z); geo.computeVertexNormals(); return geo;
+}
+/* a domain = its own low-resolution density (molmap-like) at a size-dependent resolution, contoured at its real volume
+   (136 A^3 / residue) and shrunk 1.5 A toward its centre so neighbouring domains show a seam (Mol* / ChimeraX blobs) */
+function domainBlobGeo(P) {
+  const N = P.length, res = THREE.MathUtils.clamp(10 + 0.025 * N, 12, 18);
+  const { geo } = lowpassSurface(P, P.map(() => 1), res);
+  const c = P.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / N);
+  const k = Math.max(0.8, 1 - 1.5 / Math.cbrt(3 * 136 * N / (4 * Math.PI))), A = geo.attributes.position;
+  for (let i = 0; i < A.count; i++) A.setXYZ(i, c.x + (A.getX(i) - c.x) * k, c.y + (A.getY(i) - c.y) * k, c.z + (A.getZ(i) - c.z) * k);
+  geo.computeVertexNormals(); return geo;
+}
+/* rigid placement of a domain blob built at rest coordinates onto moved coordinates (Kabsch) */
+function placeLobe(x, pts) {
+  if (!x.userData.rest) { const f = fitLobe(pts); x.position.copy(f.centre); x.quaternion.copy(f.q); x.scale.copy(f.scale); return; }
+  const f = superpose(pts, x.userData.rest);
+  x.quaternion.copy(f.q); x.position.copy(f.ca).sub(f.cb.clone().applyQuaternion(f.q));
 }
 function drumGeo(R) {
   const H = R.y1 - R.y0, rr = Math.min(H * 0.35, (R.ro - R.ri) * 0.35, 12), pts = [];
@@ -1180,15 +1279,24 @@ function domainSplit(at, posOf, per = 330) {
 }
 function buildSchematic(g, colorOf, posOf = (a) => a.p) {
   const grp = new THREE.Group(), mat = surfaceMaterial('schem'), out = outlineMaterial(), col = new THREE.Color();
+  if (g.faded) { mat.transparent = true; mat.opacity = 0.42; mat.depthWrite = false; }   // (3) scaffold: ghosted, functional parts show through
   const add = (geo, centre, extra = {}) => {
     const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.userData = { surface: true, schem: true, centre, ...extra };
-    if (illustrative()) { const o = new THREE.Mesh(geo, out); o.frustumCulled = false; o.userData = { outline: true }; mesh.userData.outline = o; mesh.add(o); }
+    if (g.faded) mesh.renderOrder = 2;
+    if (!g.faded) { const o = new THREE.Mesh(geo, out); o.frustumCulled = false; o.userData = { outline: true }; mesh.userData.outline = o; mesh.add(o); }
     grp.add(mesh); return mesh;
   };
-  const ring = ringOf(g);
-  if (ring) {
-    col.set(colorOf ? colorOf(g.atoms[0]) : g.color);
-    add(paint(drumGeo(ring), col), ring.cen.clone().setY((ring.y0 + ring.y1) / 2));
+  const ring = ringOf(g), fade = (c) => { if (g.faded) c.lerp(FADE_TO(), illustrative() ? 0.5 : 0.55); return c; };
+  const blobCache = new Map(), moving = !!(g.confKeys || g.atoms.some(a => a.p2 || a.alts));
+  /* functional-core residues are drawn atomically elsewhere: leave them OUT of the shapes so the detail sits in an open
+     pocket instead of being buried (a ring with core residues is drawn as per-subunit density shapes, not wedges) */
+  const coreSet = new Set((g.coreIdx || []).map(k => g.atoms[k]));
+  if (ring && !coreSet.size) {
+    for (const asym of [...new Set(g.atoms.map(a => a.asym))]) {
+      const at = g.atoms.filter(a => a.asym === asym), c = at.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / at.length);
+      fade(col.set(colorOf ? colorOf(at[at.length >> 1]) : g.color));
+      add(paint(ringSegGeo(ring, Math.atan2(c.x - ring.cen.x, c.z - ring.cen.z), ring.n), col), c);
+    }
   } else for (const asym of [...new Set(g.atoms.map(a => a.asym))]) {
     let at = g.atoms.filter(a => a.asym === asym); if (at.length < 4) continue;
     let P = at.map(posOf);
@@ -1200,9 +1308,28 @@ function buildSchematic(g, colorOf, posOf = (a) => a.p) {
       const core = at.filter(a => { const pa = posOf(a); let c = 0; for (const b of all) { if (b === a || b.asym === a.asym && Math.abs(b.seq - a.seq) <= 12) continue; if (pa.distanceToSquared(posOf(b)) < 100 && ++c >= 3) return true; } return false; });
       if (core.length >= 12) { at = core; P = at.map(posOf); }
     }
-    else if (!at[0].na && isTube(P) || at[0].na && P.length >= 6) {
-      col.set(colorOf ? colorOf(at[at.length >> 1]) : g.color);
-      const geo = paint(tubeGeo(P, at[0].na ? 9 : 4.5), col);
+    else if (at[0].na && P.length >= 6) {
+      /* double helix = ONE tube along the duplex axis (textbook convention). The mean of one strand's phosphates over a
+         helical turn (~10.4 bp) lies on the axis; the midpoint with the partner strand's turn-mean removes end bias.
+         The strand whose chain id sorts first draws the duplex; its partner draws nothing. */
+      const mine = smoothPath(P, 5);
+      let partner = null, best = 0;
+      for (const h of groups) for (const k of [...new Set(h.atoms.filter(b => b.na).map(b => b.asym))]) {
+        if (k === asym && h === g) continue;
+        const Q = h.atoms.filter(b => b.na && b.asym === k).map(b => h === g ? posOf(b) : b.p);
+        const hit = P.filter(p => Q.some(q => p.distanceToSquared(q) < 484)).length / P.length;
+        if (hit > 0.5 && hit > best) { best = hit; partner = { k, Q }; }
+      }
+      if (partner && partner.k < asym) continue;
+      let axis = mine;
+      if (partner) { const T = smoothPath(partner.Q, 5); axis = mine.map(p => { let b = T[0], bd = 1e18; for (const t of T) { const d = p.distanceToSquared(t); if (d < bd) { bd = d; b = t; } } return p.clone().add(b).multiplyScalar(0.5); }); }
+      fade(col.set(colorOf ? colorOf(at[at.length >> 1]) : g.color));
+      add(paint(tubeGeo(axis, partner ? 10 : 6), col), axis.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / axis.length));
+      continue;
+    }
+    else if (!at[0].na && isTube(P)) {
+      fade(col.set(colorOf ? colorOf(at[at.length >> 1]) : g.color));
+      const geo = paint(tubeGeo(P, 4.5), col);
       add(geo, P.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / P.length));
       continue;
     }
@@ -1216,23 +1343,48 @@ function buildSchematic(g, colorOf, posOf = (a) => a.p) {
     /* preset-declared domains (literature residue ranges) win over the geometric k-means split */
     const doms = current?.domains && !at[0].na
       ? current.domains.map(([, rs]) => full.filter(a => rs.some(([u, v]) => a.seq >= u && a.seq <= v))).filter(d => d.length >= 8)
-      : domainSplit(at, posOf, groups.length <= 2 ? 50 : 330);
-    for (const dom of doms) {   // a single protein: show its domains
-      const f = fitLobe(dom.map(posOf));
-      col.set(colorOf ? colorOf(dom[dom.length >> 1]) : g.color);
-      const m = add(paint(lobeGeo(f.taper), col), f.centre.clone(), { lobe: dom, asym });
-      m.position.copy(f.centre); m.quaternion.copy(f.q); m.scale.copy(f.scale); m.userData.centre = new THREE.Vector3();   // centre in local = origin
+      : domainSplit(at, posOf, groups.length <= 2 ? 50 : moving ? 150 : 220);   // moving parts: finer domains so their motion shows
+    for (let dom of doms) {
+      const open = dom.filter(a => !coreSet.has(a)); if (open.length >= 8) dom = open;
+      const R = dom.map(posOf), key = dom.length + '|' + dom[0].seq + '|' + dom[dom.length - 1].seq;
+      let geo = null; const tpl = blobCache.get(key);
+      if (tpl) {   // symmetric copy of a domain already meshed: move the template instead of re-meshing (capsids, rings)
+        const f = superpose(R, tpl.rest); let e = 0; tpl.rest.forEach((p, i) => e += f(p).distanceToSquared(R[i]));
+        if (e / R.length < 6.25) geo = tpl.geo.clone().applyMatrix4(new THREE.Matrix4().compose(f.ca.clone().sub(f.cb.clone().applyQuaternion(f.q)), f.q, new THREE.Vector3(1, 1, 1)));
+      }
+      if (!geo) { geo = domainBlobGeo(R); if (!tpl) blobCache.set(key, { geo, rest: R }); }
+      fade(col.set(colorOf ? colorOf(dom[dom.length >> 1]) : g.color));
+      add(paint(geo.clone(), col), R.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / R.length), { lobe: dom, rest: R.map(p => p.clone()), asym });
+    }
+  }
+  /* PORE: >= 3 subunits around an axis whose functional core lines the axis (ion channels): the subunit facing the camera
+     is ghosted each frame so the pore, the filter and the ions stay visible ("front subunit removed for clarity") */
+  const asyms = [...new Set(g.atoms.map(a => a.asym))];
+  if (asyms.length >= 3 && coreSet.size) {
+    const C = asyms.map(k => { const at = g.atoms.filter(a => a.asym === k); return at.reduce((s, a) => s.add(posOf(a)), new THREE.Vector3()).multiplyScalar(1 / at.length); });
+    const cen = C.reduce((s, c) => s.add(c), new THREE.Vector3()).multiplyScalar(1 / C.length), rxz = (p) => Math.hypot(p.x - cen.x, p.z - cen.z);
+    const rC = C.reduce((s, c) => s + rxz(c), 0) / C.length, core = [...coreSet], rCore = core.reduce((s, a) => s + rxz(posOf(a)), 0) / core.length;
+    if (rC > 8 && rCore < 0.5 * rC) {
+      const ghost = surfaceMaterial('schem'); ghost.transparent = true; ghost.opacity = 0.13; ghost.depthWrite = false;
+      grp.userData.pore = { cen, ang: new Map(asyms.map((k, i) => [k, Math.atan2(C[i].x - cen.x, C[i].z - cen.z)])), mat, ghost, front: null };
     }
   }
   grp.userData.simple = true;
   return grp;
 }
+function updatePore(g) {
+  const P = g.mesh.userData.pore; if (!P) return;
+  const v = g.mesh.worldToLocal(camera.position.clone()), a = Math.atan2(v.x - P.cen.x, v.z - P.cen.z);
+  let front = null, bd = 9; for (const [k, t] of P.ang) { const d = Math.abs(Math.atan2(Math.sin(t - a), Math.cos(t - a))); if (d < bd) { bd = d; front = k; } }
+  if (front === P.front) return; P.front = front;
+  for (const x of g.mesh.children) {
+    if (x.userData.surface) { const f = x.userData.asym === front; x.material = f ? P.ghost : P.mat; if (x.userData.outline) x.userData.outline.visible = !f; }
+    else if (x.userData.core && x.userData.asym) x.visible = x.userData.asym !== front;
+  }
+}
 /* lobes follow conformational changes (process blends, two-state morphs): refit position / orientation / size */
 function refitLobes(g, posOf) {
-  for (const x of g.mesh.children) if (x.userData.lobe) {
-    const f = fitLobe(x.userData.lobe.map(posOf));
-    x.position.copy(f.centre); x.quaternion.copy(f.q); x.scale.copy(f.scale);
-  }
+  for (const x of g.mesh.children) if (x.userData.lobe) placeLobe(x, x.userData.lobe.map(posOf));
 }
 
 /* re-surface a chain whose coordinates changed (process conformations, two-state morph); throttled by key */
@@ -1248,14 +1400,41 @@ function resurface(g, x, posOf, key) {
   x.geometry = geo; if (x.userData.outline) x.userData.outline.geometry = geo;
   old.dispose();
 }
-/* which parts are simplified by default: preset keepDetail list; otherwise keep parts that move, change shape or touch a ligand */
+/* ----------------------------------------------------------------------------- functional partition
+   (1) functional core = residues whose CA is within 8 A of a bound small molecule / ion (both conformations), plus preset
+       `core` specs ({part, seqs:[[a,b]]} or {near:{part, seq}, r, with:[parts]}) -> atomic detail on top of the shape;
+   (2) parts that move or change shape -> simplified shapes that still move (rigid domain blobs, ring segments);
+   (3) parts with no core and no motion -> simplified and faded (scaffold). */
+const LIPIDS = new Set(['CDL', 'PC1', 'PEE', 'LMT', 'PLC', 'POV', 'UNL', 'DMU', 'LDA', '3PE', 'PCW', 'PGT', 'CLR', 'LHG', 'PTY', 'DGA', '8PE', 'PEF', 'PGV', 'SQD', 'LMG', 'DGD', 'BOG', 'DDM', 'UND', 'OLA', 'OLC', 'PLM', 'STE', 'MYR', 'Y01', 'CHD']);
+function computeCore(g) {
+  const L = (model?.ligands || []).filter(l => !LIPIDS.has(l.comp) && l.atoms.length <= 120);
+  const ions = L.filter(l => l.atoms.length === 1);
+  const pts = L.filter(l => l.atoms.length > 1 || ions.length <= 20).flatMap(l => l.atoms.map(x => x.p));
+  const set = new Set();
+  if (pts.length) g.atoms.forEach((a, i) => { if (!a.na && pts.some(q => a.p.distanceToSquared(q) < 64 || a.p2 && a.p2.distanceToSquared(q) < 64)) set.add(i); });
+  for (const c of current?.core || []) {
+    if (c.part && c.seqs && kwMatch(g.name, c.part)) g.atoms.forEach((a, i) => { if (c.seqs.some(([u, v]) => a.seq >= u && a.seq <= v)) set.add(i); });
+    if (c.near) {
+      const host = groups.find(h => kwMatch(h.name, c.near.part)); if (!host) continue;
+      const ctr = host.atoms.filter(a => a.seq === c.near.seq).map(a => a.p); if (!ctr.length) continue;
+      if (g === host || (c.with || []).some(k => kwMatch(g.name, k))) g.atoms.forEach((a, i) => { if (ctr.some(q => a.p.distanceToSquared(q) < c.r * c.r)) set.add(i); });
+    }
+  }
+  return [...set].sort((x, y) => x - y);
+}
+/* functional-core residues are coloured by chemistry (journal convention for key residues) */
+const RES_CHEM = { ASP: '#e5484d', GLU: '#e5484d', LYS: '#3b6fe0', ARG: '#3b6fe0', HIS: '#6f8ff0', SER: '#2fb39c', THR: '#2fb39c', ASN: '#2fb39c', GLN: '#2fb39c',
+  CYS: '#e6c84a', MET: '#e6c84a', TYR: '#b58cf0', PHE: '#b58cf0', TRP: '#b58cf0', GLY: '#e8e8e8', PRO: '#e8e8e8' };
+const chemColour = (a) => { const c = new THREE.Color(RES_CHEM[a.resn] || '#d8d1b8'); return illustrative() ? c : c.multiplyScalar(0.62); };   // other hydrophobic: sand; dimmed on black so pale beads don't bloom to white
+const FADE_TO = () => new THREE.Color(illustrative() ? '#d6d9e0' : '#1c2030');
+/* which parts are simplified by default ("推荐" = functional partition): preset keepDetail parts stay atomic; a scene with
+   something to explain (ligands, two states, a process, several parts) is simplified, with atomic functional cores */
 function defaultSimple(g) {
   const mode = $('simpDefault').value;
   if (mode === 'all') return true;
   if (mode === 'none') return false;
-  if (current?.keepDetail) return !current.keepDetail.some(k => kwMatch(g.name, k));
-  if (groups.length < 2) return false;                         // a single protein: nothing to simplify against
-  return !(g.spin || g.confKeys || g.atoms.some(a => a.hot));
+  if (current?.keepDetail?.some(k => kwMatch(g.name, k))) return false;
+  return !!((model?.ligands || []).length || current?.states || current?.process || groups.length >= 2);
 }
 
 /* ----------------------------------------------------------------------------- teaching labels ("标注与讲解")
@@ -1268,10 +1447,15 @@ function rebuildLabels() {
   const notes = current?.notes || {}, total = groups.reduce((s, g) => s + g.atoms.length, 0);
   const cands = groups.filter(g => g.visible && g.atoms.length).map(g => ({ g, nk: findKey(notes, g.name) }))
     .filter(x => current?.notes ? x.nk != null : x.g.atoms.length / total > 0.01)   // preset with notes: label only explained parts
-    .sort((a, b) => b.g.atoms.length - a.g.atoms.length).slice(0, 16);
-  for (const { g, nk } of cands) {
+    .sort((a, b) => b.g.atoms.length - a.g.atoms.length)
+    .filter((x, i, arr) => x.nk == null || x.nk === '' || arr.findIndex(y => y.nk === x.nk) === i)   // one label per explained part type
+    .slice(0, 16);
+  const all = groups.flatMap(g => g.atoms), mc = all.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, all.length));
+  cands.forEach(({ g, nk }, li) => {
     const c = g.atoms.reduce((s, a) => s.add(a.p), new THREE.Vector3()).multiplyScalar(1 / g.atoms.length);
-    let dir = new THREE.Vector3(c.x, 0, c.z); if (dir.length() < 8) dir.set(1, 0, 0); dir.normalize();
+    /* point the label away from the molecule's centre; parts sitting on the axis (nucleosome histones) get spread directions */
+    let dir = new THREE.Vector3(c.x, 0, c.z); if (dir.length() < 8) dir.copy(c).sub(mc).setY(0);
+    if (dir.length() < 4) { const t = li * 2.39996; dir.set(Math.cos(t), 0, Math.sin(t)); } dir.normalize();
     let best = g.atoms[0], bv = -1e9; for (const a of g.atoms) { const v = a.p.clone().sub(c).dot(dir) + 0.25 * (a.p.y - c.y); if (v > bv) { bv = v; best = a; } }
     const note = nk != null ? notes[nk] : null;
     const chains = new Set(g.atoms.map(a => a.asym)).size;
@@ -1286,7 +1470,7 @@ function rebuildLabels() {
       $('infoCard').style.display = 'block';
     };
     box.appendChild(el); labels.push({ el, g, anchor: best.p.clone().addScaledVector(dir, 6) });
-  }
+  });
 }
 const _lv = new THREE.Vector3();
 function updateLabels() {
@@ -1300,8 +1484,13 @@ function updateLabels() {
   }
   /* declutter: labels are anchored at their bottom-centre; push overlapping ones upward (greedy, top to bottom) */
   const shown = labels.filter(L => L.el.style.display !== 'none').sort((a, b) => a.sy - b.sy), placed = [];
+  for (const id of ['panel', 'title', 'caption', 'infoCard']) {   // UI boxes are obstacles too
+    const e = $(id); if (!e || getComputedStyle(e).display === 'none' || id === 'panel' && e.classList.contains('hidden') || !e.textContent.trim()) continue;
+    const r = e.getBoundingClientRect(); if (r.width && r.height) placed.push({ x: r.left + r.width / 2, y: r.bottom, w: r.width, h: r.height });
+  }
   for (const L of shown) {
     const bw = L.bw ||= L.el.offsetWidth, bh = L.bh ||= L.el.offsetHeight;
+    L.sx = THREE.MathUtils.clamp(L.sx, bw / 2 + 8, w - bw / 2 - 8); L.sy = Math.max(L.sy, bh + 8);   // stay on screen
     const free = (y) => !placed.some(o => Math.abs(o.x - L.sx) < (o.w + bw) / 2 + 4 && Math.abs(o.y - y) < (o.h + bh) / 2 + 3);
     // a label may move at most ~1.5 label heights from its part; if there is no room it fades instead of lying about where it points
     let y = null; for (const dy of [0, -bh - 3, bh + 3, -1.6 * bh, 1.6 * bh]) if (free(L.sy + dy)) { y = L.sy + dy; break; }
@@ -1317,19 +1506,18 @@ function applyBlends(g) {
   const keys = g.confKeys || [];
   g.mesh.traverse(x => {
     if (x.isInstancedMesh && x.userData.scaleOf) {
-      g.atoms.forEach((a, i) => {
-        const b = a.alts && g.blend[a.asym]; if (!b) return;
+      (x.userData.subset || g.atoms.map((_, i) => i)).forEach((ai, i) => {
+        const a = g.atoms[ai], b = a.alts && g.blend[a.asym]; if (!b) return;
         _v0.copy(a.alts[b[0]] || a.p).lerp(a.alts[b[1]] || a.p, b[2]);
         x.setMatrixAt(i, _m4.compose(_v0, _q0, _s0.setScalar(x.userData.scaleOf(a))));
       });
       x.instanceMatrix.needsUpdate = true;
     } else if (x.userData.lobe) {
       const b = g.blend[x.userData.asym]; if (!b) return;
-      const f = fitLobe(x.userData.lobe.map(a => a.alts ? a.alts[b[0]].clone().lerp(a.alts[b[1]], b[2]) : a.p));
-      x.position.copy(f.centre); x.quaternion.copy(f.q); x.scale.copy(f.scale);
+      placeLobe(x, x.userData.lobe.map(a => a.alts ? (a.alts[b[0]] || a.p).clone().lerp(a.alts[b[1]] || a.p, b[2]) : a.p));
     } else if (x.userData.surface && !x.userData.schem) {
       const b = g.blend[x.userData.asym]; if (!b) return;
-      resurface(g, x, (a) => a.alts ? a.alts[b[0]].clone().lerp(a.alts[b[1]], b[2]) : a.p, b[0] + b[1] + Math.round(b[2] * 12));
+      resurface(g, x, (a) => a.alts ? (a.alts[b[0]] || a.p).clone().lerp(a.alts[b[1]] || a.p, b[2]) : a.p, b[0] + b[1] + Math.round(b[2] * 12));
     } else if (x.userData.cartoon && x.morphTargetInfluences) {
       const b = g.blend[x.userData.asym]; if (!b) return;
       const infl = x.morphTargetInfluences; for (let i = 0; i < keys.length; i++) infl[i] = 0;
@@ -1379,6 +1567,7 @@ function buildMolecules(mols, scale, carbon) {   // carbon: optional colour over
     }
     grp.add(sm);
   }
+  if (illustrative()) for (const o of [...grp.children]) grp.add(outlineOf(o));   // same ink line as the proteins (PDB-101 style)
   grp.traverse(o => { if (o.isInstancedMesh) { o.instanceMatrix.needsUpdate = true; if (o.instanceColor) o.instanceColor.needsUpdate = true; o.frustumCulled = false; } });
   return grp;
 }
@@ -1386,7 +1575,7 @@ function buildMolecules(mols, scale, carbon) {   // carbon: optional colour over
 const MOL_CARBON = { ATP: '#ffb300', ADP: '#00c8ff', GTP: '#ffb300', GDP: '#00c8ff' };   // story colours for animated molecules
 function makeMol(tpl, xray = true, carbon = MOL_CARBON[tpl.comp]) {
   const g = buildMolecules([{ atoms: tpl.atoms, bonds: tpl.bonds, centre: new THREE.Vector3() }], +$('ligScale').value, carbon);
-  if (xray) g.traverse(o => { if (o.isMesh) o.material = ligandMaterial(1.6); });   // brighter; lives in the overlay scene
+  if (xray) g.traverse(o => { if (o.isMesh && !o.userData.outline) o.material = ligandMaterial(1.6); });   // brighter; lives in the overlay scene
   g.visible = false; procRoot.add(g); return g;
 }
 const PARTICLE_GEO = new THREE.IcosahedronGeometry(1, 2);
@@ -1421,7 +1610,14 @@ function tickAnims(dt) {
    ============================================================================= */
 const PROCESSES = {
   atpSynthase: {
-    caption: 'H⁺ 顺浓度梯度经 a 亚基（深蓝）进入 c 环（绿）→ c 环与中心柄 γ（白）旋转 → γ 每转 120°，三个 β 亚基（蓝）依次变构：开放（空）→ 松弛（结合 ADP + Pi）→ 紧密（合成 ATP，闪光）→ 开放（释放 ATP）（Boyer 结合变构机制）。β 的形状来自 6ZPO（冷冻电镜，4.0 Å）三条 β 链的真实构象；ADP / Mg²⁺ 位置取自该结构，ATP 与 Pi 的位置是按 ADP 位置建模的示意',
+    energy: [
+      ['质子动力势', '呼吸链把 H⁺ 泵到膜间隙，建立跨线粒体内膜的电化学梯度（质子动力势 Δp 约 180–200 mV，主要是膜电位，ΔpH 只占一小部分）。这是 ATP 合酶的能量来源。'],
+      ['H⁺ 流过 → c 环转动', 'H⁺ 从膜间隙一侧的 a 亚基半通道进入，结合到 c 亚基的 Glu58 上（中和负电荷后，这个 c 亚基才能转进疏水的脂双层）；c 环转一圈后，它在 a 亚基 Arg159 旁边把 H⁺ 交给通往基质的另一个半通道。电化学能在这里变成转动的机械能。c8 环转一圈要 8 个 H⁺。'],
+      ['转动 → β 构象变化', 'γ 是不对称的偏心轴，与 c 环一起转动。每转 120°，它把三个 β 亚基依次推入下一种构象（开放 → 松弛 → 紧密），机械能被储存为蛋白构象和结合能的变化。聚焦 β 位点里的核苷酸可看到由坐标算出的结构域转动角。'],
+      ['紧密位点里生成 ATP', '在紧密构象中 ADP 和 Pi 被牢牢包住、水被排除，位点内 ADP + Pi ⇌ ATP 的平衡常数接近 1（ΔG ≈ 0），所以生成化学键这一步本身几乎不消耗外来能量——这是 Boyer 结合变构机制的要点。'],
+      ['位点打开释放 ATP（耗能）', '紧密位点对 ATP 的亲和力极高（单位点催化测得解离常数约 10⁻¹² M 量级；Penefsky 等）。转动的能量真正用在这里：强迫位点打开、降低亲和力，把 ATP 释放出来。每转一圈释放 3 个 ATP，约 8 H⁺ / 3 ATP ≈ 2.7 H⁺/ATP。'] ],
+    stage(ctx) { const f = this.f || 0; return f < 0.15 ? 1 : f < 0.8 ? 2 : f < 0.93 ? 3 : 4; },
+    caption: 'H⁺ 顺电化学梯度（质子动力势）经 a 亚基（深蓝）进入 c 环（绿）→ c 环与中心柄 γ（白）旋转 → γ 每转 120°，三个 β 亚基（蓝）依次变构：开放（空）→ 松弛（结合 ADP + Pi）→ 紧密（合成 ATP，闪光）→ 开放（释放 ATP）（Boyer 结合变构机制）。β 的形状来自 6ZPO（冷冻电镜，4.0 Å）三条 β 链的真实构象；ADP / Mg²⁺ 位置取自该结构，ATP 与 Pi 的位置是按 ADP 位置建模的示意',
     async setup(ctx) {
       const c = ctx.atomsOf(/subunit c1/i), a = ctx.atomsOf(/subunit a$/i);
       if (!c.length) throw new Error('找不到 c 环');
@@ -1501,7 +1697,7 @@ const PROCESSES = {
         return { k, P, S, D, atp: ctx.makeMol(tATP), adp: ctx.makeMol(tADP), pi: ctx.makeMol(tPi), mg: ctx.makeParticle(0x7dff8a, 1.6),
           flash: ctx.makeFlash(0xfff1a8), lastSynth: null };
       });
-      this.bg = bg; this.next = next; this.chains = chains;
+      this.bg = bg; this.next = next; this.chains = chains; this.f = 0;
       ctx.markHot(this.sites.map(s => s.S), 8);
       this.lastK = Math.floor(ctx.theta / (Math.PI / 4));
       ctx.counters.ATP = 0; ctx.counters['H⁺'] = 0;
@@ -1509,7 +1705,7 @@ const PROCESSES = {
     update(ctx, dt) {
       const k8 = Math.floor(ctx.theta / (Math.PI / 4));
       for (; this.lastK < k8; this.lastK++) this.spawnProton(ctx);
-      const step = ctx.theta / (2 * Math.PI / 3), n = Math.floor(step), f = step - n, nn = ((n % 3) + 3) % 3;
+      const step = ctx.theta / (2 * Math.PI / 3), n = Math.floor(step), f = step - n, nn = ((n % 3) + 3) % 3; this.f = f;
       const w = ease((f - 0.25) / 0.6);   // protein conformational change during the middle of each 120 deg step
       const _q = new THREE.Quaternion(), _p = new THREE.Vector3();
       for (const s of this.sites) {
@@ -1566,7 +1762,14 @@ const PROCESSES = {
   },
 
   flagellarMotor: {
-    caption: 'H⁺ 从周质经定子 MotA/MotB（绿）流入胞质 → 定子推动 C 环（粉）→ 转子（杆、钩、鞭毛丝）旋转',
+    energy: [
+      ['质子动力势', '细菌质膜内外的 H⁺ 电化学梯度（Δp 约 −150 mV 量级）。鞭毛马达直接用这个梯度，不用 ATP。'],
+      ['H⁺ 经定子', 'H⁺ 从周质经 MotA/MotB 定子的通道流入胞质，途中结合并离开 MotB 跨膜段上一个保守的天冬氨酸。'],
+      ['定子转动', '2020 年的 MotA₅B₂ 结构提出：H⁺ 的结合 / 释放驱动 MotA 五聚体绕中心的 MotB 二聚体转动，像一个小齿轮。'],
+      ['推动 C 环（FliG）', 'MotA 胞质部分与 C 环上 FliG 的 C 端结构域接触，把定子的转动变成作用在转子上的扭矩。'],
+      ['转子与鞭毛丝转动', '转子、杆、钩和鞭毛丝一起转动，每秒约上百转，推动细菌游动；CheY-P 结合 C 环可让转向在逆时针 / 顺时针间切换。'] ],
+    stage(ctx) { return 1 + Math.floor((ctx.theta / (2 * Math.PI) * 4) % 4); },
+    caption: 'H⁺ 从周质经定子 MotA/MotB（绿）流入胞质 → 定子推动 C 环（粉）→ 转子（杆、钩、鞭毛丝）旋转（H⁺ 计数仅示意：实测每转约 1000 个以上 H⁺，Meister, Lowe & Berg 1987）',
     async setup(ctx) {
       const st = ctx.atomsOf(/定子/);
       this.ys = st.length ? st.reduce((s, x) => s + x.p.y, 0) / st.length : (ctx.membraneY[0] || 0);
@@ -1588,7 +1791,14 @@ const PROCESSES = {
   },
 
   ionChannel: {
-    caption: 'K⁺（紫）排成单列，脱去水合层，依次跳过选择性过滤器的 4 个结合位点穿过通道',
+    energy: [
+      ['电化学梯度', '细胞内 K⁺ 浓度高（约 140 mM，胞外约 5 mM），K⁺ 顺电化学梯度外流。通道不消耗 ATP，只提供一条能垒很低的通路（被动运输）。'],
+      ['水合 K⁺ 进入中央腔', '中央腔里充满水，K⁺ 仍带着水合壳；四个孔螺旋的偶极负端指向中央腔，稳定腔里的阳离子（Doyle 等 1998）。'],
+      ['过滤器：羰基氧替代水', 'TVGYG 的主链羰基氧（最内侧位点还有 Thr75 侧链羟基）围成与水合壳几何几乎相同的氧笼，K⁺ 脱水的能量代价被配位补偿；更小的 Na⁺ 不能同时与这些氧配位，补偿不足，所以被排斥。聚焦 K⁺ 可看到由坐标计算的 K⁺–O 配位。'],
+      ['离子相斥推动通过', '过滤器里通常同时有两个 K⁺（与水相间），彼此静电排斥；新离子进入时把前面的离子推出去（敲击机制），每秒可通过约 10⁸ 个离子。'],
+      ['出胞外重新水合', 'K⁺ 离开过滤器后重新获得水合壳，进入胞外液。'] ],
+    stage(ctx) { const i = this.hopI || 0; return i <= 1 ? 1 : i <= 3 ? 2 : i <= 5 ? 3 : 4; },
+    caption: 'K⁺（紫）排成单列，脱去水合层，依次跳过选择性过滤器的 4 个结合位点穿过通道（1BL8 是关闭态：胞内侧螺旋束交叉处闭合；KcsA 在胞内酸性 pH 下打开，动画假设门已打开）',
     async setup(ctx) {
       const ys = ctx.allAtoms.map(a => a.p.y); this.top = Math.max(...ys) + 25; this.bot = Math.min(...ys) - 25;
       /* selectivity filter = where the DEPOSITED K+ ions sit (1BL8 has 3); the PCA axis sign is arbitrary, so the
@@ -1597,7 +1807,7 @@ const PROCESSES = {
       const kys = kk.map(L => L.centre.y);
       this.dir = kys.length ? Math.sign(kys.reduce((a, b) => a + b, 0) / kys.length - yc) || 1 : 1;
       this.filter = kys.length ? (this.dir > 0 ? Math.max(...kys) : Math.min(...kys)) : this.top - 25 - (this.top - this.bot - 50) * 0.22;
-      this.t = 0; ctx.counters['K⁺'] = 0;
+      this.t = 0; this.hopI = 0; ctx.counters['K⁺'] = 0;
       ctx.markHot([0, 1, 2, 3].map(i => new THREE.Vector3(0, this.filter - this.dir * i * 3.4, 0)), 9);
     },
     update(ctx, dt) {
@@ -1609,7 +1819,7 @@ const PROCESSES = {
         const stops = [start, F - d * 14, F - d * 10.2, F - d * 6.8, F - d * 3.4, F, end];
         let i = 0;
         const hop = () => { if (i >= stops.length - 1) { p.parent?.remove(p); return; }
-          const a = stops[i], b = stops[i + 1]; i++;
+          const a = stops[i], b = stops[i + 1]; i++; this.hopI = i;
           ctx.anim(p, i === 1 ? 1.6 : i === stops.length - 1 ? 1.4 : 0.55, (u) => { p.position.set(Math.sin(u * 9) * 0.3, a + (b - a) * ease(u), 0);
             if (i === stops.length - 1) p.scale.setScalar(2.8 * (1 - ease((u - 0.5) / 0.5)) + 0.01); }, hop); };
         hop();
@@ -1756,14 +1966,14 @@ async function loadScene(cfg) {
     }
     $('morph').value = 0; U.uMorph.value = 0;
     markHotFromLigands();
+    $('simpDefault').value = 'auto';   // before the build, so the menu and the meshes agree
     rebuildMeshes(); rebuildLigands(); rebuildMembranes(); applyCut();
     const cap = cfg.caption || (P && P.caption) || '';
     $('caption').innerHTML = cap ? `${cap}<span class="cnt" id="cnt"></span>` : '';
     $('tId').textContent = (cfg.states ? cfg.states.join(' ⇄ ') : main.id) + ((cfg.components || []).length ? ' + ' + cfg.components.map(c => c.id).join(' + ') : '');
     $('tName').textContent = cfg.name || main.title;
-    $('simpDefault').value = 'auto';
     if (!labelsTouched) $('labelsOn').checked = !!cfg.notes;   // V12: respect the user's own choice
-    renderLegend(); rebuildLabels();
+    renderLegend(); rebuildLabels(); renderEnergy();
     resetCamera(cfg.camera); aimCut();
     const total = groups.reduce((s, g) => s + g.atoms.length, 0);
     status(`完成：${total.toLocaleString()} 个残基团块，${ligands.length} 个小分子`);
@@ -1821,6 +2031,10 @@ function clearScene() {
 }
 
 function colourFn(g, gi) {
+  const f = colourFnRaw(g, gi); if (!f || !illustrative()) return f;
+  const hsl = {}; return (a) => { const c = f(a).clone(); c.getHSL(hsl); return c.setHSL(hsl.h, Math.min(hsl.s, 0.58), THREE.MathUtils.clamp(hsl.l, 0.5, 0.7)); };   // muted illustration palette
+}
+function colourFnRaw(g, gi) {
   const mode = $('colorMode').value, pal = PALETTES[$('palette').value];
   if (mode === 'entity') return null;
   if (mode === 'chain') {
@@ -1838,15 +2052,29 @@ function rebuildMeshes() {
   groups.forEach((g, i) => {
     if (g.mesh) { world.remove(g.mesh); disposeObj(g.mesh); }
     g.color = ($('palette').value === 'neon' && g.fixed) ? g.fixed : pal[i % pal.length];
-    if (illustrative()) { const c = new THREE.Color(g.color), hsl = {}; c.getHSL(hsl); if (hsl.l > 0.78) g.color = '#' + c.setHSL(hsl.h, Math.max(hsl.s, 0.18), 0.66).getHexString(); }   // white parts need contrast on the light background
+    if (!g.fixed && g.atoms[0]?.na) g.color = illustrative() ? '#e3a35a' : '#ffb347';   // nucleic acids in the warm sector (Goodsell convention)
+    if (illustrative()) { const c = new THREE.Color(g.color), hsl = {}; c.getHSL(hsl);   // illustration palette: muted, mid-light (PDB-101 / Goodsell), white parts get contrast
+      g.color = '#' + c.setHSL(hsl.h, hsl.l > 0.78 ? Math.max(hsl.s, 0.18) : Math.min(hsl.s, 0.58), hsl.l > 0.78 ? 0.66 : THREE.MathUtils.clamp(hsl.l, 0.5, 0.7)).getHexString(); }
     if (g.simple === undefined) g.simple = defaultSimple(g);
     const cf = g._colorOf = colourFn(g, i);
+    g.coreIdx = computeCore(g);
+    g.faded = g.simple && groups.length > 2 && !g.atoms[0]?.na && !g.spin && !g.confKeys && !g.atoms.some(a => a.p2) && !g.coreIdx.length;
     g.mesh = g.simple ? ($('simpStyle').value === 'schem' ? buildSchematic(g, cf) : buildSurfaces(g, cf)) : rep === 'cartoon' ? buildCartoon(g, cf) : buildGroup(g, cf);
+    if (g.simple && g.coreIdx.length) {   // (1) functional core: atomic blobs on top of the simplified shape
+      const pore = !!g.mesh.userData.pore, sets = pore ? [...new Set(g.coreIdx.map(k => g.atoms[k].asym))].map(k => [k, g.coreIdx.filter(j => g.atoms[j].asym === k)]) : [[null, g.coreIdx]];
+      for (const [asym, idx] of sets) {   // per chain when a pore subunit can be ghosted
+        const sub = { ...g, atoms: idx.map(k => g.atoms[k]) }, mat = blobMaterial({ cutaway: g.ghost }); mat.clippingPlanes = planesFor(g);
+        const dm = blobInstances(sub, chemColour, mat, 1.12); dm.userData.subset = idx; dm.userData.core = true; dm.userData.asym = asym;
+        if (illustrative()) dm.add(outlineOf(dm, { blob: true, cutaway: g.ghost }));
+        g.mesh.add(dm);
+      }
+    }
     g.mesh.visible = g.visible; g.mesh.rotation.y = g.spin ? theta : 0;
     world.add(g.mesh);
   });
 }
 function rebuildLigands() {
+  clearFocus();
   for (const lg of ligGroups) { world.remove(lg.obj); disposeObj(lg.obj); }
   const prevVis = new Map(ligGroups.map(l => [l.key, l.visible]));
   ligGroups = [];
@@ -1854,7 +2082,7 @@ function rebuildLigands() {
   for (const L of model.ligands) if (!L.hidden) { const key = L.comp + '|' + (L.state || 0); if (!by.has(key)) by.set(key, []); by.get(key).push(L); }
   for (const [key, mols] of by) {
     const obj = buildMolecules(mols, +$('ligScale').value);
-    const visible = prevVis.get(key) ?? true;
+    const visible = prevVis.get(key) ?? !LIPIDS.has(mols[0].comp);   // bound lipids / detergents start hidden (tick them in the legend)
     obj.visible = visible && $('ligOn').checked;
     world.add(obj);
     ligGroups.push({ key, comp: mols[0].comp, name: mols[0].fullName, n: mols.length, obj, visible, state: mols[0].state || 0 });
@@ -1930,15 +2158,205 @@ function renderLegend() {
     const d = document.createElement('div'); d.className = 'ent';
     d.innerHTML = `<span class="sw" style="background:${st[0]};color:${st[0]};border-radius:3px"></span><span class="nm" title="${lg.name}">◆ ${lg.comp}${lg.state ? '（构象 2）' : ''} <span class="sub">${lg.name.toLowerCase()} ×${lg.n}</span></span><input type="checkbox" ${lg.visible ? 'checked' : ''}><span></span><span></span><span></span>`;
     d.querySelector('input').onchange = (ev) => { lg.visible = ev.target.checked; lg.obj.visible = lg.visible && $('ligOn').checked; };
+    const fb = document.createElement('button'); fb.className = 'fbtn'; fb.textContent = '⌖'; fb.title = '聚焦：结合位点、相互作用、构象变化（再点切换到下一个）';
+    fb.onclick = () => { const list = model.ligands.filter(l => l.comp === lg.comp && (l.state || 0) === lg.state); if (!list.length) return;
+      lg.fi = ((lg.fi ?? -1) + 1) % list.length; focusLigand(list[lg.fi], lg.fi, list.length); };
+    d.children[3].replaceWith(fb);
     L.appendChild(d);
   }
+  /* ligands the process animation replaced with its own moving copies: still focusable (their real binding sites) */
+  const shownKeys = new Set(ligGroups.map(l => l.comp + '|' + l.state));
+  const hiddenBy = new Map(); for (const l of model?.ligands || []) if (l.hidden && !shownKeys.has(l.comp + '|' + (l.state || 0))) { const k = l.comp + '|' + (l.state || 0); if (!hiddenBy.has(k)) hiddenBy.set(k, []); hiddenBy.get(k).push(l); }
+  for (const [k, list] of hiddenBy) {
+    const d = document.createElement('div'); d.className = 'ent';
+    d.innerHTML = `<span class="sw" style="background:transparent;border:1px dashed var(--dim);border-radius:3px"></span><span class="nm" title="晶体结构中的位置（动画中用移动的副本表示）">◇ ${list[0].comp} <span class="sub">晶体结构位点 ×${list.length}（动画中另行显示）</span></span><span></span><span></span><span></span><span></span>`;
+    const fb = document.createElement('button'); fb.className = 'fbtn'; fb.textContent = '⌖'; fb.title = '聚焦晶体结构中的结合位点';
+    let fi = -1; fb.onclick = () => { fi = (fi + 1) % list.length; focusLigand(list[fi], fi, list.length); };
+    d.children[3].replaceWith(fb); L.appendChild(d);
+  }
+}
+
+/* ----------------------------------------------------------------------------- small-molecule focus
+   Downloads the FULL-ATOM residues within 5 A of one ligand copy (RCSB ModelServer residueSurroundings), maps them into
+   the scene frame (Kabsch on matched CA + ligand atoms), draws them as sticks with residue labels, and computes the
+   interactions from the coordinates: H-bonds (N/O-N/O <= 3.5 A), salt bridges (ligand O to Lys NZ / Arg NE,NH / His
+   within 4.0 A), metal / ion coordination (to O/N within 2.8 A, K+/Na+ 3.2 A), hydrophobic contacts (C-C <= 4.0 A). */
+const METALS = new Set(['MG', 'K', 'NA', 'CA', 'ZN', 'MN', 'FE', 'CO', 'NI', 'CU', 'CD']);
+const AA1 = { ALA: 'Ala', ARG: 'Arg', ASN: 'Asn', ASP: 'Asp', CYS: 'Cys', GLN: 'Gln', GLU: 'Glu', GLY: 'Gly', HIS: 'His', ILE: 'Ile', LEU: 'Leu', LYS: 'Lys',
+  MET: 'Met', PHE: 'Phe', PRO: 'Pro', SER: 'Ser', THR: 'Thr', TRP: 'Trp', TYR: 'Tyr', VAL: 'Val' };
+const ITYPE = { hbond: ['氢键', '#2f9bff'], salt: ['盐桥', '#ff4fa3'], metal: ['金属 / 离子配位', '#a56bff'] };
+let focus = null;
+function clearFocus() {
+  if (!focus) return;
+  procRoot.remove(focus.obj); world.remove(focus.obj); disposeObj(focus.obj);
+  focus.labs.forEach(l => l.el.remove());
+  for (const g2 of ligGroups) g2.obj.visible = g2.visible && $('ligOn').checked;
+  procRoot.visible = focus.procVis !== false;
+  for (const g of groups) g.mesh?.traverse(x => { if (x.userData.focusHidden) { x.visible = true; x.userData.focusHidden = false; }
+    const m = x.material; if (m?.userData?.focusSaved) { const f = m.userData.focusSaved; m.transparent = f.t; m.opacity = f.o; m.depthWrite = f.d; m.needsUpdate = true; delete m.userData.focusSaved; } });
+  if (focus.cam) { camera.position.copy(focus.cam[0]); controls.target.copy(focus.cam[1]); controls.update(); }   // back to the view before focusing
+  focus = null;
+}
+function dashes(pairs, color, r = 0.16) {   // dashed cylinders between atom pairs
+  const segs = [];
+  for (const [a, b] of pairs) { const d = b.clone().sub(a), L = d.length(), n = Math.max(2, Math.round(L / 0.55)); for (let i = 0; i < n; i += 2) segs.push([a.clone().addScaledVector(d, i / n), a.clone().addScaledVector(d, Math.min(1, (i + 1) / n))]); }
+  const mesh = new THREE.InstancedMesh(CYL, new THREE.MeshBasicMaterial({ color }), Math.max(1, segs.length));
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  segs.forEach(([a, b], i) => { const d = b.clone().sub(a); q.setFromUnitVectors(up, d.clone().normalize()); m.compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(r, d.length(), r)); mesh.setMatrixAt(i, m); });
+  mesh.count = segs.length; mesh.frustumCulled = false; mesh.renderOrder = 5; return mesh;
+}
+function domainTurns(g, at, pFrom, pTo, names) {   // rigid rotation of each domain relative to the first, between two coordinate sets
+  const doms = names ? names.map(([nm, rs]) => [nm, at.filter(a => rs.some(([u, v]) => a.seq >= u && a.seq <= v))]).filter(d => d[1].length >= 8)
+    : domainSplit(at.filter(a => !a.na), pFrom, 150).map(d => d.sort((x, y) => x.seq - y.seq)).sort((x, y) => x[0].seq - y[0].seq).map((d, i, all) => [all.length === 3 ? ['N 端区', '中间区', 'C 端区'][i] : `第 ${i + 1} 区（${d[0].seq}–${d[d.length - 1].seq}）`, d]);
+  if (doms.length < 2) return [];
+  const ref = doms[0][1], F = superpose(ref.map(pFrom), ref.map(pTo));   // maps 'to' coordinates into the 'from' frame of the reference domain
+  return doms.slice(1).map(([nm, d]) => {
+    const A = d.map(pFrom), B = d.map(a => F(pTo(a))), f = superpose(A, B);
+    const ang = THREE.MathUtils.radToDeg(2 * Math.acos(Math.min(1, Math.abs(f.q.w))));
+    const shift = A.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / A.length).distanceTo(B.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / B.length));
+    return { name: nm, ref: doms[0][0], ang, shift };
+  });
+}
+async function focusLigand(L, idx = 0, n = 1) {
+  clearFocus();
+  if (!L.src) { status('这个小分子没有来源条目，无法下载结合位点'); return; }
+  status(`下载 ${L.comp} 结合位点的全原子坐标 …`, true);
+  let txt;
+  try { txt = await fetchText(`https://models.rcsb.org/v1/${L.src}/residueSurroundings?label_asym_id=${encodeURIComponent(L.asym0)}&label_comp_id=${encodeURIComponent(L.comp)}&radius=5&encoding=cif&copy_all_categories=false`); }
+  catch (e) { status('结合位点下载失败：' + e.message); return; }
+  const rows = parseAtomSite(txt).filter(r => r.el !== 'H' && r.el !== 'D' && !IGNORE_LIGANDS.has(r.comp) && (!r.alt || r.alt === '.' || r.alt === '?' || r.alt === 'A'));   // first alternate location only
+  const V = (r) => new THREE.Vector3(r.x, r.y, r.z);
+  /* file frame -> scene frame: match CA of the surrounding residues to scene residues (copy nearest the ligand) + ligand atoms */
+  const all = groups.flatMap(g => g.atoms.map(a => ({ a, g }))), Lc = L.centre, posOf = (a) => L.state ? (a.p2 || a.p) : a.p;
+  const A = [], B = [];
+  for (const r of rows) if (r.g === 'ATOM' && r.an === 'CA') {
+    let best = null, bd = 900; for (const { a } of all) { if (a.seq !== r.seq || !(a.asym === r.asym || a.asym.startsWith(r.asym + '_'))) continue; const d = posOf(a).distanceToSquared(Lc); if (d < bd) { bd = d; best = a; } }
+    if (best) { A.push(posOf(best)); B.push(V(r)); }
+  }
+  const self = rows.filter(r => r.asym === L.asym0 && r.comp === L.comp);
+  for (const x of L.atoms) { const r = self.find(y => y.an === x.name); if (r) { A.push(x.p); B.push(V(r)); } }
+  if (A.length < 3) { status('结合位点坐标无法对齐到场景'); return; }
+  const tf = superpose(A, B);
+  /* residues and partners */
+  const res = new Map(), het = [];
+  for (const r of rows) {
+    if (r.g === 'ATOM') { const k = r.asym + '|' + r.seq; if (!res.has(k)) res.set(k, { asym: r.asym, seq: r.seq, aseq: r.aseq, comp: r.comp, atoms: [] }); res.get(k).atoms.push({ ...r, p: tf(V(r)), q: V(r) }); }
+    else if (!(r.asym === L.asym0 && r.comp === L.comp)) het.push({ ...r, p: tf(V(r)), q: V(r) });
+  }
+  const lig = self.map(r => ({ ...r, p: tf(V(r)), q: V(r) }));
+  const partOf = (asym) => { const hit = all.find(({ a }) => a.asym === asym || a.asym.startsWith(asym + '_')); return hit ? hit.g : null; };
+  const nameOf = (rr) => { const g = partOf(rr.asym), nk = g && groups.length > 1 && findKey(current?.notes, g.name); const pre = nk != null && nk !== false && current.notes[nk][0] ? current.notes[nk][0].replace(/\s*[×x]\s*\d+$/, '').replace(/亚基|\s/g, '') + ' ' : '';
+    return pre + (AA1[rr.comp] || rr.comp) + (rr.aseq || rr.seq); };
+  /* interactions (file coordinates; distances are frame independent) */
+  const inter = [], hydro = new Set(), partners = [...lig, ...het.filter(h => METALS.has(h.el) || h.comp === L.comp)];
+  const nearO = (x, el, d) => [...lig, ...het].some(y => y !== x && y.el === el && y.q.distanceTo(x.q) < d);
+  const isAnionO = (x) => x.el === 'O' && (nearO(x, 'P', 1.75) || [...lig, ...het].some(c => c.el === 'C' && c.q.distanceTo(x.q) < 1.45 && [...lig, ...het].filter(o => o.el === 'O' && o !== x && o.q.distanceTo(c.q) < 1.45).length === 1));
+  const isCation = (r) => r.comp === 'LYS' && r.an === 'NZ' || r.comp === 'ARG' && /^(NE|NH1|NH2)$/.test(r.an) || r.comp === 'HIS' && /^(ND1|NE2)$/.test(r.an);
+  for (const la of partners) for (const rr of res.values()) for (const ra of rr.atoms) {
+    const d = la.q.distanceTo(ra.q);
+    if (METALS.has(la.el) && /^[ON]$/.test(ra.el) && d <= (la.el === 'K' || la.el === 'NA' ? 3.2 : 2.8)) inter.push({ type: 'metal', a: la, b: ra, rr, d });
+    else if (isCation(ra) && d <= 4.0 && isAnionO(la)) inter.push({ type: 'salt', a: la, b: ra, rr, d });
+    else if (/^[ON]$/.test(la.el) && /^[ON]$/.test(ra.el) && d <= 3.5) inter.push({ type: 'hbond', a: la, b: ra, rr, d });
+    else if (la.el === 'C' && ra.el === 'C' && d <= 4.0 && !/^(C|CA)$/.test(ra.an)) hydro.add(rr);
+  }
+  for (const m of het.filter(h => METALS.has(h.el))) for (const la of lig) if (/^[ON]$/.test(la.el) && la.q.distanceTo(m.q) <= 2.8) inter.push({ type: 'metal', a: m, b: la, rr: null, d: la.q.distanceTo(m.q) });
+  { const best = new Map(); for (const i of inter) { const k = i.type + '|' + i.a.an + i.a.asym + '|' + (i.rr ? i.rr.asym + i.rr.seq : i.b.an); const o = best.get(k); if (!o || i.d < o.d) best.set(k, i); }
+    inter.length = 0; inter.push(...[...best.values()].sort((x, y) => x.d - y.d)); }
+  /* geometry */
+  const obj = new THREE.Group(); obj.renderOrder = 5;
+  const shown = [...res.values()].filter(rr => inter.some(i => i.rr === rr) || hydro.has(rr));   // only residues that make a contact
+  const resAtoms = shown.flatMap(rr => rr.atoms.map(x => ({ p: x.p, el: x.el })));
+  if (resAtoms.length) obj.add(buildMolecules([{ atoms: resAtoms, centre: new THREE.Vector3() }], 1, illustrative() ? '#a9b1c2' : '#c9d0de'));
+  const ligAtoms = [...lig, ...het].map(x => ({ p: x.p, el: x.el }));
+  if (ligAtoms.length) obj.add(buildMolecules([{ atoms: ligAtoms, centre: ligAtoms.reduce((s, x) => s.add(x.p), new THREE.Vector3()).multiplyScalar(1 / ligAtoms.length) }], 1, '#ffb300'));
+  for (const t of Object.keys(ITYPE)) { const pr = inter.filter(i => i.type === t).map(i => [i.a.p, i.b.p]); if (pr.length) obj.add(dashes(pr, ITYPE[t][1])); }
+  const lg = ligGroups.find(l => l.comp === L.comp && l.state === (L.state || 0));
+  for (const g2 of ligGroups) g2.obj.visible = false;   // enlarged display copies would bury the site; the focused one is drawn at true size
+  const mats = new Set();
+  for (const g of groups) g.mesh?.traverse(x => { if ((x.userData.core || x.userData.outline) && x.visible) { x.visible = false; x.userData.focusHidden = true; return; }   // core beads + outlines off: the site is redrawn at full detail
+    if (x.isMesh && x.material && !Array.isArray(x.material) && !x.material.userData.focusSaved) mats.add(x.material); });
+  for (const m of mats) { m.userData.focusSaved = { t: m.transparent, o: m.opacity, d: m.depthWrite }; m.transparent = true; m.opacity = Math.min(m.opacity, 0.18); m.depthWrite = false; m.needsUpdate = true; }
+  world.add(obj);
+  /* residue labels (only residues that make an interaction, plus the closest others up to 14) */
+  const box = $('labels'), labs = [];
+  const key = new Set(inter.filter(i => i.rr).map(i => i.rr));
+  const near = shown.sort((x, y) => (key.has(y) - key.has(x)) || 0).slice(0, 16);
+  for (const rr of near) {
+    const sc = rr.atoms.filter(x => !/^(N|CA|C|O)$/.test(x.an)), pts = (sc.length ? sc : rr.atoms).map(x => x.p);
+    const el = document.createElement('div'); el.className = 'rlab'; el.textContent = nameOf(rr); box.appendChild(el);
+    labs.push({ el, p: pts.reduce((s, x) => s.add(x.clone()), new THREE.Vector3()).multiplyScalar(1 / pts.length) });
+  }
+  focus = { L, obj, labs, lg, procVis: procRoot.visible, cam: [camera.position.clone(), controls.target.clone()] }; procRoot.visible = false;   // animated particles would bury the site
+  /* camera: centre the ligand, keep the viewing direction */
+  world.updateMatrixWorld(); const c = Lc.clone().applyMatrix4(world.matrixWorld), dir = camera.position.clone().sub(controls.target).normalize();
+  const r = Math.max(14, ...L.atoms.map(x => x.p.distanceTo(Lc))) + 16;
+  controls.target.copy(c); camera.position.copy(c).addScaledVector(dir, r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9); controls.update();
+  /* info card */
+  const fmt = (i) => `${i.rr ? nameOf(i.rr) : i.b.comp} ${i.b.an}…${i.a.comp === L.comp ? '' : i.a.comp + ' '}${i.a.an} ${i.d.toFixed(1)} Å`;
+  const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(fmt).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
+  const hostG = (() => { const cnt = new Map(); for (const rr of res.values()) { const g = partOf(rr.asym); if (g) cnt.set(g, (cnt.get(g) || 0) + rr.atoms.length); } return [...cnt].sort((a, b) => b[1] - a[1]).map(x => x[0]); })();
+  let conf = '';
+  for (const g of hostG.slice(0, 2)) {   // conformational change of the host part(s), computed from the two coordinate sets
+    const asym = [...res.values()].map(rr => rr.asym).find(k => g.atoms.some(a => a.asym === k || a.asym.startsWith(k + '_')));
+    const at = g.atoms.filter(a => a.asym === asym || a.asym.startsWith(asym + '_'));
+    const names = Array.isArray(current?.domains) ? current.domains : null;
+    if (at.some(a => a.p2)) {
+      const t = domainTurns(g, at, (a) => a.p, (a) => a.p2 || a.p, names);
+      if (t.length) conf += `<div class="sec"><b>构象变化</b>（${(current.states || []).join(' → ')}，由两套坐标计算，相对 ${t[0].ref} 刚体叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、质心移动 ${x.shift.toFixed(1)} Å`).join('；')}。</div>`;
+    } else if (at.some(a => a.alts) && proc?.role) {
+      const keys = Object.keys(at.find(a => a.alts).alts), open = keys.find(k => proc.role[k] === 'open'), tight = keys.find(k => proc.role[k] === 'tight');
+      if (open && tight) {
+        const t = domainTurns(g, at, (a) => a.alts[open] || a.p, (a) => a.alts[tight] || a.p, null);
+        if (t.length) conf += `<div class="sec"><b>构象变化</b>（${g.name.includes('beta') ? 'β' : g.name}：开放 βE → 紧密 βTP，由 6ZPO 三条链的坐标计算，按空间聚类分区，相对 ${t[0].ref} 叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、移动 ${x.shift.toFixed(1)} Å`).join('；')}。这就是 γ 转动时“推开 / 合拢”催化位点的运动。</div>`;
+      }
+    }
+  }
+  const note = current?.siteNotes && current.siteNotes[L.comp];
+  const hostName = hostG[0] ? (findKey(current?.notes, hostG[0].name) != null ? current.notes[findKey(current.notes, hostG[0].name)][0] : hostG[0].name) : '';
+  $('infoT').textContent = `${L.fullName || L.comp} 结合位点${n > 1 ? `（${idx + 1}/${n}）` : ''}`;
+  $('infoB').innerHTML = `<div>位于 <b>${hostName}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${L.src.toUpperCase()}）。虚线由坐标计算：</div>`
+    + sec('hbond') + sec('salt') + sec('metal')
+    + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(nameOf).join('、')}</div>` : '')
+    + conf + (note ? `<div class="sec"><b>机制</b>：${note}</div>` : '')
+    + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 退出聚焦。</div>`;
+  $('infoCard').style.display = 'block';
+  status(`聚焦 ${L.comp}：${inter.length} 个极性相互作用`);
+}
+const _fv = new THREE.Vector3();
+function updateFocusLabels() {
+  if (!focus) return;
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  for (const l of focus.labs) { _fv.copy(l.p).applyMatrix4(world.matrixWorld).project(camera);
+    if (_fv.z > 1) { l.el.style.display = 'none'; continue; } l.el.style.display = ''; l.el.style.left = (_fv.x + 1) / 2 * w + 'px'; l.el.style.top = (1 - _fv.y) / 2 * h + 'px'; }
+}
+/* ----------------------------------------------------------------------------- energy-conversion strip
+   process / preset field `energy: [[short label, explanation], ...]` + `stage(ctx)` -> index of the highlighted step */
+let energyKey = null;
+function renderEnergy() {
+  const E = proc?.energy || current?.energy, box = $('energy');
+  energyKey = null; if (!E) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="eh">能量转化</span>' + E.map((e, i) => `${i ? '<i>→</i>' : ''}<span class="e" data-i="${i}">${e[0]}</span>`).join('');
+  box.style.display = 'flex';
+  box.querySelectorAll('.e').forEach(el => el.onclick = () => { const e = E[+el.dataset.i]; $('infoT').textContent = '能量转化 · ' + e[0]; $('infoB').innerHTML = e[1]; $('infoCard').style.display = 'block'; });
+}
+let _morphPrev = 0, _morphDir = 1;
+function updateEnergy() {
+  const E = proc?.energy || current?.energy; if (!E) return;
+  let k = 0;
+  if (proc?.energy && proc.stage) k = proc.stage(proc.ctx);
+  else if (current?.energyStage === 'morph') { const m = U.uMorph.value; if (Math.abs(m - _morphPrev) > 1e-4) _morphDir = Math.sign(m - _morphPrev); _morphPrev = m;
+    k = m < 0.15 ? 0 : m > 0.85 ? 2 : _morphDir > 0 ? 1 : 3; }
+  if (k === energyKey) return; energyKey = k;
+  $('energy').querySelectorAll('.e').forEach(el => el.classList.toggle('on', +el.dataset.i === k));
 }
 
 /* ----------------------------------------------------------------------------- camera */
 function resetCamera(cam) {
   if (!model) return;
   const c = cam || current?.camera || { az: -0.9, el: 0.25, dist: 1.2 };
-  const R = model.focus.radius, d = R / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * (c.dist || 1);
+  /* fit the narrower of the two field-of-view axes (portrait / phone screens) and pad for blob / lobe size */
+  const vh = THREE.MathUtils.degToRad(camera.fov / 2), half = Math.min(vh, Math.atan(Math.tan(vh) * camera.aspect));
+  const R = model.focus.radius + 6, d = R / Math.sin(half) * (c.dist || 1);
   const t = model.focus.centre.clone().applyMatrix4(world.matrixWorld);
   t.y -= 0.16 * R * (c.dist || 1);   // frame the molecule in the upper ~75 % (the caption sits at the bottom)
   controls.target.copy(t);
@@ -1969,7 +2387,7 @@ addEventListener('dragover', e => { e.preventDefault(); $('drop').classList.add(
 addEventListener('dragleave', e => { if (e.target === $('drop')) $('drop').classList.remove('on'); });
 addEventListener('drop', e => { e.preventDefault(); $('drop').classList.remove('on'); const f = e.dataTransfer.files[0]; if (f) openFile(f); });
 
-$('bloom').oninput = () => bloom.strength = +$('bloom').value;
+$('bloom').oninput = () => bloom.strength = illustrative() ? 0 : +$('bloom').value;
 $('rim').oninput = () => U.uRim.value = +$('rim').value;
 $('glow').oninput = () => U.uGlow.value = +$('glow').value;
 $('lumpy').oninput = () => U.uLumpy.value = +$('lumpy').value;
@@ -2005,11 +2423,11 @@ function applyBg() {
   document.body.classList.toggle('lightbg', light);
   U.uIllus.value = light ? 1 : 0;
 }
-$('bgMode').onchange = () => { applyBg(); if (model) { rebuildMeshes(); rebuildMembranes(); applyCut(); } };
+$('bgMode').onchange = () => { applyBg(); if (model) { rebuildMeshes(); rebuildLigands(); renderLegend(); rebuildMembranes(); applyCut(); } };
 $('simpRes').onchange = $('simpStyle').onchange = () => { if (groups.some(g => g.simple)) { rebuildMeshes(); applyCut(); } };
 let labelsTouched = false;
 $('labelsOn').onchange = () => { labelsTouched = true; rebuildLabels(); };
-$('infoX').onclick = () => { $('infoCard').style.display = 'none'; labels.forEach(l => l.el.classList.remove('on')); };
+$('infoX').onclick = () => { $('infoCard').style.display = 'none'; labels.forEach(l => l.el.classList.remove('on')); if (focus) { clearFocus(); status('已退出聚焦'); } };
 $('shellOn').onchange = () => { if ($('repMode').value === 'cartoon') { rebuildMeshes(); applyCut(); } };
 $('shot').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = `${$('tId').textContent.replace(/\W+/g, '_')}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
 $('toggle').onclick = () => $('panel').classList.toggle('hidden');
@@ -2038,7 +2456,7 @@ function frame() {
       morphT += dt * 0.35; const c = (Math.sin(morphT) + 1) / 2; $('morph').value = ease((c - 0.1) / 0.8); syncOut($('morph'));
     }
     U.uMorph.value = +$('morph').value;
-    for (const lg of ligGroups) if (current?.states) lg.obj.visible = lg.visible && $('ligOn').checked && (lg.state ? U.uMorph.value > 0.6 : U.uMorph.value < 0.4);
+    for (const lg of ligGroups) if (current?.states) lg.obj.visible = lg.visible && $('ligOn').checked && (lg.state ? U.uMorph.value > 0.6 : U.uMorph.value < 0.4) && !focus;
     if (proc && $('procOn').checked) {
       proc.update(proc.ctx, dt); tickAnims(dt);
       const cnt = $('cnt'); if (cnt) cnt.textContent = Object.entries(proc.ctx.counters).map(([k, v]) => `${k}：${v}`).join('　');
@@ -2054,18 +2472,19 @@ function frame() {
         vis = !(A.x * _v0.x + A.y * _v0.y + A.z * _v0.z + A.w > 0 && B.x * _v0.x + B.y * _v0.y + B.z * _v0.z + B.w > 0); }
       x.visible = vis;
     });
+    if (g.simple && g.mesh.userData.pore) updatePore(g);
     if (g.blend) applyBlends(g);
-    if (current?.states) g.mesh.traverse(x => {
+    if (current?.states && (g._lastMorph !== U.uMorph.value || g._lastMesh !== g.mesh)) { g._lastMorph = U.uMorph.value; g._lastMesh = g.mesh; g.mesh.traverse(x => {
       if (x.userData.p2Index >= 0 && x.morphTargetInfluences) x.morphTargetInfluences[x.userData.p2Index] = U.uMorph.value;
-      if (x.userData.lobe) { const w = U.uMorph.value, f = fitLobe(x.userData.lobe.map(a => a.p2 ? a.p.clone().lerp(a.p2, w) : a.p)); x.position.copy(f.centre); x.quaternion.copy(f.q); x.scale.copy(f.scale); }
+      if (x.userData.lobe) { const w = U.uMorph.value; placeLobe(x, x.userData.lobe.map(a => a.p2 ? a.p.clone().lerp(a.p2, w) : a.p)); }
       else if (x.userData.surface && !x.userData.schem) { const w = Math.round(U.uMorph.value * 12) / 12; resurface(g, x, (a) => a.p2 ? a.p.clone().lerp(a.p2, w) : a.p, 'm' + w); }
-    });
+    }); }
   }
   controls.update();
   const dist = camera.position.distanceTo(controls.target);
   bokeh.uniforms.focus.value = dist;
   bokeh.uniforms.aperture.value = illustrative() ? 0 : +$('dofAmt').value * 0.00003 * Math.min(1, dist / 600);   // weaker when close; journal style = sharp
-  composer.render(); updateLabels();
+  composer.render(); updateLabels(); updateFocusLabels(); updateEnergy();
   fpsT += dt; fpsN++;
   if (fpsT > 2) { window.__fps = fpsN / fpsT; $('fpsOut').textContent = '帧率：' + window.__fps.toFixed(1) + ' fps'; fpsT = 0; fpsN = 0; }
 }
@@ -2086,7 +2505,13 @@ const params = new URLSearchParams(location.search);
 if (params.get('q')) $('quality').value = params.get('q');
 applyQuality(false);
 const startId = (params.get('pdb') || '').toUpperCase();
-const startPreset = params.get('preset') || (startId ? null : 'ATP 合酶（合成 ATP）');
+const presetKey = (q) => {   // exact, then normalised (full/half-width brackets, spaces), then partial match
+  if (!q) return null; if (PRESETS[q]) return q;
+  const n = (x) => x.normalize('NFKC').replace(/[\s()（）]/g, '').toLowerCase(), m = n(q);
+  const keys = Object.keys(PRESETS);
+  return keys.find(k => n(k) === m) || keys.find(k => n(k).includes(m)) || keys.find(k => m.includes(n(k))) || null;
+};
+const startPreset = presetKey(params.get('preset')) || (startId ? null : 'ATP 合酶（合成 ATP）');
 if (startPreset && PRESETS[startPreset]) { $('pdb').value = PRESETS[startPreset].id; loadScene({ ...PRESETS[startPreset], name: startPreset }); }
 else if (startId) { $('pdb').value = startId; $('load').click(); }
 </script>

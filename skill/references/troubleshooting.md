@@ -50,3 +50,9 @@
    V.camera.position.set(S.x + 150 * Math.cos(-0.6), S.y + 60, S.z + 150 * Math.sin(-0.6)); V.controls.update();
    ```
 5. 截图亲眼看（SKILL.md 步骤 6）。无显卡机器先 `set('quality','low')` 加载，再切“中”截图。
+
+## v4 常见问题
+- **聚焦出现 0.5 Å 的“盐桥”**：位点文件里有 altloc A/B 两套原子，只保留 '.', '?', 'A'。
+- **浏览器预览里 `?preset=` 不生效**：预览把本地文件转成 data: URL，`location.search` 为空；测试时用 `__viewer.loadScene({...__viewer.PRESETS[k], name: k})`。
+- **某个部件不该是半透明背景**：它被判成③支架（简化、无核心、不转、无构象）。给预设加 `keepDetail` 或 `core`，或在“组成”里取消“简”。
+- **找不到预设**：预设键是中文名（如 '钾离子通道（K⁺ 通过）'），用正则在 `Object.keys(PRESETS)` 里找。
