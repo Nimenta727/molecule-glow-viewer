@@ -1,11 +1,19 @@
 # 分子光影查看器 · Molecule Glow Viewer
 
-实时、可从任意角度旋转的蛋白质 / 分子机器 3D 查看器，风格类似科普视频里的分子动画：黑背景、饱和配色、柔和辉光、剖开的脂双层膜、转动的转子，以及能看到的小分子相互作用。
-**一个 HTML 文件**，不需要安装，任何 PDB 编号都直接从 [RCSB PDB](https://www.rcsb.org) 实时下载。
+实时、可从任意角度旋转的蛋白质 / 分子机器 3D 查看器：白底墨线的插画风格，剖开的脂双层膜、转动的转子、从溶液里扩散过来的小分子和离子，从单个蛋白一直到整个细胞。任何 PDB 编号都直接从 [RCSB PDB](https://www.rcsb.org) 实时下载。
 
 A single-file, real-time Three.js viewer for proteins, molecular machines and their small molecules, with interaction animations and a teaching mode. Structures are downloaded live from the RCSB PDB.
 
 ![ATP 合酶](docs/images/example_atp_synthase.jpg)
+
+## 三个部分
+| 目录 | 是什么 | 给谁 |
+|---|---|---|
+| [`web/`](web/) | **网页版**：一个 HTML 文件，双击就能用 | 想直接看的人 |
+| [`desktop/`](desktop/) | **桌面版**：Windows exe，结构缓存在本地，断网也能看已经下载过的结构；以后会接入创意工坊。下载见 [Releases](https://github.com/Nimenta727/molecule-glow-viewer/releases) | 经常用、想离线用的人 |
+| [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
+
+三者共用同一个查看器文件：`web/index.html` 是源头，桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
 
 ## 功能
 - **三种显示模式**
@@ -40,17 +48,9 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - **自动画质**：按显卡自动选择画质，没有独立显卡也能运行。
 
 ## 使用
-双击 `index.html`（Chrome / Edge 最新版）。若浏览器拦截本地文件的网络请求：
-```bash
-python -m http.server 8765
-```
-然后打开 `http://localhost:8765/index.html`。网址参数：`?pdb=4HHB`、`?preset=鞭毛马达`、`&q=low|medium|high`。
-
-需要能访问 `models.rcsb.org`、`data.rcsb.org`、`files.rcsb.org`、`cdn.jsdelivr.net`。
-
-## 给 AI 的 skill
-`skill/` 是一个 Claude Code skill（`SKILL.md` + `references/`），说明如何添加预设、编写过程动画、从论文做动画、从零重建，以及如何调试。
-复制到 `~/.claude/skills/molecule-glow-viewer/` 即可使用。
+- 网页版：双击 [`web/index.html`](web/index.html)，详见 [web/README.md](web/README.md)。
+- 桌面版：从 Releases 下载 exe，或者自己构建，详见 [desktop/README.md](desktop/README.md)。
+- 让 AI 帮你做新场景：见 [skill/README.md](skill/README.md)。
 
 ## 数据来源与引用
 所有结构数据来自 RCSB PDB，使用时请引用 PDB 以及各结构的原始论文：
@@ -89,7 +89,7 @@ python -m http.server 8765
 动画中的时序、粒子路径和小分子放大比例是**示意**，用于教学，不代表定量动力学。
 
 ## 技术
-[Three.js](https://threejs.org) r160（MIT），通过 jsDelivr 加载。所有几何体都在浏览器中实时生成，仓库内不含结构数据。
+[Three.js](https://threejs.org) r160（MIT）。网页版通过 jsDelivr 加载，桌面版打包在程序里。桌面外壳用 [Electron](https://www.electronjs.org)（MIT）。所有几何体都在浏览器中实时生成，仓库内不含结构数据。
 
 ## 许可证
-MIT，见 [LICENSE](LICENSE)。PDB 数据本身属于公共领域（CC0），但仍请按上文引用。
+Apache License 2.0，见 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。PDB 数据本身属于公共领域（CC0），但仍请按上文引用。

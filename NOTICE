@@ -1,0 +1,8 @@
+分子光影查看器 · Molecule Glow Viewer
+Copyright 2026 molecule-glow-viewer contributors
+
+This product includes software developed by third parties:
+- Three.js (https://threejs.org), MIT License
+- Electron (https://www.electronjs.org), MIT License (desktop build only)
+
+Structure data is downloaded at run time from the RCSB Protein Data Bank (CC0) and is not part of this distribution.
