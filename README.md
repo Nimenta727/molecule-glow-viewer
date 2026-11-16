@@ -35,7 +35,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - **本地文件**：可拖入 .cif/.pdb（AlphaFold、自建模型）。
 - **自动画质**：按显卡自动选择画质，没有独立显卡也能运行。
 
-## 使用
+## 使用 Web 版（原有 HTML 方式）
 双击 `index.html`（Chrome / Edge 最新版）。若浏览器拦截本地文件的网络请求：
 ```bash
 python -m http.server 8765
@@ -43,6 +43,35 @@ python -m http.server 8765
 然后打开 `http://localhost:8765/index.html`。网址参数：`?pdb=4HHB`、`?preset=鞭毛马达`、`&q=low|medium|high`。
 
 需要能访问 `models.rcsb.org`、`data.rcsb.org`、`files.rcsb.org`、`cdn.jsdelivr.net`。
+
+`index.html` 仍然是完整、可直接部署的 Web 入口；桌面版不会替换或删除它。
+
+## Windows 桌面版（Electron）
+
+桌面版只是对现有 `index.html` 的安全 Electron 封装，保留 Three.js、RCSB 在线结构加载、本地 `.cif` / `.mmcif` / `.pdb` / `.ent` 导入、拖拽导入和截图功能。渲染页面不启用 Node.js 集成；截图保存通过受控的 preload API 调用系统保存对话框。
+
+安装依赖并启动开发版：
+
+```bash
+npm install
+npm start
+```
+
+在 Windows x64 上生成安装版和 portable `.exe`：
+
+```bash
+npm run dist
+```
+
+只生成 portable 版本：
+
+```bash
+npm run dist:portable
+```
+
+构建产物写入 `dist/`，不会提交到仓库。推荐在 Windows x64 本机执行最终打包和安装验证；Linux/macOS 可先运行 `npm test`、`npm start`（若有 GUI）以及 `npm run dist:dir` 验证配置和入口文件。
+
+Web 版由浏览器直接运行，适合静态服务器部署；桌面版提供独立窗口和原生截图保存，但仍需要联网访问 RCSB 和 jsDelivr CDN。两种版本都不能在无网络时下载新的结构或 Three.js 资源，本地结构文件导入不需要联网。
 
 ## 给 AI 的 skill
 `skill/` 是一个 Claude Code skill（`SKILL.md` + `references/`），说明如何添加预设、编写过程动画、从论文做动画、从零重建，以及如何调试。

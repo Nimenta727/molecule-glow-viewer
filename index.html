@@ -5001,7 +5001,16 @@ let labelsTouched = false;
 $('labelsOn').onchange = () => { labelsTouched = true; rebuildLabels(); };
 $('infoX').onclick = () => { $('infoCard').style.display = 'none'; clearSelection(); if (focus) { clearFocus(); status('已退出聚焦'); } };
 $('shellOn').onchange = () => { if ($('repMode').value === 'cartoon') { rebuildMeshes(); applyCut(); } };
-$('shot').onclick = () => { composer.render(); const a = document.createElement('a'); a.download = `${$('tId').textContent.replace(/\W+/g, '_')}.png`; a.href = renderer.domElement.toDataURL('image/png'); a.click(); };
+$('shot').onclick = async () => {
+  composer.render();
+  const name = `${$('tId').textContent.replace(/\W+/g, '_')}.png`;
+  const dataUrl = renderer.domElement.toDataURL('image/png');
+  if (window.desktopAPI?.saveScreenshot) {
+    try { await window.desktopAPI.saveScreenshot(dataUrl, name); } catch (e) { status(`截图保存失败：${e.message}`); }
+    return;
+  }
+  const a = document.createElement('a'); a.download = name; a.href = dataUrl; a.click();
+};
 $('toggle').onclick = () => $('panel').classList.toggle('hidden');
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
