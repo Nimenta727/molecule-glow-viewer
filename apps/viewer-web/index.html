@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Glow Viewer</title>
+    <link rel="stylesheet" href="./viewer.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Glow Viewer</h1>
+        <div class="actions" aria-label="场景文件">
+          <button id="example" type="button">示例</button>
+          <button id="open" type="button">打开</button>
+          <input id="file" type="file" accept=".json,application/json" hidden>
+          <button id="save" type="button" disabled>保存</button>
+          <button id="close" type="button" disabled>关闭</button>
+        </div>
+      </header>
+      <section id="viewport" aria-label="三维场景">
+        <button id="reset-camera" type="button" disabled>重置视角</button>
+      </section>
+      <footer>
+        <div class="transport" aria-label="时间线">
+          <button id="play" type="button" disabled>播放</button>
+          <input id="playhead" aria-label="播放时间" type="range" min="0" max="0" step="any" value="0" disabled>
+          <output id="time">0.00 / 0.00 s</output>
+        </div>
+        <p id="status" role="status">启动中…</p>
+      </footer>
+    </main>
+    <script type="module">
+      import('./main.mjs').catch(() => {
+        document.querySelector('#status').textContent = '无法加载查看器模块。请检查页面和渲染库是否可访问。';
+        document.querySelector('#example').disabled = true;
+        document.querySelector('#open').disabled = true;
+      });
+    </script>
+  </body>
+</html>
