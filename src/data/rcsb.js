@@ -124,6 +124,9 @@ async function getTemplate(comp) {
     const idx = new Map(atoms.map((a, i) => [a.name, i])), ord = { SING: 1, DOUB: 2, TRIP: 3, AROM: 1 };
     bonds = parseLoop(t, '_chem_comp_bond').filter(b => idx.has(b.atom_id_1) && idx.has(b.atom_id_2)).map(b => [idx.get(b.atom_id_1), idx.get(b.atom_id_2), b.pdbx_aromatic_flag === 'Y' ? 4 : ord[b.value_order] || 1]);
   } catch (e) {
+    /* a superseded scene cancelled the download: no fallback. The SDF has no atom names, and caching it here would break
+       every later pose fit by name (ATP synthase: "核苷酸原子名匹配失败" after switching scenes during a load). */
+    if (e?.name === 'AbortError') throw e;
     console.warn('CCD cif failed, using SDF', comp, e);
     const t = await fetchText(`https://files.rcsb.org/ligands/view/${comp}_ideal.sdf`);
     const L = t.split(/\r?\n/), na = parseInt(L[3].slice(0, 3)), nb = parseInt(L[3].slice(3, 6)), all = [];
