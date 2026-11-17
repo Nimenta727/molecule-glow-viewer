@@ -40,3 +40,7 @@ footer { border-top: 1px solid var(--line); }
 #playhead { flex: 1; min-width: 4rem; accent-color: #1b7358; }
 #time { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 #status, #diagnostic { margin: 0.5rem 0 0; color: #40594d; font-size: 0.875rem; overflow-wrap: anywhere; }
+.structure-tools { margin-top: 0.4rem; font-size: 0.9rem; }
+.structure-tools summary { width: fit-content; cursor: pointer; }
+.structure-form:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.4rem; }
+.structure-form input { width: 5rem; padding: 0.25rem; font: inherit; }

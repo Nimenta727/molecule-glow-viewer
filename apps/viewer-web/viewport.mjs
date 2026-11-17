@@ -14,6 +14,27 @@ function isVisible(object) {
   return true;
 }
 
+function* renderables(asset, layers) {
+  if (asset.kind === 'primitive') {
+    const geometry = asset.shape === 'sphere' ? new THREE.SphereGeometry(0.5, 32, 20) : new THREE.BoxGeometry(1, 1, 1);
+    yield new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: asset.color }));
+    return;
+  }
+  if (!layers) throw new Error(`Missing geometry: ${asset.id}`);
+  for (const { mode, positions, color, pointSize } of layers) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    if (mode === 'lines') {
+      yield new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color }));
+    } else if (mode === 'points') {
+      yield new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: pointSize ?? 0.08 }));
+    } else {
+      geometry.computeVertexNormals();
+      yield new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }));
+    }
+  }
+}
+
 export function createViewport(container, { onSelect } = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#f5f7f8');
@@ -30,6 +51,8 @@ export function createViewport(container, { onSelect } = {}) {
   scene.add(key);
   const controls = new OrbitControls(camera, renderer.domElement);
   const raycaster = new THREE.Raycaster();
+  raycaster.params.Line.threshold = 0.04;
+  raycaster.params.Points.threshold = 0.08;
   const pointer = new THREE.Vector2();
   let active = null;
   let disposed = false;
@@ -82,7 +105,7 @@ export function createViewport(container, { onSelect } = {}) {
     invalidate();
   }
 
-  function prepare(document) {
+  function prepare(document, geometryLayers = new Map()) {
     if (disposed) throw new Error('Viewport is disposed');
     const root = new THREE.Group();
     const assets = new Map(document.assets.map((asset) => [asset.id, asset]));
@@ -100,14 +123,11 @@ export function createViewport(container, { onSelect } = {}) {
         if (node.assetId) {
           const asset = assets.get(node.assetId);
           if (!asset) throw new Error(`Missing asset: ${node.assetId}`);
-          const geometry = asset.shape === 'sphere'
-            ? new THREE.SphereGeometry(0.5, 32, 20)
-            : new THREE.BoxGeometry(1, 1, 1);
-          const material = new THREE.MeshStandardMaterial({ color: asset.color });
-          const mesh = new THREE.Mesh(geometry, material);
-          mesh.userData.nodeId = node.id;
-          group.add(mesh);
-          meshes.push(mesh);
+          for (const mesh of renderables(asset, geometryLayers.get(asset.id))) {
+            mesh.userData.nodeId = node.id;
+            group.add(mesh);
+            meshes.push(mesh);
+          }
         }
       }
       for (const node of document.nodes) {

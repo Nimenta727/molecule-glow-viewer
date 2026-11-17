@@ -4,6 +4,7 @@ const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const NODE_FIELDS = new Set(['id', 'name', 'parentId', 'assetId', 'visible', 'transform']);
 const ASSET_FIELDS = new Set(['id', 'kind', 'shape', 'color']);
+const GEOMETRY_ASSET_FIELDS = new Set(['id', 'kind']);
 const DOCUMENT_FIELDS = new Set(['format', 'version', 'assets', 'nodes', 'timeline']);
 const TIMELINE_FIELDS = new Set(['duration', 'tracks']);
 const TRACK_FIELDS = new Set(['nodeId', 'keyframes']);
@@ -93,9 +94,13 @@ function checkNode(node, path) {
 
 function checkAsset(asset, path) {
   if (!isRecord(asset)) fail(path, 'expected an asset object');
-  checkFields(asset, ASSET_FIELDS, path);
   checkId(asset.id, `${path}.id`);
-  if (asset.kind !== 'primitive') fail(`${path}.kind`, 'expected "primitive"');
+  if (asset.kind === 'geometry') {
+    checkFields(asset, GEOMETRY_ASSET_FIELDS, path);
+    return;
+  }
+  checkFields(asset, ASSET_FIELDS, path);
+  if (asset.kind !== 'primitive') fail(`${path}.kind`, 'expected "primitive" or "geometry"');
   if (!['box', 'sphere'].includes(asset.shape)) fail(`${path}.shape`, 'expected "box" or "sphere"');
   if (typeof asset.color !== 'string' || !COLOR_PATTERN.test(asset.color)) fail(`${path}.color`, 'expected an sRGB #rrggbb color');
 }

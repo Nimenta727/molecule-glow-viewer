@@ -1,8 +1,21 @@
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { validateScene } from '../../packages/schema/documents.mjs';
+import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { validateDocument } from '../../packages/core/index.mjs';
 
 const MiB = 1024 * 1024;
+export const isStructureFile = (name) => /\.(pdb|ent|cif|mmcif)$/i.test(name);
+
+export function geometryLayers({ scene, resources }) {
+  const layers = new Map();
+  for (const asset of scene.assets) {
+    if (asset.kind !== 'file' || asset.mediaType !== GEOMETRY_MEDIA_TYPE) continue;
+    const bytes = resources.get(asset.path);
+    if (!bytes) throw new Error(`缺少预览资源 ${asset.path}。`);
+    layers.set(asset.id, decodeGeometry(bytes));
+  }
+  return layers;
+}
 
 export function fromPrototype(raw) {
   const { assets, nodes, timeline } = validateDocument(raw);

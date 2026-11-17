@@ -1,5 +1,6 @@
 import { Validator } from '@cfworker/json-schema';
 import { validateDocument as validateCoreDocument } from '../core/scene-document.mjs';
+import { GEOMETRY_MEDIA_TYPE } from './geometry.mjs';
 
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const ID = { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' };
@@ -253,18 +254,26 @@ export function validatePackageManifest(input) {
   return manifest;
 }
 
-function projectCoreDocument(scene) {
-  const primitiveIds = new Set(scene.assets.filter((asset) => asset.kind === 'primitive').map((asset) => asset.id));
+function projectCoreDocument(scene, geometryIds = new Set()) {
+  const assets = [];
+  for (const asset of scene.assets) {
+    const { id, kind, shape, color } = asset;
+    if (kind === 'primitive') assets.push({ id, kind, shape, color });
+    if (kind === 'file' && asset.mediaType === GEOMETRY_MEDIA_TYPE && geometryIds.has(id)) {
+      assets.push({ id, kind: 'geometry' });
+    }
+  }
+  const renderable = new Set(assets.map(({ id }) => id));
   return {
     format: 'glow-prototype', version: 1,
-    assets: scene.assets.filter((asset) => asset.kind === 'primitive').map(({ id, kind, shape, color }) => ({ id, kind, shape, color })),
+    assets,
     nodes: scene.nodes.map(({ id, name, parentId, assetId, visible, transform }) => ({
-      id, name, parentId, assetId: assetId !== null && primitiveIds.has(assetId) ? assetId : null, visible, transform,
+      id, name, parentId, assetId: renderable.has(assetId) ? assetId : null, visible, transform,
     })),
     timeline: scene.timeline,
   };
 }
 
-export function toCoreDocument(input) {
-  return projectCoreDocument(validateScene(input));
+export function toCoreDocument(input, geometryIds) {
+  return projectCoreDocument(validateScene(input), geometryIds);
 }

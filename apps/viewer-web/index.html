@@ -23,7 +23,7 @@
         <div class="actions" aria-label="场景文件">
           <button id="example" type="button">示例</button>
           <button id="open" type="button">打开</button>
-          <input id="file" type="file" accept=".glow,.json,application/json" hidden>
+          <input id="file" type="file" accept=".glow,.json,.cif,.mmcif,.pdb,.ent" hidden>
           <button id="save" type="button" disabled>保存</button>
           <button id="close" type="button" disabled>关闭</button>
         </div>
@@ -42,6 +42,22 @@
           <span id="warning"></span>
           <a id="legacy-viewer" href="../../web/" target="_blank" rel="noopener" hidden>打开旧版 Viewer</a>
         </p>
+        <details class="structure-tools">
+          <summary>结构插件</summary>
+          <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
+          <form id="rcsb-form" class="structure-form">
+            <label for="accession">RCSB 编号</label>
+            <input id="accession" name="accession" type="text" maxlength="4" required disabled>
+            <button id="rcsb-load" type="submit" disabled>打开结构</button>
+          </form>
+          <form id="selection-form" class="structure-form" hidden>
+            <label for="chain-id">链</label>
+            <input id="chain-id" name="chain" type="text" maxlength="32">
+            <label for="residue-id">残基</label>
+            <input id="residue-id" name="residue" type="text" maxlength="32">
+            <button type="submit">选取</button>
+          </form>
+        </details>
       </footer>
     </main>
     <script type="module">

@@ -1,8 +1,10 @@
 import { createDocumentStore, createLoadCoordinator, createTimeline } from '../../packages/core/index.mjs';
 import { writeScenePackage } from '../../packages/schema/archive.mjs';
 import { toCoreDocument } from '../../packages/schema/documents.mjs';
+import { GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
+import { createPluginHost } from '../../packages/plugin-host/index.mjs';
 import { exampleScene } from './example-scene.mjs';
-import { fromPrototype, openSceneFile } from './scene-io.mjs';
+import { fromPrototype, geometryLayers, isStructureFile, openSceneFile } from './scene-io.mjs';
 import { createViewport } from './viewport.mjs';
 
 const elements = Object.fromEntries(
@@ -12,6 +14,13 @@ const elements = Object.fromEntries(
 let active;
 let frame;
 let saving = false;
+const STRUCTURE = 'org.glow.structure';
+const IMPORTER = `${STRUCTURE}.coordinates`;
+const MODEL_SERVICE = `${STRUCTURE}.model`;
+const host = createPluginHost({
+  getScene: () => active?.store.getSnapshot() ?? null,
+  dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
+});
 
 function setStatus(message) {
   elements.status.textContent = message;
@@ -30,15 +39,21 @@ function syncControls() {
   elements.playhead.value = String(time);
   elements.time.value = `${time.toFixed(2)} / ${duration.toFixed(2)} s`;
   elements.play.textContent = timeline?.playing ? '暂停' : '播放';
+  const structureEnabled = Boolean(host.getImporter(IMPORTER));
+  elements.accession.disabled = !structureEnabled;
+  elements['rcsb-load'].disabled = !structureEnabled;
+  elements['selection-form'].hidden = !structureEnabled || !active?.model;
 }
 
 function showDiagnostics() {
   const scene = active?.scene;
   const diagnostics = new Set(active?.warnings);
-  if (scene?.dependencies.length) {
-    diagnostics.add(`部分内容依赖插件 ${scene.dependencies.map(({ id }) => id).join('、')}。`);
+  const installed = new Map(host.listActive().map(({ id, version }) => [id, version]));
+  const missing = scene?.dependencies.filter(({ id, version }) => installed.get(id) !== version) ?? [];
+  if (missing.length) {
+    diagnostics.add(`部分内容依赖插件 ${missing.map(({ id }) => id).join('、')}。`);
   }
-  if (scene?.assets.some(({ kind }) => kind !== 'primitive')) {
+  if (!active?.model && scene?.assets.some(({ kind, mediaType }) => kind !== 'primitive' && mediaType !== GEOMETRY_MEDIA_TYPE)) {
     diagnostics.add('需要相应插件才能查看专业资源。包内通用几何仍可查看。');
   }
   elements.warning.textContent = [...diagnostics].join(' ');
@@ -52,31 +67,72 @@ function stopFrame() {
 }
 
 function boot() {
+  let structureLifetime;
+  let rcsb;
   const viewport = createViewport(elements.viewport, {
     onSelect(id) {
       const node = active?.document.nodes.find((candidate) => candidate.id === id);
+      const metadata = active?.scene.nodes.find((candidate) => candidate.id === id)?.extensions?.[STRUCTURE];
+      if (typeof metadata?.chainId === 'string' && active.model) elements['chain-id'].value = metadata.chainId;
       setStatus(node ? `已选择 ${node.name}` : (active?.name ?? '场景已关闭'));
     },
   });
   const scenes = createLoadCoordinator({
     async prepare(input, { signal, scope }) {
-      const loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
+      let loaded;
+      if (input.accession || (input.file && isStructureFile(input.file.name))) {
+        const importer = host.getImporter(IMPORTER);
+        if (!importer || !structureLifetime) throw new Error('请先启用官方结构插件。');
+        const combined = AbortSignal.any([signal, structureLifetime.signal]);
+        let structure;
+        if (input.accession) {
+          if (!rcsb) {
+            const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs');
+            rcsb = createRcsbSource();
+          }
+          structure = await rcsb.load(input.accession, { signal: combined });
+        } else {
+          if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+          structure = { name: input.file.name, bytes: new Uint8Array(await input.file.arrayBuffer()) };
+        }
+        loaded = await importer.importScene(structure, { signal: combined });
+      } else {
+        loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
+        restoreStructureModel(loaded);
+      }
       if (signal.aborted) return;
-      const document = createDocumentStore(toCoreDocument(loaded.scene)).getSnapshot();
+      const layers = geometryLayers(loaded);
+      const store = createDocumentStore(toCoreDocument(loaded.scene, new Set(layers.keys())));
+      const document = store.getSnapshot();
       const timeline = createTimeline(document.timeline);
-      const prepared = viewport.prepare(document);
+      const prepared = viewport.prepare(document, layers);
       scope.add(() => prepared.dispose());
-      return { ...loaded, document, timeline, prepared, name: input.file?.name ?? '基础几何示例' };
+      return { ...loaded, store, document, timeline, prepared, name: input.file?.name ?? input.accession ?? '基础几何示例' };
     },
     commit(scene) {
       viewport.commit(scene.prepared);
       stopFrame();
       active = scene;
+      elements['chain-id'].value = '';
+      elements['residue-id'].value = '';
       showPose();
       showDiagnostics();
       setStatus(scene.name);
     },
   });
+
+  function restoreStructureModel(loaded) {
+    const service = host.getService(MODEL_SERVICE, '1.0.0');
+    if (!service || !loaded.scene.dependencies.some(({ id, version }) => id === STRUCTURE && version === '1.0.0')) return;
+    const source = loaded.scene.assets.find((asset) => asset.kind === 'file' &&
+      ['chemical/x-mmcif', 'chemical/x-pdb'].includes(asset.mediaType));
+    if (!source) return;
+    try {
+      loaded.model = service.parse({ bytes: loaded.resources.get(source.path), name: source.path, mediaType: source.mediaType });
+    } catch (error) {
+      loaded.warnings = [...loaded.warnings, `无法载入结构语义。 ${error.message}`];
+    }
+  }
 
   function showPose() {
     if (active) viewport.applyPose(active.timeline.sample());
@@ -93,6 +149,45 @@ function boot() {
   }
 
   elements.example.addEventListener('click', () => openScene());
+  elements['structure-enabled'].addEventListener('change', async (event) => {
+    const checkbox = event.currentTarget;
+    checkbox.disabled = true;
+    try {
+      if (checkbox.checked) {
+        const { structurePlugin } = await import('../../plugins/structure/index.mjs');
+        await host.activate(structurePlugin);
+        structureLifetime = new AbortController();
+        if (active) restoreStructureModel(active);
+        setStatus('结构插件已启用。可打开本地 PDB 或 mmCIF 文件。');
+      } else {
+        structureLifetime?.abort();
+        structureLifetime = undefined;
+        await host.deactivate(STRUCTURE);
+        if (active) active.model = undefined;
+        setStatus('结构插件已关闭。');
+      }
+    } catch (error) {
+      checkbox.checked = Boolean(host.getImporter(IMPORTER));
+      setStatus(`无法切换结构插件。 ${error.message}`);
+    } finally {
+      checkbox.disabled = false;
+      syncControls();
+      showDiagnostics();
+    }
+  });
+  elements['rcsb-form'].addEventListener('submit', (event) => {
+    event.preventDefault();
+    openScene({ accession: elements.accession.value });
+  });
+  elements['selection-form'].addEventListener('submit', (event) => {
+    event.preventDefault();
+    const service = host.getService(MODEL_SERVICE, '1.0.0');
+    if (!service || !active?.model) return;
+    const chainId = elements['chain-id'].value.trim();
+    const residueId = elements['residue-id'].value.trim();
+    const atoms = service.select(active.model, { chainId: chainId || undefined, residueId: residueId || undefined });
+    setStatus(atoms.length ? `选中 ${atoms.length} 个原子。` : '未找到匹配的链或残基。');
+  });
   elements.open.addEventListener('click', () => elements.file.click());
   elements.file.addEventListener('change', () => {
     const [file] = elements.file.files;
@@ -158,6 +253,7 @@ function boot() {
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;
     stopFrame();
+    structureLifetime?.abort();
     scenes.close();
     viewport.dispose();
   });
