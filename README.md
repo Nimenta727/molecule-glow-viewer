@@ -16,7 +16,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 
 开发规划和进度：[docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md)（工作包、依赖、分工、验收；[第 7 节进度表](docs/HANDOFF_PLAN.md#7-进度表做完打勾写上日期和提交号)是唯一的任务清单）。目标：数据、可复现性和工程质量向 Mol\*、NGL、ChimeraX 看齐，同时保留教学上的高可见性和易读性。已完成工作的记录见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
-三者共用同一个查看器文件：`web/index.html` 是源头，桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
+三者共用同一个查看器文件：源码在 [`src/`](src/)（按数据 / 推导 / 表示 / 模拟 / 场景包 / 界面分目录），`node tools/build.mjs` 把它拼成单文件 `web/index.html`（生成物，不要手改）；桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
 
 ## 四个层级 · 三种用途
 同一套数据模型的四种视图，服务三种用途。完整规划见 [docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md) 第 1 节。

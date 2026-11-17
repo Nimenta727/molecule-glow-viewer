@@ -13,7 +13,7 @@ description: Single-file Three.js viewer for proteins, molecular machines and li
 
 ## 执行规则（给执行本 skill 的 AI，必须遵守）
 
-1. **不要重写查看器**。在 `assets/viewer.html` 上改：加预设、加过程动画、加模拟站、调参数、修 bug。动手前读 `references/architecture.md`。只有用户明确要求"从零重做"时才按 `references/rebuild_from_scratch.md` 走。
+1. **不要重写查看器**。在 `assets/viewer.html` 上改（在 GitHub 仓库 molecule-glow-viewer 里开发时改 `src/` 的片段，再 `node tools/build.mjs` 生成单文件，见仓库的 `src/README.md`）：加预设、加过程动画、加模拟站、调参数、修 bug。动手前读 `references/architecture.md`。只有用户明确要求"从零重做"时才按 `references/rebuild_from_scratch.md` 走。
 2. **数据只从 RCSB 实时下载**（ModelServer 取 Cα/P 和配体坐标，GraphQL 取名称/组装体，CCD 取小分子理想构型），或用用户给的本地文件。不内嵌大数据。
 3. **PDB 编号、配体代码、实体名称不要凭记忆写**。先用 `references/structures.md` 开头的命令确认（标题、实体名称、非聚合物实体），再写进预设。
 4. **每次改完都在浏览器里验证并截图亲眼看**（见「验证清单」）。**没报错不算验证**——本项目多次出现无报错但画面全白、分子被挡住或发黑、部件朝向错的情况。

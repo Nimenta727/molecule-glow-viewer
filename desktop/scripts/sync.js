@@ -1,9 +1,13 @@
-// Copy the single-file viewer into app/. The viewer stays the one source of truth:
-// the web version and the desktop app run the same index.html.
-//   in the GitHub repo:   desktop/ next to web/index.html
-//   in the working folder: glow_studio/ next to glow_viewer/index.html
+// Copy the single-file viewer into app/. The web version and the desktop app run the same index.html.
+//   in the GitHub repo:   desktop/ next to web/; web/index.html is BUILT from src/ (tools/build.mjs), so build first
+//   in the working folder: glow_studio/ next to glow_viewer/index.html (no build step there)
 const fs = require('fs'), path = require('path');
 const root = path.resolve(__dirname, '..');
+const build = path.join(root, '..', 'tools', 'build.mjs');
+if (fs.existsSync(build)) {
+  const r = require('child_process').spawnSync(process.execPath, [build], { stdio: 'inherit' });
+  if (r.status !== 0) { console.error('build failed: node tools/build.mjs'); process.exit(1); }
+}
 const candidates = [path.join(root, '..', 'web', 'index.html'), path.join(root, '..', 'glow_viewer', 'index.html')];
 const src = candidates.find(f => fs.existsSync(f));
 const dst = path.join(root, 'app', 'index.html');

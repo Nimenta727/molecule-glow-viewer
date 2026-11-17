@@ -20,7 +20,7 @@ cd desktop
 npm install
 npm start
 ```
-`npm start` 会先把 `../web/index.html` 复制到 `app/`，再启动程序。
+`npm start` 会先运行 `../tools/build.mjs`（从 `../src/` 生成 `../web/index.html`），再把它复制到 `app/`，然后启动程序。
 
 自检：`GLOW_SMOKE=25` 会在 25 秒后打印页面报错和缓存命中情况、截一张图到临时目录，然后退出；`GLOW_QUERY='?pdb=1K4C'` 指定打开的结构。
 

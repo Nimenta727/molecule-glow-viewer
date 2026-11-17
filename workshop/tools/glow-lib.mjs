@@ -1,35 +1,35 @@
 // Shared helpers for the workshop tools (Node 18+, no dependencies).
-// The validation rules are NOT re-implemented here: they are read out of web/index.html (the same sanitizePack /
-// checkAnimation the viewer runs) and executed in a sandbox, so the viewer and the CI can never disagree.
+// The validation rules are NOT re-implemented here: sanitizePack / checkAnimation / PackError and the presets are imported
+// from the viewer source (src/pack/rules.js, src/data/presets.js) - the same code the build puts into web/index.html -
+// so the viewer and the CI can never disagree.
 import fs from 'node:fs';
 import path from 'node:path';
-import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { PRESETS, presetCat } from '../../src/data/presets.js';
+import { sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS } from '../../src/pack/rules.js';
+import { buildViewer } from '../../tools/build.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const WS = path.join(ROOT, 'workshop');
 export const SOURCES = ['official', 'community'];
 export const MAX_BYTES = 30 * 1024 * 1024;
 
-function between(src, start, end, from = 0) {
-  const i = src.indexOf(start, from); if (i < 0) throw new Error('marker not found in viewer: ' + start);
-  const j = src.indexOf(end, i + start.length); if (j < 0) throw new Error('end marker not found in viewer: ' + end);
-  return src.slice(i, j + end.length);
+/* Names of the built-in processes (a pack's scene.process may only name one of them). The process code needs Three.js and
+   the DOM, so only the NAMES are read, from the module script the build assembles out of src/: the top-level keys of
+   `const PROCESSES = { ... }` and every `PROCESSES.<name> = `. */
+export function processNames() {
+  const js = buildViewer();   /* LF line endings */
+  const i = js.indexOf('const PROCESSES = {'), j = js.indexOf('\n};\n', i);
+  if (i < 0 || j < 0) throw new Error('PROCESSES table not found in the built viewer');
+  const block = js.slice(i, j);
+  return [...new Set([...block.matchAll(/^ {2}([A-Za-z_]\w*): \{/gm), ...js.matchAll(/^PROCESSES\.([A-Za-z_]\w*) = /gm)].map(m => m[1]))];
 }
 
-export function loadRules(viewer = path.join(ROOT, 'web', 'index.html')) {
-  const html = fs.readFileSync(viewer, 'utf8').replace(/\r\n/g, '\n');
-  const presets = between(html, 'const PRESETS = {', '\n};\n');
-  const procBlock = between(html, 'const PROCESSES = {', '\n};\n');
-  const procNames = [...new Set([...procBlock.matchAll(/^ {2}([A-Za-z_]\w*): \{/gm), ...html.matchAll(/^PROCESSES\.([A-Za-z_]\w*) = /gm)].map(m => m[1]))];
-  /* v18+: stable ASCII preset keys and tiers (PRESET_META / PRESET_BY_KEY / presetName), which presetCat uses */
-  const keys = html.includes('const PRESET_META = {') ? between(html, 'const PRESET_META = {', '/* key or exact display name -> display name */') : '';
-  const presetCat = between(html, 'const presetCat = ', ";\n");
-  const rules = between(html, "const GLOW_FORMAT = 'glow-scene'", '/* a pack -> loadScene config */');
-  const code = `${presets}\nconst PROCESSES = Object.fromEntries(${JSON.stringify(procNames)}.map(k => [k, {}]));\n${keys}\n${presetCat}\n${rules}\n` +
-    `({ PRESETS, PROCESSES, presetCat, sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS });`;
-  return vm.runInNewContext(code, { RegExp, JSON, Math, Number, Object, Array, String, Set, Map, Error, console }, { filename: 'viewer-rules.js' });
+export function loadRules() {
+  /* src/pack/rules.js reads the free name PROCESSES (in the page it is the real table); here a name-only stand-in */
+  globalThis.PROCESSES ??= Object.fromEntries(processNames().map(k => [k, {}]));
+  return { PRESETS, PROCESSES: globalThis.PROCESSES, presetCat, sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS };
 }
 
 export const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');

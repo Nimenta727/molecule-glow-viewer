@@ -383,3 +383,11 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - **序列条**：对称拷贝标 A·1 / A·2，点击只选那一份（`asym C_2`）；“功能位点”按钮经 RCSB 对齐读 UniProt 特征（活性位点、结合、位点、跨膜、膜内、基序、二硫键），变成可点的标签，点一下选中并在 3D 高亮（1K4C：跨膜段 2、膜内片段 2、基序 1、二硫键 1，选中 4 × 47 = 188 个残基）。
 - **说明分层**：第一行是不超过约 50 字的要点，其余在“展开说明 ▾”；构象变形过程中显示“线性插值（示意）”；拥挤分子卡片与证据用同一条 `CROWD_RULE`，并有“真实数量 vs 画出数量”对比条。
 - `pendingAnims` 是真计数（回归：运行中 1，清场后 0）；删除未用的 `ionChannel`；拥挤分子颜色转义。
+
+## 39. WP1：源码拆分与构建（src/ → web/index.html）
+
+- `src/` 是唯一的源：`index.html.tpl` 是页面骨架，每行 `<!-- @include 路径 -->` 换成 `src/路径`；`tools/build.mjs` 拼出单文件 `web/index.html`（保留 importmap / CDN），`--check` 比较生成结果与仓库文件。`web/dev.html` 由 `src/dev.html` 原样生成。
+- 片段在页面里共用一个 module 作用域（和拆分前完全一样），模板顺序 = 代码顺序。目录：`core/`（启动、状态、loadScene / clearScene）、`data/`、`derived/`、`repr/`、`view/`、`sim/`（`processes/*.js` 是 `PROCESSES` 字面量的连续几段）、`pack/`、`ui/`、`api/`（`window.glow`）、`styles/`。完整表见 `src/README.md`。
+- 真模块：`data/presets.js`、`pack/rules.js` 带 `import` / `export`，构建删掉相对 import 行和行首 `export `；`workshop/tools/glow-lib.mjs` 直接 import 它们（不再从 HTML 截取文本）。`pack/rules.js` 里的 `PROCESSES` 是自由名字：页面里是真正的过程表，Node 里由 glow-lib 放一个只有名字的表（名字从构建拼出的脚本里读）。
+- 第一步只搬移：构建结果与拆分前逐字节相同，唯一差别是 `presetCat` 一行移进 `data/presets.js`。
+- 同步：`desktop/scripts/sync.js` 和 `tools/sync-copies.mjs` 都先构建；`tools/check-copies.mjs` 检查 skill / desktop 副本的 sha256；CI `copies.yml` 跑 `build.mjs --check` + 副本检查。

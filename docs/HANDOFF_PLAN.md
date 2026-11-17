@@ -1,5 +1,7 @@
 # 交接文档：分子光影平台的完整开发规划
 
+> **2026-11-17 更新**：平台改为“主体 + 制作区 + 插件”结构，见 **[HANDOFF_CORE_PLUGINS.md](HANDOFF_CORE_PLUGINS.md)**。本文的 WP0–WP5、WP10–WP12、规则、报告格式仍然有效；WP6–WP9 已在新文档里重新划分。
+
 > 给接手开发的 AI 智能体（或人）。这份文档把 `PLATFORM_AUDIT_REPORT.md`（方向）、`PLATFORM_ENGINEERING_SPEC.md`（工程规范）、`AUDIT_ROUND2.md`（三轮严格审计）和 `ROADMAP.md`（已完成清单）合成一份**可以直接分给多个智能体执行的工作包清单**。
 > 每个工作包写明：目标、依赖、改哪些文件、交付物、验收标准。做完一个包就在第 7 节的表里打勾，并按第 8 节的格式写交付报告。维护者验收时按第 9 节逐项核对。
 
@@ -44,8 +46,10 @@
 
 ### 2.1 仓库结构
 ```
-web/index.html      查看器（单文件，约 7800 行）——当前唯一的源文件
-web/dev.html        开发者 / AI 工作台（JSON 编辑器 + 预览 + 命令台）
+src/                查看器源码（WP1 起唯一的源）：index.html.tpl + 66 个片段，见 src/README.md
+tools/              build.mjs（src → web，--check）、sync-copies.mjs、check-copies.mjs（副本 sha256）
+web/index.html      查看器（单文件，约 7800 行）——由 tools/build.mjs 生成，不要手改
+web/dev.html        开发者 / AI 工作台（JSON 编辑器 + 预览 + 命令台）——由 src/dev.html 生成
 desktop/            Electron 桌面版；scripts/sync.js 复制 web → app；scripts/regress.mjs 回归；regress/baseline.json 基线
 skill/              教人 / AI 做场景的 skill；assets/viewer.html、assets/dev.html 是 web 的副本
 workshop/           official/（15 个官方场景包 + 封面 + index.json）、community/、stats.json（评分评论）、tools/（校验、索引、导出预设、投稿、举报、讨论帖）
@@ -233,8 +237,8 @@ WP12 贯穿
 
 | 工作包 | 状态 | 负责 | 提交 / 日期 | 备注 |
 |---|---|---|---|---|
-| WP0 收尾和准备 | ☐ | | | |
-| WP1 源码拆分与构建 | ☐ | | | |
+| WP0 收尾和准备 | ☑ | Claude | 73e77c3 / 2026-11-16 | README 结构、ROADMAP 指向本表、CI `copies.yml` 副本 sha256 检查；skill 副本原本过期，已同步 |
+| WP1 源码拆分与构建 | ☑ | Claude | （本提交）/ 2026-11-16 | `src/` 66 个片段 + `index.html.tpl`；`tools/build.mjs`（`--check` 在 CI）；构建结果与拆分前逐字节相同（仅 `presetCat` 一行移位）；glow-lib 直接 import `src/pack/rules.js` |
 | WP2 场景会话与资源 | ☐ | | | |
 | WP3 结构模型与统一选择 | ☐ | | | |
 | WP4 统一模拟引擎 | ☐ | | | |
@@ -251,7 +255,7 @@ WP12 贯穿
 
 | 日期 | 智能体 | 文件 | 改动 |
 |---|---|---|---|
-| | | | |
+| 2026-11-16 | Claude（WP1） | `src/index.html.tpl`、`tools/build.mjs`、`src/ui/controls.js` | 新建模板和构建；`presetCat` 从 `ui/controls.js` 移到 `data/presets.js` |
 
 ---
 

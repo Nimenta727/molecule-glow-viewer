@@ -12,7 +12,7 @@
 | 文件 | 讲什么 |
 |---|---|
 | `SKILL.md` | 入口：执行规则、工作流、验证清单、各主题的索引 |
-| `assets/viewer.html` | 查看器本体（与 `web/index.html` 相同） |
+| `assets/viewer.html` | 查看器本体（与 `web/index.html` 相同；在 GitHub 仓库里它由 `src/` 构建生成） |
 | `references/architecture.md` | 代码结构，以及每个功能的实现方式（按版本分节） |
 | `references/processes.md` | 怎样写过程动画（ATP 合酶、呼吸链、叶绿体、离子通道……） |
 | `references/paper_to_animation.md` | 从论文或机制描述做出动画：找结构 → 找状态 → 写预设 → 写动画 |

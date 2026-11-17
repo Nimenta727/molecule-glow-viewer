@@ -3,10 +3,10 @@ name: workshop
 # discussion thread (rating = 👍/👎, comments = replies) and refresh workshop/stats.json; commit only real changes.
 on:
   pull_request:
-    paths: ['workshop/**', 'web/index.html']
+    paths: ['workshop/**', 'web/index.html', 'src/**']
   push:
     branches: [main]
-    paths: ['workshop/**', 'web/index.html']
+    paths: ['workshop/**', 'web/index.html', 'src/**']
   schedule:
     - cron: '17 */6 * * *'
   workflow_dispatch:

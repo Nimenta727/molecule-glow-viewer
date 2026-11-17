@@ -588,6 +588,7 @@ const PRESET_BY_KEY = {};
 for (const [name, P] of Object.entries(PRESETS)) { const [key, tier] = PRESET_META[name] || [name.normalize('NFKD').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'preset', 'single'];
   P.key = key; P.tier = tier; PRESET_BY_KEY[key] = name; }
 const presetName = (q) => q == null ? null : PRESET_BY_KEY[q] ? PRESET_BY_KEY[q] : PRESETS[q] ? q : null;   /* key or exact display name -> display name */
+const presetCat = (name) => PRESETS[presetName(name)]?.tier || 'single';
 
 const PALETTES = {
   neon:     ['#e64fc8', '#5b9dff', '#3fc864', '#2448e8', '#f2f2f7', '#3fd0c0', '#ff9a50', '#9b7bff', '#f5e07a', '#ff5a6a', '#46b4ff', '#b8f05a'],
@@ -6983,7 +6984,6 @@ function publishHelp() {
 function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if (o) o.textContent = (+inp.value).toFixed(inp.step < 0.05 ? 2 : 1); }
 document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
 /* three levels of display: the whole cell / a local system (several machines working together) / a single protein */
-const presetCat = (name) => PRESETS[presetName(name)]?.tier || 'single';
 const MODE_NOTE = { cell: '整个细胞：从 2 µm 一路缩放到原子（镜头按钮切换尺度）。', system: '局部系统：几个分子机器在膜上或细胞质里协同工作，带实时模拟。', single: '单个蛋白：一个蛋白或复合体的结构与组成；也可以输入任意 PDB 编号。', mechanism: '分子机理：聚焦一个小分子或蛋白质的具体结合、催化、构象、转移或门控步骤。' };
 function setMode(cat) {
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));

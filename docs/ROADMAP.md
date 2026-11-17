@@ -34,7 +34,7 @@
 - **要能做**：选择（按链、残基范围、配体周围 5 Å）；测距离；换表示方式（团块 / 卡通 / 表面 / 示意）；拆开再装回；导出图片和场景包。
 
 ## 工程不变量（每次改动都要守住）
-1. `web/index.html` 是唯一源；`desktop/app`、skill 的 `assets/viewer.html` 都是复制出来的。
+1. `src/` 是唯一源（WP1 起）；`web/index.html` 由 `node tools/build.mjs` 生成，`desktop/app`、skill 的 `assets/viewer.html` 都是复制出来的。
 2. 每个场景都过回归：`cd desktop && node scripts/regress.mjs`（6 个固定场景：4HHB、6ZPO、1K4C、4V6F 翻译、7CGO、细胞一角；检查能否载入、实体 / 链 / 残基 / 配体数量、GPU 资源、FPS，最后回到第一个场景检查泄漏）。
 3. 画面里非实验的东西必须进证据徽章（`evidenceOf()`，预设和场景包可用 `evidence` 字段补充）。
 4. 场景包只能是数据，永远不执行包里的代码。
@@ -42,7 +42,9 @@
 
 ## 项目结构
 ```
-web/            查看器（单文件 index.html）+ 开发者页面 dev.html
+src/            查看器源码（片段 + index.html.tpl，见 src/README.md）
+tools/          build.mjs（src → web）、sync-copies.mjs、check-copies.mjs
+web/            构建生成的单文件查看器 index.html + 开发者页面 dev.html
 desktop/        Electron 桌面版；scripts/regress.mjs 回归测试，regress/baseline.json 基线
 skill/          教人 / AI 做场景的 skill（SKILL.md、references/、assets/viewer.html）
 workshop/       创意工坊：official/ community/ 场景包、索引、stats.json（评分评论）、tools/ 校验与构建

@@ -1,0 +1,5 @@
+{
+  "//": "src/ holds the viewer source (docs/HANDOFF_PLAN.md WP1). type=module so Node imports src/data/presets.js and src/pack/rules.js as ES modules.",
+  "private": true,
+  "type": "module"
+}

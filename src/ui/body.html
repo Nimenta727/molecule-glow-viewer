@@ -1,0 +1,117 @@
+<div id="stage"></div>
+<div id="seqBar" hidden><div class="sh"><b>序列</b><button id="seqFt" title="从 UniProt 读取活性位点、结合位点、跨膜段等，标在序列上">功能位点</button><span id="seqFtChips"></span><span id="seqInfo">点击或拖选残基 → 在 3D 中选中；红 = 螺旋，黄 = 折叠，灰 = 无规；虚线 = 结构里缺失的残基</span><button id="seqX" title="关闭">×</button></div><div id="seqRows"></div></div>
+<div id="title"><button id="backBtn" style="display:none">← 返回</button><div class="id" id="tId">—</div><div class="t" id="tName"></div><button id="aboutBtn" style="display:none">简介</button><div id="evid" title="这个画面里哪些是实验数据、哪些是推算、建模或示意（点击查看）"></div><div id="evidPop"></div></div>
+<div id="caption"></div>
+<div id="scaleAll" title="比例尺：旋转中心处的长度"><i></i><span class="sl"></span><span class="ts"></span></div>
+<div id="labels"></div>
+<div id="energy"></div>
+<div id="cellHud"><div class="hd" id="cellHd">细胞区室 · 实时模拟 <span id="cellT"></span></div><div id="cellRows"></div><div class="ctl" id="cellCtl"></div><div class="key" id="cellKey"></div><div class="note" id="cellNote"></div></div>
+<div id="kitHud"><div class="hd">🧩 拆装 · <span id="kitN"></span><button id="kitX">退出</button></div>
+  <div class="kr"><span>拆开程度</span><input type="range" id="kitE" min="0" max="1" step="0.01" value="0"></div>
+  <div class="ctl"><button id="kitAll">全部拆开</button><button id="kitHome">合拢</button><button id="kitPlay">▶ 按顺序组装</button><label><input type="checkbox" id="kitFp" checked>界面印记</label></div>
+  <div class="note" id="kitStep"></div>
+  <div id="kitInfo"></div>
+  <div class="klist" id="kitList"></div>
+</div>
+<div id="kitLabs"></div>
+<div id="procLabs"></div>
+<div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
+<div id="shop"><div class="box">
+  <div class="hd"><h3>🧩 创意工坊</h3><div class="seg" id="shopTabs"><button data-src="official">官方</button><button data-src="community">社区</button><button data-src="subs">已订阅</button></div>
+    <div class="seg" id="shopCats"><button data-cat="all">全部</button><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button><button data-cat="mechanism">分子机理</button></div>
+    <select id="shopSort" title="排序"><option value="title">按标题</option><option value="hot">最受欢迎</option><option value="new">最新</option></select>
+    <input type="search" id="shopQ" placeholder="搜索标题、标签、PDB 编号、作者"><span class="x" id="shopX">×</span></div>
+  <div id="shopGrid"></div>
+  <div id="shopPub"><b>场景包已下载。</b>投稿到社区工坊：<ol><li>打开 <a id="shopIssue" target="_blank" rel="noopener">投稿页面</a>（需要 GitHub 账号），填写标题和说明，把刚下载的 .glow 文件拖进去。</li><li>自动检查通过、维护者审核后，场景就会出现在“社区”里。</li></ol>熟悉 GitHub 也可以直接提 Pull Request，把文件放进 <code>workshop/community/packs/</code>。</div>
+  <div class="ft"><span>官方场景由项目维护；社区场景由作者上传，经过自动检查。社区动画只能用数据描述（粒子、隔室、路径、反应），不会运行任何代码。评分和评论在每个场景的 GitHub 讨论帖里（用 GitHub 账号登录），每 6 小时同步到这里。</span><button class="ghost" id="shopPublish" style="margin-left:auto">发布我的场景</button></div>
+</div></div>
+<div id="drop">松开鼠标导入结构文件（.cif / .pdb）或场景包（.glow）</div>
+
+<div id="panel">
+  <h1>分子光影查看器</h1>
+  <div class="row"><input type="text" id="pdb" value="6ZPO" maxlength="12" spellcheck="false"><button id="load">加载</button></div>
+  <div class="row"><button class="ghost" id="fileBtn">导入本地文件</button><input type="file" id="file" accept=".cif,.mmcif,.pdb,.ent" hidden><span class="sub">或把文件拖进窗口</span></div>
+  <div class="sub">输入任意 PDB 编号，直接从 RCSB 下载（含小分子）</div>
+  <h2>预设</h2>
+  <div class="tabs" id="modeTabs"><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button><button data-cat="mechanism">分子机理</button></div>
+  <div class="sub" id="modeNote"></div>
+  <div class="presets" id="presets"></div>
+  <div class="row" style="margin-top:6px"><button class="ghost" id="shopBtn">🧩 创意工坊</button><button class="ghost" id="packExport" title="把当前场景（结构、配色、剖面、镜头、讲解、动画）存成一个 .glow 文件">导出场景</button><button class="ghost" id="packImport">导入 .glow</button><input type="file" id="packFile" accept=".glow,.json" hidden></div>
+
+  <h2>过程动画</h2>
+  <label class="chk"><input type="checkbox" id="procOn" checked>显示相互作用过程（质子 / 离子 / ATP 合成）</label>
+  <div class="row"><label>转子转速</label><input type="range" id="spin" min="0" max="3" step="0.02" value="0.6"><output></output></div>
+  <div class="row"><label>时间尺度</label><div id="tscale"><button data-v="slow" class="on">慢放 · 看细节</button><button data-v="fast">快放 · 看粒子流</button></div></div>
+  <div class="sub" id="tscaleNote">慢放：每个分子事件单独画出——从溶液里扩散过来、结合、反应、离开。快放：大量粒子流显示通量往哪里走、有多大。</div>
+  <div class="row"><label>构象变化</label><input type="range" id="morph" min="0" max="1" step="0.01" value="0"><output></output></div>
+  <label class="chk"><input type="checkbox" id="morphAuto" checked>自动往返播放构象变化</label>
+  <div class="row"><label>热运动</label><input type="range" id="jitter" min="0" max="1" step="0.02" value="0.25"><output></output></div>
+  <label class="chk"><input type="checkbox" id="pause">暂停（空格）</label>
+  <label class="chk"><input type="checkbox" id="autoRot">相机自动环绕</label>
+
+  <h2>拆装</h2>
+  <div class="row"><button class="ghost" id="kitBtn">🧩 拆装亚基</button></div>
+  <div class="sub">把每条链（亚基）当作一个零件：拆开、单独取下、按顺序装回，看它们靠哪些盐桥 / 氢键 / 二硫键连在一起。先在“组成”里隐藏不需要的部件，只拆剩下的。</div>
+
+  <h2>小分子</h2>
+  <label class="chk"><input type="checkbox" id="ligOn" checked>显示小分子（配体、核苷酸、离子、脂质）</label>
+  <div class="row"><label>小分子画法</label><select id="ligStyle"><option value="ball">球棍</option><option value="valence">价键（单 / 双 / 三键、芳香环）</option><option value="space">空间填充（范德华半径）</option></select></div>
+  <div class="row"><label>小分子大小</label><input type="range" id="ligScale" min="0.8" max="4" step="0.05" value="2.6"><output></output></div>
+  <div class="row"><label>结合位点闪光</label><input type="range" id="hot" min="0" max="1.5" step="0.05" value="0.6"><output></output></div>
+
+  <h2>外观</h2>
+  <div class="row"><label>画风</label><select id="bgMode"><option value="dark">视频光影（黑底辉光）</option><option value="light" selected>插画（白底平涂描边）</option></select></div>
+  <div class="row illusOnly"><label>插画线条</label><input type="range" id="inkAmt" min="0" max="1.5" step="0.05" value="1"><output></output></div>
+  <div class="row illusOnly"><label>远处淡出</label><input type="range" id="fogAmt" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+  <div class="row"><label>显示模式</label><select id="repMode"><option value="blob">团块（写实）</option><option value="cartoon">结构示意（螺旋 / 折叠）</option></select></div>
+  <label class="chk"><input type="checkbox" id="shellOn" checked>结构示意模式显示外形轮廓</label>
+  <div class="row"><label>配色</label><select id="colorMode"><option value="entity">按蛋白种类</option><option value="chain">按链</option><option value="rainbow">彩虹（N→C）</option></select></div>
+  <div class="row"><label>色板</label><select id="palette"><option value="neon">霓虹（参考图）</option><option value="pastel">粉彩</option><option value="goodsell">古德塞尔</option></select></div>
+  <div class="row"><label>团块大小</label><input type="range" id="blob" min="1.5" max="8" step="0.1" value="4.6"><output></output></div>
+  <div class="row"><label>团块起伏</label><input type="range" id="lumpy" min="0" max="1" step="0.05" value="0.5"><output></output></div>
+  <div class="row"><label>辉光</label><input type="range" id="bloom" min="0" max="2" step="0.05" value="0.35"><output></output></div>
+  <div class="row"><label>边缘光</label><input type="range" id="rim" min="0" max="1.5" step="0.05" value="0.55"><output></output></div>
+  <div class="row"><label>自发光</label><input type="range" id="glow" min="0" max="0.5" step="0.01" value="0.05"><output></output></div>
+  <div class="row"><label>曝光</label><input type="range" id="exposure" min="0.3" max="2" step="0.05" value="0.88"><output></output></div>
+  <div class="row"><label>饱和度</label><input type="range" id="sat" min="0.5" max="2" step="0.02" value="1.3"><output></output></div>
+  <div class="row"><label>对比度</label><input type="range" id="con" min="0.7" max="1.6" step="0.02" value="1.12"><output></output></div>
+  <div class="row"><label>画质</label><select id="quality"><option value="high">高（独显）</option><option value="medium">中</option><option value="low">低（核显/无显卡）</option></select></div>
+  <div class="sub" id="fpsOut">帧率：—</div>
+  <label class="chk"><input type="checkbox" id="ao" checked>环境光遮蔽（立体感）</label>
+  <label class="chk"><input type="checkbox" id="dof" checked>景深（对焦旋转中心）</label>
+  <div class="row"><label>景深强度</label><input type="range" id="dofAmt" min="0" max="1" step="0.02" value="0.35"><output></output></div>
+
+  <h2>膜</h2>
+  <label class="chk"><input type="checkbox" id="memOn">显示脂双层膜</label>
+  <div class="row"><label>膜 1 位置</label><input type="range" id="mem1" min="-1" max="1" step="0.005" value="0"><output></output></div>
+  <label class="chk"><input type="checkbox" id="mem2On">第二层膜</label>
+  <div class="row"><label>膜 2 位置</label><input type="range" id="mem2" min="-1" max="1" step="0.005" value="0.3"><output></output></div>
+  <div class="row"><label>膜半径</label><input type="range" id="memR" min="0.8" max="3" step="0.05" value="1.6"><output></output></div>
+
+  <h2>剖切</h2>
+  <div class="row"><label>剖切位置</label><input type="range" id="cut" min="-1.05" max="1.05" step="0.01" value="1.05"><output></output></div>
+  <div class="row"><label>剖切对象</label><select id="cutWhat"><option value="mem">只切膜</option><option value="all">全部</option></select></div>
+
+  <h2>组成（显示 / 旋转 / 剖开 / 简化）</h2>
+  <div id="legend"></div>
+  <div class="row"><label>默认简化方式</label><select id="simpDefault"><option value="auto">推荐：按功能分区</option><option value="all">全部简化</option><option value="none">全部不简化</option></select></div>
+  <div class="row"><label>简化分辨率</label><select id="simpRes"><option value="8">8 Å（保留二级结构轮廓）</option><option value="12" selected>12 Å（结构域外形）</option><option value="16">16 Å</option><option value="20">20 Å（亚基外形）</option></select></div>
+  <div class="row"><label>简化样式</label><select id="simpStyle"><option value="schem">示意图（结构域形状 / 环分节 / 弯管）</option><option value="illus">低分辨率表面（插画）</option><option value="gloss">低分辨率表面（光泽）</option></select></div>
+  
+  <label class="chk"><input type="checkbox" id="labelsOn">显示标注与讲解（点标签看详细说明）</label>
+  <div class="note" style="font-size:11px;color:var(--dim);line-height:1.5">简化是为了讲清功能，按功能分三层：
+    <b>① 功能核心</b>（小分子 / 离子周围 8 Å 的残基、预设标出的关键界面）保留原子细节，按化学性质着色：<span style="color:#e5484d">■</span>酸性 <span style="color:#3b6fe0">■</span>碱性 <span style="color:#2fb39c">■</span>极性 <span style="color:#b58cf0">■</span>芳香 <span style="color:#e6c84a">■</span>含硫 <span style="color:#c9bf99">■</span>其他疏水；
+    <b>② 会动 / 会变形的部件</b>画成结构域形状（每个结构域一个低分辨率密度形状，体积＝残基数 × 136 Å³，构象变化时整体移动；环状寡聚体每个亚基一节）；
+    <b>③ 支架</b>（不结合小分子、不动的部件）半透明淡化。形状全部由真实坐标计算（同 ChimeraX molmap / Mol* 高斯表面）。“简”复选框可逐个改。</div>
+
+  <h2>其他</h2>
+  <div class="row"><label>主轴</label><select id="axisMode"><option value="long">最长轴竖直</option><option value="sym">对称轴竖直（环/通道）</option><option value="short">最短轴竖直</option><option value="native">原始坐标</option></select></div>
+  <label class="chk"><input type="checkbox" id="assembly" checked>生物学组装体（assembly 1）</label>
+  <div class="row"><button class="ghost" id="shot">截图 PNG</button><button class="ghost" id="resetCam">重置视角</button></div>
+  <div class="row"><button class="ghost" id="aimCut">剖面对准当前视角</button></div>
+  <div id="help">左键旋转 · 右键平移 · 滚轮缩放 · H 隐藏面板 · 空格暂停</div>
+  <div class="sub" style="margin-top:6px"><a id="seqLink" href="#" title="每条链一行的序列条，可点选（快捷键 Q）">序列条</a> · <a id="devLink" href="dev.html" title="场景包 JSON 编辑、校验、预览；命令 API（window.glow）控制台">开发者工作台</a> · 命令 API：<code>window.glow</code></div>
+</div>
+<button class="ghost" id="toggle">☰ 面板</button>
+<div id="status">准备中…</div>
+

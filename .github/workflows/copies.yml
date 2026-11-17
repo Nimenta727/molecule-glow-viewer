@@ -1,12 +1,12 @@
 name: copies
-# The viewer has one source (docs/HANDOFF_PLAN.md rule 1); skill/assets/*.html and desktop/app/*.html are copies.
-# Fail when a copy differs from the source.
+# The viewer has one source (docs/HANDOFF_PLAN.md rule 1): src/. web/index.html and web/dev.html are built from it
+# (tools/build.mjs); skill/assets/*.html and desktop/app/*.html are copies of web/. Fail when anything is out of step.
 on:
   pull_request:
-    paths: ['web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
+    paths: ['src/**', 'web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
   push:
     branches: [main]
-    paths: ['web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
+    paths: ['src/**', 'web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +17,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - name: web/ is the build of src/ (tools/build.mjs --check)
+        run: node tools/build.mjs --check
       - name: Desktop copy (desktop/scripts/sync.js, viewer files only)
-        run: node desktop/scripts/sync.js --viewer-only
+        run: |
+          node desktop/scripts/sync.js --viewer-only
+          git diff --exit-code -- web   # the sync builds first; a change here means web/ was not rebuilt
       - name: Copies match the source (sha256)
         run: node tools/check-copies.mjs
