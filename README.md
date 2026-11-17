@@ -61,6 +61,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - 现状审计与平台化建议：见 [平台现状审计报告](docs/PLATFORM_AUDIT_REPORT.md)。
 - 具体工程实施规范：见 [平台化工程细节规范](docs/PLATFORM_ENGINEERING_SPEC.md)。
 - 分子机理平台：聚焦单个小分子或蛋白质的结合、催化、构象、电子/质子转移和门控步骤。
+- **完整开发规划和交接文档**（教学 / 科研 / 3D 演示三种用途，13 个工作包、依赖、分工和验收）：见 [docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md)。
 
 ## 数据来源与引用
 所有结构数据来自 RCSB PDB，使用时请引用 PDB 以及各结构的原始论文：
