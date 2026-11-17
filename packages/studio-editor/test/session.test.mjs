@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createStudioSession } from '../session.mjs';
+import { GEOMETRY_MEDIA_TYPE } from '../../schema/geometry.mjs';
+
+const transform = () => ({ position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
+const scene = () => ({
+  format: 'glow-scene', schemaVersion: 2, id: 'studio-scene', title: 'Studio test',
+  units: { length: 'meter', time: 'second' },
+  assets: [
+    { id: 'primitive', kind: 'primitive', shape: 'box', color: '#123456', provenance: { importedFrom: 'fixture' } },
+    { id: 'geometry', kind: 'file', path: 'assets/geometry.json', sha256: 'a'.repeat(64), mediaType: GEOMETRY_MEDIA_TYPE },
+    { id: 'structure', kind: 'external', source: { provider: 'fixture', accession: 'structure-1' }, mediaType: 'chemical/x-mmcif' },
+  ],
+  nodes: [
+    { id: 'root', name: 'Root', parentId: null, assetId: null, visible: true, transform: transform() },
+    { id: 'primitive-node', name: 'Primitive', parentId: 'root', assetId: 'primitive', visible: true, transform: transform() },
+    { id: 'geometry-node', name: 'Geometry', parentId: 'root', assetId: 'geometry', visible: true, transform: transform(), extensions: { 'org.example.meta': { keep: true } } },
+    { id: 'structure-node', name: 'Structure', parentId: 'root', assetId: 'structure', visible: true, transform: transform(), extensions: { 'org.example.color': '#abcdef' } },
+  ],
+  timeline: { duration: 0, tracks: [] },
+  dependencies: [], evidence: [],
+  presentation: { notes: [{ id: 'existing-note', text: 'Keep me', nodeId: 'structure-node' }], bookmarks: [] },
+});
+
+test('Core projection recognizes available geometry and treats unsupported assets as groups', () => {
+  const resource = new Uint8Array([1, 2, 3]);
+  const resources = new Map([['assets/geometry.json', resource]]);
+  const session = createStudioSession(scene(), resources);
+  const core = session.getCoreDocument();
+  assert.equal(core.assets.find((asset) => asset.id === 'geometry').kind, 'geometry');
+  assert.equal(core.nodes.find((node) => node.id === 'geometry-node').assetId, 'geometry');
+  assert.equal(core.nodes.find((node) => node.id === 'structure-node').assetId, null);
+  const exported = session.getResources();
+  assert.deepEqual(exported.get('assets/geometry.json'), resource);
+  exported.get('assets/geometry.json')[0] = 99;
+  exported.clear();
+  resource[0] = 42;
+  assert.deepEqual(session.getResources().get('assets/geometry.json'), new Uint8Array([1, 2, 3]));
+});
+
+test('generic Core edits merge back while preserving v2 refs, extensions, and primitive provenance', () => {
+  const session = createStudioSession(scene(), new Map([['assets/geometry.json', new Uint8Array([9])]]));
+  assert.equal(session.dispatch({ type: 'updateNode', id: 'structure-node', patch: { visible: false } }), true);
+  let current = session.getScene();
+  assert.equal(current.nodes.find((node) => node.id === 'structure-node').assetId, 'structure');
+  assert.deepEqual(current.nodes.find((node) => node.id === 'structure-node').extensions, { 'org.example.color': '#abcdef' });
+  assert.equal(current.nodes.find((node) => node.id === 'structure-node').visible, false);
+
+  assert.equal(session.dispatch({ type: 'updateAsset', id: 'primitive', patch: { shape: 'sphere', color: '#fedcba' } }), true);
+  current = session.getScene();
+  assert.equal(current.assets.find((asset) => asset.id === 'primitive').shape, 'sphere');
+  assert.deepEqual(current.assets.find((asset) => asset.id === 'primitive').provenance, { importedFrom: 'fixture' });
+  assert.ok(current.assets.some((asset) => asset.id === 'geometry'));
+  assert.ok(current.assets.some((asset) => asset.id === 'structure'));
+
+  const added = { id: 'new-structure-node', name: 'New structure ref', parentId: 'root', assetId: 'structure', visible: true, transform: transform() };
+  assert.equal(session.dispatch({ type: 'addNode', node: added }), true);
+  assert.equal(session.getScene().nodes.find((node) => node.id === added.id).assetId, 'structure');
+  assert.equal(session.dispatch({ type: 'removeNode', id: 'structure-node' }), true);
+  assert.equal(session.getScene().presentation.notes.some((note) => note.nodeId === 'structure-node'), false);
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().presentation.notes.some((note) => note.nodeId === 'structure-node'), true);
+});
+
+test('metadata and generic edits share reversible history', () => {
+  const session = createStudioSession(scene());
+  assert.equal(session.canUndo(), false);
+  assert.equal(session.dispatch({ type: 'addNote', note: { id: 'note-1', text: 'A note', nodeId: 'primitive-node' } }), true);
+  assert.equal(session.dispatch({ type: 'addBookmark', bookmark: { id: 'camera-1', name: 'Front', position: [0, 0, 5], target: [0, 0, 0] } }), true);
+  assert.equal(session.dispatch({ type: 'addEvidence', entry: { type: 'experimental', citation: 'Synthetic reference' } }), true);
+  assert.equal(session.dispatch({ type: 'updateNode', id: 'primitive-node', patch: { name: 'Edited primitive' } }), true);
+  assert.equal(session.getScene().nodes.find((node) => node.id === 'primitive-node').name, 'Edited primitive');
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().nodes.find((node) => node.id === 'primitive-node').name, 'Primitive');
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().evidence.length, 0);
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().presentation.bookmarks.length, 0);
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().presentation.notes.length, 1);
+  assert.equal(session.canUndo(), false);
+  assert.equal(session.canRedo(), true);
+  assert.equal(session.redo(), true);
+  assert.equal(session.getScene().presentation.notes.length, 2);
+});
+
+test('invalid generic or metadata commands throw without changing scene or history', () => {
+  const session = createStudioSession(scene());
+  const before = session.getScene();
+  assert.throws(() => session.dispatch({ type: 'updateNode', id: 'missing', patch: { name: 'Bad' } }), /unknown node/);
+  assert.throws(() => session.dispatch({ type: 'addNote', note: { id: 'bad', text: 'dangling', nodeId: 'missing' } }), /unknown node/);
+  assert.equal(session.getScene(), before);
+  assert.equal(session.canUndo(), false);
+  assert.equal(session.undo(), false);
+});
+
+test('scene and Core document snapshots are deeply immutable', () => {
+  const session = createStudioSession(scene());
+  assert.ok(Object.isFrozen(session.getScene()));
+  assert.ok(Object.isFrozen(session.getScene().assets[0].provenance));
+  assert.ok(Object.isFrozen(session.getCoreDocument().nodes[0].transform.position));
+  assert.throws(() => { session.getScene().title = 'Mutated'; }, TypeError);
+});

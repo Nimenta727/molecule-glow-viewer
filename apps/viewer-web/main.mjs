@@ -5,7 +5,7 @@ import { GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { createPluginHost } from '../../packages/plugin-host/index.mjs';
 import { exampleScene } from './example-scene.mjs';
 import { fromPrototype, geometryLayers, isStructureFile, openSceneFile } from './scene-io.mjs';
-import { createViewport } from './viewport.mjs';
+import { createViewport } from '../../packages/render-three/viewport.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -17,6 +17,7 @@ let saving = false;
 const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
+const EVIDENCE_LABELS = { source: '来源', derived: '推导', modelled: '建模', illustrative: '示意' };
 const host = createPluginHost({
   getScene: () => active?.store.getSnapshot() ?? null,
   dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
@@ -117,6 +118,7 @@ function boot() {
       elements['residue-id'].value = '';
       showPose();
       showDiagnostics();
+      showPresentation();
       setStatus(scene.name);
     },
   });
@@ -137,6 +139,36 @@ function boot() {
   function showPose() {
     if (active) viewport.applyPose(active.timeline.sample());
     syncControls();
+  }
+
+  function showPresentation() {
+    const { presentation, evidence = [] } = active?.scene ?? {};
+    const notes = presentation?.notes ?? [];
+    const bookmarks = presentation?.bookmarks ?? [];
+    elements.presentation.hidden = !notes.length && !bookmarks.length && !evidence.length;
+    function renderList(id, entries, populate) {
+      const list = elements[id];
+      list.replaceChildren();
+      list.hidden = entries.length === 0;
+      for (const entry of entries) {
+        const item = document.createElement('li');
+        populate(item, entry);
+        list.append(item);
+      }
+    }
+    renderList('viewer-notes', notes, (item, { text }) => { item.textContent = text; });
+    const entries = evidence.filter(({ type, citation }) => typeof type === 'string' || typeof citation === 'string');
+    renderList('viewer-evidence', entries, (item, { type, citation, assetId }) => {
+      item.textContent = [EVIDENCE_LABELS[type] ?? type, typeof citation === 'string' ? citation : assetId]
+        .filter((value) => typeof value === 'string').join(' · ');
+    });
+    renderList('viewer-bookmarks', bookmarks, (item, bookmark) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = bookmark.name;
+      button.addEventListener('click', () => viewport.setCamera(bookmark));
+      item.append(button);
+    });
   }
 
   async function openScene(input = {}) {
@@ -221,6 +253,7 @@ function boot() {
     active = undefined;
     syncControls();
     showDiagnostics();
+    showPresentation();
     setStatus('场景已关闭');
   });
   elements['reset-camera'].addEventListener('click', () => viewport.resetCamera());

@@ -106,6 +106,19 @@ const SCENE_PROPERTIES = {
   },
   evidence: { type: 'array', items: { type: 'object', additionalProperties: JSON_VALUE } },
   legacy: { type: 'object', additionalProperties: JSON_VALUE },
+  presentation: {
+    type: 'object', additionalProperties: false, required: ['notes', 'bookmarks'],
+    properties: {
+      notes: { type: 'array', items: {
+        type: 'object', additionalProperties: false, required: ['id', 'text', 'nodeId'],
+        properties: { id: ID, text: { type: 'string', minLength: 1, maxLength: 5000 }, nodeId: { anyOf: [ID, { type: 'null' }] } },
+      } },
+      bookmarks: { type: 'array', items: {
+        type: 'object', additionalProperties: false, required: ['id', 'name', 'position', 'target'],
+        properties: { id: ID, name: { type: 'string', minLength: 1, maxLength: 200 }, position: VEC3, target: VEC3 },
+      } },
+    },
+  },
 };
 const SCENE_REQUIRED = ['format', 'schemaVersion', 'id', 'title', 'units', 'assets', 'nodes', 'timeline', 'dependencies', 'evidence'];
 const schemaCopy = (schema) => JSON.parse(JSON.stringify(schema));
@@ -202,6 +215,20 @@ function checkSceneReferences(scene) {
   }
   if (new Set(scene.dependencies.map(({ id }) => id)).size !== scene.dependencies.length) {
     throw new SchemaValidationError('duplicate scene dependency ID');
+  }
+  if (scene.presentation) {
+    const { notes, bookmarks } = scene.presentation;
+    if (new Set(notes.map(({ id }) => id)).size !== notes.length ||
+        new Set(bookmarks.map(({ id }) => id)).size !== bookmarks.length) {
+      throw new SchemaValidationError('duplicate presentation item ID');
+    }
+    const nodeIds = new Set(scene.nodes.map(({ id }) => id));
+    if (notes.some(({ nodeId }) => nodeId !== null && !nodeIds.has(nodeId))) {
+      throw new SchemaValidationError('presentation note refers to an unknown node');
+    }
+    if (bookmarks.some(({ position, target }) => position.every((value, index) => value === target[index]))) {
+      throw new SchemaValidationError('bookmark camera position must differ from its target');
+    }
   }
   try { validateCoreDocument(projectCoreDocument(scene)); }
   catch (error) { throw new SchemaValidationError(error.message); }

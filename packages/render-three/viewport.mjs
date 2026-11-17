@@ -35,7 +35,7 @@ function* renderables(asset, layers) {
   }
 }
 
-export function createViewport(container, { onSelect } = {}) {
+export function createViewport(container, { onSelect, TransformControls, onTransform } = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#f5f7f8');
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
@@ -50,6 +50,22 @@ export function createViewport(container, { onSelect } = {}) {
   key.position.set(4, 7, 5);
   scene.add(key);
   const controls = new OrbitControls(camera, renderer.domElement);
+  const gizmo = TransformControls ? new TransformControls(camera, renderer.domElement) : null;
+  if (gizmo) {
+    gizmo.setSize(0.8);
+    scene.add(gizmo);
+    gizmo.addEventListener('change', invalidate);
+    gizmo.addEventListener('dragging-changed', ({ value }) => { controls.enabled = !value; });
+    gizmo.addEventListener('mouseUp', () => {
+      const object = gizmo.object;
+      if (!object) return;
+      onTransform?.(object.userData.nodeId, {
+        position: object.position.toArray(),
+        rotation: object.quaternion.toArray(),
+        scale: object.scale.toArray(),
+      });
+    });
+  }
   const raycaster = new THREE.Raycaster();
   raycaster.params.Line.threshold = 0.04;
   raycaster.params.Points.threshold = 0.08;
@@ -82,7 +98,7 @@ export function createViewport(container, { onSelect } = {}) {
   resize();
 
   function pick(event) {
-    if (!active || disposed || event.button !== 0) return;
+    if (!active || disposed || event.button !== 0 || gizmo?.axis) return;
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1);
@@ -159,6 +175,7 @@ export function createViewport(container, { onSelect } = {}) {
     if (!prepared || prepared.disposed) throw new Error('Prepared scene is disposed');
     if (active === prepared) return;
     const previous = active;
+    gizmo?.detach();
     scene.add(prepared.root);
     active = prepared;
     fitCamera(prepared);
@@ -189,6 +206,7 @@ export function createViewport(container, { onSelect } = {}) {
   }
 
   function clear() {
+    gizmo?.detach();
     if (active) disposeHandle(active);
     controls.target.set(0, 0, 0);
     camera.position.set(4, 3, 5);
@@ -197,6 +215,30 @@ export function createViewport(container, { onSelect } = {}) {
   }
 
   function resetCamera() { fitCamera(); }
+  function getCamera() { return { position: camera.position.toArray(), target: controls.target.toArray() }; }
+  function setCamera({ position, target }) {
+    camera.position.fromArray(position);
+    controls.target.fromArray(target);
+    const distance = camera.position.distanceTo(controls.target);
+    camera.near = Math.max(distance / 1000, 0.001);
+    camera.far = Math.max(distance * 100, 100);
+    camera.updateProjectionMatrix();
+    controls.update();
+    invalidate();
+  }
+
+  function setSelection(id) {
+    if (!gizmo) return;
+    const object = active?.groups.get(id);
+    if (object) gizmo.attach(object);
+    else gizmo.detach();
+    invalidate();
+  }
+
+  function setGizmoMode(mode) {
+    gizmo?.setMode(mode);
+    invalidate();
+  }
 
   function dispose() {
     if (disposed) return;
@@ -206,10 +248,11 @@ export function createViewport(container, { onSelect } = {}) {
     resizeObserver.disconnect();
     renderer.domElement.removeEventListener('pointerdown', pick);
     controls.removeEventListener('change', invalidate);
+    gizmo?.dispose();
     controls.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
 
-  return { prepare, commit, applyPose, resetCamera, clear, dispose };
+  return { prepare, commit, applyPose, resetCamera, getCamera, setCamera, setSelection, setGizmoMode, clear, dispose };
 }

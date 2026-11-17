@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Glow Studio</title>
+    <link rel="stylesheet" href="./studio.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@cfworker/json-schema": "../../node_modules/@cfworker/json-schema/dist/esm/index.js",
+          "@zip.js/zip.js": "../../node_modules/@zip.js/zip.js/index-native.min.js",
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main class="studio">
+      <header class="topbar">
+        <div class="brand"><h1>Glow Studio</h1><label for="project-title">项目</label><input id="project-title" type="text" value="未命名项目" aria-label="项目名称"></div>
+        <nav class="project-actions" aria-label="项目操作">
+          <button id="new-project" type="button">新建项目</button>
+          <button id="import-structure" type="button">导入结构为新场景</button>
+          <input id="structure-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
+          <button id="open-project" type="button">打开项目</button>
+          <input id="project-file" type="file" accept=".glow-project,.json,application/json" hidden>
+          <button id="save-project" type="button">保存项目</button>
+          <button id="export-scene" type="button">导出场景</button>
+        </nav>
+      </header>
+
+      <div class="workspace">
+        <aside class="panel left-panel" aria-label="项目资源与场景">
+          <section class="panel-section">
+            <h2>资源</h2>
+            <ul id="asset-list" class="tree-list" aria-label="资源列表"></ul>
+          </section>
+          <section class="panel-section scene-section">
+            <h2>场景树</h2>
+            <label for="scene-picker">当前场景</label>
+            <select id="scene-picker"></select>
+            <ul id="scene-tree" class="tree-list" aria-label="场景树"></ul>
+          </section>
+        </aside>
+
+        <section class="viewport-panel" aria-label="场景视口">
+          <div class="viewport-toolbar" aria-label="视口工具">
+            <button id="reset-camera" type="button">重置视角</button>
+            <label for="gizmo-mode">变换工具</label>
+            <select id="gizmo-mode" aria-label="变换工具">
+              <option value="translate">移动</option>
+              <option value="rotate">旋转</option>
+              <option value="scale">缩放</option>
+            </select>
+          </div>
+          <div id="viewport" aria-label="三维场景画布"></div>
+          <div class="primitive-tools" aria-label="添加对象">
+            <button id="add-box" type="button">添加方盒</button>
+            <button id="add-sphere" type="button">添加球体</button>
+            <button id="group-node" type="button">新建组</button>
+            <button id="remove-node" type="button">删除对象</button>
+          </div>
+        </section>
+
+        <aside class="panel right-panel" aria-label="属性与制作信息">
+          <section class="panel-section">
+            <h2>属性</h2>
+            <form id="inspector" class="inspector-form" novalidate>
+              <label class="wide" for="node-name">名称</label>
+              <input class="wide" id="node-name" type="text">
+              <label class="check-row wide" for="node-visible"><input id="node-visible" type="checkbox"> 显示对象</label>
+              <label for="node-color">颜色</label><input id="node-color" type="color" value="#4d9b83">
+              <fieldset class="wide vector-fields">
+                <legend>位置（米）</legend>
+                <label for="position-x">X</label><input id="position-x" type="number" step="0.01">
+                <label for="position-y">Y</label><input id="position-y" type="number" step="0.01">
+                <label for="position-z">Z</label><input id="position-z" type="number" step="0.01">
+              </fieldset>
+              <fieldset class="wide vector-fields">
+                <legend>缩放</legend>
+                <label for="scale-x">X</label><input id="scale-x" type="number" min="0.001" step="0.01">
+                <label for="scale-y">Y</label><input id="scale-y" type="number" min="0.001" step="0.01">
+                <label for="scale-z">Z</label><input id="scale-z" type="number" min="0.001" step="0.01">
+              </fieldset>
+              <fieldset class="wide vector-fields">
+                <legend>旋转（度）</legend>
+                <label for="rotation-x">X</label><input id="rotation-x" type="number" step="1">
+                <label for="rotation-y">Y</label><input id="rotation-y" type="number" step="1">
+                <label for="rotation-z">Z</label><input id="rotation-z" type="number" step="1">
+              </fieldset>
+              <button class="wide primary" type="submit">应用属性</button>
+            </form>
+          </section>
+
+          <section class="panel-section history-tools">
+            <h2>编辑历史</h2>
+            <div class="button-row"><button id="undo" type="button">撤销</button><button id="redo" type="button">重做</button></div>
+          </section>
+
+          <section class="panel-section">
+            <h2>标注</h2>
+            <label class="wide" for="annotation">标注内容</label>
+            <textarea id="annotation" rows="2"></textarea>
+            <button id="add-annotation" type="button">添加标注</button>
+            <ul id="annotation-list" class="text-list" aria-label="标注列表"></ul>
+          </section>
+
+          <section class="panel-section">
+            <h2>证据与来源</h2>
+            <label for="evidence-kind">证据类型</label>
+            <select id="evidence-kind">
+              <option value="source">来源数据</option>
+              <option value="derived">推导结果</option>
+              <option value="modelled">建模内容</option>
+              <option value="illustrative">示意内容</option>
+            </select>
+            <label class="wide" for="citation">引用信息</label>
+            <textarea id="citation" rows="2"></textarea>
+            <button id="add-evidence" type="button">添加证据</button>
+            <ul id="evidence-list" class="text-list" aria-label="证据列表"></ul>
+          </section>
+
+          <section class="panel-section">
+            <h2>视角书签</h2>
+            <label class="wide" for="bookmark-name">书签名称</label>
+            <input id="bookmark-name" type="text">
+            <button id="add-bookmark" type="button">保存当前视角</button>
+            <ul id="bookmark-list" class="text-list" aria-label="视角书签列表"></ul>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="timeline-panel" aria-label="时间线">
+        <div class="timeline-heading"><h2>时间线</h2><label for="duration">时长（秒）</label><input id="duration" type="number" min="0" step="0.1" value="10"><button id="add-keyframe" type="button">添加关键帧</button></div>
+        <div class="timeline-controls"><button id="studio-play" type="button">播放</button><input id="studio-playhead" type="range" min="0" max="10" step="any" value="0"><output id="studio-time">0.00 / 10.00 秒</output></div>
+      </footer>
+      <p id="status" role="status" class="status">正在启动 Studio…</p>
+    </main>
+    <script type="module">
+      import('./main.mjs').catch(() => {
+        document.querySelector('#status').textContent = '无法加载 Studio 模块。请检查页面和渲染库是否可访问。';
+      });
+    </script>
+  </body>
+</html>

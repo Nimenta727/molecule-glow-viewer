@@ -1,0 +1,126 @@
+:root {
+  color-scheme: light;
+  font: 14px/1.45 "Inter", system-ui, sans-serif;
+  color: #182520;
+  background: #edf1ed;
+  --line: #cbd4cd;
+  --panel: #fbfcfa;
+  --muted: #5c7065;
+  --accent: #28755c;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, select, textarea { font: inherit; }
+button, select, input, textarea { color: inherit; }
+button {
+  border: 1px solid var(--line);
+  border-radius: 0.35rem;
+  background: #fff;
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+}
+button:hover:enabled { border-color: var(--accent); }
+button:disabled { cursor: default; opacity: 0.55; }
+input:not([type="checkbox"]):not([type="color"]), select, textarea {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.3rem;
+  background: #fff;
+  padding: 0.35rem 0.45rem;
+}
+input[type="checkbox"] { accent-color: var(--accent); }
+input[type="color"] { width: 2.5rem; height: 2rem; padding: 0.1rem; border: 1px solid var(--line); background: white; border-radius: 0.3rem; }
+:focus-visible { outline: 2px solid #388d6d; outline-offset: 2px; }
+
+.studio { height: 100svh; min-height: 32rem; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; }
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.brand, .project-actions, .button-row, .timeline-heading, .timeline-controls { display: flex; align-items: center; gap: 0.55rem; }
+.brand { min-width: 18rem; }
+h1, h2 { margin: 0; }
+h1 { font-size: 1.15rem; white-space: nowrap; }
+h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
+.brand label, .timeline-heading label { color: var(--muted); white-space: nowrap; }
+#project-title { width: min(15rem, 25vw); }
+.project-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+.workspace { display: grid; grid-template-columns: 245px minmax(0, 1fr) 300px; min-height: 0; overflow: hidden; }
+.panel { min-width: 0; overflow: auto; background: var(--panel); }
+.left-panel { border-right: 1px solid var(--line); }
+.right-panel { border-left: 1px solid var(--line); }
+.panel-section { display: grid; gap: 0.55rem; padding: 0.9rem; border-bottom: 1px solid #e3e8e3; }
+.scene-section { min-height: 11rem; }
+.tree-list, .text-list { min-width: 0; margin: 0; padding: 0; list-style: none; }
+.tree-list { display: grid; gap: 0.2rem; }
+.tree-list li, .text-list li { overflow-wrap: anywhere; border-radius: 0.25rem; padding: 0.32rem 0.4rem; }
+.tree-list button { width: 100%; text-align: start; overflow-wrap: anywhere; }
+.tree-list button[aria-pressed="true"] { color: #154b39; background: #e4f1e9; border-color: #7fae96; }
+.text-list { display: grid; gap: 0.25rem; color: var(--muted); }
+
+.viewport-panel { position: relative; min-width: 0; min-height: 0; background: #f2f5f1; }
+.viewport-toolbar, .primitive-tools { position: absolute; z-index: 2; display: flex; align-items: center; gap: 0.45rem; }
+.viewport-toolbar { top: 0.8rem; left: 0.8rem; }
+.viewport-toolbar label { margin-left: 0.4rem; color: var(--muted); }
+.viewport-toolbar select { width: 6rem; }
+#viewport { position: absolute; inset: 0; overflow: hidden; }
+#viewport canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.primitive-tools { bottom: 0.8rem; left: 0.8rem; flex-wrap: wrap; }
+.primitive-tools button { background: rgba(255,255,255,.94); }
+
+.inspector-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.45rem; }
+.inspector-form .wide { grid-column: 1 / -1; }
+.inspector-form label, .panel-section > label { color: var(--muted); }
+.check-row { display: flex; align-items: center; gap: 0.4rem; }
+.vector-fields { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.35rem; min-width: 0; padding: 0.5rem; border: 1px solid #e0e6e0; border-radius: 0.35rem; }
+.vector-fields legend { padding: 0 0.25rem; color: var(--muted); }
+.vector-fields label { text-align: center; font-size: 0.8rem; }
+.vector-fields input { width: 100%; }
+.primary { color: white; border-color: var(--accent); background: var(--accent); }
+.panel-section > textarea { width: 100%; resize: vertical; }
+.history-tools .button-row button { flex: 1; }
+
+.timeline-panel { padding: 0.65rem 1rem; border-top: 1px solid var(--line); background: var(--panel); }
+.timeline-heading { margin-bottom: 0.5rem; }
+.timeline-heading h2 { margin-right: auto; }
+#duration { width: 5rem; }
+.timeline-controls { gap: 0.7rem; }
+#studio-playhead { flex: 1; min-width: 5rem; accent-color: var(--accent); }
+#studio-time { min-width: 8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.status { min-height: 1.5rem; margin: 0; padding: 0.15rem 1rem 0.4rem; color: var(--muted); background: var(--panel); overflow-wrap: anywhere; }
+
+@media (max-width: 1050px) {
+  .workspace { grid-template-columns: 205px minmax(0, 1fr) 265px; }
+  .topbar { align-items: flex-start; flex-direction: column; }
+  .project-actions { justify-content: flex-start; }
+}
+
+@media (max-width: 760px) {
+  .studio { height: auto; grid-template-rows: auto 1fr auto auto; }
+  .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(21rem, 46svh) auto auto; overflow: visible; }
+  .viewport-panel { grid-row: 1; min-height: 21rem; }
+  .left-panel { grid-row: 2; border-right: 0; border-top: 1px solid var(--line); }
+  .right-panel { grid-row: 3; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .panel-section { padding: 0.75rem 1rem; }
+  .brand { min-width: 0; width: 100%; flex-wrap: wrap; }
+  #project-title { flex: 1; width: auto; }
+  .project-actions { width: 100%; }
+  .project-actions button { flex: 1; }
+  .timeline-heading { flex-wrap: wrap; }
+  .timeline-controls { flex-wrap: wrap; }
+  #studio-playhead { flex-basis: 100%; order: 3; }
+}
+
+@media (max-width: 420px) {
+  .topbar { padding-inline: 0.7rem; }
+  .project-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .timeline-panel { padding-inline: 0.7rem; }
+  #studio-time { min-width: 0; margin-left: auto; }
+}

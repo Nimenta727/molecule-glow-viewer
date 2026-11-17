@@ -1,6 +1,7 @@
 import { cloneJson, freezeDocument, validateDocument } from './scene-document.mjs';
 
 const PATCHABLE_FIELDS = new Set(['name', 'parentId', 'assetId', 'visible', 'transform']);
+const PATCHABLE_ASSET_FIELDS = new Set(['shape', 'color']);
 
 function sameJson(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
@@ -9,6 +10,23 @@ function sameJson(a, b) {
 function applyCommand(document, command) {
   if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
   switch (command.type) {
+    case 'addAsset': {
+      if (!command.asset || typeof command.asset !== 'object' || Array.isArray(command.asset)) throw new TypeError('addAsset requires an asset object');
+      if (document.assets.some((asset) => asset.id === command.asset.id)) throw new TypeError(`asset ID "${command.asset.id}" already exists`);
+      document.assets.push(command.asset);
+      break;
+    }
+    case 'updateAsset': {
+      if (typeof command.id !== 'string' || !command.patch || typeof command.patch !== 'object' || Array.isArray(command.patch)) {
+        throw new TypeError('updateAsset requires an id and patch object');
+      }
+      const asset = document.assets.find((entry) => entry.id === command.id);
+      if (!asset) throw new TypeError(`unknown asset "${command.id}"`);
+      if (asset.kind !== 'primitive') throw new TypeError('only primitive assets can be updated');
+      for (const key of Object.keys(command.patch)) if (!PATCHABLE_ASSET_FIELDS.has(key)) throw new TypeError(`asset field "${key}" cannot be updated`);
+      Object.assign(asset, command.patch);
+      break;
+    }
     case 'addNode': {
       if (!command.node || typeof command.node !== 'object' || Array.isArray(command.node)) throw new TypeError('addNode requires a node object');
       if (document.nodes.some((node) => node.id === command.node.id)) throw new TypeError(`node ID "${command.node.id}" already exists`);
@@ -40,6 +58,11 @@ function applyCommand(document, command) {
       }
       document.nodes = document.nodes.filter((node) => !removed.has(node.id));
       document.timeline.tracks = document.timeline.tracks.filter((track) => !removed.has(track.nodeId));
+      break;
+    }
+    case 'setTimeline': {
+      if (!command.timeline || typeof command.timeline !== 'object' || Array.isArray(command.timeline)) throw new TypeError('setTimeline requires a timeline object');
+      document.timeline = command.timeline;
       break;
     }
     case 'batch': {

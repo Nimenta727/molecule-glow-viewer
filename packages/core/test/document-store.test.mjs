@@ -79,6 +79,63 @@ test('batch is atomic, records one history entry, and notifies once', () => {
   assert.equal(store.getSnapshot().nodes[0].name, 'Renamed');
 });
 
+test('primitive assets can be added with a referencing node in one undoable batch', () => {
+  const store = createDocumentStore(makeDocument());
+  const sphere = { id: 'asset-sphere', kind: 'primitive', shape: 'sphere', color: '#ffcc00' };
+  const node = { id: 'sphere-node', name: 'Sphere', parentId: 'root', assetId: 'asset-sphere', visible: true, transform: transform() };
+  assert.deepEqual(store.dispatch({ type: 'batch', commands: [
+    { type: 'addAsset', asset: sphere },
+    { type: 'addNode', node },
+  ] }), { ok: true, changed: true, revision: 1 });
+  assert.equal(store.getSnapshot().assets.at(-1).id, 'asset-sphere');
+  assert.equal(store.getSnapshot().nodes.at(-1).assetId, 'asset-sphere');
+  store.undo();
+  assert.equal(store.getSnapshot().assets.some((asset) => asset.id === 'asset-sphere'), false);
+  assert.equal(store.getSnapshot().nodes.some((entry) => entry.id === 'sphere-node'), false);
+  store.redo();
+  assert.equal(store.getSnapshot().nodes.at(-1).assetId, 'asset-sphere');
+});
+
+test('primitive asset updates preserve identity and validate shape/color', () => {
+  const store = createDocumentStore(makeDocument());
+  assert.deepEqual(store.dispatch({ type: 'updateAsset', id: 'asset-box', patch: { shape: 'sphere', color: '#123abc' } }), { ok: true, changed: true, revision: 1 });
+  assert.equal(store.getSnapshot().assets[0].id, 'asset-box');
+  assert.equal(store.getSnapshot().assets[0].kind, 'primitive');
+  assert.equal(store.getSnapshot().assets[0].shape, 'sphere');
+  assert.equal(store.getSnapshot().assets[0].color, '#123abc');
+  const before = store.getSnapshot();
+  assert.equal(store.dispatch({ type: 'updateAsset', id: 'asset-box', patch: { id: 'changed' } }).ok, false);
+  assert.equal(store.dispatch({ type: 'updateAsset', id: 'asset-box', patch: { color: 'red' } }).ok, false);
+  assert.equal(store.getSnapshot(), before);
+  store.undo();
+  assert.equal(store.getSnapshot().assets[0].shape, 'box');
+});
+
+test('setTimeline replaces validated timeline atomically and participates in history', () => {
+  const store = createDocumentStore(makeDocument());
+  const timeline = { duration: 3, tracks: [{ nodeId: 'root', keyframes: [{ time: 0, transform: transform() }, { time: 3, transform: { ...transform(), position: [3, 0, 0] } }] }] };
+  assert.deepEqual(store.dispatch({ type: 'setTimeline', timeline }), { ok: true, changed: true, revision: 1 });
+  assert.equal(store.getSnapshot().timeline.duration, 3);
+  assert.equal(store.getSnapshot().timeline.tracks[0].nodeId, 'root');
+  store.undo();
+  assert.equal(store.getSnapshot().timeline.duration, 2);
+  assert.equal(store.getSnapshot().timeline.tracks[0].nodeId, 'child');
+  store.redo();
+  assert.equal(store.getSnapshot().timeline.duration, 3);
+});
+
+test('asset and timeline changes inside a rejected batch leave history and snapshots unchanged', () => {
+  const store = createDocumentStore(makeDocument());
+  const before = store.getSnapshot();
+  const outcome = store.dispatch({ type: 'batch', commands: [
+    { type: 'updateAsset', id: 'asset-box', patch: { color: '#ffffff' } },
+    { type: 'setTimeline', timeline: { duration: 1, tracks: [{ nodeId: 'missing', keyframes: [{ time: 0, transform: transform() }] }] } },
+  ] });
+  assert.equal(outcome.ok, false);
+  assert.equal(store.getSnapshot(), before);
+  assert.deepEqual(store.undo(), { ok: true, changed: false, revision: 0 });
+});
+
 test('invalid final batch state leaves snapshot, revision and history unchanged', () => {
   const store = createDocumentStore(makeDocument());
   const before = store.getSnapshot();
