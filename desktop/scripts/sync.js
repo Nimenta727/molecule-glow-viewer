@@ -13,6 +13,8 @@ else if (fs.existsSync(dst)) console.log('viewer source not found, keeping exist
 else { console.error('viewer not found, looked in:\n  ' + candidates.join('\n  ')); process.exit(1); }
 // the developer / AI workbench (dev.html) sits next to index.html and embeds it (?embed=1)
 if (src) { const dev = path.join(path.dirname(src), 'dev.html'); if (fs.existsSync(dev)) { fs.copyFileSync(dev, path.join(root, 'app', 'dev.html')); console.log('synced', path.relative(root, dev), '-> app/dev.html'); } }
+// --viewer-only: just the two HTML files (CI copy check, tools/check-copies.mjs); no Three.js vendoring, no licence
+if (process.argv.includes('--viewer-only')) process.exit(0);
 
 // Three.js r160 goes into vendor/three/ (same layout as the CDN path). electron-builder strips any
 // "examples" folder from node_modules, which is where OrbitControls and the post-processing passes live.

@@ -1,0 +1,23 @@
+name: copies
+# The viewer has one source (docs/HANDOFF_PLAN.md rule 1); skill/assets/*.html and desktop/app/*.html are copies.
+# Fail when a copy differs from the source.
+on:
+  pull_request:
+    paths: ['web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
+  push:
+    branches: [main]
+    paths: ['web/**', 'skill/assets/**', 'desktop/**', 'tools/**', '.github/workflows/copies.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Desktop copy (desktop/scripts/sync.js, viewer files only)
+        run: node desktop/scripts/sync.js --viewer-only
+      - name: Copies match the source (sha256)
+        run: node tools/check-copies.mjs

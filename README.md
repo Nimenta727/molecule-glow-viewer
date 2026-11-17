@@ -14,14 +14,30 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
 
-路线图和审计：[docs/ROADMAP.md](docs/ROADMAP.md)（目标：数据、可复现性和工程质量向 Mol\*、NGL、ChimeraX 看齐，同时保留教学上的高可见性和易读性）。
+开发规划和进度：[docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md)（工作包、依赖、分工、验收；[第 7 节进度表](docs/HANDOFF_PLAN.md#7-进度表做完打勾写上日期和提交号)是唯一的任务清单）。目标：数据、可复现性和工程质量向 Mol\*、NGL、ChimeraX 看齐，同时保留教学上的高可见性和易读性。已完成工作的记录见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 三者共用同一个查看器文件：`web/index.html` 是源头，桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
+
+## 四个层级 · 三种用途
+同一套数据模型的四种视图，服务三种用途。完整规划见 [docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md) 第 1 节。
+
+| 层级 | 看什么 | 例子 |
+|---|---|---|
+| 细胞 | 环境、区室、拥挤、尺度、系统入口 | 整个大肠杆菌、细胞一角 |
+| 局部系统 | 协作、方向、能量、通量 | 呼吸链、光反应、ATP 合酶、鞭毛马达 |
+| 蛋白质 | 结构、配体、构象、组成 | 任意 PDB、血红蛋白、GroEL |
+| 分子机理 | 一个对象在具体步骤中怎样结合、反应、转移、门控、释放（挂在蛋白质或局部系统场景上） | 腺苷酸激酶磷酰基转移、KcsA 过滤器敲击 |
+
+| 用途 | 给谁 | 核心能力 |
+|---|---|---|
+| 教学演示 | 老师、学生 | 机制动画、每个粒子有名字、证据等级、步骤讲解、三层导航 |
+| 科学研究 | 研究者、研究生 | 选择 / 测量 / 接触分析、可重现的会话、与 ChimeraX / PyMOL / Mol\* / Jupyter 互通 |
+| 3D 演示 | 讲者、科普作者、课件制作 | 镜头书签和分镜、演示模式、录屏、高清截图、嵌入网页 |
 
 ## 功能
 - **开发者 / AI 工作台**（[`web/dev.html`](web/dev.html)，[在线打开](https://nimenta727.github.io/molecule-glow-viewer/dev.html)）：左边编辑 `.glow` 场景包 JSON（模板、校验、预览、下载、投稿到工坊），右边是实时查看器；下面是命令台。查看器有稳定的命令接口 `window.glow`（`load`、`info`、`select`、`color`、`represent`、`camera`、`animate`、`measure`、`snapshot`、`exportPack`、`validatePack`…），也可以从别的网页用 `postMessage` 调用（`?embed=1` 嵌入）。选择语言：`chain A and resi 10-50`、`within 5 of ligand HEM`、`ligand ATP`。每条命令都记进日志，可以重放；`?seed=` 固定随机数，同一个种子动画完全一样。
 - **证据等级**：标题下四个徽章——实验（PDB 原子坐标）、推算（由坐标或注释计算：简化外形、膜位置、朝向）、建模（构象插值、组装位置）、示意（动画粒子、计数、细胞里的分子摆放）。点一下列出这个场景里每一项属于哪一级，学生一眼分清“测的”和“画的”。
-- **四个平台入口**
+- **三种显示模式**
   - 团块（写实）：每个残基一颗发光团块。
   - 结构示意：α 螺旋、β 折叠箭头、卷曲细管。二级结构取自作者沉积的 PDB 注释（`_struct_conf` / `_struct_sheet_range`）。
   - 简化示意（每个部件可单独勾选）：**按功能分区**——功能核心（小分子 8 Å 内的结合口袋、离子通道过滤器、质子传递界面）保留原子细节并按化学性质着色；会转动或变构的部件画成由真实坐标算出的低分辨率密度形状，随构象一起动，环状寡聚体每个亚基一节；支架和辅助亚基淡化成半透明。离子通道会自动淡化朝向镜头的亚基，露出孔道。DNA 画成沿双螺旋轴的管。另有插画画风（浅底平涂 + 描边），带部件标注和点击讲解。
