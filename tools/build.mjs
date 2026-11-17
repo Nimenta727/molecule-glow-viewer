@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build the single-file viewer from src/ (docs/HANDOFF_PLAN.md WP1). Zero dependencies, Node 18+.
+// Build the single-file viewer from src/ (docs/history/HANDOFF_PLAN.md WP1). Zero dependencies, Node 18+.
 //   node tools/build.mjs           write web/index.html (+ web/dev.html from src/dev.html)
 //   node tools/build.mjs --check   build in memory and compare with the files in web/; exit 1 if they differ
 //

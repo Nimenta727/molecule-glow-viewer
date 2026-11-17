@@ -146,7 +146,7 @@
   body.lightbg #legend .sw{box-shadow:none}
   body.lightbg #toggle{background:rgba(20,24,40,.85);color:#fff}
   body.lightbg #title{color:#1c2233}
-  /* evidence levels (docs/ROADMAP.md): what on screen is measured, computed, modelled or drawn for teaching */
+  /* evidence levels (docs/history/ROADMAP.md): what on screen is measured, computed, modelled or drawn for teaching */
   #evid{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px;pointer-events:auto}
   #evid span{font-size:11px;line-height:16px;padding:0 7px;border-radius:9px;border:1px solid currentColor;cursor:pointer;background:rgba(255,255,255,.06);white-space:nowrap}
   #evid .ev0{color:#3fae6a} #evid .ev1{color:#4c8fd6} #evid .ev2{color:#d39b2a} #evid .ev3{color:#a77ad6}
@@ -7226,7 +7226,7 @@ const presetKey = (q) => {   // exact, then normalised (full/half-width brackets
 const startPreset = presetKey(params.get('preset')) || (startId || params.get('ws') ? null : 'ATP 合酶（合成 ATP）');
 renderSubs(); setTimeout(checkSubUpdates, 4000);
 window.__viewer.packs = { sanitizePack, packFromCurrent, openPack, importPackText, shopIndex, PROCESSES };
-/* diagnostics (regression baseline, docs/ROADMAP.md): load a scene, let it run, measure what it built and how fast it draws.
+/* diagnostics (regression baseline, docs/history/ROADMAP.md): load a scene, let it run, measure what it built and how fast it draws.
    Used by desktop/scripts/regress.mjs; also handy in the console: await __viewer.probe(3) */
 window.__viewer.probe = async function probe(sec = 5) {
   const t0 = performance.now(); let frames = 0, worst = 0, last = t0;

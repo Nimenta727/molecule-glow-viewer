@@ -1,5 +1,5 @@
 {
- "about": "Fixed regression scenes (docs/ROADMAP.md, audit Sprint 1). key = file name; load = a preset key (ascii, see PRESET_META) or a loadScene config.",
+ "about": "Fixed regression scenes (docs/history/ROADMAP.md, audit Sprint 1). key = file name; load = a preset key (ascii, see PRESET_META) or a loadScene config.",
  "settle": 3,
  "seconds": 5,
  "list": [

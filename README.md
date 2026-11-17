@@ -14,12 +14,12 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
 
-开发规划和进度：[docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md)（工作包、依赖、分工、验收；[第 7 节进度表](docs/HANDOFF_PLAN.md#7-进度表做完打勾写上日期和提交号)是唯一的任务清单）。目标：数据、可复现性和工程质量向 Mol\*、NGL、ChimeraX 看齐，同时保留教学上的高可见性和易读性。已完成工作的记录见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+总体开发框架和当前状态：[docs/DEVELOPMENT_FRAMEWORK.md](docs/DEVELOPMENT_FRAMEWORK.md)。历史审计、路线图和交接文档见 [docs/history/](docs/history/)。
 
 三者共用同一个查看器文件：源码在 [`src/`](src/)（按数据 / 推导 / 表示 / 模拟 / 场景包 / 界面分目录），`node tools/build.mjs` 把它拼成单文件 `web/index.html`（生成物，不要手改）；桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
 
 ## 四个层级 · 三种用途
-同一套数据模型的四种视图，服务三种用途。完整规划见 [docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md) 第 1 节。
+同一套数据模型的四种视图，服务三种用途。完整规划见 [总体开发框架](docs/DEVELOPMENT_FRAMEWORK.md)；历史工作包见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
 
 | 层级 | 看什么 | 例子 |
 |---|---|---|
@@ -73,11 +73,11 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - 网页版：双击 [`web/index.html`](web/index.html)，详见 [web/README.md](web/README.md)。
 - 桌面版：从 Releases 下载 exe，或者自己构建，详见 [desktop/README.md](desktop/README.md)。
 - 让 AI 帮你做新场景：见 [skill/README.md](skill/README.md)。
-- 项目纠偏、稳定性和专业化路线：见 [面向 AI 的审计与稳基文档](docs/AI_AUDIT_AND_STABILIZATION.md)。
-- 现状审计与平台化建议：见 [平台现状审计报告](docs/PLATFORM_AUDIT_REPORT.md)。
-- 具体工程实施规范：见 [平台化工程细节规范](docs/PLATFORM_ENGINEERING_SPEC.md)。
+- 项目纠偏、稳定性和专业化路线：见 [历史审计文档](docs/history/AI_AUDIT_AND_STABILIZATION.md)。
+- 现状审计与平台化建议：见 [历史平台审计报告](docs/history/PLATFORM_AUDIT_REPORT.md)。
+- 具体工程实施规范：见 [历史平台工程规范](docs/history/PLATFORM_ENGINEERING_SPEC.md)。
 - 分子机理平台：聚焦单个小分子或蛋白质的结合、催化、构象、电子/质子转移和门控步骤。
-- **完整开发规划和交接文档**（教学 / 科研 / 3D 演示三种用途，13 个工作包、依赖、分工和验收）：见 [docs/HANDOFF_PLAN.md](docs/HANDOFF_PLAN.md)。
+- **历史开发规划和交接文档**：见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 和 [docs/history/HANDOFF_CORE_PLUGINS.md](docs/history/HANDOFF_CORE_PLUGINS.md)。
 
 ## 数据来源与引用
 所有结构数据来自 RCSB PDB，使用时请引用 PDB 以及各结构的原始论文：

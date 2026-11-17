@@ -139,7 +139,7 @@
   body.lightbg #legend .sw{box-shadow:none}
   body.lightbg #toggle{background:rgba(20,24,40,.85);color:#fff}
   body.lightbg #title{color:#1c2233}
-  /* evidence levels (docs/ROADMAP.md): what on screen is measured, computed, modelled or drawn for teaching */
+  /* evidence levels (docs/history/ROADMAP.md): what on screen is measured, computed, modelled or drawn for teaching */
   #evid{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:6px;pointer-events:auto}
   #evid span{font-size:11px;line-height:16px;padding:0 7px;border-radius:9px;border:1px solid currentColor;cursor:pointer;background:rgba(255,255,255,.06);white-space:nowrap}
   #evid .ev0{color:#3fae6a} #evid .ev1{color:#4c8fd6} #evid .ev2{color:#d39b2a} #evid .ev3{color:#a77ad6}

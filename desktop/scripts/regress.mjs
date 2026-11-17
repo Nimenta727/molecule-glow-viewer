@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression baseline for the viewer (docs/ROADMAP.md, audit Sprint 1).
+// Regression baseline for the viewer (docs/history/ROADMAP.md, audit Sprint 1).
 //   node scripts/regress.mjs            run the fixed scenes, compare with regress/baseline.json
 //   node scripts/regress.mjs --accept   run them and make this run the new baseline
 // Each scene: did it load, how long, what it built (entities / chains / residues / ligands), what the GPU holds (geometries,

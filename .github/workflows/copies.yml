@@ -1,5 +1,5 @@
 name: copies
-# The viewer has one source (docs/HANDOFF_PLAN.md rule 1): src/. web/index.html and web/dev.html are built from it
+# The viewer has one source (docs/history/HANDOFF_PLAN.md rule 1): src/. web/index.html and web/dev.html are built from it
 # (tools/build.mjs); skill/assets/*.html and desktop/app/*.html are copies of web/. Fail when anything is out of step.
 on:
   pull_request:

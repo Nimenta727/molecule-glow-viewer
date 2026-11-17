@@ -190,7 +190,7 @@
 - 第四轮：第三次审计按“严格的生物老师”视角找出：细胞场景里代用结构没标物种（学生会以为大肠杆菌有 KcsA）、ATP 合酶链接把 c10 和 c8 混在一起、桥接白名单能被 URL 参数绕过、ATP 由转速滑块而不是回流 H⁺ 决定、粒子没名字、两套模拟的时间尺度没标、返回丢状态。执行者全部修完（§38）；我独立复跑回归全部通过（新增返回导航、协程、桥接三项），并在查看器里实际点了“功能位点”。
 
 ### WP0 + WP1：收尾、源码拆分与构建（2026-11-16）
-- 用户：按 `docs/HANDOFF_PLAN.md` 先做 WP0 和 WP1。
+- 用户：按 `docs/history/HANDOFF_PLAN.md` 先做 WP0 和 WP1。
 - WP0：README 恢复“三种显示模式”、加“四个层级 · 三种用途”；ROADMAP 的任务清单交给 HANDOFF 第 7 节；`tools/check-copies.mjs` + CI `copies.yml`（skill / desktop 副本 sha256，故意改一个字节时 CI 失败，已在临时分支上验证）。发现 skill 副本已经过期（缺“分子机理”选项卡），已同步。
 - WP1：`web/index.html` 按分节横幅切成 `src/` 的 66 个片段 + `index.html.tpl`；`tools/build.mjs` 拼回单文件，与拆分前逐字节相同（只有 `presetCat` 一行移进 `data/presets.js`）。`data/presets.js`、`pack/rules.js` 是真 ES 模块，`glow-lib.mjs` 直接 import。见 architecture.md §39 和 `src/README.md`。
 - 调试：拆分后的回归两次在 ATP 合酶报“核苷酸原子名匹配失败”，原代码同条件下通过——但不是拆分引入的：页面启动时默认载入 ATP 合酶，回归 3 秒后载入 4HHB 会取消它，若此刻某个小分子的 CCD cif 正在下载，`getTemplate` 退回到没有原子名的 SDF 并**永久缓存**；落在 ATP 上，之后所有 ATP 合酶载入的构象拟合都失败。用 `GLOW_SMOKE_JS` 复现同样时序，原代码也会把 LHG / CDL 退回 SDF（只是这次没落在 ATP 上）。修正：下载被取消（AbortError）时不退回、不缓存，直接抛出（旧载入本来就会转成 Stale）。

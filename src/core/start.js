@@ -23,7 +23,7 @@ const presetKey = (q) => {   // exact, then normalised (full/half-width brackets
 const startPreset = presetKey(params.get('preset')) || (startId || params.get('ws') ? null : 'ATP 合酶（合成 ATP）');
 renderSubs(); setTimeout(checkSubUpdates, 4000);
 window.__viewer.packs = { sanitizePack, packFromCurrent, openPack, importPackText, shopIndex, PROCESSES };
-/* diagnostics (regression baseline, docs/ROADMAP.md): load a scene, let it run, measure what it built and how fast it draws.
+/* diagnostics (regression baseline, docs/history/ROADMAP.md): load a scene, let it run, measure what it built and how fast it draws.
    Used by desktop/scripts/regress.mjs; also handy in the console: await __viewer.probe(3) */
 window.__viewer.probe = async function probe(sec = 5) {
   const t0 = performance.now(); let frames = 0, worst = 0, last = t0;
