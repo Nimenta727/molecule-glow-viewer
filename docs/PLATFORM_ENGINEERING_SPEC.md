@@ -7,7 +7,7 @@
 目标不是一次性重写，而是：
 
 1. 保留当前 `web/index.html` 的交付方式；
-2. 保留现有细胞、局部系统、蛋白质功能；
+2. 保留现有细胞、局部系统、蛋白质和过程动画功能；
 3. 逐步把单文件内部整理成稳定的模型层、模拟层、表示层和视图层；
 4. 让 AI 可以在不破坏旧场景的情况下继续开发；
 5. 让 `.glow` 成为可验证、可保存、可分享的场景状态格式。
@@ -79,6 +79,18 @@ AppRuntime
     ├── GlowWriter
     ├── GlowValidator
     └── WorkshopRepository
+```
+
+另加一个面向过程的 `MechanismRuntime`，但它不应成为第四套渲染器：
+
+```text
+MechanismRuntime
+├── MechanismDefinition
+├── MechanismStep
+├── MechanismEvidence
+├── MechanismTimeline
+├── MechanismIntervention
+└── MechanismViewAdapter
 ```
 
 第一阶段可以继续把这些对象放在 `index.html` 中，以模块前缀或对象命名空间隔离。第二阶段再移动到 `src/` 并由构建脚本生成单文件发布版。
@@ -157,11 +169,12 @@ const derived = {
 ```js
 const sceneDefinition = {
   id: 'official.atp-synthase',
-  category: 'single',
+  category: 'single' | 'mechanism',
   structures: [],
   components: [],
   representations: [],
   simulation: null,
+  mechanism: null,
   entryPoints: [],
   teaching: {
     caption: '',
@@ -382,6 +395,97 @@ activate session
 - 结构变换只改变 DerivedModel 或 SimulationState；
 - Mesh 只是状态的渲染结果；
 - 口袋、界面、孔道等重计算不可阻塞 UI。
+
+## 5.4 分子机理平台
+
+### 目标
+
+分子机理平台以一个小分子、一个活性位点、一个金属/辅因子中心或一个蛋白质局部结构为主角。它复用蛋白质场景的 `StructureModel` 和 Representation，但使用独立的步骤、证据和干预模型。
+
+### 机理定义
+
+```js
+const mechanism = {
+  id: 'adenylate-kinase-transfer',
+  target: {
+    selection: 'within 8 of ligand AP5',
+    ligand: 'AP5'
+  },
+  steps: [
+    {
+      id: 'bind',
+      title: '底物定位',
+      state: { conformation: 'open' },
+      highlights: ['within 4 of ligand AP5'],
+      events: ['ligand-enter'],
+      evidence: ['4AKE', '1AKE'],
+      caveats: ['进入路径为教学示意']
+    },
+    {
+      id: 'close',
+      title: 'LID 闭合',
+      state: { conformation: 'closed' },
+      highlights: ['part LID'],
+      measurement: { type: 'domain-angle', reference: 'CORE' }
+    },
+    {
+      id: 'transfer',
+      title: '磷酰基转移',
+      reaction: 'ATP + AMP -> ADP + ADP',
+      highlights: ['catalytic-residues'],
+      evidence: ['mechanism-paper']
+    }
+  ],
+  controls: [
+    { id: 'pH', type: 'range', min: 5, max: 10, value: 7 },
+    { id: 'inhibitor', type: 'select', options: ['none', 'AP5'] }
+  ],
+  evidence: {
+    experimental: ['结构坐标和配体来自 PDB'],
+    derived: ['接触和角度由坐标计算'],
+    modelled: ['状态之间使用结构叠合'],
+    illustrative: ['时间和进入路径用于教学']
+  }
+};
+```
+
+### 必须具备的交互
+
+- 步骤条和当前步骤；
+- 播放、暂停、单步、重置；
+- 从步骤跳到残基/配体/结构；
+- 当前步骤的证据和限制说明；
+- 关键距离、角度、接触和反应式；
+- 可选的底物、抑制剂、突变或环境参数；
+- 事件日志和固定 seed。
+
+### 与现有过程的关系
+
+现有 `PROCESSES` 不删除。迁移时采用适配器：
+
+```js
+const adapter = {
+  create: (ctx, params, seed) => legacyProcess.setup(ctx, params, seed),
+  step: (state, dt) => legacyProcess.update(state.ctx, dt),
+  observe: (state) => state.ctx,
+  mapEventToView: (event, view) => legacyView(event, view),
+  dispose: (state) => state.stop?.()
+};
+```
+
+新的分子机理场景优先使用数据定义；只有需要复杂内置模型时才注册受信任的内置过程。
+
+### 机理场景与场景包
+
+`glow-scene` v1 继续兼容。新增的 `mechanism` 类别和 `scene.mechanism` 字段只允许数据：
+
+- `target`：目标配体、残基或局部结构；
+- `steps`：步骤、状态、选择集、事件和证据；
+- `controls`：环境或干预参数；
+- `measurements`：距离、角度、计数和能量；
+- `caveats`：示意和不确定性。
+
+社区机理包不得上传执行代码。复杂行为必须由查看器内置的安全机制解释器支持。
 
 ---
 
@@ -813,7 +917,17 @@ Worker 任务必须：
 
 验收：细胞一角可以进入核糖体或 KcsA，蛋白质视图可以返回局部系统。
 
-### Batch F：构建拆分
+### Batch F：分子机理工作台
+
+- 增加 `mechanism` 场景类别；
+- 增加步骤条、单步、时间轴和证据卡；
+- 将腺苷酸激酶、KcsA 过滤器、ATP 合酶催化口袋各做一个机理模板；
+- 复用 Selection、Representation 和 SimulationEngine；
+- 先实现数据驱动步骤，再适配复杂内置过程。
+
+验收：一个小分子机理场景可以从结合到反应逐步播放，并能点击每一步回到结构证据。
+
+### Batch G：构建拆分
 
 - 逐步把 `index.html` 内部代码迁移到 `src/`；
 - 使用构建脚本生成 Web 单文件；

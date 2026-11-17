@@ -248,7 +248,7 @@
 <div id="infoCard"><span class="x" id="infoX">×</span><h3 id="infoT"></h3><div id="infoB"></div></div>
 <div id="shop"><div class="box">
   <div class="hd"><h3>🧩 创意工坊</h3><div class="seg" id="shopTabs"><button data-src="official">官方</button><button data-src="community">社区</button><button data-src="subs">已订阅</button></div>
-    <div class="seg" id="shopCats"><button data-cat="all">全部</button><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button></div>
+    <div class="seg" id="shopCats"><button data-cat="all">全部</button><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button><button data-cat="mechanism">分子机理</button></div>
     <select id="shopSort" title="排序"><option value="title">按标题</option><option value="hot">最受欢迎</option><option value="new">最新</option></select>
     <input type="search" id="shopQ" placeholder="搜索标题、标签、PDB 编号、作者"><span class="x" id="shopX">×</span></div>
   <div id="shopGrid"></div>
@@ -263,7 +263,7 @@
   <div class="row"><button class="ghost" id="fileBtn">导入本地文件</button><input type="file" id="file" accept=".cif,.mmcif,.pdb,.ent" hidden><span class="sub">或把文件拖进窗口</span></div>
   <div class="sub">输入任意 PDB 编号，直接从 RCSB 下载（含小分子）</div>
   <h2>预设</h2>
-  <div class="tabs" id="modeTabs"><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button></div>
+  <div class="tabs" id="modeTabs"><button data-cat="cell">细胞</button><button data-cat="system">局部系统</button><button data-cat="single">单个蛋白</button><button data-cat="mechanism">分子机理</button></div>
   <div class="sub" id="modeNote"></div>
   <div class="presets" id="presets"></div>
   <div class="row" style="margin-top:6px"><button class="ghost" id="shopBtn">🧩 创意工坊</button><button class="ghost" id="packExport" title="把当前场景（结构、配色、剖面、镜头、讲解、动画）存成一个 .glow 文件">导出场景</button><button class="ghost" id="packImport">导入 .glow</button><input type="file" id="packFile" accept=".glow,.json" hidden></div>
@@ -6642,9 +6642,9 @@ const GLOW_FORMAT = 'glow-scene', GLOW_VERSION = 1, ANIM_VERSION = 1;
 const WS_BASE = 'https://raw.githubusercontent.com/Nimenta727/molecule-glow-viewer/main/workshop/';
 const WS_REPO = 'https://github.com/Nimenta727/molecule-glow-viewer';
 const WS_SRC = { official: { name: '官方', url: WS_BASE + 'official/' }, community: { name: '社区', url: WS_BASE + 'community/' } };
-const SCENE_KEYS = new Set([...Object.values(PRESETS).flatMap(p => Object.keys(p)), 'caption', 'structure', 'animation', 'memY', 'states', 'chains', 'assembly', 'auto', 'axis', 'evidence', 'seed', 'reps']);
+const SCENE_KEYS = new Set([...Object.values(PRESETS).flatMap(p => Object.keys(p)), 'caption', 'structure', 'animation', 'mechanism', 'memY', 'states', 'chains', 'assembly', 'auto', 'axis', 'evidence', 'seed', 'reps']);
 SCENE_KEYS.delete('key'); SCENE_KEYS.delete('tier');   /* preset metadata, not scene fields */
-const PACK_CATS = { cell: '细胞', system: '局部系统', single: '单个蛋白' };
+const PACK_CATS = { cell: '细胞', system: '局部系统', single: '单个蛋白', mechanism: '分子机理' };
 const PDB_ID = /^[0-9][A-Za-z0-9]{3}$/;
 class PackError extends Error { constructor(m, path = null) { super(m); this.path = path; } }   /* path: where in the pack ("scene.animation.flows[2].rate") */
 
@@ -6984,7 +6984,7 @@ function syncOut(inp) { const o = inp.parentElement.querySelector('output'); if 
 document.querySelectorAll('input[type=range]').forEach(i => { syncOut(i); i.addEventListener('input', () => syncOut(i)); });
 /* three levels of display: the whole cell / a local system (several machines working together) / a single protein */
 const presetCat = (name) => PRESETS[presetName(name)]?.tier || 'single';
-const MODE_NOTE = { cell: '整个细胞：从 2 µm 一路缩放到原子（镜头按钮切换尺度）。', system: '局部系统：几个分子机器在膜上或细胞质里协同工作，带实时模拟。', single: '单个蛋白：一个蛋白或复合体的结构与机制；也可以在上面输入任意 PDB 编号，自动定膜、找孔道、生成简介。' };
+const MODE_NOTE = { cell: '整个细胞：从 2 µm 一路缩放到原子（镜头按钮切换尺度）。', system: '局部系统：几个分子机器在膜上或细胞质里协同工作，带实时模拟。', single: '单个蛋白：一个蛋白或复合体的结构与组成；也可以输入任意 PDB 编号。', mechanism: '分子机理：聚焦一个小分子或蛋白质的具体结合、催化、构象、转移或门控步骤。' };
 function setMode(cat) {
   document.querySelectorAll('#modeTabs button').forEach(b => b.classList.toggle('on', b.dataset.cat === cat));
   document.querySelectorAll('#presets button').forEach(b => b.classList.toggle('off', b.dataset.cat !== cat));
@@ -7498,7 +7498,7 @@ function validatePackReport(x) {
       if (S.process && S.animation) warnings.push('同时写了 process 和 animation：会播放内置过程，animation 不会用到');
       if (S.process === 'dataAnim') warnings.push('process 不用写 dataAnim：有 animation 时自动使用');
     }
-    if (raw.category != null && !PACK_CATS[raw.category]) warnings.push(`category “${raw.category}” 无效，按 single（单个蛋白）处理；可选 cell / system / single`);
+    if (raw.category != null && !PACK_CATS[raw.category]) warnings.push(`category “${raw.category}” 无效，按 single（单个蛋白）处理；可选 cell / system / single / mechanism`);
     if (!raw.author?.name) warnings.push('社区作品必须写 author.name');
     if (raw.author?.url && !/^https:\/\//.test(raw.author.url)) warnings.push('author.url 只接受 https 链接，已去掉');
     if (!['CC-BY-4.0', 'CC-BY-SA-4.0', 'CC0-1.0'].includes(raw.license)) warnings.push('社区作品的 license 要选 CC-BY-4.0、CC-BY-SA-4.0 或 CC0-1.0');
