@@ -238,7 +238,7 @@ WP12 贯穿
 | 工作包 | 状态 | 负责 | 提交 / 日期 | 备注 |
 |---|---|---|---|---|
 | WP0 收尾和准备 | ☑ | Claude | 73e77c3 / 2026-11-16 | README 结构、ROADMAP 指向本表、CI `copies.yml` 副本 sha256 检查；skill 副本原本过期，已同步 |
-| WP1 源码拆分与构建 | ☑ | Claude | （本提交）/ 2026-11-16 | `src/` 66 个片段 + `index.html.tpl`；`tools/build.mjs`（`--check` 在 CI）；构建结果与拆分前逐字节相同（仅 `presetCat` 一行移位）；glow-lib 直接 import `src/pack/rules.js` |
+| WP1 源码拆分与构建 | ☑ | Claude | b82bb75 + 修正 4632564 / 2026-11-16 | `src/` 66 个片段 + `index.html.tpl`；`tools/build.mjs`（`--check` 在 CI）；构建结果与拆分前逐字节相同（仅 `presetCat` 一行移位）；glow-lib 直接 import `src/pack/rules.js` |
 | WP2 场景会话与资源 | ☐ | | | |
 | WP3 结构模型与统一选择 | ☐ | | | |
 | WP4 统一模拟引擎 | ☐ | | | |
