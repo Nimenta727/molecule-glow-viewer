@@ -1,0 +1,12 @@
+{
+  "name": "molecule-glow-platform",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@cfworker/json-schema": "4.1.6",
+    "@zip.js/zip.js": "2.25.0"
+  }
+}

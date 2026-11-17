@@ -8,6 +8,8 @@
     <script type="importmap">
       {
         "imports": {
+          "@cfworker/json-schema": "../../node_modules/@cfworker/json-schema/dist/esm/index.js",
+          "@zip.js/zip.js": "../../node_modules/@zip.js/zip.js/index-native.min.js",
           "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
         }
@@ -21,7 +23,7 @@
         <div class="actions" aria-label="场景文件">
           <button id="example" type="button">示例</button>
           <button id="open" type="button">打开</button>
-          <input id="file" type="file" accept=".json,application/json" hidden>
+          <input id="file" type="file" accept=".glow,.json,application/json" hidden>
           <button id="save" type="button" disabled>保存</button>
           <button id="close" type="button" disabled>关闭</button>
         </div>
@@ -36,6 +38,10 @@
           <output id="time">0.00 / 0.00 s</output>
         </div>
         <p id="status" role="status">启动中…</p>
+        <p id="diagnostic" hidden>
+          <span id="warning"></span>
+          <a id="legacy-viewer" href="../../web/" target="_blank" rel="noopener" hidden>打开旧版 Viewer</a>
+        </p>
       </footer>
     </main>
     <script type="module">

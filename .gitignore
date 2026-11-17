@@ -5,4 +5,4 @@ desktop/regress/latest/
 desktop/app/
 desktop/vendor/
 desktop/dist/
-desktop/node_modules/
+node_modules/

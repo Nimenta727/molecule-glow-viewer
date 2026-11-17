@@ -1,5 +1,8 @@
 import { createDocumentStore, createLoadCoordinator, createTimeline } from '../../packages/core/index.mjs';
+import { writeScenePackage } from '../../packages/schema/archive.mjs';
+import { toCoreDocument } from '../../packages/schema/documents.mjs';
 import { exampleScene } from './example-scene.mjs';
+import { fromPrototype, openSceneFile } from './scene-io.mjs';
 import { createViewport } from './viewport.mjs';
 
 const elements = Object.fromEntries(
@@ -8,6 +11,7 @@ const elements = Object.fromEntries(
 
 let active;
 let frame;
+let saving = false;
 
 function setStatus(message) {
   elements.status.textContent = message;
@@ -17,7 +21,7 @@ function syncControls() {
   const timeline = active?.timeline;
   const duration = timeline?.duration ?? 0;
   const time = timeline?.time ?? 0;
-  elements.save.disabled = !active;
+  elements.save.disabled = !active || saving;
   elements.close.disabled = !active;
   elements['reset-camera'].disabled = !active;
   elements.play.disabled = !duration;
@@ -26,6 +30,20 @@ function syncControls() {
   elements.playhead.value = String(time);
   elements.time.value = `${time.toFixed(2)} / ${duration.toFixed(2)} s`;
   elements.play.textContent = timeline?.playing ? '暂停' : '播放';
+}
+
+function showDiagnostics() {
+  const scene = active?.scene;
+  const diagnostics = new Set(active?.warnings);
+  if (scene?.dependencies.length) {
+    diagnostics.add(`部分内容依赖插件 ${scene.dependencies.map(({ id }) => id).join('、')}。`);
+  }
+  if (scene?.assets.some(({ kind }) => kind !== 'primitive')) {
+    diagnostics.add('需要相应插件才能查看专业资源。包内通用几何仍可查看。');
+  }
+  elements.warning.textContent = [...diagnostics].join(' ');
+  elements.diagnostic.hidden = diagnostics.size === 0;
+  elements['legacy-viewer'].hidden = !scene?.legacy || diagnostics.size === 0;
 }
 
 function stopFrame() {
@@ -42,19 +60,20 @@ function boot() {
   });
   const scenes = createLoadCoordinator({
     async prepare(input, { signal, scope }) {
-      const source = input.file ? JSON.parse(await input.file.text()) : exampleScene;
+      const loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
       if (signal.aborted) return;
-      const document = createDocumentStore(source).getSnapshot();
+      const document = createDocumentStore(toCoreDocument(loaded.scene)).getSnapshot();
       const timeline = createTimeline(document.timeline);
       const prepared = viewport.prepare(document);
       scope.add(() => prepared.dispose());
-      return { document, timeline, prepared, name: input.file?.name ?? '基础几何示例' };
+      return { ...loaded, document, timeline, prepared, name: input.file?.name ?? '基础几何示例' };
     },
     commit(scene) {
       viewport.commit(scene.prepared);
       stopFrame();
       active = scene;
       showPose();
+      showDiagnostics();
       setStatus(scene.name);
     },
   });
@@ -80,15 +99,25 @@ function boot() {
     elements.file.value = '';
     if (file) openScene({ file });
   });
-  elements.save.addEventListener('click', () => {
-    if (!active) return;
-    const blob = new Blob([JSON.stringify(active.document, null, 2) + '\n'], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = active.name.endsWith('.json') ? active.name : 'glow-scene.json';
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  elements.save.addEventListener('click', async () => {
+    if (!active || saving) return;
+    const { scene, resources } = active;
+    saving = true;
+    syncControls();
+    try {
+      const bytes = await writeScenePackage(scene, resources);
+      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${scene.id}.glow`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setStatus(`无法保存场景。 ${error.message}`);
+    } finally {
+      saving = false;
+      syncControls();
+    }
   });
   elements.close.addEventListener('click', () => {
     stopFrame();
@@ -96,6 +125,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     syncControls();
+    showDiagnostics();
     setStatus('场景已关闭');
   });
   elements['reset-camera'].addEventListener('click', () => viewport.resetCamera());

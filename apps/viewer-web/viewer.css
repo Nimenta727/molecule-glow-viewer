@@ -39,4 +39,4 @@ button:disabled { cursor: default; opacity: 0.5; }
 footer { border-top: 1px solid var(--line); }
 #playhead { flex: 1; min-width: 4rem; accent-color: #1b7358; }
 #time { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
-#status { margin: 0.5rem 0 0; color: #40594d; font-size: 0.875rem; overflow-wrap: anywhere; }
+#status, #diagnostic { margin: 0.5rem 0 0; color: #40594d; font-size: 0.875rem; overflow-wrap: anywhere; }
