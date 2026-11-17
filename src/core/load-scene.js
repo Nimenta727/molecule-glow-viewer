@@ -1,18 +1,24 @@
 /* the first visible line of a caption: its first sentence, at most 60 characters */
 function leadOf(cap) { const t = String(cap || '').replace(/<[^>]*>/g, ''); const m = /^[^。！？]*[。！？]/.exec(t); const f = (m ? m[0] : t);
   return f.length <= 60 ? f : f.slice(0, 58) + '…'; }
+/* WP2: one SceneSession per load (src/core/session.js). Phase 1 only downloads (main entry, second state, components, auto
+   annotations): the scene on screen keeps running, and if a download fails it stays. Phase 2 starts with loads.commit():
+   the old scene is disposed and the new one is built. ?lowmem=1 commits before the downloads (the old behaviour). */
 async function loadScene(cfg) {
-  const my = ++loadSeq, live = () => { if (my !== loadSeq) throw new Stale(); };   // a newer loadScene cancels this one
-  $('load').disabled = true; loadScene.lastError = null; loadScene.errors = []; loadScene.fatal = false;
-  netAC.abort(); netAC = new AbortController();   /* downloads of a superseded scene are cancelled */
+  const S = loads.begin(cfg), live = () => S.assertLive();   // a newer loadScene makes this one stale
+  $('load').disabled = true;
   if (!cfg._orig0) cfg._orig0 = { ...cfg };   /* what was asked for, before the load changes cfg (back navigation) */
-  cfg._restore = pendingRestore; pendingRestore = null;
-  setSeed(loadSeedOverride ?? (cfg._restore ? cfg._restore.seed : null) ?? cfg.seed ?? URL_SEED); loadSeedOverride = null;
-  restoreQuality();
-  if (cfg.name && PRESETS[cfg.name]) setMode(presetCat(cfg.name)); else if (cfg.auto) setMode('single');   /* the tab follows what is shown */
+  cfg._restore = S.restore = pendingRestore; pendingRestore = null;
+  const commit = () => {
+    if (S.committed) return;
+    loads.commit(S); current = cfg;
+    setSeed(loadSeedOverride ?? (cfg._restore ? cfg._restore.seed : null) ?? cfg.seed ?? URL_SEED); loadSeedOverride = null; S.seed = randSeed;
+    restoreQuality();
+    if (cfg.name && PRESETS[cfg.name]) setMode(presetCat(cfg.name)); else if (cfg.auto) setMode('single');   /* the tab follows what is shown */
+  };
   try {
-    clearScene();
-    current = cfg;
+    if (loads.lowMemory) commit();
+    // ---- phase 1: downloads only (the old scene stays on screen)
     const useAsm = cfg.assembly ?? $('assembly').checked;
     const infoP = cfg.auto ? fetchAutoInfo(cfg.id).catch(e => { console.warn('auto info', e); return null; }) : null;
     const main = cfg.local || await loadEntry(cfg.id, useAsm); live();
@@ -20,9 +26,19 @@ async function loadScene(cfg) {
       e.atoms = e.atoms.filter(a => ok(a.asym)); e.ligands = e.ligands.filter(L => ok(L.asym) || L.atoms.some(x => e.atoms.some(a => a.p.distanceTo(x.p) < 6))); return e; };
     keepChains(main);
     if (!main.atoms.length) throw new Error('该结构没有可用的 CA/P 坐标');
+    const entryB = cfg.states && cfg.states.length > 1 ? await loadEntry(cfg.states[1], useAsm) : null; live();
+    /* L5: all component downloads start together (each retried once); they are placed one by one in the listed order */
+    const compList = cfg.components || [];
+    const fetchComp = async (id) => { try { return await loadEntry(id, true); } catch (e) { if (e.name === 'AbortError') throw e; console.warn('retry', id, e); await new Promise(r => setTimeout(r, 1200)); return loadEntry(id, true); } };
+    const compP = compList.map(comp => fetchComp(comp.id)); compP.forEach(p => p.catch(() => {}));
+    if (compList.length) status(`并行下载 ${compList.length} 个组件 …`, true);
+    await Promise.allSettled(compP); live();
+    const autoInfo = cfg.auto ? await infoP : null; live();
+    // ---- phase 2: everything is here -> the old scene goes, the new one is built
+    commit();
     // ---- conformational states (morph): superpose state B onto A by matched residues
-    if (cfg.states && cfg.states.length > 1) {
-      const B = keepChains(await loadEntry(cfg.states[1], useAsm)); live();
+    if (entryB) {
+      const B = keepChains(entryB);
       const key = (a) => a.asym + '|' + a.seq, mapB = new Map(B.atoms.map(a => [key(a), a]));
       const pairs = main.atoms.filter(a => mapB.has(key(a)));
       if (pairs.length >= 3) {
@@ -54,7 +70,7 @@ async function loadScene(cfg) {
         applyTf(main, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
     }
     if (cfg.auto) {   /* membrane protein? normal -> +Y, cytoplasm down (see autoMembrane) */
-      cfg.autoInfo = await infoP; live();
+      cfg.autoInfo = autoInfo;
       try { cfg.autoMem = autoMembrane(main, cfg.autoInfo); } catch (e) { console.warn('autoMembrane', e); cfg.autoMem = null; }
       if (cfg.autoMem) { cfg.process = 'auto'; cfg.memY = cfg.autoMem.y; }
     }
@@ -66,7 +82,7 @@ async function loadScene(cfg) {
     const rawEnt = new Map();
     for (const a of main.atoms) { const raw = main.entities[a.ent]?.name || ('entity ' + a.ent), nm = groupOf(raw); a.part = nm; a.entName = raw;
       if (!byEnt.has(nm)) byEnt.set(nm, []); byEnt.get(nm).push(a); if (!rawEnt.has(raw)) rawEnt.set(raw, []); rawEnt.get(raw).push(a); }
-    model = { entityStats: {}, focus };
+    model = S.model = { entityStats: {}, focus };
     const stat = (arr) => { const ys = arr.map(a => a.p.y); return { min: Math.min(...ys), max: Math.max(...ys), mean: ys.reduce((s, v) => s + v, 0) / ys.length }; };
     for (const [nm, arr] of rawEnt) model.entityStats[nm] = stat(arr);   // raw subunit names stay addressable (membranes, alignment)
     for (const [nm, arr] of byEnt) model.entityStats[nm] = stat(arr);
@@ -76,12 +92,7 @@ async function loadScene(cfg) {
     { const P = main.atoms.filter((_, i) => i % 5 === 0).map(a => new THREE.Vector3(a.p.x, 0, a.p.z)); model.rowDir = P.length > 3 ? pca(P).axes[2].clone().setY(0).normalize() : new THREE.Vector3(1, 0, 0);
       if (cfg.rowFlip) model.rowDir.negate(); }
     const provList = [main.prov || { id: cfg.local ? (cfg.name || '本地文件') : main.id, local: !!cfg.local }];
-    // ---- components (other PDB entries placed relative to the main one)
-    /* L5: all component downloads start together (each retried once); they are placed one by one in the listed order */
-    const compList = cfg.components || [];
-    const fetchComp = async (id) => { try { return await loadEntry(id, true); } catch (e) { if (e.name === 'AbortError') throw e; console.warn('retry', id, e); await new Promise(r => setTimeout(r, 1200)); return loadEntry(id, true); } };
-    const compP = compList.map(comp => fetchComp(comp.id)); compP.forEach(p => p.catch(() => {}));
-    if (compList.length) status(`并行下载 ${compList.length} 个组件 …`, true);
+    // ---- components (other PDB entries placed relative to the main one; downloaded in phase 1)
     for (const [ci, comp] of compList.entries()) {
       try {
         let c; try { c = await compP[ci]; } catch (e) { live(); if (e.name === 'AbortError') throw new Stale(); throw e; } live();
@@ -120,7 +131,7 @@ async function loadScene(cfg) {
           for (const [nm, arr] of by) parts.push({ name: nm, atoms: arr, comp, pivot });
         } else { placed.atoms.forEach(a => a.part = comp.label || comp.id); parts.push({ name: comp.label || comp.id, atoms: placed.atoms, comp, pivot }); }
         ligands.push(...placed.ligands);
-      } catch (e) { if (e instanceof Stale || my !== loadSeq) throw new Stale(); console.warn(e); loadFail(`组件 ${comp.id} 加载失败：${e.message}`); status(`组件 ${comp.id} 加载失败：${e.message}`); }
+      } catch (e) { if (e instanceof Stale || !S.live) throw new Stale(); console.warn(e); loadFail(`组件 ${comp.id} 加载失败：${e.message}`); status(`组件 ${comp.id} 加载失败：${e.message}`); }
     }
     let rmax = 0, mainR = 0;
     for (const p of parts) for (const a of p.atoms) { rmax = Math.max(rmax, a.p.length()); mainR = Math.max(mainR, Math.hypot(a.p.x, a.p.z)); }
@@ -157,7 +168,7 @@ async function loadScene(cfg) {
     const P = cfg.process && PROCESSES[cfg.process];
     if (P) {
       const pr = Object.create(P); pr.ctx = makeCtx();   // activate only after async setup finished
-      try { await pr.setup(pr.ctx); live(); proc = pr; } catch (e) { if (e instanceof Stale || my !== loadSeq) throw new Stale(); console.warn(e); loadFail('过程动画初始化失败：' + e.message); status('过程动画初始化失败：' + e.message); }
+      try { await pr.setup(pr.ctx); live(); proc = S.proc = pr; } catch (e) { if (e instanceof Stale || !S.live) throw new Stale(); console.warn(e); loadFail('过程动画初始化失败：' + e.message); status('过程动画初始化失败：' + e.message); }
     }
     $('morph').value = 0; U.uMorph.value = 0;
     markHotFromLigands();
@@ -179,9 +190,17 @@ async function loadScene(cfg) {
     if (P?.cell && innerWidth < 1600 && innerWidth > 600) { $('panel').classList.add('hidden'); resetCamera(cfg._restore?.camera || cfg.camera); }
     applyRestore(cfg._restore);
     if (cfg.auto) { if (innerWidth < 1600 && innerWidth > 600) $('panel').classList.add('hidden'); showAutoCard(); }   /* room for the scene; ☰ / H brings the panel back */
-  } catch (e) { if (e instanceof Stale || my !== loadSeq) return; console.error(e); loadScene.fatal = true; loadFail(e.message); clearEvidence(); status('出错：' + e.message, true); }
-  finally { if (my === loadSeq) $('load').disabled = false; }   /* a superseded load leaves the button to the newer one */
+  } catch (e) {
+    if (e instanceof Stale || !S.live) { if (!S.committed) loads.fail(S); return; }
+    S.fatal = true; loadFail(e.message);
+    if (!S.committed) { console.warn('load failed, scene kept:', e); loads.fail(S); status('载入失败：' + e.message + '（保留当前场景）', true); }   /* phase 1: nothing was replaced */
+    else { console.error(e); clearEvidence(); status('出错：' + e.message, true); }
+  }
+  finally { if (S.live) { $('load').disabled = false; loads.finish(S); } else if (!loads.pending) $('load').disabled = false; }   /* a superseded load leaves the button to the newer one */
 }
-/* errors inside a load (a component, the process setup, the scene itself) are recorded, not only shown in the status bar */
-function loadFail(msg) { loadScene.errors.push(msg); loadScene.lastError ??= msg; }
+/* errors inside a load (a component, the process setup, the scene itself) are recorded on the session of the latest attempt,
+   not only shown in the status bar; loadScene.errors / lastError / fatal read them */
+function loadFail(msg) { loads.last.fail(msg); }
+Object.defineProperties(loadScene, {
+  errors: { get: () => loads.last.errors }, lastError: { get: () => loads.last.lastError }, fatal: { get: () => loads.last.fatal } });
 

@@ -114,7 +114,7 @@ function createWindow() {
           const img = await win.webContents.capturePage(); fs.writeFileSync(path.join(out, `${s.key}.jpg`), img.resize({ width: 640 }).toJPEG(80));
           report.scenes.push(r); console.log('[regress]', s.key, JSON.stringify({ loadMs: r.loadMs, fps: r.fps, geometries: r.geometries, error: r.error }));
         }
-        const again = await run(scenes.list[0].load); report.revisit = { key: scenes.list[0].key, geometries: again.geometries, textures: again.textures, objects: again.objects, jsHeapMB: again.jsHeapMB, overlayObjects: again.overlayObjects, procRootChildren: again.procRootChildren, domTags: again.domTags, listeners: again.listeners };
+        const again = await run(scenes.list[0].load); report.revisit = { key: scenes.list[0].key, geometries: again.geometries, textures: again.textures, objects: again.objects, jsHeapMB: again.jsHeapMB, overlayObjects: again.overlayObjects, procRootChildren: again.procRootChildren, domTags: again.domTags, listeners: again.listeners, session: again.session };
         if (scenes.rapid) {   // rapid switch: fire several loads without waiting, measure the last
           const r = await win.webContents.executeJavaScript(`window.__viewer.rapid(${JSON.stringify(scenes.rapid.list)}, ${scenes.settle ?? 2}, ${scenes.seconds ?? 5})`);
           r.key = 'rapid-switch'; r.compare = scenes.rapid.compare; report.rapid = r;
@@ -129,7 +129,7 @@ function createWindow() {
           const a = await run(w.load), b = await run(w.load); (report.twice ??= []).push({ key: w.key, a, b });
           console.log('[regress] twice', w.key, JSON.stringify({ geometries: [a.geometries, b.geometries], listeners: [a.listeners, b.listeners], domTags: [a.domTags, b.domTags], error: a.error || b.error }));
         }
-        for (const k of ['backTest', 'animTest', 'bridgeTest']) {   // round 4: back navigation (A9), pending animations (A11), bridge (A1)
+        for (const k of ['backTest', 'animTest', 'failKeepTest', 'bridgeTest']) {   // back navigation (A9), pending animations (A11), failed load keeps the scene (WP2), bridge (A1)
           report[k] = await win.webContents.executeJavaScript(`window.__viewer.${k}()`).catch(e => ({ error: String(e.message || e) }));
           console.log('[regress]', k, JSON.stringify(report[k]));
         }

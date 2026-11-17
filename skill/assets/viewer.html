@@ -625,14 +625,18 @@ class LRU {
   clear() { this.m.clear(); this.size = 0; }
 }
 const cache = new LRU(200 * 1048576, (t) => (t?.length || 0) * 2);
-let netAC = new AbortController();   /* replaced by every loadScene: aborting it cancels the previous scene's downloads */
+/* RCSB / UniProt downloads belong to the newest load (loads.signal, src/core/session.js): a newer loadScene cancels them.
+   Each download in flight is registered in that session (probe().session.resources.fetch). */
 async function fetchText(url, opts) {
   const key = url + (opts ? JSON.stringify(opts) : '');
   if (cache.has(key)) return cache.get(key);
   const scened = /^https:\/\/(data|models|files|search)\.rcsb\.org\/|^https:\/\/rest\.uniprot\.org\//.test(url);
-  const r = await fetch(url, scened && !opts?.signal ? { ...(opts || {}), signal: netAC.signal } : opts);
-  if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
-  const t = await r.text(); cache.set(key, t); return t;
+  const S = loads.latest, tok = scened ? S.resources.add('fetch', {}, null) : null;
+  try {
+    const r = await fetch(url, scened && !opts?.signal ? { ...(opts || {}), signal: S.signal } : opts);
+    if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
+    const t = await r.text(); cache.set(key, t); return t;
+  } finally { if (tok) S.resources.forget(tok); }
 }
 const kwMatch = (name, key) => {
   if (key.startsWith('/') && key.lastIndexOf('/') > 0) { const i = key.lastIndexOf('/'); return new RegExp(key.slice(1, i), key.slice(i + 1) || 'i').test(name); }
@@ -640,6 +644,103 @@ const kwMatch = (name, key) => {
 };
 const findKey = (obj, name) => obj && Object.keys(obj).find(k => kwMatch(name, k));
 
+/* =============================================================================
+   SCENE SESSIONS: who owns what, and who releases it
+   - ResourceRegistry: resources with a release function (timers, DOM listeners, Object3D, blob URLs, in-flight downloads,
+     any disposer). disposeAll() releases them newest first; anything added after that is released at once (a stale
+     coroutine cannot leak into a dead scene). counts() = what is alive, per kind (__viewer.probe().session).
+   - SceneSession: one load. abort (its downloads), resources, the load's own state (cfg, seed, restore, errors, process,
+     model) and assertLive() (throws Stale when a newer load started or the session was disposed).
+   - LoadCoordinator (`loads`): begin -> commit (old scene disposed, new one built) -> finish, or fail (old scene stays).
+     ?lowmem=1: low-memory mode, the old scene is disposed before the new one downloads (the behaviour before WP2).
+   App-lifetime resources (the pocket-surface worker and its blob URL) are in `appResources`.
+   ============================================================================= */
+class ResourceRegistry {
+  constructor(name) { this.name = name; this.items = new Map(); this.closed = false; this.released = 0; }
+  /* res: the handle (also the key); release(res) frees it. Returns res. */
+  add(kind, res, release) {
+    if (this.closed) { try { release?.(res); } catch (e) { console.warn('release', kind, e); } this.released++; return res; }
+    this.items.set(res, { kind, release }); return res;
+  }
+  /* free one resource now */
+  release(res) { const e = this.items.get(res); if (!e) return false; this.items.delete(res); this.released++; try { e.release?.(res); } catch (x) { console.warn('release', e.kind, x); } return true; }
+  /* the resource ended by itself (a timer fired, a download finished): stop tracking it */
+  forget(res) { return this.items.delete(res); }
+  disposeAll() {
+    this.closed = true; const E = [...this.items.entries()].reverse(); this.items.clear();
+    for (const [res, e] of E) { this.released++; try { e.release?.(res); } catch (x) { console.warn('release', e.kind, x); } }
+  }
+  counts() { const c = {}; for (const e of this.items.values()) c[e.kind] = (c[e.kind] || 0) + 1; return c; }
+  get size() { return this.items.size; }
+}
+const appResources = new ResourceRegistry('app');
+
+class SceneSession {
+  constructor(id, cfg) {
+    this.id = id; this.cfg = cfg; this.state = 'loading';   /* loading -> building -> active -> disposed (or failed) */
+    this.abort = new AbortController(); this.resources = new ResourceRegistry('scene ' + id);
+    this.disposed = false; this.committed = false; this.t0 = performance.now();
+    /* the load's own state (was: loadSeq / netAC / loadScene.errors ... as loose globals) */
+    this.seed = null; this.restore = null; this.errors = []; this.lastError = null; this.fatal = false; this.proc = null; this.model = null;
+  }
+  get signal() { return this.abort.signal; }
+  get live() { return !this.disposed && loads.latest === this; }
+  assertLive() { if (!this.live) throw new Stale(); }
+  fail(msg) { this.errors.push(msg); this.lastError ??= msg; }
+  /* scene-scoped resources: released with the scene */
+  setTimeout(fn, ms = 0) { const h = setTimeout(() => { this.resources.forget(h); if (!this.disposed) fn(); }, ms); return this.resources.add('timer', h, clearTimeout); }
+  setInterval(fn, ms) { const h = setInterval(() => { if (!this.disposed) fn(); }, ms); return this.resources.add('timer', h, clearInterval); }
+  listen(target, type, fn, opts) { target.addEventListener(type, fn, opts); return this.resources.add('listener', { target, type, fn, opts }, (t) => t.target.removeEventListener(t.type, t.fn, t.opts)); }
+  objectURL(blob) { return this.resources.add('blobUrl', URL.createObjectURL(blob), (u) => URL.revokeObjectURL(u)); }
+  object3d(obj, parent) { parent?.add(obj); return this.resources.add('object3d', obj, (o) => { o.parent?.remove(o); disposeObj(o); }); }
+  onDispose(fn) { return this.resources.add('disposer', fn, (f) => f()); }
+  dispose() {
+    if (this.disposed) return; this.disposed = true; this.state = this.committed ? 'disposed' : 'failed';
+    this.abort.abort(); this.resources.disposeAll(); loads.disposed++;
+  }
+}
+
+class LoadCoordinator {
+  constructor() {
+    this.seq = 0; this.created = 0; this.disposed = 0;
+    this.lowMemory = new URLSearchParams(location.search).get('lowmem') === '1';
+    this.active = this.make(null); this.active.state = 'active'; this.active.committed = true; this.active.onDispose(() => clearSceneContent());
+    this.latest = this.active; this.last = this.active;   /* last = the most recent load attempt (its errors are what loadScene reports) */
+  }
+  make(cfg) { this.created++; return new SceneSession(this.seq, cfg); }
+  get signal() { return this.latest.signal; }   /* RCSB / UniProt downloads belong to the newest load */
+  get pending() { return this.latest !== this.active ? this.latest : null; }
+  get alive() { return this.created - this.disposed; }
+  /* a new load: a load still downloading is dropped; the downloads in flight are cancelled (as before), the scene on screen stays */
+  begin(cfg) {
+    this.seq++; loadSeq = this.seq;
+    const prev = this.latest, s = this.make(cfg); this.latest = this.last = s;
+    if (prev !== this.active) prev.dispose();
+    else { prev.abort.abort(); prev.abort = new AbortController(); }
+    return s;
+  }
+  /* everything the new scene needs has arrived: the old scene goes, the new one is built in its place */
+  commit(s) {
+    s.assertLive(); if (s.committed) return;
+    const old = this.active; this.active = s; s.committed = true; s.state = 'building';
+    s.onDispose(() => clearSceneContent());   /* first entry = released last: the scene's meshes, process, tags ... */
+    old.dispose();
+  }
+  finish(s) { if (this.active === s && s.state === 'building') s.state = 'active'; }
+  /* the load failed before commit: drop it, the old scene keeps running */
+  fail(s) { if (this.latest === s) this.latest = this.active; s.dispose(); }
+  /* clearScene(): an empty scene in place of the active one */
+  clear() {
+    const old = this.active, s = this.make(null); s.state = 'active'; s.committed = true; s.onDispose(() => clearSceneContent());
+    this.active = s; if (this.latest === old) this.latest = s; old.dispose();
+  }
+  report() {
+    const A = this.active;
+    return { id: A.id, state: A.state, resources: A.resources.counts(), total: A.resources.size, pending: this.pending ? this.pending.id : null,
+      alive: this.alive, created: this.created, lowMemory: this.lowMemory, app: appResources.counts() };
+  }
+}
+const loads = new LoadCoordinator();
 /* ----------------------------------------------------------------------------- mmCIF / PDB parsing */
 const tokenize = (line) => line.match(/'[^']*'|"[^"]*"|\S+/g)?.map(t => (t[0] === "'" || t[0] === '"') ? t.slice(1, -1) : t) || [];
 
@@ -5047,7 +5148,7 @@ async function showAutoCard() {
   if (by.size) {
     const ents = [...by.entries()].sort((a, b) => (LIPIDS.has(a[0]) - LIPIDS.has(b[0])) || b[1][0].atoms.length - a[1][0].atoms.length).slice(0, 14);
     H.push(`<div class="sec"><b>小分子 / 离子</b>（点击看结合位点与相互作用）<div id="autoLig" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"></div></div>`);
-    setTimeout(() => { const box = $('autoLig'); if (!box || current !== cfg) return; for (const [c, list] of ents) {   /* L4: the scene may have changed meanwhile */ const b = document.createElement('button'); b.style.cssText = 'padding:2px 8px;font-size:11px';
+    loads.active.setTimeout(() => { const box = $('autoLig'); if (!box || current !== cfg) return; for (const [c, list] of ents) {   /* L4: the scene may have changed meanwhile */ const b = document.createElement('button'); b.style.cssText = 'padding:2px 8px;font-size:11px';
       b.textContent = `${c}${list.length > 1 ? ' ×' + list.length : ''}`; b.title = (list[0].fullName || c) + (LIPIDS.has(c) ? '（脂 / 去垢剂）' : ''); let i = -1;
       b.onclick = () => { i = (i + 1) % list.length; focusLigand(list[i], i, list.length); }; box.appendChild(b); } }, 0);
   }
@@ -5278,13 +5379,13 @@ PROCESSES.wholeCell = {
     this.pts = { cell: o.clone(), region: top.clone().addScaledVector(ey, -650) };
     console.log(`wholeCell：核糖体点 ${this.nRibDrawn}，膜蛋白 ${this.memSummary}，区域胞质 ${this.regCrowd?.bodies.length ?? 0} 个分子`);
   },
-  dispose() { if (typeof this._zfL === 'function') controls.removeEventListener('start', this._zfL); this._zfL = null; },   /* clearScene: no listener (and no closure over 25 000 ribosome points) outlives the scene */
+  dispose() { this._zfL = null; },   /* clearScene: no listener (and no closure over 25 000 ribosome points) outlives the scene */
   update(ctx, dt) {
     PROCESSES.cellCorner.update.call(this, ctx, dt);
     const M = world.matrixWorld;
     if (this.startCell) { this.startCell = false; const t = this.pts.cell.clone().applyMatrix4(M), dir = camera.position.clone().sub(controls.target).normalize();
       controls.target.copy(t); camera.position.copy(t).addScaledVector(dir, fitDist(ECOLI.L / 2 + 1500)); controls.update(); }
-    if (!this._zfL) { this._zfL = () => { this.zf = null; }; controls.addEventListener('start', this._zfL); }
+    if (!this._zfL) { this._zfL = () => { this.zf = null; }; loads.active.listen(controls, 'start', this._zfL); }   /* removed with the scene (session registry) */
     if (this.zf) { const z = this.zf, k = Math.min(1, (performance.now() - z.s) / z.ms), e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
       const t = z.t0.clone().lerp(z.t1, e), d = Math.exp(Math.log(z.d0) + (Math.log(z.d1) - Math.log(z.d0)) * e);
       controls.target.copy(t); camera.position.copy(t).addScaledVector(z.dir0.clone().lerp(z.dir1, e).normalize(), d); if (k >= 1) this.zf = null; }
@@ -5337,18 +5438,24 @@ PROCESSES.wholeCell = {
 /* the first visible line of a caption: its first sentence, at most 60 characters */
 function leadOf(cap) { const t = String(cap || '').replace(/<[^>]*>/g, ''); const m = /^[^。！？]*[。！？]/.exec(t); const f = (m ? m[0] : t);
   return f.length <= 60 ? f : f.slice(0, 58) + '…'; }
+/* WP2: one SceneSession per load (src/core/session.js). Phase 1 only downloads (main entry, second state, components, auto
+   annotations): the scene on screen keeps running, and if a download fails it stays. Phase 2 starts with loads.commit():
+   the old scene is disposed and the new one is built. ?lowmem=1 commits before the downloads (the old behaviour). */
 async function loadScene(cfg) {
-  const my = ++loadSeq, live = () => { if (my !== loadSeq) throw new Stale(); };   // a newer loadScene cancels this one
-  $('load').disabled = true; loadScene.lastError = null; loadScene.errors = []; loadScene.fatal = false;
-  netAC.abort(); netAC = new AbortController();   /* downloads of a superseded scene are cancelled */
+  const S = loads.begin(cfg), live = () => S.assertLive();   // a newer loadScene makes this one stale
+  $('load').disabled = true;
   if (!cfg._orig0) cfg._orig0 = { ...cfg };   /* what was asked for, before the load changes cfg (back navigation) */
-  cfg._restore = pendingRestore; pendingRestore = null;
-  setSeed(loadSeedOverride ?? (cfg._restore ? cfg._restore.seed : null) ?? cfg.seed ?? URL_SEED); loadSeedOverride = null;
-  restoreQuality();
-  if (cfg.name && PRESETS[cfg.name]) setMode(presetCat(cfg.name)); else if (cfg.auto) setMode('single');   /* the tab follows what is shown */
+  cfg._restore = S.restore = pendingRestore; pendingRestore = null;
+  const commit = () => {
+    if (S.committed) return;
+    loads.commit(S); current = cfg;
+    setSeed(loadSeedOverride ?? (cfg._restore ? cfg._restore.seed : null) ?? cfg.seed ?? URL_SEED); loadSeedOverride = null; S.seed = randSeed;
+    restoreQuality();
+    if (cfg.name && PRESETS[cfg.name]) setMode(presetCat(cfg.name)); else if (cfg.auto) setMode('single');   /* the tab follows what is shown */
+  };
   try {
-    clearScene();
-    current = cfg;
+    if (loads.lowMemory) commit();
+    // ---- phase 1: downloads only (the old scene stays on screen)
     const useAsm = cfg.assembly ?? $('assembly').checked;
     const infoP = cfg.auto ? fetchAutoInfo(cfg.id).catch(e => { console.warn('auto info', e); return null; }) : null;
     const main = cfg.local || await loadEntry(cfg.id, useAsm); live();
@@ -5356,9 +5463,19 @@ async function loadScene(cfg) {
       e.atoms = e.atoms.filter(a => ok(a.asym)); e.ligands = e.ligands.filter(L => ok(L.asym) || L.atoms.some(x => e.atoms.some(a => a.p.distanceTo(x.p) < 6))); return e; };
     keepChains(main);
     if (!main.atoms.length) throw new Error('该结构没有可用的 CA/P 坐标');
+    const entryB = cfg.states && cfg.states.length > 1 ? await loadEntry(cfg.states[1], useAsm) : null; live();
+    /* L5: all component downloads start together (each retried once); they are placed one by one in the listed order */
+    const compList = cfg.components || [];
+    const fetchComp = async (id) => { try { return await loadEntry(id, true); } catch (e) { if (e.name === 'AbortError') throw e; console.warn('retry', id, e); await new Promise(r => setTimeout(r, 1200)); return loadEntry(id, true); } };
+    const compP = compList.map(comp => fetchComp(comp.id)); compP.forEach(p => p.catch(() => {}));
+    if (compList.length) status(`并行下载 ${compList.length} 个组件 …`, true);
+    await Promise.allSettled(compP); live();
+    const autoInfo = cfg.auto ? await infoP : null; live();
+    // ---- phase 2: everything is here -> the old scene goes, the new one is built
+    commit();
     // ---- conformational states (morph): superpose state B onto A by matched residues
-    if (cfg.states && cfg.states.length > 1) {
-      const B = keepChains(await loadEntry(cfg.states[1], useAsm)); live();
+    if (entryB) {
+      const B = keepChains(entryB);
       const key = (a) => a.asym + '|' + a.seq, mapB = new Map(B.atoms.map(a => [key(a), a]));
       const pairs = main.atoms.filter(a => mapB.has(key(a)));
       if (pairs.length >= 3) {
@@ -5390,7 +5507,7 @@ async function loadScene(cfg) {
         applyTf(main, { centre: new THREE.Vector3(), q: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) });
     }
     if (cfg.auto) {   /* membrane protein? normal -> +Y, cytoplasm down (see autoMembrane) */
-      cfg.autoInfo = await infoP; live();
+      cfg.autoInfo = autoInfo;
       try { cfg.autoMem = autoMembrane(main, cfg.autoInfo); } catch (e) { console.warn('autoMembrane', e); cfg.autoMem = null; }
       if (cfg.autoMem) { cfg.process = 'auto'; cfg.memY = cfg.autoMem.y; }
     }
@@ -5402,7 +5519,7 @@ async function loadScene(cfg) {
     const rawEnt = new Map();
     for (const a of main.atoms) { const raw = main.entities[a.ent]?.name || ('entity ' + a.ent), nm = groupOf(raw); a.part = nm; a.entName = raw;
       if (!byEnt.has(nm)) byEnt.set(nm, []); byEnt.get(nm).push(a); if (!rawEnt.has(raw)) rawEnt.set(raw, []); rawEnt.get(raw).push(a); }
-    model = { entityStats: {}, focus };
+    model = S.model = { entityStats: {}, focus };
     const stat = (arr) => { const ys = arr.map(a => a.p.y); return { min: Math.min(...ys), max: Math.max(...ys), mean: ys.reduce((s, v) => s + v, 0) / ys.length }; };
     for (const [nm, arr] of rawEnt) model.entityStats[nm] = stat(arr);   // raw subunit names stay addressable (membranes, alignment)
     for (const [nm, arr] of byEnt) model.entityStats[nm] = stat(arr);
@@ -5412,12 +5529,7 @@ async function loadScene(cfg) {
     { const P = main.atoms.filter((_, i) => i % 5 === 0).map(a => new THREE.Vector3(a.p.x, 0, a.p.z)); model.rowDir = P.length > 3 ? pca(P).axes[2].clone().setY(0).normalize() : new THREE.Vector3(1, 0, 0);
       if (cfg.rowFlip) model.rowDir.negate(); }
     const provList = [main.prov || { id: cfg.local ? (cfg.name || '本地文件') : main.id, local: !!cfg.local }];
-    // ---- components (other PDB entries placed relative to the main one)
-    /* L5: all component downloads start together (each retried once); they are placed one by one in the listed order */
-    const compList = cfg.components || [];
-    const fetchComp = async (id) => { try { return await loadEntry(id, true); } catch (e) { if (e.name === 'AbortError') throw e; console.warn('retry', id, e); await new Promise(r => setTimeout(r, 1200)); return loadEntry(id, true); } };
-    const compP = compList.map(comp => fetchComp(comp.id)); compP.forEach(p => p.catch(() => {}));
-    if (compList.length) status(`并行下载 ${compList.length} 个组件 …`, true);
+    // ---- components (other PDB entries placed relative to the main one; downloaded in phase 1)
     for (const [ci, comp] of compList.entries()) {
       try {
         let c; try { c = await compP[ci]; } catch (e) { live(); if (e.name === 'AbortError') throw new Stale(); throw e; } live();
@@ -5456,7 +5568,7 @@ async function loadScene(cfg) {
           for (const [nm, arr] of by) parts.push({ name: nm, atoms: arr, comp, pivot });
         } else { placed.atoms.forEach(a => a.part = comp.label || comp.id); parts.push({ name: comp.label || comp.id, atoms: placed.atoms, comp, pivot }); }
         ligands.push(...placed.ligands);
-      } catch (e) { if (e instanceof Stale || my !== loadSeq) throw new Stale(); console.warn(e); loadFail(`组件 ${comp.id} 加载失败：${e.message}`); status(`组件 ${comp.id} 加载失败：${e.message}`); }
+      } catch (e) { if (e instanceof Stale || !S.live) throw new Stale(); console.warn(e); loadFail(`组件 ${comp.id} 加载失败：${e.message}`); status(`组件 ${comp.id} 加载失败：${e.message}`); }
     }
     let rmax = 0, mainR = 0;
     for (const p of parts) for (const a of p.atoms) { rmax = Math.max(rmax, a.p.length()); mainR = Math.max(mainR, Math.hypot(a.p.x, a.p.z)); }
@@ -5493,7 +5605,7 @@ async function loadScene(cfg) {
     const P = cfg.process && PROCESSES[cfg.process];
     if (P) {
       const pr = Object.create(P); pr.ctx = makeCtx();   // activate only after async setup finished
-      try { await pr.setup(pr.ctx); live(); proc = pr; } catch (e) { if (e instanceof Stale || my !== loadSeq) throw new Stale(); console.warn(e); loadFail('过程动画初始化失败：' + e.message); status('过程动画初始化失败：' + e.message); }
+      try { await pr.setup(pr.ctx); live(); proc = S.proc = pr; } catch (e) { if (e instanceof Stale || !S.live) throw new Stale(); console.warn(e); loadFail('过程动画初始化失败：' + e.message); status('过程动画初始化失败：' + e.message); }
     }
     $('morph').value = 0; U.uMorph.value = 0;
     markHotFromLigands();
@@ -5515,11 +5627,19 @@ async function loadScene(cfg) {
     if (P?.cell && innerWidth < 1600 && innerWidth > 600) { $('panel').classList.add('hidden'); resetCamera(cfg._restore?.camera || cfg.camera); }
     applyRestore(cfg._restore);
     if (cfg.auto) { if (innerWidth < 1600 && innerWidth > 600) $('panel').classList.add('hidden'); showAutoCard(); }   /* room for the scene; ☰ / H brings the panel back */
-  } catch (e) { if (e instanceof Stale || my !== loadSeq) return; console.error(e); loadScene.fatal = true; loadFail(e.message); clearEvidence(); status('出错：' + e.message, true); }
-  finally { if (my === loadSeq) $('load').disabled = false; }   /* a superseded load leaves the button to the newer one */
+  } catch (e) {
+    if (e instanceof Stale || !S.live) { if (!S.committed) loads.fail(S); return; }
+    S.fatal = true; loadFail(e.message);
+    if (!S.committed) { console.warn('load failed, scene kept:', e); loads.fail(S); status('载入失败：' + e.message + '（保留当前场景）', true); }   /* phase 1: nothing was replaced */
+    else { console.error(e); clearEvidence(); status('出错：' + e.message, true); }
+  }
+  finally { if (S.live) { $('load').disabled = false; loads.finish(S); } else if (!loads.pending) $('load').disabled = false; }   /* a superseded load leaves the button to the newer one */
 }
-/* errors inside a load (a component, the process setup, the scene itself) are recorded, not only shown in the status bar */
-function loadFail(msg) { loadScene.errors.push(msg); loadScene.lastError ??= msg; }
+/* errors inside a load (a component, the process setup, the scene itself) are recorded on the session of the latest attempt,
+   not only shown in the status bar; loadScene.errors / lastError / fatal read them */
+function loadFail(msg) { loads.last.fail(msg); }
+Object.defineProperties(loadScene, {
+  errors: { get: () => loads.last.errors }, lastError: { get: () => loads.last.lastError }, fatal: { get: () => loads.last.fatal } });
 
 /* =============================================================================
    CELL SIMULATION: compartments, concentrations and coupled fluxes
@@ -6007,6 +6127,7 @@ function makeCtx() {
     membraneY: [], counters: {},
     atomsOf: (re) => model.allAtoms.filter(a => re.test(a.part)),
     template: getTemplate, makeMol, makeParticle, makeFlash, anim,
+    session: loads.active,   /* WP2: scene-scoped timers / listeners / objects: ctx.session.setTimeout(...), .listen(...), .object3d(...) */
     hideLigand: (L) => { L.hidden = true; },
     partGroups: (re) => groups.filter(g => re.test(g.name)),
     /* alternative conformations: process sets a.alts = {key: Vector3} on the residues, then calls this (before meshes are built) */
@@ -6115,7 +6236,10 @@ function clearEvidence() { evidArgs = null; if ($('evid')) $('evid').innerHTML =
 /* display settings that the badges describe (sizes, jitter, lipids) */
 for (const id of ['blob', 'jitter', 'ligScale', 'memOn', 'repMode', 'simpDefault']) $(id)?.addEventListener('change', () => { if (evidArgs) setTimeout(() => evidArgs && renderEvidence(...evidArgs), 0); });
 
-function clearScene() {
+/* clearScene(): the scene on screen is replaced by an empty one (its session is disposed). The scene's content is released by
+   clearSceneContent(), which every committed session registers first (so it runs last, after the scene's timers, listeners ...). */
+function clearScene() { loads.clear(); }
+function clearSceneContent() {
   crowdSets = []; seqCells = []; seqFt = null; if ($('seqRows')) $('seqRows').innerHTML = '';
   exitKit(); clearEvidence(); clearFocus(false); focusLigand._req = null; clearSelection(); camFly = null; energyKey = null;
   labels = []; $('labels').innerHTML = ''; $('infoCard').style.display = 'none';
@@ -6573,7 +6697,8 @@ function runPocketJob(job) {
   try {
     if (!pocketWorker) {
       const src = `const pocketSurfaceJob = ${pocketSurfaceJob.toString()};\nself.onmessage = (e) => { const r = pocketSurfaceJob(e.data.job); self.postMessage({ id: e.data.id, r }, [r.pos.buffer, r.idx.buffer, r.cls.buffer]); };`;
-      pocketWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      const url = appResources.add('blobUrl', URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), (u) => URL.revokeObjectURL(u));
+      pocketWorker = appResources.add('worker', new Worker(url), (w) => w.terminate());   /* app lifetime: one worker for all scenes */
       pocketWorker.onmessage = (e) => { const f = pocketWaiting.get(e.data.id); pocketWaiting.delete(e.data.id); f && f(e.data.r); };
       pocketWorker.onerror = () => { pocketWorker = 'none'; for (const [, f] of pocketWaiting) f(null); pocketWaiting.clear(); };
     }
@@ -7145,10 +7270,17 @@ function updateScaleAll(dt) {
   const tl = timeLines(), note = !proc ? '时间：静态结构（团块抖动只是示意）' : tl.length ? tl.join('\n') : proc.timeScaleNote || (timeScale === 'fast' ? '时间：快放 · 粒子流表示通量方向和相对大小（仍比真实慢得多）' : '时间：慢放 · 每个分子事件单独画出，比真实慢许多个数量级');
   el.querySelector('.ts').textContent = note + ($('pause').checked ? '（已暂停）' : '');
 }
+frame.restT = frame.pokeT = 0;
+for (const ev of ['pointerdown', 'pointermove', 'wheel']) renderer.domElement.addEventListener(ev, (e) => { if (ev !== 'pointermove' || e.buttons) frame.pokeT = performance.now(); }, { passive: true });
 function frame() {
   requestAnimationFrame(frame);
+  /* WP2: while a new scene downloads, the old one stays on screen but rests (no simulation, one redraw every 2 s unless the
+     user is turning the view), so that downloading and parsing the new entry get the CPU on machines without a GPU
+     (a big scene redrawn 4x a second made the next load 5x slower) */
+  const resting = !!loads.pending;
+  if (resting) { const now = performance.now(); if (now - frame.restT < 2000 && now - frame.pokeT > 400) return; frame.restT = now; }
   const dt = Math.min(clock.getDelta(), 0.1);
-  if (!$('pause').checked) simStep(dt);
+  if (!$('pause').checked && !resting) simStep(dt);
   updateViewOffset(); updateScaleAll(dt);
   U.uUpView.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
   procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion); bulkRoot.visible = !!proc && $('procOn').checked && !(proc.level && proc.level !== 'machine');
@@ -7246,7 +7378,8 @@ window.__viewer.probe = async function probe(sec = 5) {
     overlayObjects, procRootChildren: procRoot.children.length, bulkRootChildren: bulkRoot.children.length, domTags, listeners: listenerCount.controls + listenerCount.window + listenerCount.document + listenerCount.canvas,
     anims: anims.length, pendingAnims: animPending, pendingAfterClear: rejectAnims.left ?? 0, pools: scenePools.size, focus: !!focus, selection: sel.ids.size, ligandTypes: LC.types, ligandCopies: LC.copies,
     errors: (loadScene.errors || []).slice(), visibility: document.visibilityState, rRNA, unnamedParticles: unnamedParticles(), procNoEvidence: Object.keys(PROCESSES).filter(k => !procEvidence(k)),
-    jsHeapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, status: $('status')?.textContent || '' };
+    jsHeapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, status: $('status')?.textContent || '',
+    session: loads.report() };   /* WP2: the active scene session, what its registry holds, how many sessions are alive */
 };
 Object.defineProperty(window.__viewer, 'lastError', { get: () => loadScene.lastError || null });
 /* deterministic stepping: pause the clock, then advance the simulation n times by dt seconds (with ?seed= / scene seed: repeatable) */
@@ -7292,6 +7425,17 @@ window.__viewer.animTest = async function () {
   let mid = 0; for (let i = 0; i < 40 && !mid; i++) { await window.__viewer.step(0.05, 2); mid = Math.max(mid, animPending); }
   await loadScene({ ...PRESETS[presetName('kcsa')], name: presetName('kcsa') });
   return { mid, afterClear: rejectAnims.left ?? 0, now: animPending };
+};
+/* WP2: a load that fails (no such entry) must leave the scene on screen as it was: same session, same content, same GPU memory */
+window.__viewer.failKeepTest = async function (badId = '0000') {
+  for (let i = 0; i < 600 && (loads.pending || loads.active.state !== 'active'); i++) await new Promise(r => setTimeout(r, 100));   /* a load still running is not the scene to compare */
+  if (!groups.length) await loadScene({ ...PRESETS[presetName('kcsa')], name: presetName('kcsa') });
+  const snap = () => ({ session: loads.active.id, scene: current?.name || current?.id || null, title: $('tName').textContent, residues: groups.reduce((n, g) => n + g.atoms.length, 0),
+    meshes: groups.filter(g => g.mesh?.parent).length, ligands: ligGroups.length, geometries: renderer.info.memory.geometries, process: !!proc });
+  const before = snap();
+  await loadScene({ id: badId });
+  await new Promise(r => setTimeout(r, 500));
+  return { failed: !!loadScene.fatal, error: loadScene.lastError, before, after: snap(), pending: loads.pending?.id ?? null, alive: loads.alive };
 };
 /* A1: a page that is not on the list gets nothing back before consent, and never the unsafe commands */
 window.__viewer.bridgeTest = async function () {
@@ -7542,7 +7686,7 @@ const GLOW_CMDS = {
       } else if (spec.url != null) {
         const u = String(spec.url); let U0; try { U0 = new URL(u); } catch (e) { throw new CmdError('url-not-allowed：不是有效的链接'); }
         if (!URL_OK(U0)) throw new CmdError('url-not-allowed：只接受本工坊（' + WS_BASE + '）、files.rcsb.org、alphafold.ebi.ac.uk 或同源地址');
-        const res = await fetch(U0.href, { signal: netAC.signal }); if (!res.ok) throw new CmdError('下载失败 HTTP ' + res.status);   /* not cached: arbitrary files must not pile up in memory */
+        const res = await fetch(U0.href, { signal: loads.signal }); if (!res.ok) throw new CmdError('下载失败 HTTP ' + res.status);   /* not cached: arbitrary files must not pile up in memory */
         const text = await res.text(), name = decodeURIComponent(U0.pathname.split('/').pop() || 'model.cif');
         if (/\.(glow|json)$/i.test(name) || /^\s*\{/.test(text)) { let raw; try { raw = JSON.parse(text); } catch (e) { throw new CmdError('链接内容不是有效的 JSON'); }
           try { pack = sanitizePack(raw, false); } catch (e) { throw new CmdError(e.message); } await openPack(pack, 'local'); }

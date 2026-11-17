@@ -46,7 +46,8 @@ function runPocketJob(job) {
   try {
     if (!pocketWorker) {
       const src = `const pocketSurfaceJob = ${pocketSurfaceJob.toString()};\nself.onmessage = (e) => { const r = pocketSurfaceJob(e.data.job); self.postMessage({ id: e.data.id, r }, [r.pos.buffer, r.idx.buffer, r.cls.buffer]); };`;
-      pocketWorker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+      const url = appResources.add('blobUrl', URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), (u) => URL.revokeObjectURL(u));
+      pocketWorker = appResources.add('worker', new Worker(url), (w) => w.terminate());   /* app lifetime: one worker for all scenes */
       pocketWorker.onmessage = (e) => { const f = pocketWaiting.get(e.data.id); pocketWaiting.delete(e.data.id); f && f(e.data.r); };
       pocketWorker.onerror = () => { pocketWorker = 'none'; for (const [, f] of pocketWaiting) f(null); pocketWaiting.clear(); };
     }

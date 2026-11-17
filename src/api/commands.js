@@ -26,7 +26,7 @@ const GLOW_CMDS = {
       } else if (spec.url != null) {
         const u = String(spec.url); let U0; try { U0 = new URL(u); } catch (e) { throw new CmdError('url-not-allowed：不是有效的链接'); }
         if (!URL_OK(U0)) throw new CmdError('url-not-allowed：只接受本工坊（' + WS_BASE + '）、files.rcsb.org、alphafold.ebi.ac.uk 或同源地址');
-        const res = await fetch(U0.href, { signal: netAC.signal }); if (!res.ok) throw new CmdError('下载失败 HTTP ' + res.status);   /* not cached: arbitrary files must not pile up in memory */
+        const res = await fetch(U0.href, { signal: loads.signal }); if (!res.ok) throw new CmdError('下载失败 HTTP ' + res.status);   /* not cached: arbitrary files must not pile up in memory */
         const text = await res.text(), name = decodeURIComponent(U0.pathname.split('/').pop() || 'model.cif');
         if (/\.(glow|json)$/i.test(name) || /^\s*\{/.test(text)) { let raw; try { raw = JSON.parse(text); } catch (e) { throw new CmdError('链接内容不是有效的 JSON'); }
           try { pack = sanitizePack(raw, false); } catch (e) { throw new CmdError(e.message); } await openPack(pack, 'local'); }

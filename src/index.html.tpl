@@ -21,6 +21,7 @@
 <!-- @include data/presets.js -->
 <!-- @include repr/palettes.js -->
 <!-- @include core/utils.js -->
+<!-- @include core/session.js -->
 <!-- @include data/parse.js -->
 <!-- @include data/rcsb.js -->
 <!-- @include derived/geometry.js -->

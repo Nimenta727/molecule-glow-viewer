@@ -43,7 +43,8 @@ window.__viewer.probe = async function probe(sec = 5) {
     overlayObjects, procRootChildren: procRoot.children.length, bulkRootChildren: bulkRoot.children.length, domTags, listeners: listenerCount.controls + listenerCount.window + listenerCount.document + listenerCount.canvas,
     anims: anims.length, pendingAnims: animPending, pendingAfterClear: rejectAnims.left ?? 0, pools: scenePools.size, focus: !!focus, selection: sel.ids.size, ligandTypes: LC.types, ligandCopies: LC.copies,
     errors: (loadScene.errors || []).slice(), visibility: document.visibilityState, rRNA, unnamedParticles: unnamedParticles(), procNoEvidence: Object.keys(PROCESSES).filter(k => !procEvidence(k)),
-    jsHeapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, status: $('status')?.textContent || '' };
+    jsHeapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, status: $('status')?.textContent || '',
+    session: loads.report() };   /* WP2: the active scene session, what its registry holds, how many sessions are alive */
 };
 Object.defineProperty(window.__viewer, 'lastError', { get: () => loadScene.lastError || null });
 /* deterministic stepping: pause the clock, then advance the simulation n times by dt seconds (with ?seed= / scene seed: repeatable) */
@@ -89,6 +90,17 @@ window.__viewer.animTest = async function () {
   let mid = 0; for (let i = 0; i < 40 && !mid; i++) { await window.__viewer.step(0.05, 2); mid = Math.max(mid, animPending); }
   await loadScene({ ...PRESETS[presetName('kcsa')], name: presetName('kcsa') });
   return { mid, afterClear: rejectAnims.left ?? 0, now: animPending };
+};
+/* WP2: a load that fails (no such entry) must leave the scene on screen as it was: same session, same content, same GPU memory */
+window.__viewer.failKeepTest = async function (badId = '0000') {
+  for (let i = 0; i < 600 && (loads.pending || loads.active.state !== 'active'); i++) await new Promise(r => setTimeout(r, 100));   /* a load still running is not the scene to compare */
+  if (!groups.length) await loadScene({ ...PRESETS[presetName('kcsa')], name: presetName('kcsa') });
+  const snap = () => ({ session: loads.active.id, scene: current?.name || current?.id || null, title: $('tName').textContent, residues: groups.reduce((n, g) => n + g.atoms.length, 0),
+    meshes: groups.filter(g => g.mesh?.parent).length, ligands: ligGroups.length, geometries: renderer.info.memory.geometries, process: !!proc });
+  const before = snap();
+  await loadScene({ id: badId });
+  await new Promise(r => setTimeout(r, 500));
+  return { failed: !!loadScene.fatal, error: loadScene.lastError, before, after: snap(), pending: loads.pending?.id ?? null, alive: loads.alive };
 };
 /* A1: a page that is not on the list gets nothing back before consent, and never the unsafe commands */
 window.__viewer.bridgeTest = async function () {

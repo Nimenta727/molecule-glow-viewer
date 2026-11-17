@@ -116,7 +116,7 @@ docs/               方向、规范、审计、路线图、本文
 ### WP2 场景会话与资源（M，依赖 WP1）
 - 实现 `SceneSession`、`ResourceRegistry`、`LoadCoordinator`（规范 §4）：几何、材质、纹理、Worker、定时器、DOM 监听、Blob URL、fetch 统一登记和释放；替换现在散落的 clearScene 逻辑（保留 clearScene 作为对 session.dispose 的包装）。
 - “新场景显示出来之前旧场景不销毁”（失败时画面不消失）；低内存模式可选。
-- 把全局可变状态（AUDIT R16 列出的那些）挂到 session 上。
+- 把全局可变状态挂到 session 上（AUDIT 里其实没有 R16 这一条；实际清单见 `skill/references/architecture.md` §40）。
 - **验收**：回归里加“载入失败后旧场景仍在”；连切、整个细胞连载两次的资源计数不变；`probe()` 报 session 资源数。
 
 ### WP3 结构模型与统一选择（L，依赖 WP2）
@@ -239,7 +239,7 @@ WP12 贯穿
 |---|---|---|---|---|
 | WP0 收尾和准备 | ☑ | Claude | 73e77c3 / 2026-11-16 | README 结构、ROADMAP 指向本表、CI `copies.yml` 副本 sha256 检查；skill 副本原本过期，已同步 |
 | WP1 源码拆分与构建 | ☑ | Claude | b82bb75 + 修正 4632564 / 2026-11-16 | `src/` 66 个片段 + `index.html.tpl`；`tools/build.mjs`（`--check` 在 CI）；构建结果与拆分前逐字节相同（仅 `presetCat` 一行移位）；glow-lib 直接 import `src/pack/rules.js` |
-| WP2 场景会话与资源 | ☐ | | | |
+| WP2 场景会话与资源 | ☑ | Claude | （本提交）/ 2026-11-17 | `src/core/session.js`；先下载后替换（失败保留旧场景，`?lowmem=1` 为旧行为）；载入状态挂到会话；回归加“载入失败保留旧场景”和会话存活 / 资源检查。网格等仍由 `clearSceneContent` 释放（WP5 接手），模拟状态 WP4 接手 |
 | WP3 结构模型与统一选择 | ☐ | | | |
 | WP4 统一模拟引擎 | ☐ | | | |
 | WP5 表示系统 | ☐ | | | |

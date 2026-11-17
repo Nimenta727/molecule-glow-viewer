@@ -203,7 +203,7 @@ async function showAutoCard() {
   if (by.size) {
     const ents = [...by.entries()].sort((a, b) => (LIPIDS.has(a[0]) - LIPIDS.has(b[0])) || b[1][0].atoms.length - a[1][0].atoms.length).slice(0, 14);
     H.push(`<div class="sec"><b>小分子 / 离子</b>（点击看结合位点与相互作用）<div id="autoLig" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px"></div></div>`);
-    setTimeout(() => { const box = $('autoLig'); if (!box || current !== cfg) return; for (const [c, list] of ents) {   /* L4: the scene may have changed meanwhile */ const b = document.createElement('button'); b.style.cssText = 'padding:2px 8px;font-size:11px';
+    loads.active.setTimeout(() => { const box = $('autoLig'); if (!box || current !== cfg) return; for (const [c, list] of ents) {   /* L4: the scene may have changed meanwhile */ const b = document.createElement('button'); b.style.cssText = 'padding:2px 8px;font-size:11px';
       b.textContent = `${c}${list.length > 1 ? ' ×' + list.length : ''}`; b.title = (list[0].fullName || c) + (LIPIDS.has(c) ? '（脂 / 去垢剂）' : ''); let i = -1;
       b.onclick = () => { i = (i + 1) % list.length; focusLigand(list[i], i, list.length); }; box.appendChild(b); } }, 0);
   }

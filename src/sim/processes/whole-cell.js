@@ -204,13 +204,13 @@ PROCESSES.wholeCell = {
     this.pts = { cell: o.clone(), region: top.clone().addScaledVector(ey, -650) };
     console.log(`wholeCell：核糖体点 ${this.nRibDrawn}，膜蛋白 ${this.memSummary}，区域胞质 ${this.regCrowd?.bodies.length ?? 0} 个分子`);
   },
-  dispose() { if (typeof this._zfL === 'function') controls.removeEventListener('start', this._zfL); this._zfL = null; },   /* clearScene: no listener (and no closure over 25 000 ribosome points) outlives the scene */
+  dispose() { this._zfL = null; },   /* clearScene: no listener (and no closure over 25 000 ribosome points) outlives the scene */
   update(ctx, dt) {
     PROCESSES.cellCorner.update.call(this, ctx, dt);
     const M = world.matrixWorld;
     if (this.startCell) { this.startCell = false; const t = this.pts.cell.clone().applyMatrix4(M), dir = camera.position.clone().sub(controls.target).normalize();
       controls.target.copy(t); camera.position.copy(t).addScaledVector(dir, fitDist(ECOLI.L / 2 + 1500)); controls.update(); }
-    if (!this._zfL) { this._zfL = () => { this.zf = null; }; controls.addEventListener('start', this._zfL); }
+    if (!this._zfL) { this._zfL = () => { this.zf = null; }; loads.active.listen(controls, 'start', this._zfL); }   /* removed with the scene (session registry) */
     if (this.zf) { const z = this.zf, k = Math.min(1, (performance.now() - z.s) / z.ms), e = k < 0.5 ? 4 * k ** 3 : 1 - (-2 * k + 2) ** 3 / 2;
       const t = z.t0.clone().lerp(z.t1, e), d = Math.exp(Math.log(z.d0) + (Math.log(z.d1) - Math.log(z.d0)) * e);
       controls.target.copy(t); camera.position.copy(t).addScaledVector(z.dir0.clone().lerp(z.dir1, e).normalize(), d); if (k >= 1) this.zf = null; }

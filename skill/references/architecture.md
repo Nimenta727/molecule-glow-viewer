@@ -391,3 +391,14 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - 真模块：`data/presets.js`、`pack/rules.js` 带 `import` / `export`，构建删掉相对 import 行和行首 `export `；`workshop/tools/glow-lib.mjs` 直接 import 它们（不再从 HTML 截取文本）。`pack/rules.js` 里的 `PROCESSES` 是自由名字：页面里是真正的过程表，Node 里由 glow-lib 放一个只有名字的表（名字从构建拼出的脚本里读）。
 - 第一步只搬移：构建结果与拆分前逐字节相同，唯一差别是 `presetCat` 一行移进 `data/presets.js`。
 - 同步：`desktop/scripts/sync.js` 和 `tools/sync-copies.mjs` 都先构建；`tools/check-copies.mjs` 检查 skill / desktop 副本的 sha256；CI `copies.yml` 跑 `build.mjs --check` + 副本检查。
+
+## 40. WP2：场景会话与资源（`src/core/session.js`）
+
+- **一次载入 = 一个 `SceneSession`**：`abort`（它的下载）、`resources`（`ResourceRegistry`）、`assertLive()`（有更新的载入或已销毁就抛 `Stale`），以及这次载入自己的状态 `cfg`、`seed`、`restore`、`errors` / `lastError` / `fatal`、`proc`、`model`。原来的 `netAC`、`loadScene.errors` 这些散落的全局变量都改成从会话读（`loadScene.errors` 等是指向 `loads.last` 的只读属性；`loadSeq` 保留，由 `loads.begin` 更新）。
+- **`LoadCoordinator`（全局 `loads`）**：`active` = 屏幕上的场景，`latest` = 最新一次载入（没在载入时等于 active）。`begin` → `commit`（旧场景销毁、新场景开始构建）→ `finish`；下载阶段失败 → `fail`（旧场景继续运行）。`clearScene()` 现在是 `loads.clear()` 的包装。
+- **先下载、后替换**：`loadScene` 第 1 阶段只下载（主条目、第二构象、全部组件、自动模式注释），旧场景照常显示和模拟；全部到齐才 `commit`。不存在的编号、断网、超时都不会让画面消失，状态栏写“载入失败：…（保留当前场景）”。`?lowmem=1` = 低内存模式，先销毁旧场景再下载（WP2 之前的行为）。随机种子在 `commit` 之后才设，所以同种子结果不变。
+- **载入期间旧场景休息**（`view/frame-loop.js`）：`loads.pending` 时不跑模拟，每 2 秒重画一次（拖动 / 缩放时照常重画），把 CPU 让给下载和解析。没有 GPU 的机器上不这样做，大场景之后的载入会慢 5 倍以上。
+- **`ResourceRegistry`**：`add(kind, res, release)` / `release` / `forget` / `disposeAll`（新登记的先释放）/ `counts()`；关闭后再登记的资源立刻释放（迟到的协程不能把东西挂到已销毁的场景上）。会话提供 `setTimeout`、`setInterval`、`listen`、`objectURL`、`object3d`、`onDispose`；过程里用 `ctx.session`。每个已提交的会话第一个登记 `clearSceneContent`，所以它最后执行（先撤计时器、监听器，再清网格、过程、标签）。`appResources` 放程序生命周期的资源（口袋表面 Worker 和它的 Blob URL）。
+- **已经接入登记的**：RCSB / UniProt 下载（`fetch`，进行中的数量）、整个细胞的镜头监听器、自动模式的配体按钮计时器、口袋 Worker。网格、材质、纹理仍由 `clearSceneContent` 按原来的列表释放（WP5 的表示系统会让每个表示自己登记）。
+- **还没挂到会话上的场景状态**（按计划在后续工作包里搬，避免搬两次）：`groups`、`ligGroups`、`membraneObjs`、`model` 的内容 → WP3 `StructureModel` / WP5 表示；`proc` 的内部、`anims`、`eventLog`、`cellSim`、`sceneSpecies`、`scenePools` → WP4 `SimulationEngine`；`focus`、`kit`、`sel`、`labels`、`seqCells` → WP3 选择集 / 界面。
+- **诊断与回归**：`__viewer.probe().session` = `{ id, state, resources, total, pending, alive, created, lowMemory, app }`；`__viewer.failKeepTest()` 载入不存在的 `0000`，比较前后会话编号、标题、残基、网格、配体、GPU 几何体数。回归新增：每个场景、回访、连切、连载两次之后只有 1 个存活会话、没有等待中的会话、登记的资源不增加；载入失败后旧场景完全不变。

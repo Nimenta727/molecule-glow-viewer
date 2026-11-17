@@ -19,6 +19,7 @@ function makeCtx() {
     membraneY: [], counters: {},
     atomsOf: (re) => model.allAtoms.filter(a => re.test(a.part)),
     template: getTemplate, makeMol, makeParticle, makeFlash, anim,
+    session: loads.active,   /* WP2: scene-scoped timers / listeners / objects: ctx.session.setTimeout(...), .listen(...), .object3d(...) */
     hideLigand: (L) => { L.hidden = true; },
     partGroups: (re) => groups.filter(g => re.test(g.name)),
     /* alternative conformations: process sets a.alts = {key: Vector3} on the residues, then calls this (before meshes are built) */

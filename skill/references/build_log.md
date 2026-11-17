@@ -195,3 +195,10 @@
 - WP1：`web/index.html` 按分节横幅切成 `src/` 的 66 个片段 + `index.html.tpl`；`tools/build.mjs` 拼回单文件，与拆分前逐字节相同（只有 `presetCat` 一行移进 `data/presets.js`）。`data/presets.js`、`pack/rules.js` 是真 ES 模块，`glow-lib.mjs` 直接 import。见 architecture.md §39 和 `src/README.md`。
 - 调试：拆分后的回归两次在 ATP 合酶报“核苷酸原子名匹配失败”，原代码同条件下通过——但不是拆分引入的：页面启动时默认载入 ATP 合酶，回归 3 秒后载入 4HHB 会取消它，若此刻某个小分子的 CCD cif 正在下载，`getTemplate` 退回到没有原子名的 SDF 并**永久缓存**；落在 ATP 上，之后所有 ATP 合酶载入的构象拟合都失败。用 `GLOW_SMOKE_JS` 复现同样时序，原代码也会把 LHG / CDL 退回 SDF（只是这次没落在 ATP 上）。修正：下载被取消（AbortError）时不退回、不缓存，直接抛出（旧载入本来就会转成 Stale）。
 - 验证：构建 `--check`、副本检查、`validate.mjs` 15 个全过；回归见提交说明。
+
+### WP2：场景会话与资源（2026-11-17）
+- 用户：继续做 WP2。
+- 做法：`src/core/session.js` 新增 `ResourceRegistry` / `SceneSession` / `LoadCoordinator`（见 architecture.md §40）。`loadScene` 拆成“只下载”和“替换 + 构建”两段，旧场景在新场景的数据全部到齐前不销毁；`clearScene` 变成 `loads.clear()` 的包装。
+- 调试：第一次在桌面版测“载入失败保留旧场景”时前后不一致——测试在启动后 3 秒就跑，开机默认场景还在构建中；测试改成先等没有载入在进行。下载失败原来用 `console.error`，回归会把它当页面错误；失败但保留了旧场景属于已处理的情况，改成 `console.warn`（构建阶段的真正错误仍是 error）。
+- 性能：旧场景留在屏幕上后，第一次回归里 4V6F / 7CGO 载入从 8–15 秒变成 36–43 秒——在没有 GPU 的机器上，旧的大场景每帧重画抢走了解析新条目的 CPU。改成载入期间旧场景“休息”：不跑模拟，每 2 秒才重画一次（用户拖动 / 缩放时照常重画）；翻译 → 鞭毛马达的载入从 41.8 秒回到 1.8 秒。
+- 已知限制：网格 / 材质还按原来的列表释放，没有逐个登记（WP5）；模拟状态还是全局变量（WP4）；在新场景构建中途再切换，旧的半成品会留到下一次替换为止。

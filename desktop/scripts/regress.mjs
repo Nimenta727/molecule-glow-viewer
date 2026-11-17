@@ -55,6 +55,15 @@ if (rep.revisit && first) {
   if (rep.revisit.textures > first.textures + 2) fails.push(`资源泄漏：纹理多了 ${rep.revisit.textures - first.textures} 个`);
   if (rep.revisit.objects > first.objects + 5) fails.push(`资源泄漏：场景对象多了 ${rep.revisit.objects - first.objects} 个`);
 }
+/* WP2: scene sessions. After every settled load exactly one session is alive (the one on screen) and none is pending;
+   its registry must not grow when the same scene is loaded again. */
+const sessionCheck = (label, s, ref) => {
+  if (!s) return;
+  if (s.alive !== 1 || s.pending != null) fails.push(`${label}：场景会话残留（存活 ${s.alive}，等待 ${s.pending}）`);
+  if (ref && s.total > ref.total) fails.push(`${label}：会话登记的资源 ${ref.total} → ${s.total}（${JSON.stringify(s.resources)}）`);
+};
+for (const sc of rep.scenes || []) sessionCheck(sc.key, sc.session);
+if (rep.revisit && first) sessionCheck(`回到 ${rep.revisit.key}`, rep.revisit.session, first.session);
 if (rep.revisit && first) {
   for (const k of ['overlayObjects', 'domTags', 'listeners']) if (first[k] != null && rep.revisit[k] > first[k] + (k === 'overlayObjects' ? 5 : 0))
     fails.push(`残留：回到 ${rep.revisit.key} 后 ${k} ${first[k]} → ${rep.revisit[k]}`);
@@ -71,6 +80,8 @@ if (rep.rapid) {   // rapid switch must end exactly like loading the last scene 
     if (R.procRootChildren > S.procRootChildren * 1.5 + 10) fails.push(`连切：过程对象残留 ${S.procRootChildren} → ${R.procRootChildren}`);
     if (R.pools > S.pools) fails.push(`连切：粒子池 ${S.pools} → ${R.pools}`);
   }
+  sessionCheck('连切', R.session, S?.session);
+  if (R.session) console.log(`连切后的场景会话：第 ${R.session.id} 个，存活 ${R.session.alive}，登记资源 ${JSON.stringify(R.session.resources)}`);
 }
 { const miss = new Set((rep.scenes || []).flatMap(x => x.procNoEvidence || [])); if (miss.size) fails.push(`这些内置过程没有声明证据等级（evidence）：${[...miss].join('、')}`); }
 const RRNA = { '16S': [1450, 1560], '23S': [2780, 2930], '5S': [105, 125] };   // 4V6F is Thermus thermophilus: 16S ~1518, 23S ~2915, 5S ~122 nt; allow unmodelled ends
@@ -90,12 +101,20 @@ for (const w of rep.twice || []) {   // the same scene twice in a row
   if (b.listeners > a.listeners) fails.push(`连载两次 ${w.key}：监听器 ${a.listeners} → ${b.listeners}`);
   if (b.domTags > a.domTags + 5) fails.push(`连载两次 ${w.key}：DOM 标签 ${a.domTags} → ${b.domTags}`);
   if (b.geometries > a.geometries + 10) fails.push(`连载两次 ${w.key}：几何体 ${a.geometries} → ${b.geometries}`);
+  sessionCheck(`连载两次 ${w.key}`, b.session, a.session);
 }
 /* round 4 checks */
 for (const sc of rep.scenes || []) if (sc.unnamedParticles) fails.push(`${sc.key}：${sc.unnamedParticles} 个粒子没有名字`);
 for (const sc of rep.scenes || []) if (sc.pendingAfterClear) fails.push(`${sc.key}：清场后还有 ${sc.pendingAfterClear} 个等待中的动画`);
 { const B = rep.backTest; if (!B) warns.push('没有返回导航测试'); else if (B.error) fails.push('返回导航：' + B.error); else { console.log(`返回导航：${B.mid?.key} → ${B.title}，差异 ${B.diff.length}`); for (const d of B.diff) fails.push('返回导航：' + d); } }
 { const A = rep.animTest; if (!A) warns.push('没有动画计数测试'); else if (A.error) fails.push('动画计数：' + A.error); else { console.log(`等待中的动画：运行中 ${A.mid}，清场后 ${A.afterClear}`); if (A.afterClear) fails.push(`清场后还有 ${A.afterClear} 个等待中的动画`); if (!(A.mid > 0)) warns.push('运行中没有测到等待中的动画（pendingAnims 计数可能没接上）'); } }
+{ const F = rep.failKeepTest; if (!F) warns.push('没有“载入失败保留旧场景”测试'); else if (F.error && !F.before) fails.push('载入失败测试：' + F.error); else {
+  const same = JSON.stringify(F.before) === JSON.stringify(F.after);
+  console.log(`载入失败（${F.error}）：旧场景${same ? '保留' : '变了'}，会话 ${F.before.session} → ${F.after.session}，残基 ${F.before.residues} → ${F.after.residues}，几何体 ${F.before.geometries} → ${F.after.geometries}`);
+  if (!F.failed) fails.push('载入失败测试：不存在的条目居然载入成功了');
+  if (!same) fails.push(`载入失败后旧场景变了：${JSON.stringify(F.before)} → ${JSON.stringify(F.after)}`);
+  if (!(F.before.residues > 0)) fails.push('载入失败测试：测试前没有场景');
+  if (F.alive !== 1 || F.pending != null) fails.push(`载入失败测试：场景会话残留（存活 ${F.alive}，等待 ${F.pending}）`); } }
 { const G = rep.bridgeTest; if (!G) warns.push('没有桥接测试'); else if (G.error) fails.push('桥接：' + G.error); else { console.log(`桥接：官方站 ${G.trustedOfficial}，其他站 ${G.trustedOther}，null ${G.trustedNull}`);
   if (!G.trustedOfficial || G.trustedOther || G.trustedNull) fails.push('桥接：信任名单不对'); if (G.unsafeAnswered.length) fails.push('桥接：未授权网页拿到了 ' + G.unsafeAnswered.join('、')); } }
 /* T10: console errors from the page fail the run, except known, harmless ones (whitelist) */

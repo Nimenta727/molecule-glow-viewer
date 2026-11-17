@@ -44,10 +44,17 @@ function updateScaleAll(dt) {
   const tl = timeLines(), note = !proc ? '时间：静态结构（团块抖动只是示意）' : tl.length ? tl.join('\n') : proc.timeScaleNote || (timeScale === 'fast' ? '时间：快放 · 粒子流表示通量方向和相对大小（仍比真实慢得多）' : '时间：慢放 · 每个分子事件单独画出，比真实慢许多个数量级');
   el.querySelector('.ts').textContent = note + ($('pause').checked ? '（已暂停）' : '');
 }
+frame.restT = frame.pokeT = 0;
+for (const ev of ['pointerdown', 'pointermove', 'wheel']) renderer.domElement.addEventListener(ev, (e) => { if (ev !== 'pointermove' || e.buttons) frame.pokeT = performance.now(); }, { passive: true });
 function frame() {
   requestAnimationFrame(frame);
+  /* WP2: while a new scene downloads, the old one stays on screen but rests (no simulation, one redraw every 2 s unless the
+     user is turning the view), so that downloading and parsing the new entry get the CPU on machines without a GPU
+     (a big scene redrawn 4x a second made the next load 5x slower) */
+  const resting = !!loads.pending;
+  if (resting) { const now = performance.now(); if (now - frame.restT < 2000 && now - frame.pokeT > 400) return; frame.restT = now; }
   const dt = Math.min(clock.getDelta(), 0.1);
-  if (!$('pause').checked) simStep(dt);
+  if (!$('pause').checked && !resting) simStep(dt);
   updateViewOffset(); updateScaleAll(dt);
   U.uUpView.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse);
   procRoot.position.copy(world.position); procRoot.quaternion.copy(world.quaternion); bulkRoot.visible = !!proc && $('procOn').checked && !(proc.level && proc.level !== 'machine');

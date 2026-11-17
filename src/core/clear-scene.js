@@ -1,4 +1,7 @@
-function clearScene() {
+/* clearScene(): the scene on screen is replaced by an empty one (its session is disposed). The scene's content is released by
+   clearSceneContent(), which every committed session registers first (so it runs last, after the scene's timers, listeners ...). */
+function clearScene() { loads.clear(); }
+function clearSceneContent() {
   crowdSets = []; seqCells = []; seqFt = null; if ($('seqRows')) $('seqRows').innerHTML = '';
   exitKit(); clearEvidence(); clearFocus(false); focusLigand._req = null; clearSelection(); camFly = null; energyKey = null;
   labels = []; $('labels').innerHTML = ''; $('infoCard').style.display = 'none';

@@ -29,7 +29,7 @@ WP1 第一步只**搬移**、不改逻辑：构建结果与拆分前的 `web/ind
 |---|---|---|
 | `styles/` | 全部 CSS | `viewer.css` |
 | `ui/body.html` | 面板、标题、按钮等 DOM | |
-| `core/` | 启动和场景生命周期 | `boot.js`（Three.js import、随机种子）、`utils.js`、`state.js`（场景全局状态）、`load-guard.js`（`loadSeq` / `Stale`）、`load-scene.js`（`loadScene`）、`clear-scene.js`、`start.js`（URL 参数、首个场景、`__viewer` 诊断）、`open-ws.js`（`?ws=`） |
+| `core/` | 启动和场景生命周期 | `boot.js`（Three.js import、随机种子）、`utils.js`、`session.js`（WP2：`ResourceRegistry` / `SceneSession` / `LoadCoordinator`，全局 `loads`）、`state.js`（场景全局状态）、`load-guard.js`（`loadSeq` / `Stale`）、`load-scene.js`（`loadScene`：先下载、再 `loads.commit` 换场景、再构建）、`clear-scene.js`（`clearScene` = `loads.clear()`，内容由 `clearSceneContent` 释放）、`start.js`（URL 参数、首个场景、`__viewer` 诊断）、`open-ws.js`（`?ws=`） |
 | `data/` | 数据：预设、解析、下载 | `presets.js`、`parse.js`（mmCIF / PDB）、`rcsb.js`（下载、缓存、CCD、UniProt）、`extra-entries.js`（场景里的其他 PDB 条目） |
 | `derived/` | 由坐标推导的结果 | `geometry.js`、`partition.js`（功能分区）、`selection.js`（选择集）、`tunnel.js`（孔道）、`pocket.js`（口袋表面 Worker）、`selection-language.js`（`parseSel` / `evalSel`） |
 | `repr/` | 表示 | `palettes.js`、`materials.js`、`cartoon.js`、`simplified.js`、`illustration.js`（白底墨线示意图）、`molecules.js`（小分子）、`crowding.js`（拥挤背景）、`rebuild.js`（重建网格 / 配体、上色）、`membrane.js` |

@@ -17,14 +17,18 @@ class LRU {
   clear() { this.m.clear(); this.size = 0; }
 }
 const cache = new LRU(200 * 1048576, (t) => (t?.length || 0) * 2);
-let netAC = new AbortController();   /* replaced by every loadScene: aborting it cancels the previous scene's downloads */
+/* RCSB / UniProt downloads belong to the newest load (loads.signal, src/core/session.js): a newer loadScene cancels them.
+   Each download in flight is registered in that session (probe().session.resources.fetch). */
 async function fetchText(url, opts) {
   const key = url + (opts ? JSON.stringify(opts) : '');
   if (cache.has(key)) return cache.get(key);
   const scened = /^https:\/\/(data|models|files|search)\.rcsb\.org\/|^https:\/\/rest\.uniprot\.org\//.test(url);
-  const r = await fetch(url, scened && !opts?.signal ? { ...(opts || {}), signal: netAC.signal } : opts);
-  if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
-  const t = await r.text(); cache.set(key, t); return t;
+  const S = loads.latest, tok = scened ? S.resources.add('fetch', {}, null) : null;
+  try {
+    const r = await fetch(url, scened && !opts?.signal ? { ...(opts || {}), signal: S.signal } : opts);
+    if (!r.ok) throw new Error(`下载失败 ${r.status}: ${url}`);
+    const t = await r.text(); cache.set(key, t); return t;
+  } finally { if (tok) S.resources.forget(tok); }
 }
 const kwMatch = (name, key) => {
   if (key.startsWith('/') && key.lastIndexOf('/') > 0) { const i = key.lastIndexOf('/'); return new RegExp(key.slice(1, i), key.slice(i + 1) || 'i').test(name); }
