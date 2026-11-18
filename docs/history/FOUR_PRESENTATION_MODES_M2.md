@@ -1,6 +1,6 @@
 # 四种展示模式 M2
 
-在新版 Viewer 点「四模式示例」，或打开 [four-modes-demo.glow](../apps/viewer-web/four-modes-demo.glow)。四种模式共用场景、文件操作和底部时间线。
+在新版 Viewer 点「四模式示例」，或打开 [four-modes-demo.glow](../../apps/viewer-web/four-modes-demo.glow)。四种模式共用场景、文件操作和底部时间线。
 
 | 模式 | 操作 |
 | --- | --- |

@@ -4,7 +4,7 @@
 > **日期**：2026-11-17  
 > **目标仓库**：Nimenta727/molecule-glow-viewer  
 > **原则**：保留已有功能与科学内容，通过分阶段迁移完成平台化，不采取一次性推倒重写。  
-> **关联文档**：[现有开发总纲](DEVELOPMENT_FRAMEWORK.md)、[源码说明](../src/README.md)、[场景包 v1](../workshop/SCHEMA.md)、[桌面端说明](../desktop/README.md)。
+> **关联文档**：[现有开发总纲](DEVELOPMENT_FRAMEWORK.md)、[源码说明](../../src/README.md)、[场景包 v1](../../workshop/SCHEMA.md)、[桌面端说明](../../desktop/README.md)。
 
 ## 0. 执行摘要
 

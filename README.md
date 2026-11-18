@@ -18,12 +18,12 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
 
-总体开发框架和当前状态：[docs/DEVELOPMENT_FRAMEWORK.md](docs/DEVELOPMENT_FRAMEWORK.md)。历史审计、路线图和交接文档见 [docs/history/](docs/history/)。
+当前功能差距与继承风险：[审计报告](docs/AUDIT_REPORT_2026-11-18.md)；总体规划摘要和历史规划见 [docs/history/](docs/history/OVERALL_PLAN_SUMMARY.md)。
 
 经典 Viewer 源码在 [`src/`](src/)。`node tools/build.mjs` 将源码生成到 `web/index.html`，供经典网页版、桌面版的经典工作区和 skill 使用。新版 Viewer 和 Studio 共用新平台 Core。
 
 ## 四个层级 · 三种用途
-同一套数据模型的四种视图，服务三种用途。完整规划见 [总体开发框架](docs/DEVELOPMENT_FRAMEWORK.md)；历史工作包见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
+同一套数据模型的四种视图，服务三种用途。规划摘要见 [整体规划](docs/history/OVERALL_PLAN_SUMMARY.md)；旧工作包记录见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
 
 | 层级 | 看什么 | 例子 |
 |---|---|---|
@@ -82,6 +82,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 - 具体工程实施规范：见 [历史平台工程规范](docs/history/PLATFORM_ENGINEERING_SPEC.md)。
 - 分子机理平台：聚焦单个小分子或蛋白质的结合、催化、构象、电子/质子转移和门控步骤。
 - **历史开发规划和交接文档**：见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 和 [docs/history/HANDOFF_CORE_PLUGINS.md](docs/history/HANDOFF_CORE_PLUGINS.md)。
+- **Claude 前端主体与插件迁移建议**：[docs/PLUGIN_MIGRATION_PROPOSAL.md](docs/PLUGIN_MIGRATION_PROPOSAL.md)。
 
 ## 数据来源与引用
 所有结构数据来自 RCSB PDB，使用时请引用 PDB 以及各结构的原始论文：

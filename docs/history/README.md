@@ -2,7 +2,7 @@
 
 这里保存项目早期的审计、路线图、平台规范和交接文档。它们用于追踪设计决策、历史问题和已完成工作的背景。
 
-当前开发以 [`../DEVELOPMENT_FRAMEWORK.md`](../DEVELOPMENT_FRAMEWORK.md) 为总纲；历史文档中的任务清单、代码行号和状态可能已经过时，使用前应与当前源码核对。
+本目录保存旧总体规划、架构重构计划、审计、路线图和已完成工作包记录。快速了解整体方向请读 [`OVERALL_PLAN_SUMMARY.md`](OVERALL_PLAN_SUMMARY.md)；当前代码差距见 [`../AUDIT_REPORT_2026-11-18.md`](../AUDIT_REPORT_2026-11-18.md)，当前插件继承方案见 [`../PLUGIN_MIGRATION_PROPOSAL.md`](../PLUGIN_MIGRATION_PROPOSAL.md)。历史文档中的任务清单、代码行号和状态可能已经过时，使用前应与当前源码核对。
 
 | 文档 | 用途 |
 |---|---|

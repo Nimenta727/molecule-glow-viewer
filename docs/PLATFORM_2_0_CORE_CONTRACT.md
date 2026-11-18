@@ -1,6 +1,6 @@
 # Platform 2.0 Core contracts
 
-These decisions cover the P1 prototype. The [architecture roadmap](PLATFORM_2_0_REFACTOR_PLAN.md) assigns published schemas and packaging to P2.
+These decisions cover the P1 prototype. The [archived architecture roadmap](history/PLATFORM_2_0_REFACTOR_PLAN.md) assigns published schemas and packaging to P2.
 
 ## ADR-001 · Core and application boundaries
 

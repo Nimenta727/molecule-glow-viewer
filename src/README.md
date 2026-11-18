@@ -1,6 +1,6 @@
 # src/ —— 查看器源码
 
-从 WP1 起（[docs/DEVELOPMENT_FRAMEWORK.md](../docs/DEVELOPMENT_FRAMEWORK.md)；历史工作包见 [docs/history/HANDOFF_PLAN.md](../docs/history/HANDOFF_PLAN.md)），**`src/` 是查看器唯一的源**。`web/index.html` 和 `web/dev.html` 由构建生成，**不要手改**；`skill/assets/*.html`、`desktop/app/` 是 `web/` 的副本。
+从 WP1 起（总体规划摘要见 [docs/history/OVERALL_PLAN_SUMMARY.md](../docs/history/OVERALL_PLAN_SUMMARY.md)；历史工作包见 [docs/history/HANDOFF_PLAN.md](../docs/history/HANDOFF_PLAN.md)），**`src/` 是经典查看器唯一的源**。`web/index.html` 和 `web/dev.html` 由构建生成，**不要手改**；`skill/assets/*.html`、`desktop/app/` 是 `web/` 的副本。
 
 ```bash
 node tools/build.mjs            # src/ → web/index.html + web/dev.html
