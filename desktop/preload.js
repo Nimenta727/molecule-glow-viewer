@@ -2,7 +2,7 @@
 // to know it is running as the app (the same index.html also runs on the web).
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('glowDesktop', {
-  version: '0.3.2',
+  version: '0.4.0',
   startupSkip: Boolean(process.env.GLOW_SMOKE || process.env.GLOW_REGRESS),
   cacheInfo: () => ipcRenderer.invoke('glow:cache-info'),
   clearCache: () => ipcRenderer.invoke('glow:cache-clear'),

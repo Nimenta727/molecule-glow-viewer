@@ -9,7 +9,7 @@
 - **外部链接**（DOI、UniProt 页面）用系统浏览器打开。
 
 ## 下载
-到 [Releases](https://github.com/Nimenta727/molecule-glow-viewer/releases) 下载 `GlowStudio-x.y.z-portable.exe`，双击即可运行，不需要安装。
+从 [最新发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/latest) 下载 `MoleculeGlow-0.4.0-win-x64.exe`，双击即可运行。默认打开新版 Viewer，通过「工作区」菜单切换 Studio、经典 Viewer 和开发者工作台。[0.3.2 历史发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.3.2)继续保留。
 
 第一次打开某个结构仍需要联网。
 
@@ -34,9 +34,11 @@ node scripts/regress.mjs --accept  # 确认这次结果正确后，存为新基�
 - **只警告**：FPS 下降、载入变慢（和机器有关）。
 - 页面里也能用：控制台 `await __viewer.probe(3)`。
 
-打包 Windows 便携版 exe，输出在 `dist/`：
+在仓库根目录执行下列命令打包 Windows x64 便携版，输出在 `desktop/dist/release/`。新版打包需要 Node.js 20 或更高版本。
 ```bash
-npm run dist
+npm ci
+npm ci --prefix desktop
+npm run dist --prefix desktop
 ```
 
 ## 结构

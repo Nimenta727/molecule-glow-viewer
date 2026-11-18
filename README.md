@@ -1,5 +1,9 @@
 # 分子光影查看器 · Molecule Glow Viewer
 
+**Windows 最新版 · 0.4.0**　[下载便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.4.0/MoleculeGlow-0.4.0-win-x64.exe) · [发布说明](https://github.com/Nimenta727/molecule-glow-viewer/releases/latest) · [历史桌面版 0.3.2](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.3.2)
+
+`0.4.0` 默认打开新版 Viewer。从窗口的「工作区」菜单可切换到 Studio 制作台、经典 Viewer 或开发者工作台。新版源码入口见 [Viewer](apps/viewer-web/) 与 [Studio](apps/studio-web/)。
+
 实时、可从任意角度旋转的蛋白质 / 分子机器 3D 查看器：白底墨线的插画风格，剖开的脂双层膜、转动的转子、从溶液里扩散过来的小分子和离子，从单个蛋白一直到整个细胞。任何 PDB 编号都直接从 [RCSB PDB](https://www.rcsb.org) 实时下载。
 
 A single-file, real-time Three.js viewer for proteins, molecular machines and their small molecules, with interaction animations and a teaching mode. Structures are downloaded live from the RCSB PDB.
@@ -16,7 +20,7 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 
 总体开发框架和当前状态：[docs/DEVELOPMENT_FRAMEWORK.md](docs/DEVELOPMENT_FRAMEWORK.md)。历史审计、路线图和交接文档见 [docs/history/](docs/history/)。
 
-三者共用同一个查看器文件：源码在 [`src/`](src/)（按数据 / 推导 / 表示 / 模拟 / 场景包 / 界面分目录），`node tools/build.mjs` 把它拼成单文件 `web/index.html`（生成物，不要手改）；桌面版打包它，skill 里的 `assets/viewer.html` 是它的副本。
+经典 Viewer 源码在 [`src/`](src/)。`node tools/build.mjs` 将源码生成到 `web/index.html`，供经典网页版、桌面版的经典工作区和 skill 使用。新版 Viewer 和 Studio 共用新平台 Core。
 
 ## 四个层级 · 三种用途
 同一套数据模型的四种视图，服务三种用途。完整规划见 [总体开发框架](docs/DEVELOPMENT_FRAMEWORK.md)；历史工作包见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
