@@ -31,7 +31,7 @@ Codex 已建立可继续扩展的技术底座：Core/Schema、Studio MVP、v2 �
 
 **影响：** 15 个旧官方包的结构和过程不能仅凭“字段已保留”推定在新版 Viewer 可见。包内嵌坐标和仅引用 PDB 的情况还应分别验证。
 
-**证据：** `packages/legacy-compat/index.mjs` 中 accession→external 资产逻辑；`apps/viewer-web/scene-io.mjs` 的 `openSceneFile()`；`apps/viewer-web/main.mjs` 的 `restoreStructureModel()`；兼容清单 `docs/PLATFORM_2_0_COMPATIBILITY.md`。
+**证据：** `packages/legacy-compat/index.mjs` 中 accession→external 资产逻辑；`apps/viewer-web/scene-io.mjs` 的 `openSceneFile()`；`apps/viewer-web/main.mjs` 的 `restoreStructureModel()`；兼容清单 `docs/history/PLATFORM_2_0_COMPATIBILITY.md`。
 
 **建议：** 加载迁移后的 external asset 时调用 RCSB 适配器并记录来源/缓存；无网络时提示并保留兼容 Viewer 入口。按 15 个官方包逐个记录可见结构、静态状态、播放支持与降级提示。
 

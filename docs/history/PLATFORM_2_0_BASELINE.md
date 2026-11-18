@@ -1,6 +1,6 @@
 # Platform 2.0 migration baseline
 
-The legacy reference is commit [`32555cca`](https://github.com/Nimenta727/molecule-glow-viewer/commit/32555cca1849821a4eeafe81cd544bf11655cf61). Keep comparisons pinned to that commit and consult the [compatibility inventory](../PLATFORM_2_0_COMPATIBILITY.md) for entry points and input fixtures.
+The legacy reference is commit [`32555cca`](https://github.com/Nimenta727/molecule-glow-viewer/commit/32555cca1849821a4eeafe81cd544bf11655cf61). Keep comparisons pinned to that commit and consult the [compatibility inventory](PLATFORM_2_0_COMPATIBILITY.md) for entry points and input fixtures.
 
 ## Reproduce the baseline
 

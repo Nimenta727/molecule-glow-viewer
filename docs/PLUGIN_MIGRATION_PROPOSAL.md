@@ -119,7 +119,7 @@
 - Claude 主体源码与构建：`src/`、`tools/build.mjs`、`web/index.html`。
 - Codex Viewer/Studio：`apps/viewer-web/`、`apps/studio-web/`。
 - 插件宿主和结构插件：`packages/plugin-host/index.mjs`、`plugins/structure/`、`plugins/rcsb/`。
-- 新场景与包契约：`packages/schema/`、`packages/core/`、`packages/legacy-compat/`、`docs/PLATFORM_2_0_PACKAGE_AND_PLUGINS.md`。
-- 已迁移旧版语义与兼容约定：`docs/PLATFORM_2_0_COMPATIBILITY.md`。
+- 新场景与包契约：`packages/schema/`、`packages/core/`、`packages/legacy-compat/`、`docs/history/PLATFORM_2_0_PACKAGE_AND_PLUGINS.md`。
+- 已迁移旧版语义与兼容约定：`docs/history/PLATFORM_2_0_COMPATIBILITY.md`。
 - Codex 四模式实施记录：`docs/history/FOUR_PRESENTATION_MODES_M0.md`、`M1.md`、`M2.md`。
 

@@ -64,5 +64,6 @@ M0–M2 已在新版 Viewer 实现示意数据、导航/返回、镜头过渡、
 - [`HANDOFF_PLAN.md`](history/HANDOFF_PLAN.md)、[`HANDOFF_CORE_PLUGINS.md`](history/HANDOFF_CORE_PLUGINS.md)：旧工作包和 Core/插件交接。
 - [`HANDOFF_FOUR_PRESENTATION_MODES.md`](history/HANDOFF_FOUR_PRESENTATION_MODES.md)、[`FOUR_PRESENTATION_MODES_M0.md`](history/FOUR_PRESENTATION_MODES_M0.md)–[`M2.md`](history/FOUR_PRESENTATION_MODES_M2.md)：四模式已完成工作记录。
 - [`PLATFORM_2_0_BASELINE.md`](history/PLATFORM_2_0_BASELINE.md)、[`PLATFORM_AUDIT_REPORT.md`](history/PLATFORM_AUDIT_REPORT.md)、[`PLATFORM_ENGINEERING_SPEC.md`](history/PLATFORM_ENGINEERING_SPEC.md)、[`AI_AUDIT_AND_STABILIZATION.md`](history/AI_AUDIT_AND_STABILIZATION.md)、[`AUDIT_ROUND2.md`](history/AUDIT_ROUND2.md)、[`ROADMAP.md`](history/ROADMAP.md)：历史基线、审计、工程建议及早期路线。
+- [`PLATFORM_2_0_COMPATIBILITY.md`](history/PLATFORM_2_0_COMPATIBILITY.md)、[`PLATFORM_2_0_CORE_CONTRACT.md`](history/PLATFORM_2_0_CORE_CONTRACT.md)、[`PLATFORM_2_0_PACKAGE_AND_PLUGINS.md`](history/PLATFORM_2_0_PACKAGE_AND_PLUGINS.md)：旧版兼容、Core 和插件/包契约参考。
 
-当前场景和插件契约仍在 `docs/PLATFORM_2_0_*.md`；旧版兼容检查清单是现行迁移参照。它们与本目录归档计划的定位不同。
+旧场景和插件契约、兼容检查清单现已统一归档在 `docs/history/PLATFORM_2_0_*.md`，可作为迁移时的技术参考。当前迁移目标和优先级以本目录中的审计报告与插件建议为准。
