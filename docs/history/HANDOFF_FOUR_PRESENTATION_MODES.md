@@ -4,7 +4,7 @@
 
 | 时间及节点 | 已完成或已决定的事项 | 交接意义 |
 | --- | --- | --- |
-| 2026-11-17，旧版基准 `32555cc` | 经典 Web/Windows Viewer 已有结构、机制动画、模拟和工坊内容。相关功能及回归基线记录在 `PLATFORM_2_0_BASELINE.md` 与 `PLATFORM_2_0_COMPATIBILITY.md`。 | 经典版是行为参照，不把已有演示内容当成新平台已迁移的能力。 |
+| 2026-11-17，旧版基准 `32555cc` | 经典 Web/Windows Viewer 已有结构、机制动画、模拟和工坊内容。相关功能及回归基线记录在 [`PLATFORM_2_0_BASELINE.md`](PLATFORM_2_0_BASELINE.md) 与 [`PLATFORM_2_0_COMPATIBILITY.md`](../PLATFORM_2_0_COMPATIBILITY.md)。 | 经典版是行为参照，不把已有演示内容当成新平台已迁移的能力。 |
 | P1–P4，提交 `f1e2281` 至 `9c036e0` | 建立独立 Core、Viewer、`.glow` v2 与官方插件接口，完成基础结构插件及 Studio→Viewer 工作流。 | 四种展示模式应复用同一场景文档、时间线和视口。 |
 | UI 阶段，提交 `3b3c6a0` | 加入启动过场，重排 Studio、新 Viewer 和经典桌面界面。 | 沿用现有画风及交互入口，避免再做一次无关的视觉改版。 |
 | Windows 0.4.0，提交 `0aaf472` | 新 Viewer 成为 EXE 默认工作区，Studio 与经典 Viewer 可通过工作区菜单进入；该提交已发布至 GitHub `main`，标签 `desktop-v0.4.0`。 | 本文以该发布为实施起点。0.3.2 保留为历史发布。 |

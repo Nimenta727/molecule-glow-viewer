@@ -1,6 +1,6 @@
 # Molecule Glow 整体规划摘要
 
-> 本文归纳仓库早期的 `DEVELOPMENT_FRAMEWORK`、Platform 2.0 重构计划、四模式交接/实施记录、旧版审计与兼容清单。详细原文已归档在本目录，供追溯设计背景；本摘要用来快速理解项目方向和阶段变化。当前功能状态以源码与 [审计报告](../AUDIT_REPORT_2026-11-18.md) 为准。
+> 本文归纳仓库早期的 `DEVELOPMENT_FRAMEWORK`、Platform 2.0 重构计划、四模式交接/实施记录、旧版审计与兼容清单。详细原文已归档在 `docs/history/`，供追溯设计背景；本摘要用来快速理解项目方向和阶段变化。当前功能状态以源码与 [审计报告](AUDIT_REPORT_2026-11-18.md) 为准。
 
 ## 产品目标
 
@@ -59,10 +59,10 @@ M0–M2 已在新版 Viewer 实现示意数据、导航/返回、镜头过渡、
 
 ## 归档资料索引
 
-- `DEVELOPMENT_FRAMEWORK.md`：旧总体开发总纲。
-- `PLATFORM_2_0_REFACTOR_PLAN.md`：平台化目标与阶段计划。
-- `HANDOFF_PLAN.md`、`HANDOFF_CORE_PLUGINS.md`：旧工作包和 Core/插件交接。
-- `HANDOFF_FOUR_PRESENTATION_MODES.md`、`FOUR_PRESENTATION_MODES_M0.md`–`M2.md`：四模式已完成工作记录。
-- `PLATFORM_AUDIT_REPORT.md`、`PLATFORM_ENGINEERING_SPEC.md`、`AI_AUDIT_AND_STABILIZATION.md`、`AUDIT_ROUND2.md`、`ROADMAP.md`：历史审计、工程建议及早期路线。
+- [`DEVELOPMENT_FRAMEWORK.md`](history/DEVELOPMENT_FRAMEWORK.md)：旧总体开发总纲。
+- [`PLATFORM_2_0_REFACTOR_PLAN.md`](history/PLATFORM_2_0_REFACTOR_PLAN.md)：平台化目标与阶段计划。
+- [`HANDOFF_PLAN.md`](history/HANDOFF_PLAN.md)、[`HANDOFF_CORE_PLUGINS.md`](history/HANDOFF_CORE_PLUGINS.md)：旧工作包和 Core/插件交接。
+- [`HANDOFF_FOUR_PRESENTATION_MODES.md`](history/HANDOFF_FOUR_PRESENTATION_MODES.md)、[`FOUR_PRESENTATION_MODES_M0.md`](history/FOUR_PRESENTATION_MODES_M0.md)–[`M2.md`](history/FOUR_PRESENTATION_MODES_M2.md)：四模式已完成工作记录。
+- [`PLATFORM_2_0_BASELINE.md`](history/PLATFORM_2_0_BASELINE.md)、[`PLATFORM_AUDIT_REPORT.md`](history/PLATFORM_AUDIT_REPORT.md)、[`PLATFORM_ENGINEERING_SPEC.md`](history/PLATFORM_ENGINEERING_SPEC.md)、[`AI_AUDIT_AND_STABILIZATION.md`](history/AI_AUDIT_AND_STABILIZATION.md)、[`AUDIT_ROUND2.md`](history/AUDIT_ROUND2.md)、[`ROADMAP.md`](history/ROADMAP.md)：历史基线、审计、工程建议及早期路线。
 
 当前场景和插件契约仍在 `docs/PLATFORM_2_0_*.md`；旧版兼容检查清单是现行迁移参照。它们与本目录归档计划的定位不同。

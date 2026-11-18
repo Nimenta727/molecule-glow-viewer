@@ -18,12 +18,12 @@ A single-file, real-time Three.js viewer for proteins, molecular machines and th
 | [`skill/`](skill/) | **制作 skill**：教人或 AI（Claude Code、ChatGPT……）怎样在这个查看器上做新的结构、机制动画和模拟 | 想自己做场景的人 |
 | [`workshop/`](workshop/) | **创意工坊**：官方源和社区源的场景包（`.glow`）、格式说明、自动检查和投稿机器人 | 想分享场景的人 |
 
-当前功能差距与继承风险：[审计报告](docs/AUDIT_REPORT_2026-11-18.md)；总体规划摘要和历史规划见 [docs/history/](docs/history/OVERALL_PLAN_SUMMARY.md)。
+当前功能差距与继承风险：[审计报告](docs/AUDIT_REPORT_2026-11-18.md)；整体规划：[规划摘要](docs/OVERALL_PLAN_SUMMARY.md)，历史资料见 [docs/history/](docs/history/)。
 
 经典 Viewer 源码在 [`src/`](src/)。`node tools/build.mjs` 将源码生成到 `web/index.html`，供经典网页版、桌面版的经典工作区和 skill 使用。新版 Viewer 和 Studio 共用新平台 Core。
 
 ## 四个层级 · 三种用途
-同一套数据模型的四种视图，服务三种用途。规划摘要见 [整体规划](docs/history/OVERALL_PLAN_SUMMARY.md)；旧工作包记录见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
+同一套数据模型的四种视图，服务三种用途。规划摘要见 [整体规划](docs/OVERALL_PLAN_SUMMARY.md)；旧工作包记录见 [docs/history/HANDOFF_PLAN.md](docs/history/HANDOFF_PLAN.md) 第 1 节。
 
 | 层级 | 看什么 | 例子 |
 |---|---|---|
