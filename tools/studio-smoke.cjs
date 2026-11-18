@@ -164,12 +164,16 @@ async function verifyNavigation(viewer, directory) {
     const create = gl.createBuffer.bind(gl), release = gl.deleteBuffer.bind(gl);
     gl.createBuffer = () => { const buffer = create(); if (buffer) probe.buffers.add(buffer); return buffer; };
     gl.deleteBuffer = buffer => { probe.buffers.delete(buffer); release(buffer); };
+    const draw = gl.drawArrays.bind(gl);
+    gl.drawArrays = (mode, start, count) => {
+      if (mode === gl.LINES && count) probe.lineVertices = count;
+      draw(mode, start, count);
+    };
   })()`);
   await click('#four-modes-example');
   await waitFor(viewer, "document.querySelector('#navigation-heading').dataset.mode === 'cell'", 'demo button opens cell');
   const root = await settle();
   assert.ok(root.buffers > 0, 'demo has live geometry buffers');
-  const cellImage = await imageHash();
   const hotspotPoint = await evaluate(`(() => {
     const {x,y,width,height} = document.querySelector('#viewport canvas').getBoundingClientRect();
     return {x: x + width * 0.58, y: y + height * 0.60};
@@ -181,6 +185,8 @@ async function verifyNavigation(viewer, directory) {
   }
   assert.equal((await state()).selected, '当前选择：传递区');
   assert.equal(await evaluate("document.querySelector('.is-hotspot')?.dataset.viewId"), 'view-system');
+  await settle();
+  const cellImage = await imageHash();
   await enter('system');
   const system = await settle();
   assert.ok(system.frames - root.frames > 2, `normal camera navigation animates (${system.frames - root.frames} frames)`);
@@ -269,9 +275,95 @@ async function verifyNavigation(viewer, directory) {
   await click('#example');
   await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'ordinary scene replaces navigation');
   assert.equal((await state()).mode, null);
+  assert.equal(await evaluate("document.querySelector('#mode-panel').hidden"), true);
   assert.ok((await settle()).buffers < root.buffers, 'replacement releases navigation geometry');
   await click('#close');
   assert.equal((await settle()).buffers, 0, 'closing releases all sampled geometry buffers');
+
+  const step = () => evaluate("document.querySelector('#mode-panel [aria-current=step]')?.dataset.step");
+  const seek = (time) => evaluate(`(() => {
+    const playhead = document.querySelector('#playhead');
+    playhead.value = ${time};
+    playhead.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await click('#four-modes-example');
+  await waitFor(viewer, "document.querySelector('#navigation-heading').dataset.mode === 'cell'", 'mode panel example opens');
+  assert.match(await evaluate("document.querySelector('#mode-panel').textContent"), /细胞区域.*\+Y 向上/);
+  await click('#mode-panel [data-node-id="region"]');
+  assert.equal((await state()).selected, '当前选择：传递区');
+  await enter('system');
+  assert.match(await evaluate("document.querySelector('#mode-panel').textContent"), /系统对象.*示意方向.*起点 → 示意接触点/);
+  await settle();
+  assert.equal(await evaluate('navigationProbe.lineVertices'), 12, 'system draws two directed connections');
+  await captureWindow(viewer, directory, 'viewer-system');
+  await enter('protein');
+  await settle();
+  const proteinImage = await imageHash();
+  assert.equal(await evaluate("document.querySelectorAll('#mode-panel [data-node-id]').length"), 3);
+  await click('#mode-panel [data-node-id="binding-site"]');
+  assert.equal((await state()).selected, '当前选择：示意接触点');
+  assert.equal(await evaluate("document.querySelector('#mode-panel [data-node-id=binding-site]').getAttribute('aria-pressed')"), 'true');
+  await click('#mode-panel [data-rotate="1"]');
+  await settle();
+  assert.notEqual(await imageHash(), proteinImage, 'protein controls change the view');
+  await click('#reset-camera');
+  await settle();
+  const callerImage = await imageHash();
+  await captureWindow(viewer, directory, 'viewer-protein');
+
+  await enter('mechanism');
+  assert.equal(await step(), '0');
+  assert.match(await evaluate("document.querySelector('#mode-panel').textContent"), /参与对象：示意颗粒、示意接触点/);
+  await seek(2.5);
+  assert.equal(await step(), '1');
+  await settle();
+  assert.equal(await evaluate('navigationProbe.lineVertices'), 48, 'step draws two participant highlights');
+  const contactImage = await imageHash();
+  await click('#mode-panel [data-step="2"]');
+  assert.equal(await step(), '2');
+  assert.equal(await evaluate("document.querySelector('#playhead').value"), '4');
+  await settle();
+  assert.notEqual(await imageHash(), contactImage, 'step changes scene pose and highlight');
+  await seek(1.7);
+  assert.equal(await step(), '0');
+  await click('#play');
+  await waitFor(viewer, "document.querySelector('#mode-panel [aria-current=step]')?.dataset.step === '1'", 'playback advances the mechanism step');
+  await click('#play');
+  assert.equal(await step(), '1');
+  assert.equal(await evaluate("document.querySelector('#play').textContent"), '播放');
+  await captureWindow(viewer, directory, 'viewer-mechanism');
+  await back();
+  assert.equal((await state()).mode, 'protein');
+  assert.equal((await state()).selected, '当前选择：示意接触点');
+  await settle();
+  assert.equal(await imageHash(), callerImage, 'mechanism returns to isolated protein with restored camera');
+  await back();
+  await enter('mechanism');
+  assert.equal(await step(), '1', 'both entrances use the shared timeline');
+  await back();
+  assert.equal((await state()).mode, 'system');
+  await click('#close');
+  assert.equal((await settle()).buffers, 0, 'mode overlays dispose with their scene');
+
+  const { fourModesDemo } = await import(pathToFileURL(path.join(repo, 'apps/viewer-web/four-modes-demo.mjs')));
+  const { writeScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
+  const untimed = structuredClone(fourModesDemo);
+  untimed.timeline = { duration: 0, tracks: [] };
+  const mechanism = untimed.presentation.navigation.views.find(({ mode }) => mode === 'mechanism');
+  for (const item of mechanism.steps) delete item.time;
+  untimed.nodes.find(({ id }) => id === 'protein').visible = false;
+  await injectFile(viewer, { name: 'untimed.glow', data: await writeScenePackage(untimed), input: '#file' });
+  await waitFor(viewer, "document.querySelector('#status').textContent === 'untimed.glow'", 'untimed mechanism opens');
+  await enter('system');
+  assert.equal(await evaluate("Boolean(document.querySelector('#mode-panel [data-node-id=protein]'))"), false);
+  await enter('mechanism');
+  assert.equal(await step(), '0');
+  await click('#mode-panel [data-step="1"]');
+  assert.equal(await step(), '1');
+  assert.equal(await evaluate("document.querySelector('#playhead').disabled"), true);
+  await settle();
+  assert.equal(await evaluate('navigationProbe.lineVertices'), 24, 'hidden descendants do not receive outlines');
+  await click('#close');
 }
 
 function pdbAtom(serial, seq, x, y = 0, z = 0) {
@@ -481,7 +573,7 @@ async function run() {
       keyframes: 2, notes: exportedScene.presentation.notes.length, evidence: exportedScene.evidence.length,
       bookmarks: exportedScene.presentation.bookmarks.length, viewerPlayback: true, inspectorUndoRedo: true,
       ...(m0Output ? { m0PresentationRoundTrip: true, olderV1Import: true, failedLoadRetainsScene: true } : {}),
-      ...(m1Output ? { m1Navigation: true, reducedMotion: true, navigationResourcesReleased: true } : {}),
+      ...(m1Output ? { m1Navigation: true, reducedMotion: true, navigationResourcesReleased: true, m2ModePanels: true } : {}),
       gizmoAxisPixels: gizmoView.axes, noExternalRequests: true,
     }));
   } finally {

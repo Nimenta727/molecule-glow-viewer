@@ -6,6 +6,7 @@ import { createPluginHost } from '../../packages/plugin-host/index.mjs';
 import { exampleScene } from './example-scene.mjs';
 import { fromPrototype, geometryLayers, isStructureFile, openSceneFile } from './scene-io.mjs';
 import { createSceneNavigation } from './scene-navigation.mjs';
+import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 
 const elements = Object.fromEntries(
@@ -88,6 +89,22 @@ function boot() {
       setStatus(node ? `已选择 ${node.name}` : (active?.name ?? '场景已关闭'));
     },
   });
+  const modePanel = createModePanel(elements['mode-panel'], {
+    onObject(id) {
+      active.navigation.select(id);
+      showNavigationSelection();
+      viewport.focusNode(id, { duration: cameraDuration() });
+    },
+    onStep(step) {
+      if (step.time !== undefined) {
+        active.timeline.pause();
+        stopFrame();
+        active.timeline.seek(step.time);
+      }
+      showPose();
+    },
+    onRotate(direction) { viewport.orbitBy(direction * Math.PI / 8, { duration: cameraDuration() }); },
+  });
   const scenes = createLoadCoordinator({
     async prepare(input, { signal, scope }) {
       let loaded;
@@ -119,7 +136,12 @@ function boot() {
       const store = createDocumentStore(toCoreDocument(loaded.scene, new Set(layers.keys())));
       const document = store.getSnapshot();
       const timeline = createTimeline(document.timeline);
-      const prepared = viewport.prepare(document, layers);
+      const views = loaded.scene.presentation?.navigation?.views ?? [];
+      const overlayCapacity = views.reduce((capacity, { steps, connections }) => {
+        const highlights = (steps ?? []).reduce((max, { nodeIds }) => Math.max(max, nodeIds.length), 1);
+        return Math.max(capacity, (connections?.length ?? 0) * 6 + highlights * 24);
+      }, 0);
+      const prepared = viewport.prepare(document, layers, { overlayCapacity });
       scope.add(() => prepared.dispose());
       const navigation = createSceneNavigation(loaded.scene.presentation?.navigation, document.nodes);
       const nodes = new Map(loaded.scene.nodes.map((node) => [node.id, node]));
@@ -133,10 +155,10 @@ function boot() {
       active = scene;
       elements['chain-id'].value = '';
       elements['residue-id'].value = '';
+      showNavigation();
       showPose();
       showDiagnostics();
       focusCurrentView(0);
-      showNavigation();
       showPresentation();
       if (restoreFocus) (scene.navigation ? elements['navigation-heading'] : elements.open).focus();
       setStatus(scene.name);
@@ -158,14 +180,35 @@ function boot() {
 
   function showPose() {
     if (active) viewport.applyPose(active.timeline.sample());
+    syncMode();
     syncControls();
+  }
+
+  function syncMode() {
+    const navigation = active?.navigation;
+    if (!navigation) return;
+    const view = navigation.current();
+    const selected = navigation.selection();
+    const step = modePanel.syncStep(active.timeline.time);
+    const previous = active.modeState;
+    if (previous?.view === view && previous.selected === selected && previous.step === step) return;
+    active.modeState = { view, selected, step };
+    const hotspot = navigation.hotspotFor(selected);
+    const highlightedIds = view.mode === 'mechanism' ? (step?.nodeIds ?? [])
+      : selected !== view.nodeId ? [hotspot?.hotspotNodeId ?? selected] : [];
+    viewport.setPresentation({ rootId: view.nodeId, highlightedIds, connections: view.connections });
   }
 
   function focusCurrentView(duration) {
     const view = active?.navigation?.current();
     if (!view) return;
     const bookmark = active.scene.presentation.bookmarks.find(({ id }) => id === view.bookmarkId);
-    viewport.focusNode(view.nodeId, { bookmark, duration });
+    const includeIds = new Set([
+      ...(view.connections ?? []).flatMap(({ from, to }) => [from, to]),
+      ...(view.steps ?? []).flatMap(({ nodeIds }) => nodeIds),
+    ]);
+    includeIds.delete(view.nodeId);
+    viewport.focusNode(view.nodeId, { bookmark, duration, includeIds });
   }
 
   function showNavigationSelection() {
@@ -174,6 +217,7 @@ function boot() {
     const selected = navigation.selection();
     const hotspot = navigation.hotspotFor(selected);
     const node = active.nodes.get(hotspot?.hotspotNodeId ?? selected);
+    modePanel.syncSelection(node.id);
     elements['navigation-selection'].textContent = `当前选择：${node.name || node.id}`;
     for (const button of elements['navigation-entries'].children) {
       const isHotspot = button.dataset.viewId === hotspot?.id;
@@ -181,12 +225,14 @@ function boot() {
       if (isHotspot) button.setAttribute('aria-describedby', 'navigation-selection');
       else button.removeAttribute('aria-describedby');
     }
+    syncMode();
   }
 
   function showNavigation() {
     const navigation = active?.navigation;
     const panel = elements['scene-navigation'];
     panel.hidden = !navigation;
+    modePanel.show(navigation?.current(), active?.nodes, navigation?.children());
     elements['navigation-path'].replaceChildren();
     elements['navigation-entries'].replaceChildren();
     if (!navigation) {

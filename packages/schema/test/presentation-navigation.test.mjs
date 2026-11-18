@@ -35,6 +35,8 @@ test('navigation rejects invalid links, loops, camera references and timed steps
     (p) => { p.navigation.version = 2; },
     (p) => { p.navigation.views[1].nodeId = 'missing'; },
     (p) => { p.navigation.views[1].hotspotNodeId = 'missing'; },
+    (p) => { p.navigation.views[1].connections[0].to = 'missing'; },
+    (p) => { p.navigation.views[2].connections = p.navigation.views[1].connections; },
     (p) => { p.navigation.views[1].parentIds = ['missing']; },
     (p) => { p.navigation.views[0].parentIds = ['view-system']; },
     (p) => { p.navigation.views[1].bookmarkId = 'missing'; },

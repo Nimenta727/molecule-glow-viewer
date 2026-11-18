@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createPresentationOverlay } from './presentation-overlay.mjs';
 
 function applyTransform(object, transform) {
   object.position.set(...transform.position);
@@ -168,6 +169,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     if (handle.disposed) return;
     handle.disposed = true;
     handle.root.removeFromParent();
+    handle.overlay?.dispose();
     if (active === handle) active = null;
     for (const mesh of handle.meshes) {
       mesh.geometry.dispose();
@@ -176,7 +178,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function prepare(document, geometryLayers = new Map()) {
+  function prepare(document, geometryLayers = new Map(), { overlayCapacity = 0 } = {}) {
     if (disposed) throw new Error('Viewport is disposed');
     const root = new THREE.Group();
     const assets = new Map(document.assets.map((asset) => [asset.id, asset]));
@@ -218,6 +220,10 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         handle.radius = 2;
       }
       handle.groups = groups;
+      if (overlayCapacity) {
+        handle.overlay = createPresentationOverlay(overlayCapacity);
+        handle.root.add(handle.overlay.object);
+      }
       return handle;
     } catch (error) {
       disposeHandle(handle);
@@ -253,6 +259,29 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     for (const [id, group] of active.groups) {
       applyTransform(group, pose?.get(id) ?? active.pose.get(id));
     }
+    updatePresentationOverlay();
+    invalidate();
+  }
+
+  function updatePresentationOverlay() {
+    const presentation = active?.presentation;
+    if (!presentation) return;
+    active.root.updateMatrixWorld(true);
+    active.overlay?.update(active.groups, presentation.highlightedIds, presentation.connections);
+  }
+
+  function setPresentation({ rootId, highlightedIds = [], connections = [] }) {
+    if (!active?.overlay) return;
+    const root = active.groups.get(rootId);
+    const visible = new Set([rootId, ...highlightedIds, ...connections.flatMap(({ from, to }) => [from, to])]);
+    for (const mesh of active.meshes) {
+      mesh.visible = !root;
+      for (let group = mesh.parent; !mesh.visible && group && group !== active.root; group = group.parent) {
+        if (visible.has(group.userData.nodeId)) mesh.visible = true;
+      }
+    }
+    active.presentation = { highlightedIds, connections };
+    updatePresentationOverlay();
     invalidate();
   }
 
@@ -308,11 +337,18 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function focusNode(id, { bookmark, duration = 0 } = {}) {
+  function focusNode(id, { bookmark, duration = 0, includeIds = [] } = {}) {
     const object = active?.groups.get(id);
     if (!object) return false;
     object.updateWorldMatrix(true, false);
     const bounds = new THREE.Box3().setFromObject(object);
+    const extra = new THREE.Box3();
+    for (const nodeId of includeIds) {
+      const related = active.groups.get(nodeId);
+      if (!related) continue;
+      related.updateWorldMatrix(true, false);
+      bounds.union(extra.setFromObject(related));
+    }
     const sphere = bounds.isEmpty()
       ? new THREE.Sphere(object.getWorldPosition(new THREE.Vector3()), 0.25)
       : bounds.getBoundingSphere(new THREE.Sphere());
@@ -326,6 +362,14 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     const position = offset.setLength(distance).add(target);
     setCamera({ position: position.toArray(), target: target.toArray() }, { duration, responsive: true });
     return true;
+  }
+
+  function orbitBy(angle, { duration = 0 } = {}) {
+    const pose = getCamera({ destination: true });
+    const target = new THREE.Vector3(...pose.target);
+    const position = new THREE.Vector3(...pose.position).sub(target)
+      .applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).add(target);
+    setCamera({ ...pose, position: position.toArray() }, { duration, responsive: responsiveFraming });
   }
 
   function setSelection(id) {
@@ -359,5 +403,5 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     renderer.domElement.remove();
   }
 
-  return { prepare, commit, applyPose, resetCamera, getCamera, setCamera, focusNode, setSelection, setGizmoMode, clear, dispose };
+  return { prepare, commit, applyPose, setPresentation, resetCamera, getCamera, setCamera, focusNode, orbitBy, setSelection, setGizmoMode, clear, dispose };
 }

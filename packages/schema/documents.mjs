@@ -128,6 +128,10 @@ const SCENE_PROPERTIES = {
               id: ID, mode: { enum: ['cell', 'system', 'protein', 'mechanism'] },
               title: { type: 'string', minLength: 1 }, nodeId: ID,
               hotspotNodeId: ID,
+              connections: { type: 'array', items: {
+                type: 'object', additionalProperties: false, required: ['from', 'to', 'label'],
+                properties: { from: ID, to: ID, label: { type: 'string', minLength: 1 } },
+              } },
               parentIds: { type: 'array', uniqueItems: true, items: ID },
               bookmarkId: { anyOf: [ID, { type: 'null' }] },
               labelIds: { type: 'array', uniqueItems: true, items: ID },
@@ -281,6 +285,8 @@ function checkNavigation({ navigation, notes, bookmarks }, nodeIds, timeline) {
     }
     if (!nodeIds.has(view.nodeId)) fail('unknown target node');
     if (view.hotspotNodeId !== undefined && (root || !nodeIds.has(view.hotspotNodeId))) fail('invalid hotspot node');
+    if (view.connections && (view.mode !== 'system' || view.connections.some(({ from, to }) =>
+      from === to || !nodeIds.has(from) || !nodeIds.has(to)))) fail('invalid illustrative connection');
     if (view.bookmarkId !== null && !bookmarkIds.has(view.bookmarkId)) fail('unknown camera bookmark');
     if (view.labelIds.some((id) => !noteIds.has(id))) fail('unknown label');
     if ((view.mode === 'mechanism') !== Boolean(view.steps)) fail('steps are required only for mechanism views');

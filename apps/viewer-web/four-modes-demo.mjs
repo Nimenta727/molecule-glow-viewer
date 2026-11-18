@@ -50,8 +50,8 @@ export const fourModesDemo = {
     ],
     bookmarks: [
       { id: 'camera-cell', name: '细胞总览', position: [7, 8, 10], target: [0, 0, 0] },
-      { id: 'camera-system', name: '局部系统', position: [4, 3.8, 5.4], target: [1, 0.2, 0] },
-      { id: 'camera-protein', name: '蛋白质部件', position: [2.1, 1.7, 2.5], target: [1, 0.3, 0] },
+      { id: 'camera-system', name: '局部系统', position: [3.35, 2.45, 3.7], target: [1, 0.2, 0] },
+      { id: 'camera-protein', name: '蛋白质部件', position: [1.9, 1.4, 2.0], target: [1, 0.3, 0] },
     ],
     navigation: {
       version: 1,
@@ -60,7 +60,11 @@ export const fourModesDemo = {
         { id: 'view-cell', mode: 'cell', title: '示意细胞', nodeId: 'cell', parentIds: [],
           bookmarkId: 'camera-cell', labelIds: ['label-region'] },
         { id: 'view-system', mode: 'system', title: '颗粒传递系统', nodeId: 'system', parentIds: ['view-cell'],
-          hotspotNodeId: 'region', bookmarkId: 'camera-system', labelIds: ['label-system', 'label-protein'] },
+          hotspotNodeId: 'region', bookmarkId: 'camera-system', labelIds: ['label-system', 'label-protein'],
+          connections: [
+            { from: 'sender', to: 'binding-site', label: '靠近接触点' },
+            { from: 'binding-site', to: 'receiver', label: '移向终点' },
+          ] },
         { id: 'view-protein', mode: 'protein', title: '示意蛋白质', nodeId: 'protein', parentIds: ['view-system'],
           hotspotNodeId: 'protein', bookmarkId: 'camera-protein', labelIds: ['label-protein', 'label-site'] },
         { id: 'view-mechanism', mode: 'mechanism', title: '示意颗粒传递步骤', nodeId: 'system',
