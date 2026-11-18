@@ -5,6 +5,7 @@ import { GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { createPluginHost } from '../../packages/plugin-host/index.mjs';
 import { exampleScene } from './example-scene.mjs';
 import { fromPrototype, geometryLayers, isStructureFile, openSceneFile } from './scene-io.mjs';
+import { createSceneNavigation } from './scene-navigation.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 
 const elements = Object.fromEntries(
@@ -18,6 +19,7 @@ const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const EVIDENCE_LABELS = { source: '来源', derived: '推导', modelled: '建模', illustrative: '示意' };
+const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
 const host = createPluginHost({
   getScene: () => active?.store.getSnapshot() ?? null,
   dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
@@ -70,10 +72,18 @@ function stopFrame() {
 function boot() {
   let structureLifetime;
   let rcsb;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const cameraDuration = () => reducedMotion.matches ? 0 : 280;
   const viewport = createViewport(elements.viewport, {
+    selectOnTap: true,
     onSelect(id) {
-      const node = active?.document.nodes.find((candidate) => candidate.id === id);
-      const metadata = active?.scene.nodes.find((candidate) => candidate.id === id)?.extensions?.[STRUCTURE];
+      if (active?.navigation) {
+        active.navigation.select(id);
+        showNavigationSelection();
+        return;
+      }
+      const node = active?.nodes.get(id);
+      const metadata = node?.extensions?.[STRUCTURE];
       if (typeof metadata?.chainId === 'string' && active.model) elements['chain-id'].value = metadata.chainId;
       setStatus(node ? `已选择 ${node.name}` : (active?.name ?? '场景已关闭'));
     },
@@ -98,7 +108,10 @@ function boot() {
         }
         loaded = await importer.importScene(structure, { signal: combined });
       } else {
-        loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
+        if (input.demo) {
+          const { fourModesDemo } = await import('./four-modes-demo.mjs');
+          loaded = { scene: fourModesDemo, resources: new Map(), warnings: [] };
+        } else loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
         restoreStructureModel(loaded);
       }
       if (signal.aborted) return;
@@ -108,9 +121,13 @@ function boot() {
       const timeline = createTimeline(document.timeline);
       const prepared = viewport.prepare(document, layers);
       scope.add(() => prepared.dispose());
-      return { ...loaded, store, document, timeline, prepared, name: input.file?.name ?? input.accession ?? '基础几何示例' };
+      const navigation = createSceneNavigation(loaded.scene.presentation?.navigation, document.nodes);
+      const nodes = new Map(loaded.scene.nodes.map((node) => [node.id, node]));
+      const name = input.file?.name ?? input.accession ?? (input.demo ? '四模式示例' : '基础几何示例');
+      return { ...loaded, store, nodes, timeline, prepared, navigation, name };
     },
     commit(scene) {
+      const restoreFocus = elements['scene-navigation'].contains(document.activeElement);
       viewport.commit(scene.prepared);
       stopFrame();
       active = scene;
@@ -118,7 +135,10 @@ function boot() {
       elements['residue-id'].value = '';
       showPose();
       showDiagnostics();
+      focusCurrentView(0);
+      showNavigation();
       showPresentation();
+      if (restoreFocus) (scene.navigation ? elements['navigation-heading'] : elements.open).focus();
       setStatus(scene.name);
     },
   });
@@ -141,9 +161,80 @@ function boot() {
     syncControls();
   }
 
+  function focusCurrentView(duration) {
+    const view = active?.navigation?.current();
+    if (!view) return;
+    const bookmark = active.scene.presentation.bookmarks.find(({ id }) => id === view.bookmarkId);
+    viewport.focusNode(view.nodeId, { bookmark, duration });
+  }
+
+  function showNavigationSelection() {
+    const navigation = active?.navigation;
+    if (!navigation) return;
+    const selected = navigation.selection();
+    const hotspot = navigation.hotspotFor(selected);
+    const node = active.nodes.get(hotspot?.hotspotNodeId ?? selected);
+    elements['navigation-selection'].textContent = `当前选择：${node.name || node.id}`;
+    for (const button of elements['navigation-entries'].children) {
+      const isHotspot = button.dataset.viewId === hotspot?.id;
+      button.classList.toggle('is-hotspot', isHotspot);
+      if (isHotspot) button.setAttribute('aria-describedby', 'navigation-selection');
+      else button.removeAttribute('aria-describedby');
+    }
+  }
+
+  function showNavigation() {
+    const navigation = active?.navigation;
+    const panel = elements['scene-navigation'];
+    panel.hidden = !navigation;
+    elements['navigation-path'].replaceChildren();
+    elements['navigation-entries'].replaceChildren();
+    if (!navigation) {
+      elements['navigation-back'].hidden = true;
+      delete elements['navigation-heading'].dataset.mode;
+      for (const id of ['navigation-scene', 'navigation-heading', 'navigation-selection']) elements[id].textContent = '';
+      return;
+    }
+    const view = navigation.current();
+    const path = navigation.path();
+    elements['navigation-scene'].textContent = active.scene.title;
+    elements['navigation-heading'].textContent = view.title;
+    elements['navigation-heading'].dataset.mode = view.mode;
+    for (const item of path) {
+      const crumb = document.createElement('li');
+      crumb.textContent = MODE_LABELS[item.mode];
+      if (item === view) crumb.setAttribute('aria-current', 'location');
+      elements['navigation-path'].append(crumb);
+    }
+    elements['navigation-back'].hidden = path.length === 1;
+    for (const child of navigation.children()) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.viewId = child.id;
+      button.textContent = `进入${MODE_LABELS[child.mode]}：${child.title}`;
+      elements['navigation-entries'].append(button);
+    }
+    showNavigationSelection();
+  }
+
+  function finishNavigation() {
+    showNavigation();
+    showPresentation();
+    elements['navigation-heading'].focus();
+  }
+
+  function returnToParent() {
+    const camera = active?.navigation?.back();
+    if (!camera) return false;
+    viewport.setCamera(camera, { duration: cameraDuration(), responsive: true });
+    finishNavigation();
+    return true;
+  }
+
   function showPresentation() {
     const { presentation, evidence = [] } = active?.scene ?? {};
-    const notes = presentation?.notes ?? [];
+    const view = active?.navigation?.current();
+    const notes = presentation?.notes.filter(({ id }) => !view || view.labelIds.includes(id)) ?? [];
     const bookmarks = presentation?.bookmarks ?? [];
     elements.presentation.hidden = !notes.length && !bookmarks.length && !evidence.length;
     function renderList(id, entries, populate) {
@@ -166,7 +257,7 @@ function boot() {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = bookmark.name;
-      button.addEventListener('click', () => viewport.setCamera(bookmark));
+      button.dataset.bookmarkId = bookmark.id;
       item.append(button);
     });
   }
@@ -181,6 +272,28 @@ function boot() {
   }
 
   elements.example.addEventListener('click', () => openScene());
+  elements['four-modes-example'].addEventListener('click', () => openScene({ demo: true }));
+  elements['navigation-entries'].addEventListener('click', (event) => {
+    const id = event.target.closest('button[data-view-id]')?.dataset.viewId;
+    if (!id || !active?.navigation?.enter(id, viewport.getCamera({ destination: true }))) return;
+    focusCurrentView(cameraDuration());
+    finishNavigation();
+  });
+  elements['navigation-back'].addEventListener('click', returnToParent);
+  elements['viewer-bookmarks'].addEventListener('click', (event) => {
+    const id = event.target.closest('button[data-bookmark-id]')?.dataset.bookmarkId;
+    const bookmark = active?.scene.presentation?.bookmarks.find((item) => item.id === id);
+    if (bookmark) viewport.setCamera(bookmark, {
+      duration: active.navigation ? cameraDuration() : 0,
+      responsive: Boolean(active.navigation),
+    });
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || event.isComposing || event.repeat ||
+        event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+        event.target instanceof Element && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (returnToParent()) event.preventDefault();
+  });
   elements['structure-enabled'].addEventListener('change', async (event) => {
     const checkbox = event.currentTarget;
     checkbox.disabled = true;
@@ -253,10 +366,14 @@ function boot() {
     active = undefined;
     syncControls();
     showDiagnostics();
+    showNavigation();
     showPresentation();
     setStatus('场景已关闭');
   });
-  elements['reset-camera'].addEventListener('click', () => viewport.resetCamera());
+  elements['reset-camera'].addEventListener('click', () => {
+    if (active?.navigation) focusCurrentView(cameraDuration());
+    else viewport.resetCamera();
+  });
 
   elements.playhead.addEventListener('input', () => {
     active.timeline.seek(Number(elements.playhead.value));
@@ -299,5 +416,6 @@ try {
   window.__glowStartup?.hide();
   setStatus(`无法启动三维视口。 ${error.message}`);
   elements.example.disabled = true;
+  elements['four-modes-example'].disabled = true;
   elements.open.disabled = true;
 }

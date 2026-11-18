@@ -43,6 +43,14 @@ button:disabled { cursor: default; opacity: 0.5; }
 #reset-camera { position: absolute; z-index: 1; top: 1rem; right: 1rem; }
 .info-panel { min-width: 0; overflow: auto; border-left: 1px solid var(--line); background: #fbfdf9; }
 .info-panel > details { padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); }
+#scene-navigation { padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+#navigation-scene, #navigation-selection { margin: 0 0 0.35rem; color: #40594d; font-size: 0.875rem; }
+#navigation-heading { margin: 0.35rem 0; font-size: 1.15rem; }
+#navigation-path { display: flex; flex-wrap: wrap; gap: 0.2rem 0.45rem; margin: 0; padding: 0; list-style: none; font-size: 0.8rem; }
+#navigation-path li + li::before { content: '›'; margin-right: 0.45rem; color: #526a5c; }
+#navigation-path [aria-current] { font-weight: 650; }
+#navigation-actions, #navigation-entries { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+#navigation-entries .is-hotspot { border-color: #1a7258; background: #e9f4ed; }
 .info-panel summary { width: fit-content; max-width: 100%; cursor: pointer; color: #304a3d; font-weight: 600; }
 .info-panel ul { margin: 0.65rem 0 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
 .info-panel li + li { margin-top: 0.35rem; }
@@ -61,6 +69,9 @@ footer { border-top: 1px solid var(--line); background: #fbfdf9; }
   .viewport-panel { min-height: 18rem; }
   #viewport { min-height: 0; }
   .info-panel { max-height: min(42svh, 24rem); border-top: 1px solid var(--line); border-left: 0; }
+  .info-panel:has(#scene-navigation:not([hidden])) { max-height: none; overflow: visible; }
+  .workspace:has(#scene-navigation:not([hidden])) { grid-template-rows: minmax(15rem, 44svh) auto; }
+  .workspace:has(#scene-navigation:not([hidden])) .viewport-panel { min-height: 15rem; }
   footer { position: sticky; bottom: 0; z-index: 3; box-shadow: 0 -0.4rem 1.2rem #16201d18; }
 }
 

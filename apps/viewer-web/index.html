@@ -24,6 +24,7 @@
         <h1>Glow Viewer</h1>
         <div class="actions" aria-label="场景文件">
           <button id="example" type="button">示例</button>
+          <button id="four-modes-example" type="button">四模式示例</button>
           <button id="open" type="button">打开</button>
           <input id="file" type="file" accept=".glow,.json,.cif,.mmcif,.pdb,.ent" hidden>
           <button id="save" type="button" disabled>保存</button>
@@ -37,6 +38,16 @@
           </div>
         </section>
         <aside class="info-panel" aria-label="场景信息与结构工具">
+          <nav id="scene-navigation" aria-label="场景导航" hidden>
+            <p id="navigation-scene"></p>
+            <ol id="navigation-path" aria-label="当前位置"></ol>
+            <h2 id="navigation-heading" tabindex="-1"></h2>
+            <p id="navigation-selection" aria-live="polite"></p>
+            <div id="navigation-actions">
+              <button id="navigation-back" type="button" aria-keyshortcuts="Escape" hidden>返回上一级</button>
+              <div id="navigation-entries"></div>
+            </div>
+          </nav>
           <details id="presentation" hidden>
             <summary>标注、证据与视角</summary>
             <ul id="viewer-notes" aria-label="标注"></ul>
@@ -79,6 +90,7 @@
         window.__glowStartup?.hide();
         document.querySelector('#status').textContent = '无法加载查看器模块。请检查页面和渲染库是否可访问。';
         document.querySelector('#example').disabled = true;
+        document.querySelector('#four-modes-example').disabled = true;
         document.querySelector('#open').disabled = true;
       });
     </script>

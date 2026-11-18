@@ -117,6 +117,163 @@ async function verifyPresentationDemo(viewer, directory, scenePath, readScenePac
   assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#legacy-viewer').hidden"), false);
 }
 
+async function verifyNavigation(viewer, directory) {
+  const evaluate = (code) => viewer.webContents.executeJavaScript(code);
+  const state = () => evaluate(`({
+    mode: document.querySelector('#navigation-heading').dataset.mode ?? null,
+    path: [...document.querySelectorAll('#navigation-path li')].map(li => li.textContent),
+    selected: document.querySelector('#navigation-selection').textContent,
+    notes: document.querySelector('#viewer-notes').textContent,
+    focus: document.activeElement.id
+  })`);
+  const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const enter = (id) => click(`[data-view-id="view-${id}"]`);
+  const back = () => click('#navigation-back');
+  const escape = () => evaluate("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true,cancelable:true}))");
+  const settle = async () => {
+    await waitFor(viewer, 'window.navigationProbe.pending.size === 0', 'camera returns to idle');
+    return evaluate('({ frames: navigationProbe.frames, buffers: navigationProbe.buffers.size })');
+  };
+  const imageHash = async () => {
+    const rect = await evaluate(`(() => {
+      const {x,y,width,height} = document.querySelector('#viewport').getBoundingClientRect();
+      return {x:Math.round(x),y:Math.round(y),width:Math.floor(width),height:Math.floor(height)};
+    })()`);
+    const image = await viewer.webContents.capturePage(rect);
+    return crypto.createHash('sha256').update(image.toBitmap()).digest('hex');
+  };
+  viewer.webContents.debugger.attach();
+  const emulateMotion = (value) => viewer.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-motion', value }],
+  });
+  await emulateMotion('no-preference');
+  assert.equal(await evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"), false);
+  await click('#close');
+  await evaluate(`(() => {
+    const canvas = document.querySelector('#viewport canvas');
+    const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl');
+    if (!gl) throw new Error('Missing WebGL context');
+    const probe = window.navigationProbe = {frames:0,pending:new Set(),buffers:new Set()};
+    const request = requestAnimationFrame.bind(window), cancel = cancelAnimationFrame.bind(window);
+    window.requestAnimationFrame = callback => {
+      const id = request(time => { probe.pending.delete(id); probe.frames++; callback(time); });
+      probe.pending.add(id);
+      return id;
+    };
+    window.cancelAnimationFrame = id => { probe.pending.delete(id); cancel(id); };
+    const create = gl.createBuffer.bind(gl), release = gl.deleteBuffer.bind(gl);
+    gl.createBuffer = () => { const buffer = create(); if (buffer) probe.buffers.add(buffer); return buffer; };
+    gl.deleteBuffer = buffer => { probe.buffers.delete(buffer); release(buffer); };
+  })()`);
+  await click('#four-modes-example');
+  await waitFor(viewer, "document.querySelector('#navigation-heading').dataset.mode === 'cell'", 'demo button opens cell');
+  const root = await settle();
+  assert.ok(root.buffers > 0, 'demo has live geometry buffers');
+  const cellImage = await imageHash();
+  const hotspotPoint = await evaluate(`(() => {
+    const {x,y,width,height} = document.querySelector('#viewport canvas').getBoundingClientRect();
+    return {x: x + width * 0.58, y: y + height * 0.60};
+  })()`);
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await viewer.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {
+      type, ...hotspotPoint, button: 'left', clickCount: 1,
+    });
+  }
+  assert.equal((await state()).selected, '当前选择：传递区');
+  assert.equal(await evaluate("document.querySelector('.is-hotspot')?.dataset.viewId"), 'view-system');
+  await enter('system');
+  const system = await settle();
+  assert.ok(system.frames - root.frames > 2, `normal camera navigation animates (${system.frames - root.frames} frames)`);
+  const systemImage = await imageHash();
+  assert.notEqual(systemImage, cellImage, 'system visibly changes camera framing');
+  assert.match((await state()).notes, /橙色颗粒/);
+  await enter('protein');
+  assert.equal((await state()).selected, '当前选择：示意蛋白质');
+  await enter('mechanism');
+  assert.deepEqual((await state()).path, ['细胞', '局部系统', '蛋白质', '反应机理']);
+  assert.equal((await state()).focus, 'navigation-heading');
+  await settle();
+  await captureWindow(viewer, directory, 'viewer-navigation');
+  await settle();
+  await escape();
+  assert.equal((await state()).mode, 'protein');
+  assert.match((await state()).notes, /示意蛋白质/);
+  await back();
+  await settle();
+  assert.equal((await state()).mode, 'system');
+  assert.equal(await imageHash(), systemImage, 'return restores caller camera');
+  await enter('mechanism');
+  await escape();
+  assert.equal((await state()).mode, 'system', 'mechanism also returns directly to system');
+  await back();
+  await settle();
+  assert.equal(await imageHash(), cellImage, 'rapid navigation settles at the final destination');
+  assert.equal((await state()).selected, '当前选择：传递区', 'return restores selected hotspot');
+  for (let i = 0; i < 8; i++) {
+    await enter('system');
+    await enter('protein');
+    await enter('mechanism');
+    await back();
+    await back();
+    await back();
+  }
+  assert.equal((await settle()).buffers, root.buffers);
+  assert.equal(await imageHash(), cellImage);
+
+  await emulateMotion('reduce');
+  assert.equal(await evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches"), true);
+  const before = await settle();
+  await enter('system');
+  const after = await settle();
+  assert.ok(after.frames - before.frames <= 2, 'reduced motion completes without transition frames');
+  assert.equal(await imageHash(), systemImage, 'reduced motion reaches the same target');
+  await click('#reset-camera');
+  await settle();
+  assert.equal((await state()).mode, 'system');
+  assert.equal(await imageHash(), systemImage);
+
+  const original = viewer.getContentSize();
+  try {
+    viewer.setContentSize(560, original[1]);
+    await waitFor(viewer, 'Math.abs(innerWidth - 560) < 4', 'narrow navigation');
+    assert.equal(await evaluate(`(() => {
+      const viewport = document.querySelector('#viewport');
+      const canvas = viewport.querySelector('canvas');
+      return canvas.clientWidth === viewport.clientWidth && canvas.clientHeight === viewport.clientHeight;
+    })()`), true, 'canvas fits the narrow viewport');
+    await back();
+    const button = await evaluate(`(() => {
+      const button = document.querySelector('[data-view-id="view-system"]');
+      button.focus();
+      const rect = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+      return { enabled: !button.disabled, reachable: button.contains(hit) };
+    })()`);
+    assert.deepEqual(button, { enabled: true, reachable: true });
+    const key = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 };
+    await viewer.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...key });
+    await viewer.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'char', text: '\r', ...key });
+    await viewer.webContents.debugger.sendCommand('Input.dispatchKeyEvent', { type: 'keyUp', ...key });
+    await waitFor(viewer, "document.querySelector('#navigation-heading').dataset.mode === 'system'", 'keyboard opens system');
+    assert.equal((await state()).focus, 'navigation-heading');
+  } finally {
+    viewer.setContentSize(...original);
+    viewer.webContents.debugger.detach();
+  }
+  await settle();
+  assert.equal((await settle()).buffers, root.buffers, 'navigation reuses the same geometry buffers');
+  await injectFile(viewer, { name: 'broken.glow', data: Buffer.from('{'), input: '#file' });
+  await waitFor(viewer, "document.querySelector('#status').textContent.startsWith('无法打开场景。')", 'navigation survives failed replacement');
+  assert.equal((await state()).mode, 'system');
+  await enter('protein');
+  await click('#example');
+  await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'ordinary scene replaces navigation');
+  assert.equal((await state()).mode, null);
+  assert.ok((await settle()).buffers < root.buffers, 'replacement releases navigation geometry');
+  await click('#close');
+  assert.equal((await settle()).buffers, 0, 'closing releases all sampled geometry buffers');
+}
+
 function pdbAtom(serial, seq, x, y = 0, z = 0) {
   const line = Array(80).fill(' ');
   const put = (start, end, value) => line.splice(start, end - start, ...String(value).padEnd(end - start, ' ').slice(0, end - start));
@@ -310,6 +467,12 @@ async function run() {
       stage = 'm0-presentation-demo';
       await verifyPresentationDemo(viewer, m0Output, scenePath, readScenePackage);
     }
+    const m1Output = process.env.GLOW_M1_SCREENSHOTS;
+    if (m1Output) {
+      stage = 'm1-navigation';
+      fs.mkdirSync(m1Output, { recursive: true });
+      await verifyNavigation(viewer, m1Output);
+    }
     assert.equal(studioErrors.length, 0, studioErrors.join('\n'));
     assert.equal(viewerErrors.length, 0, viewerErrors.join('\n'));
     assert.equal(networkRequests.length, 0, `unexpected external requests: ${networkRequests.join(', ')}`);
@@ -318,6 +481,7 @@ async function run() {
       keyframes: 2, notes: exportedScene.presentation.notes.length, evidence: exportedScene.evidence.length,
       bookmarks: exportedScene.presentation.bookmarks.length, viewerPlayback: true, inspectorUndoRedo: true,
       ...(m0Output ? { m0PresentationRoundTrip: true, olderV1Import: true, failedLoadRetainsScene: true } : {}),
+      ...(m1Output ? { m1Navigation: true, reducedMotion: true, navigationResourcesReleased: true } : {}),
       gizmoAxisPixels: gizmoView.axes, noExternalRequests: true,
     }));
   } finally {
