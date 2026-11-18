@@ -5,6 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>分子光影查看器</title>
 <style>
+#glow-startup {
+  position: fixed;
+  z-index: 99999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--startup-bg, var(--bg, #edf1ed));
+  color: var(--startup-fg, var(--text, #16201d));
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+#glow-startup .glow-startup-name {
+  display: flex;
+  align-items: center;
+  font: 600 1.15rem/1.2 system-ui, sans-serif;
+  letter-spacing: 0.015em;
+  opacity: 0;
+  transform: translateY(0.35rem);
+  text-shadow: 0 1px 14px color-mix(in srgb, currentColor 22%, transparent);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+#glow-startup.is-entering .glow-startup-name { opacity: 1; transform: translateY(0); }
+#glow-startup.is-entering { opacity: 1; }
+#glow-startup.is-leaving { opacity: 0; }
+#glow-startup.is-leaving .glow-startup-name { opacity: 0; transform: translateY(-0.35rem); }
+@media (prefers-reduced-motion: reduce) {
+  #glow-startup, #glow-startup .glow-startup-name { transition-duration: 0ms; }
+}
   :root{--bg:#000;--panel:rgba(12,14,22,.80);--line:rgba(255,255,255,.09);--text:#e8ecf4;--dim:#8d96a8;--acc:#e07ad8;--acc2:#7fb6f5}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,"Microsoft YaHei",sans-serif;overflow:hidden}
@@ -17,6 +46,11 @@
   .row label{flex:0 0 92px;color:var(--dim)}
   .row select{flex:1;min-width:0;max-width:100%;text-overflow:ellipsis}
   #panel{padding-bottom:60px}
+  #panel .desktopGroup{margin:10px 0 0;padding-bottom:3px;border-bottom:1px solid var(--line)}
+  #panel .desktopGroup>summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;color:var(--text);font-size:12px;font-weight:650;letter-spacing:.35px;padding:6px 7px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.035)}
+  #panel .desktopGroup>summary::-webkit-details-marker{display:none}
+  #panel .desktopGroup>summary::before{content:"▾";color:var(--dim);font-size:12px}
+  #panel .desktopGroup:not([open])>summary::before{content:"▸"}
   /* keep caption / status in the free area beside the open panel (desktop) */
   @media (min-width:601px){ body:has(#panel:not(.hidden)) #caption{left:334px;max-width:min(980px,calc(100vw - 360px))}
     body:has(#panel:not(.hidden)) #status{left:calc(50% + 167px)} }
@@ -228,6 +262,46 @@
 </script>
 </head>
 <body>
+<script>
+// Classic pre-entry startup cue shared by all app pages and the generated viewer.
+(() => {
+  const params = new URLSearchParams(location.search);
+  const isDev = /(?:^|\/)dev\.html$/i.test(location.pathname) || params.has('dev') || params.has('embed');
+  const shellEntry = document.currentScript?.hasAttribute('data-glow-startup');
+  const desktop = Boolean(window.glowDesktop) || shellEntry;
+  const skip = desktop && (window.glowDesktop?.startupSkip || params.get('startup') === 'skip');
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!desktop || isDev || skip || reducedMotion || params.get('startup') === 'off' || document.getElementById('glow-startup')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'glow-startup';
+  overlay.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('div');
+  name.className = 'glow-startup-name';
+  name.textContent = document.title || 'Molecule Glow';
+  overlay.append(name);
+  document.body.append(overlay);
+
+  let finished = false;
+  let safety;
+  const hide = () => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(safety);
+    overlay.remove();
+  };
+  window.__glowStartup = { hide, overlay, duration: 700 };
+  window.addEventListener('error', hide, { once: true });
+  window.addEventListener('unhandledrejection', hide, { once: true });
+  safety = setTimeout(hide, 2200);
+  // A brief name reveal and fade, independent of renderer/data initialization.
+  requestAnimationFrame(() => {
+    overlay.classList.add('is-entering');
+    requestAnimationFrame(() => setTimeout(() => overlay.classList.add('is-leaving'), 300));
+  });
+  setTimeout(hide, 700);
+})();
+</script>
 <div id="stage"></div>
 <div id="seqBar" hidden><div class="sh"><b>序列</b><button id="seqFt" title="从 UniProt 读取活性位点、结合位点、跨膜段等，标在序列上">功能位点</button><span id="seqFtChips"></span><span id="seqInfo">点击或拖选残基 → 在 3D 中选中；红 = 螺旋，黄 = 折叠，灰 = 无规；虚线 = 结构里缺失的残基</span><button id="seqX" title="关闭">×</button></div><div id="seqRows"></div></div>
 <div id="title"><button id="backBtn" style="display:none">← 返回</button><div class="id" id="tId">—</div><div class="t" id="tName"></div><button id="aboutBtn" style="display:none">简介</button><div id="evid" title="这个画面里哪些是实验数据、哪些是推算、建模或示意（点击查看）"></div><div id="evidPop"></div></div>
@@ -345,6 +419,43 @@
 <button class="ghost" id="toggle">☰ 面板</button>
 <div id="status">准备中…</div>
 
+<script>
+// Reorder panel sections only in the Windows desktop shell; web/embed/dev pages keep the source DOM unchanged.
+(() => {
+  if (!window.glowDesktop || document.querySelector('#panel[data-desktop-groups]')) return;
+  const params = new URLSearchParams(location.search);
+  if (/(?:^|\/)dev\.html$/i.test(location.pathname) || params.has('dev') || params.has('embed')) return;
+
+  const panel = document.getElementById('panel');
+  if (!panel) return;
+  const title = [...panel.children].find((node) => node.tagName === 'H1');
+  const content = [...panel.children].filter((node) => node !== title);
+  const headingIndex = (label) => content.findIndex((node) => node.tagName === 'H2' && node.textContent.trim() === label);
+  const processAt = headingIndex('过程动画');
+  const displayAt = headingIndex('小分子');
+  if (!title || processAt < 0 || displayAt <= processAt) return;
+
+  const makeGroup = (label, nodes) => {
+    const group = document.createElement('details');
+    group.className = 'desktopGroup';
+    group.open = true;
+    const summary = document.createElement('summary');
+    summary.textContent = label;
+    group.append(summary, ...nodes);
+    return group;
+  };
+  const sceneAndFiles = content.slice(0, processAt);
+  const playback = content.slice(processAt, displayAt);
+  const displayAndView = content.slice(displayAt);
+  panel.replaceChildren(
+    title,
+    makeGroup('场景与文件', sceneAndFiles),
+    makeGroup('显示与视角', displayAndView),
+    makeGroup('播放与模拟', playback),
+  );
+  panel.dataset.desktopGroups = 'true';
+})();
+</script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';

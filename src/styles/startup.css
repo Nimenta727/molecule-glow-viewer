@@ -1,0 +1,29 @@
+#glow-startup {
+  position: fixed;
+  z-index: 99999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--startup-bg, var(--bg, #edf1ed));
+  color: var(--startup-fg, var(--text, #16201d));
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+#glow-startup .glow-startup-name {
+  display: flex;
+  align-items: center;
+  font: 600 1.15rem/1.2 system-ui, sans-serif;
+  letter-spacing: 0.015em;
+  opacity: 0;
+  transform: translateY(0.35rem);
+  text-shadow: 0 1px 14px color-mix(in srgb, currentColor 22%, transparent);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+#glow-startup.is-entering .glow-startup-name { opacity: 1; transform: translateY(0); }
+#glow-startup.is-entering { opacity: 1; }
+#glow-startup.is-leaving { opacity: 0; }
+#glow-startup.is-leaving .glow-startup-name { opacity: 0; transform: translateY(-0.35rem); }
+@media (prefers-reduced-motion: reduce) {
+  #glow-startup, #glow-startup .glow-startup-name { transition-duration: 0ms; }
+}

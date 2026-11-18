@@ -123,7 +123,7 @@ async function run() {
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
 
     stage = 'studio-start';
-    await studio.loadURL(`http://127.0.0.1:${port}/apps/studio-web/index.html`);
+    await studio.loadURL(`http://127.0.0.1:${port}/apps/studio-web/index.html?startup=skip`);
     await waitFor(studio, `document.querySelector('#status').textContent === '新工程已建立。' && document.querySelector('#scene-picker').options.length === 1`, 'Studio startup');
     studio.show();
     await new Promise((resolve) => setTimeout(resolve, 250));
@@ -234,7 +234,7 @@ async function run() {
     const viewerErrors = [];
     viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) viewerErrors.push(message); });
     viewer.webContents.on('did-fail-load', (_event, code, description) => viewerErrors.push(`load ${code}: ${description}`));
-    await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html`);
+    await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
     await waitFor(viewer, `document.querySelector('#status').textContent === '基础几何示例'`, 'Viewer starts with structure plugin disabled');
     viewer.show();
     await injectFile(viewer, { name: 'studio-export.glow', data: sceneBytes, type: 'application/zip', input: '#file' });

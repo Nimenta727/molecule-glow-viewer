@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Glow Viewer</title>
+    <link rel="stylesheet" href="../../src/styles/startup.css">
     <link rel="stylesheet" href="./viewer.css">
     <script type="importmap">
       {
@@ -17,6 +18,7 @@
     </script>
   </head>
   <body>
+    <script src="../../src/ui/startup.js" data-glow-startup></script>
     <main>
       <header>
         <h1>Glow Viewer</h1>
@@ -28,10 +30,38 @@
           <button id="close" type="button" disabled>关闭</button>
         </div>
       </header>
-      <section id="viewport" aria-label="三维场景">
-        <button id="reset-camera" type="button" disabled>重置视角</button>
-      </section>
-      <footer>
+      <div class="workspace">
+        <section class="viewport-panel" aria-label="场景视口">
+          <div id="viewport" aria-label="三维场景">
+            <button id="reset-camera" type="button" disabled>重置视角</button>
+          </div>
+        </section>
+        <aside class="info-panel" aria-label="场景信息与结构工具">
+          <details id="presentation" hidden>
+            <summary>标注、证据与视角</summary>
+            <ul id="viewer-notes" aria-label="标注"></ul>
+            <ul id="viewer-evidence" aria-label="证据"></ul>
+            <ul id="viewer-bookmarks" aria-label="视角书签"></ul>
+          </details>
+          <details class="structure-tools">
+            <summary>结构插件</summary>
+            <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
+            <form id="rcsb-form" class="structure-form">
+              <label for="accession">RCSB 编号</label>
+              <input id="accession" name="accession" type="text" maxlength="4" required disabled>
+              <button id="rcsb-load" type="submit" disabled>打开结构</button>
+            </form>
+            <form id="selection-form" class="structure-form" hidden>
+              <label for="chain-id">链</label>
+              <input id="chain-id" name="chain" type="text" maxlength="32">
+              <label for="residue-id">残基</label>
+              <input id="residue-id" name="residue" type="text" maxlength="32">
+              <button type="submit">选取</button>
+            </form>
+          </details>
+        </aside>
+      </div>
+      <footer aria-label="播放与状态">
         <div class="transport" aria-label="时间线">
           <button id="play" type="button" disabled>播放</button>
           <input id="playhead" aria-label="播放时间" type="range" min="0" max="0" step="any" value="0" disabled>
@@ -42,32 +72,11 @@
           <span id="warning"></span>
           <a id="legacy-viewer" href="../../web/" target="_blank" rel="noopener" hidden>打开旧版 Viewer</a>
         </p>
-        <details id="presentation" hidden>
-          <summary>标注、证据与视角</summary>
-          <ul id="viewer-notes" aria-label="标注"></ul>
-          <ul id="viewer-evidence" aria-label="证据"></ul>
-          <ul id="viewer-bookmarks" aria-label="视角书签"></ul>
-        </details>
-        <details class="structure-tools">
-          <summary>结构插件</summary>
-          <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
-          <form id="rcsb-form" class="structure-form">
-            <label for="accession">RCSB 编号</label>
-            <input id="accession" name="accession" type="text" maxlength="4" required disabled>
-            <button id="rcsb-load" type="submit" disabled>打开结构</button>
-          </form>
-          <form id="selection-form" class="structure-form" hidden>
-            <label for="chain-id">链</label>
-            <input id="chain-id" name="chain" type="text" maxlength="32">
-            <label for="residue-id">残基</label>
-            <input id="residue-id" name="residue" type="text" maxlength="32">
-            <button type="submit">选取</button>
-          </form>
-        </details>
       </footer>
     </main>
     <script type="module">
       import('./main.mjs').catch(() => {
+        window.__glowStartup?.hide();
         document.querySelector('#status').textContent = '无法加载查看器模块。请检查页面和渲染库是否可访问。';
         document.querySelector('#example').disabled = true;
         document.querySelector('#open').disabled = true;

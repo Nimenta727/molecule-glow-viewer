@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>分子光影查看器</title>
 <style>
+<!-- @include styles/startup.css -->
 <!-- @include styles/viewer.css -->
 </style>
 <script type="importmap">
@@ -15,7 +16,13 @@
 </script>
 </head>
 <body>
+<script>
+<!-- @include ui/startup.js -->
+</script>
 <!-- @include ui/body.html -->
+<script>
+<!-- @include ui/desktop-groups.js -->
+</script>
 <script type="module">
 <!-- @include core/boot.js -->
 <!-- @include data/presets.js -->

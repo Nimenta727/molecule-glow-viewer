@@ -296,6 +296,7 @@ function boot() {
 try {
   boot();
 } catch (error) {
+  window.__glowStartup?.hide();
   setStatus(`无法启动三维视口。 ${error.message}`);
   elements.example.disabled = true;
   elements.open.disabled = true;
