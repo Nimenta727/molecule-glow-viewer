@@ -40,6 +40,11 @@
             <h2>场景树</h2>
             <label for="scene-picker">当前场景</label>
             <select id="scene-picker"></select>
+            <form id="scene-title-form" class="navigation-form">
+              <label for="scene-title">场景名称</label>
+              <input id="scene-title" type="text" required>
+              <button type="submit">重命名场景</button>
+            </form>
             <ul id="scene-tree" class="tree-list" aria-label="场景树"></ul>
           </section>
           <section class="panel-section asset-section">
@@ -75,6 +80,8 @@
             <form id="inspector" class="inspector-form" novalidate>
               <label class="wide" for="node-name">名称</label>
               <input class="wide" id="node-name" type="text">
+              <label class="wide" for="node-parent">父对象</label>
+              <select class="wide" id="node-parent"></select>
               <label class="check-row wide" for="node-visible"><input id="node-visible" type="checkbox"> 显示对象</label>
               <label for="node-color">颜色</label><input id="node-color" type="color" value="#4d9b83">
               <fieldset class="wide vector-fields">
@@ -98,6 +105,11 @@
               <button class="wide primary" type="submit">应用属性</button>
             </form>
           </section>
+
+          <details id="navigation-settings" class="panel-section panel-group">
+            <summary><h2>四模式导航</h2></summary>
+            <div id="navigation-editor"></div>
+          </details>
 
           <section class="panel-section history-tools">
             <h2>编辑历史</h2>

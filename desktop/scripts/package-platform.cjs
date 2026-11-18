@@ -89,7 +89,11 @@ put('builder.json', JSON.stringify({
   files: ['main.js', 'preload.js', 'scripts/regress-scenes.json', 'app/**', 'vendor/**', 'LICENSE', 'package.json'],
 }, null, 2));
 
-execFileSync(process.execPath, [
-  path.join(root, 'desktop/node_modules/electron-builder/out/cli/cli.js'),
-  '--projectDir', stage, '--config', 'builder.json', '--win', 'portable', '--x64', '--publish', 'never',
-], { cwd: root, stdio: 'inherit' });
+if (process.argv.includes('--stage-only')) {
+  console.log(stage);
+} else {
+  execFileSync(process.execPath, [
+    path.join(root, 'desktop/node_modules/electron-builder/out/cli/cli.js'),
+    '--projectDir', stage, '--config', 'builder.json', '--win', 'portable', '--x64', '--publish', 'never',
+  ], { cwd: root, stdio: 'inherit' });
+}

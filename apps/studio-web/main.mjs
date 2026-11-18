@@ -7,6 +7,7 @@ import { writeScenePackage } from '../../packages/schema/archive.mjs';
 import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
+import { createNavigationEditor } from './navigation-editor.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -25,6 +26,11 @@ let structureReady;
 let viewport;
 let editingPose = false;
 const previews = new WeakMap();
+const navigationEditor = createNavigationEditor(ui['navigation-editor'], {
+  getSelection: () => selection,
+  getTime: () => timeline.time,
+  save: (navigation) => edit({ type: 'setNavigation', navigation }, '已保存展示导航。'),
+});
 
 function session() { return sessions.get(project.activeSceneId); }
 
@@ -60,6 +66,7 @@ function snapshotProject() {
 }
 
 function installProject(next, resources = new Map()) {
+  navigationEditor.assertSaved();
   const nextSessions = new Map(next.scenes.map((scene) => [scene.id, createStudioSession(scene, resources.get(scene.id))]));
   for (const entry of nextSessions.values()) geometryFor(entry);
   project = next;
@@ -82,6 +89,7 @@ function geometryFor(current) {
 }
 
 function newProject() {
+  navigationEditor.assertSaved();
   loading++;
   const scene = {
     format: 'glow-scene', schemaVersion: 2, id: makeId('scene'), title: '空白场景',
@@ -145,6 +153,7 @@ function renderPanels(scene, document) {
     const item = entry.getScene();
     return new Option(item.title, item.id, false, item.id === scene.id);
   }));
+  ui['scene-title'].value = scene.title;
   ui['asset-list'].replaceChildren(...scene.assets.map((asset) =>
     listItem(asset.path || (asset.kind === 'primitive' ? `${asset.shape} ${asset.color}` : asset.id))));
   ui['scene-tree'].replaceChildren(...ordered.map(([node, depth]) => {
@@ -159,6 +168,16 @@ function renderPanels(scene, document) {
   for (const control of ui.inspector.elements) control.disabled = !node;
   ui['node-color'].disabled = !color;
   ui['node-name'].value = node?.name ?? '';
+  const outsideSelection = (candidate) => {
+    for (let current = candidate; current; current = tree.get(current.parentId)) {
+      if (current.id === selection) return false;
+    }
+    return true;
+  };
+  ui['node-parent'].replaceChildren(new Option('场景根层', ''), ...ordered
+    .filter(([candidate]) => outsideSelection(candidate))
+    .map(([candidate, depth]) => new Option(`${'　'.repeat(Math.min(depth, 8))}${candidate.name || candidate.id}`, candidate.id)));
+  ui['node-parent'].value = node?.parentId ?? '';
   ui['node-visible'].checked = node?.visible ?? false;
   ui['node-color'].value = color ?? '#4d9b83';
   const transform = node?.transform ?? identity();
@@ -179,6 +198,7 @@ function renderPanels(scene, document) {
     listItem(bookmark.name, () => viewport.setCamera(bookmark))));
   ui['evidence-list'].replaceChildren(...scene.evidence.map(({ type, citation, assetId }) =>
     listItem([TYPES[type] || type, citation || assetId].filter(Boolean).join(' · '))));
+  navigationEditor.render(scene);
 }
 
 function showPose() {
@@ -242,8 +262,8 @@ viewport = createViewport(ui.viewport, {
 });
 
 onClick('new-project', newProject);
-onClick('import-structure', () => ui['structure-file'].click());
-onClick('open-project', () => ui['project-file'].click());
+onClick('import-structure', () => { navigationEditor.assertSaved(); ui['structure-file'].click(); });
+onClick('open-project', () => { navigationEditor.assertSaved(); ui['project-file'].click(); });
 onClick('reset-camera', () => viewport.resetCamera());
 ui['gizmo-mode'].addEventListener('change', () => viewport.setGizmoMode(ui['gizmo-mode'].value));
 onClick('add-box', () => addPrimitive('box'));
@@ -261,9 +281,10 @@ onClick('group-node', () => {
 onClick('remove-node', () => {
   if (selection) edit({ type: 'removeNode', id: selection }, '已删除对象。');
 });
-onClick('undo', () => { if (session().undo()) { editingPose = false; refresh(); status('已撤销。'); } });
-onClick('redo', () => { if (session().redo()) { editingPose = false; refresh(); status('已重做。'); } });
+onClick('undo', () => { navigationEditor.assertSaved(); if (session().undo()) { editingPose = false; refresh(); status('已撤销。'); } });
+onClick('redo', () => { navigationEditor.assertSaved(); if (session().redo()) { editingPose = false; refresh(); status('已重做。'); } });
 onClick('save-project', async () => {
+  navigationEditor.assertSaved();
   const current = snapshotProject();
   const resources = new Map([...sessions.entries()].map(([id, entry]) => [id, entry.getResources()]));
   const bytes = await encodeProject(current, resources);
@@ -271,6 +292,7 @@ onClick('save-project', async () => {
   status('工程已生成。');
 });
 onClick('export-scene', async () => {
+  navigationEditor.assertSaved();
   const current = session();
   const scene = current.getScene();
   const bytes = await writeScenePackage(scene, current.getResources());
@@ -290,6 +312,7 @@ watchFile('structure-file', async (file) => {
   const importer = host.getImporter(await structureReady);
   const imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
   if (ticket !== loading) return;
+  navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
   const scene = { ...imported.scene, id, timeline: { duration: 4, tracks: [] } };
   const next = createStudioSession(scene, imported.resources);
@@ -313,11 +336,18 @@ watchFile('project-file', async (file) => {
 });
 
 ui['scene-picker'].addEventListener('change', run(() => {
+  try { navigationEditor.assertSaved(); }
+  catch (error) { ui['scene-picker'].value = project.activeSceneId; throw error; }
   project = { ...project, activeSceneId: ui['scene-picker'].value };
   selection = null;
   editingPose = false;
   refresh({ resetCamera: true, resetTime: true });
 }));
+
+ui['scene-title-form'].addEventListener('submit', (event) => {
+  event.preventDefault();
+  run(() => edit({ type: 'setSceneTitle', title: ui['scene-title'].value }, '已重命名场景。'))();
+});
 
 ui.inspector.addEventListener('submit', (event) => {
   event.preventDefault();
@@ -329,6 +359,7 @@ ui.inspector.addEventListener('submit', (event) => {
     const rotation = new Quaternion().setFromEuler(new Euler(...values('rotation').map(MathUtils.degToRad))).toArray();
     const patch = {
       name: ui['node-name'].value, visible: ui['node-visible'].checked,
+      parentId: ui['node-parent'].value || null,
       transform: { position: values('position'), rotation, scale: values('scale') },
     };
     const commands = [{ type: 'updateNode', id: node.id, patch }];

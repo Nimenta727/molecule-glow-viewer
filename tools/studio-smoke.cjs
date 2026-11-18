@@ -66,12 +66,15 @@ function injectFile(win, { name, data, type = 'application/octet-stream', input 
   })()`);
 }
 
-async function captureWindow(win, directory, name) {
+async function captureWindow(win, directory, name, focusSelector) {
   const original = win.getContentSize();
   try {
     for (const [layout, width] of [['normal', original[0]], ['narrow', 560]]) {
       win.setContentSize(width, original[1]);
       await waitFor(win, `Math.abs(innerWidth - ${width}) < 4`, `${name} ${layout} resize`);
+      if (focusSelector) await win.webContents.executeJavaScript(
+        `document.querySelector(${JSON.stringify(focusSelector)}).scrollIntoView({ block: 'start' })`,
+      );
       await win.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
       fs.writeFileSync(path.join(directory, `${name}-${layout}.png`), (await win.webContents.capturePage()).toPNG());
     }
@@ -379,6 +382,154 @@ function syntheticPdb() {
   return Buffer.from([pdbAtom(1, 1, 0), pdbAtom(2, 2, 3.8), pdbAtom(3, 3, 7.6, 1), pdbAtom(4, 4, 11.4, 1), 'END', ''].join('\n'));
 }
 
+async function verifyNavigationAuthoring(studio, viewer, directory, { projectPath, scenePath, selectDownload, decodeProject, readScenePackage }) {
+  const evaluate = (code) => studio.webContents.executeJavaScript(code);
+  const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const set = (selector, value, event = 'input') => evaluate(`(() => {
+    const input = document.querySelector(${JSON.stringify(selector)});
+    const value = ${JSON.stringify(value)};
+    if (Array.isArray(value)) {
+      for (const option of input.options) option.selected = value.includes(option.value);
+    } else if (typeof value === 'boolean') input.checked = value;
+    else input.value = value;
+    const change = ${JSON.stringify(event ?? null)};
+    if (change) input.dispatchEvent(new Event(change, { bubbles: true }));
+  })()`);
+  const status = (message) => waitFor(studio, `document.querySelector('#status').textContent === ${JSON.stringify(message)}`, message);
+  const seek = (time) => set('#studio-playhead', time, 'input');
+  async function addNode(name, parentId, x, color, particle = false) {
+    await click(particle ? '#add-sphere' : '#add-box');
+    await status(particle ? '已添加球体。' : '已添加方盒。');
+    await set('#node-name', name);
+    await set('#node-parent', parentId);
+    await set('#position-x', x);
+    await set('#node-color', color);
+    if (particle) {
+      await set('#position-y', 0.85);
+      for (const axis of ['x', 'y', 'z']) await set(`#scale-${axis}`, 0.34);
+    }
+    await click('#inspector button[type=submit]');
+    await status('已应用属性。');
+    return evaluate(`[...document.querySelector('#view-target').options].find(option => option.text === ${JSON.stringify(name)}).value`);
+  }
+  async function saveView({ mode, title, target, parents = [], hotspot, configure }) {
+    await set('#navigation-view', '', 'change');
+    await set('#navigation-mode', mode, 'change');
+    await set('#view-title', title);
+    await set('#view-target', target);
+    if (parents.length) await set('#view-parents', parents);
+    if (hotspot) await set('#view-hotspot', hotspot);
+    if (configure) await configure();
+    await click('#save-view');
+    await status('已保存展示导航。');
+    return evaluate("document.querySelector('#navigation-view').value");
+  }
+  async function download(kind, selector, path) {
+    selectDownload(kind);
+    const done = new Promise((resolve, reject) => {
+      session.defaultSession.once('will-download', (_event, item) => {
+        item.once('done', (_finished, state) => state === 'completed' ? resolve() : reject(new Error(state)));
+      });
+    });
+    await click(selector);
+    await Promise.race([done, new Promise((_, reject) => setTimeout(() => reject(new Error(`${kind} download timed out`)), 10000))]);
+    return fs.readFileSync(path);
+  }
+
+  await click('#new-project');
+  await status('新工程已建立。');
+  await set('#project-title', '四模式教学工程');
+  await set('#scene-title', '示意场景 · 教学颗粒移动');
+  await click('#scene-title-form button');
+  await status('已重命名场景。');
+  const cell = await addNode('教学细胞', '', 0, '#97bdb3');
+  const system = await addNode('转运示意区', cell, 1.3, '#527e91');
+  const protein = await addNode('示意蛋白质对象', system, 1.3, '#388775');
+  const particle = await addNode('示意颗粒', system, -0.3, '#ef9d42', true);
+  await click('#add-keyframe');
+  await status('已保存关键帧。');
+  await seek(2);
+  await set('#position-x', 1.1);
+  await click('#inspector button[type=submit]');
+  await status('已应用属性。');
+  await click('#add-keyframe');
+  await status('已保存关键帧。');
+  await set('#bookmark-name', '教学场景总览');
+  await click('#add-bookmark');
+  await status('已保存视角书签。');
+  await evaluate("document.querySelector('#navigation-settings').open = true");
+  await set('#view-target', '');
+  await click('#save-view');
+  assert.match(await evaluate("document.querySelector('.navigation-error').textContent"), /目标对象/);
+  await evaluate("[...document.querySelectorAll('.navigation-form button')].find(button => button.textContent === '放弃草稿').click()");
+  const cellView = await saveView({ mode: 'cell', title: '教学细胞总览', target: cell, configure: async () => {
+    await click('#export-scene');
+    await waitFor(studio, "document.querySelector('#status').textContent.includes('未保存的草稿')", 'export blocks an unsaved view draft');
+    await set('#bookmark-name', '草稿期间新增镜头');
+    await click('#add-bookmark');
+    await status('已保存视角书签。');
+    assert.equal(await evaluate("document.querySelector('#view-title').value"), '教学细胞总览');
+    const bookmark = await evaluate("[...document.querySelector('#view-camera').options].find(option => option.text === '草稿期间新增镜头').value");
+    await set('#view-camera', bookmark);
+  } });
+  const systemView = await saveView({ mode: 'system', title: '教学局部系统', target: system, parents: [cellView], hotspot: system });
+  const proteinView = await saveView({ mode: 'protein', title: '教学蛋白质', target: protein, parents: [systemView], hotspot: protein });
+  await saveView({ mode: 'mechanism', title: '教学机理', target: system, parents: [systemView, proteinView], configure: async () => {
+    await set('#view-timed', true, 'change');
+    await set('[data-step-title]', '示意 · 起点');
+    await set('[data-step-nodes]', [particle]);
+    await seek(0);
+    await click('.navigation-step button');
+    await seek(1);
+    await click('#add-keyframe');
+    await status('已保存关键帧。');
+    assert.equal(await evaluate("document.querySelector('[data-step-title]').value"), '示意 · 起点');
+    assert.equal(await evaluate("document.querySelector('[data-step-nodes]').selectedOptions[0].value"), particle);
+    await click('#add-view-step');
+    await set('.navigation-step:nth-child(2) [data-step-title]', '示意 · 接近对象');
+    await set('.navigation-step:nth-child(2) [data-step-nodes]', [protein, particle]);
+    await seek(2);
+    await click('.navigation-step:nth-child(2) button');
+  } });
+  await click('#remove-node');
+  await waitFor(studio, "document.querySelector('#status').textContent.includes('示意颗粒') && document.querySelector('#status').textContent.includes('教学机理')", 'referenced node deletion is explained');
+  await click('#undo');
+  await status('已撤销。');
+  assert.equal(await evaluate("document.querySelector('#navigation-view').options.length"), 4);
+  await click('#redo');
+  await status('已重做。');
+  const saved = await download('project', '#save-project', projectPath);
+  fs.writeFileSync(path.join(directory, 'studio-four-modes.glow-project'), saved);
+  const { project } = await decodeProject(saved);
+  const expected = project.scenes[0].presentation.navigation;
+  assert.deepEqual(expected.views.map(({ mode }) => mode), ['cell', 'system', 'protein', 'mechanism']);
+  assert.deepEqual(expected.views[3].steps.map(({ time }) => time), [0, 2]);
+  assert.ok(expected.views[0].bookmarkId);
+  await click('#new-project');
+  await status('新工程已建立。');
+  await injectFile(studio, { name: 'm3.glow-project', data: saved, input: '#project-file' });
+  await status('工程已打开。');
+  await set('#navigation-view', expected.views[3].id, 'change');
+  assert.equal(await evaluate("document.querySelectorAll('[data-step-title]').length"), 2);
+  assert.deepEqual(await evaluate("[...document.querySelector('#view-parents').selectedOptions].map(option => option.value)"), [systemView, proteinView]);
+  await captureWindow(studio, directory, 'studio-navigation', '#navigation-settings');
+  const exported = await download('scene', '#export-scene', scenePath);
+  fs.writeFileSync(path.join(directory, 'studio-four-modes.glow'), exported);
+  assert.deepEqual((await readScenePackage(exported)).scene.presentation.navigation, expected);
+  await injectFile(viewer, { name: 'm3.glow', data: exported, input: '#file' });
+  await waitFor(viewer, "document.querySelector('#status').textContent === 'm3.glow'", 'Viewer opens authored export');
+  assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#structure-enabled').checked"), false);
+  for (const { id, mode } of expected.views.slice(1)) {
+    await viewer.webContents.executeJavaScript(`document.querySelector('[data-view-id="${id}"]').click()`);
+    await waitFor(viewer, `document.querySelector('#navigation-heading').dataset.mode === '${mode}'`, `Viewer enters authored ${mode}`);
+  }
+  await viewer.webContents.executeJavaScript(`document.querySelector('[data-step="1"]').click()`);
+  assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#playhead').value"), '2');
+  await captureWindow(viewer, directory, 'viewer-authored');
+  await viewer.webContents.executeJavaScript("document.querySelector('#navigation-back').click()");
+  assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#navigation-heading').dataset.mode"), 'protein');
+}
+
 async function run() {
   await app.whenReady();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -565,6 +716,14 @@ async function run() {
       fs.mkdirSync(m1Output, { recursive: true });
       await verifyNavigation(viewer, m1Output);
     }
+    const m3Output = process.env.GLOW_M3_SCREENSHOTS;
+    if (m3Output) {
+      stage = 'm3-navigation-authoring';
+      fs.mkdirSync(m3Output, { recursive: true });
+      await verifyNavigationAuthoring(studio, viewer, m3Output, {
+        projectPath, scenePath, selectDownload: (mode) => { nextDownload = mode; }, decodeProject, readScenePackage,
+      });
+    }
     assert.equal(studioErrors.length, 0, studioErrors.join('\n'));
     assert.equal(viewerErrors.length, 0, viewerErrors.join('\n'));
     assert.equal(networkRequests.length, 0, `unexpected external requests: ${networkRequests.join(', ')}`);
@@ -574,6 +733,7 @@ async function run() {
       bookmarks: exportedScene.presentation.bookmarks.length, viewerPlayback: true, inspectorUndoRedo: true,
       ...(m0Output ? { m0PresentationRoundTrip: true, olderV1Import: true, failedLoadRetainsScene: true } : {}),
       ...(m1Output ? { m1Navigation: true, reducedMotion: true, navigationResourcesReleased: true, m2ModePanels: true } : {}),
+      ...(m3Output ? { m3NavigationAuthoring: true, m3ProjectAndSceneRoundTrip: true } : {}),
       gizmoAxisPixels: gizmoView.axes, noExternalRequests: true,
     }));
   } finally {

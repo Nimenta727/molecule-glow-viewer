@@ -96,6 +96,14 @@ h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
 .panel-group[open] > summary::before { transform: rotate(90deg); }
 .panel-group > summary h2 { display: inline; }
 .panel-group:not([open]) { padding-block: 0.8rem; }
+#navigation-editor, .navigation-form, .navigation-form fieldset { display: grid; gap: 0.45rem; min-width: 0; }
+.navigation-form label, #navigation-editor > label { display: grid; gap: 0.15rem; min-width: 0; color: var(--muted); }
+.navigation-form label[hidden] { display: none; }
+.navigation-form .navigation-check { display: flex; align-items: center; justify-content: space-between; }
+.navigation-form fieldset { margin: 0.45rem 0; padding: 0.55rem; border: 1px solid var(--line); border-radius: 0.35rem; }
+.navigation-form input:not([type="checkbox"]), .navigation-form select, #navigation-view { width: 100%; min-width: 0; }
+.navigation-form .navigation-error { margin: 0; color: #972d21; }
+.navigation-form .navigation-error:empty { display: none; }
 :focus-visible { scroll-margin-block: 0.5rem; }
 
 .timeline-panel { padding: 0.65rem 1rem; border-top: 1px solid var(--line); background: var(--panel); }

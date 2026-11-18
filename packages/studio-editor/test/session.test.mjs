@@ -23,6 +23,28 @@ const scene = () => ({
   presentation: { notes: [{ id: 'existing-note', text: 'Keep me', nodeId: 'structure-node' }], bookmarks: [] },
 });
 
+test('navigation edits are undoable and referenced node deletion is rejected atomically', () => {
+  const session = createStudioSession(scene());
+  const navigation = { version: 1, entryId: 'cell-view', views: [{
+    id: 'cell-view', mode: 'cell', title: '教学细胞', nodeId: 'primitive-node',
+    parentIds: [], bookmarkId: null, labelIds: ['existing-note'],
+  }] };
+  assert.equal(session.dispatch({ type: 'setNavigation', navigation }), true);
+  assert.equal(session.getScene().presentation.navigation.views[0].nodeId, 'primitive-node');
+  const snapshot = session.getScene();
+  assert.throws(() => session.dispatch({ type: 'removeNode', id: 'primitive-node' }), /Primitive.*教学细胞/);
+  assert.throws(() => session.dispatch({ type: 'removeNode', id: 'structure-node' }), /Structure.*教学细胞/);
+  assert.throws(() => session.dispatch({
+    type: 'setNavigation',
+    navigation: { ...navigation, entryId: 'missing-view' },
+  }), /requires unique view IDs and a cell entry/);
+  assert.equal(session.getScene(), snapshot);
+  assert.equal(session.undo(), true);
+  assert.equal(session.getScene().presentation.navigation, undefined);
+  assert.equal(session.redo(), true);
+  assert.equal(session.getScene(), snapshot);
+});
+
 test('Core projection recognizes available geometry and treats unsupported assets as groups', () => {
   const resource = new Uint8Array([1, 2, 3]);
   const resources = new Map([['assets/geometry.json', resource]]);

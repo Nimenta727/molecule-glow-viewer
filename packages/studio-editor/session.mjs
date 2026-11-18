@@ -97,6 +97,16 @@ function mergeCore(scene, coreDocument, renderableAssetIds, assetIntents) {
   });
   const nodeIds = new Set(nodes.map((node) => node.id));
   let presentation = scene.presentation;
+  for (const view of presentation?.navigation?.views ?? []) {
+    const references = [
+      view.nodeId, view.hotspotNodeId,
+      ...(view.steps ?? []).flatMap(({ nodeIds }) => nodeIds),
+      ...(view.connections ?? []).flatMap(({ from, to }) => [from, to]),
+      ...presentation.notes.filter(({ id }) => view.labelIds.includes(id)).map(({ nodeId }) => nodeId),
+    ];
+    const missing = references.find((id) => id != null && !nodeIds.has(id));
+    if (missing) throw new Error(`「${previousNodes.get(missing)?.name || missing}」仍被展示视图「${view.title}」引用。请先修改该视图。`);
+  }
   if (presentation && presentation.notes.some((note) => note.nodeId !== null && !nodeIds.has(note.nodeId))) {
     presentation = {
       ...presentation,
@@ -115,6 +125,18 @@ function mergeCore(scene, coreDocument, renderableAssetIds, assetIntents) {
 function applyMetadata(scene, command) {
   const next = clone(scene);
   switch (command.type) {
+    case 'setSceneTitle':
+      if (typeof command.title !== 'string' || !command.title.trim()) throw new TypeError('请输入场景名称。');
+      next.title = command.title.trim();
+      break;
+    case 'setNavigation': {
+      if (command.navigation === undefined) throw new TypeError('setNavigation requires navigation or null');
+      if (command.navigation === null && !next.presentation?.navigation) return scene;
+      next.presentation ??= { notes: [], bookmarks: [] };
+      if (command.navigation === null) delete next.presentation.navigation;
+      else next.presentation.navigation = clone(command.navigation);
+      break;
+    }
     case 'addNote': {
       const note = command.note;
       if (!note || typeof note !== 'object' || Array.isArray(note) || typeof note.id !== 'string' || typeof note.text !== 'string' || !(typeof note.nodeId === 'string' || note.nodeId === null)) {
@@ -163,7 +185,9 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence'].includes(command.type)) return commit(applyMetadata(current, command));
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle'].includes(command.type)) {
+      return commit(applyMetadata(current, command));
+    }
 
     const coreDocument = projected(current, storedResources);
     const renderableAssetIds = new Set(coreDocument.assets.map((asset) => asset.id));
