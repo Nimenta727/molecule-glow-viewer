@@ -117,6 +117,32 @@ const SCENE_PROPERTIES = {
         type: 'object', additionalProperties: false, required: ['id', 'name', 'position', 'target'],
         properties: { id: ID, name: { type: 'string', minLength: 1, maxLength: 200 }, position: VEC3, target: VEC3 },
       } },
+      navigation: {
+        type: 'object', additionalProperties: false, required: ['version', 'entryId', 'views'],
+        properties: {
+          version: { const: 1 }, entryId: ID,
+          views: { type: 'array', minItems: 1, items: {
+            type: 'object', additionalProperties: false,
+            required: ['id', 'mode', 'title', 'nodeId', 'parentIds', 'bookmarkId', 'labelIds'],
+            properties: {
+              id: ID, mode: { enum: ['cell', 'system', 'protein', 'mechanism'] },
+              title: { type: 'string', minLength: 1 }, nodeId: ID,
+              hotspotNodeId: ID,
+              parentIds: { type: 'array', uniqueItems: true, items: ID },
+              bookmarkId: { anyOf: [ID, { type: 'null' }] },
+              labelIds: { type: 'array', uniqueItems: true, items: ID },
+              steps: { type: 'array', minItems: 1, items: {
+                type: 'object', additionalProperties: false, required: ['id', 'title', 'nodeIds'],
+                properties: {
+                  id: ID, title: { type: 'string', minLength: 1 },
+                  nodeIds: { type: 'array', minItems: 1, uniqueItems: true, items: ID },
+                  time: { type: 'number', minimum: 0 },
+                },
+              } },
+            },
+          } },
+        },
+      },
     },
   },
 };
@@ -229,9 +255,48 @@ function checkSceneReferences(scene) {
     if (bookmarks.some(({ position, target }) => position.every((value, index) => value === target[index]))) {
       throw new SchemaValidationError('bookmark camera position must differ from its target');
     }
+    checkNavigation(scene.presentation, nodeIds, scene.timeline);
   }
   try { validateCoreDocument(projectCoreDocument(scene)); }
   catch (error) { throw new SchemaValidationError(error.message); }
+}
+
+function checkNavigation({ navigation, notes, bookmarks }, nodeIds, timeline) {
+  if (!navigation) return;
+  const { entryId, views } = navigation;
+  const byId = new Map(views.map((view) => [view.id, view]));
+  const noteIds = new Set(notes.map(({ id }) => id));
+  const bookmarkIds = new Set(bookmarks.map(({ id }) => id));
+  const parents = { cell: [], system: ['cell'], protein: ['system'], mechanism: ['system', 'protein'] };
+  if (byId.size !== views.length || byId.get(entryId)?.mode !== 'cell') {
+    throw new SchemaValidationError('presentation navigation requires unique view IDs and a cell entry');
+  }
+  for (const view of views) {
+    const fail = (reason) => { throw new SchemaValidationError(`presentation view "${view.id}": ${reason}`); };
+    const root = view.id === entryId;
+    if ((root && view.parentIds.length) || (!root && !view.parentIds.length) ||
+        (view.mode !== 'mechanism' && view.parentIds.length > 1) ||
+        view.parentIds.some((id) => !parents[view.mode].includes(byId.get(id)?.mode))) {
+      fail('invalid parent view, missing target or cycle');
+    }
+    if (!nodeIds.has(view.nodeId)) fail('unknown target node');
+    if (view.hotspotNodeId !== undefined && (root || !nodeIds.has(view.hotspotNodeId))) fail('invalid hotspot node');
+    if (view.bookmarkId !== null && !bookmarkIds.has(view.bookmarkId)) fail('unknown camera bookmark');
+    if (view.labelIds.some((id) => !noteIds.has(id))) fail('unknown label');
+    if ((view.mode === 'mechanism') !== Boolean(view.steps)) fail('steps are required only for mechanism views');
+    if (view.steps?.some((step) => (step.time === undefined) !== (view.steps[0].time === undefined))) {
+      fail('steps must be either all timed or all untimed');
+    }
+    let previousTime = -1;
+    const stepIds = new Set();
+    for (const step of view.steps ?? []) {
+      if (stepIds.has(step.id) || step.nodeIds.some((id) => !nodeIds.has(id))) fail('duplicate step ID or unknown step node');
+      stepIds.add(step.id);
+      if (step.time === undefined) continue;
+      if (!timeline.tracks.length || step.time > timeline.duration || step.time <= previousTime) fail('invalid step time');
+      previousTime = step.time;
+    }
+  }
 }
 
 export function isPackagePath(value) {

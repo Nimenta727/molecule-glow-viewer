@@ -1,4 +1,5 @@
 # Scene packs and workshop indexes are hashed (SHA-256) byte for byte: keep them LF everywhere
 *.glow text eol=lf
+apps/viewer-web/four-modes-demo.glow binary !eol
 workshop/**/index.json text eol=lf
 workshop/stats.json text eol=lf

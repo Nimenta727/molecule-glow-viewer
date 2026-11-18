@@ -66,6 +66,57 @@ function injectFile(win, { name, data, type = 'application/octet-stream', input 
   })()`);
 }
 
+async function captureWindow(win, directory, name) {
+  const original = win.getContentSize();
+  try {
+    for (const [layout, width] of [['normal', original[0]], ['narrow', 560]]) {
+      win.setContentSize(width, original[1]);
+      await waitFor(win, `Math.abs(innerWidth - ${width}) < 4`, `${name} ${layout} resize`);
+      await win.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+      fs.writeFileSync(path.join(directory, `${name}-${layout}.png`), (await win.webContents.capturePage()).toPNG());
+    }
+  } finally {
+    win.setContentSize(...original);
+  }
+}
+
+async function verifyPresentationDemo(viewer, directory, scenePath, readScenePackage) {
+  const status = (label) => `document.querySelector('#status').textContent === ${JSON.stringify(label)}`;
+  await captureWindow(viewer, directory, 'viewer-baseline');
+  // Save and reopen the ordinary v2 package first, then verify the new package.
+  async function saveAndReopen(name, expectedScene) {
+    const completed = new Promise((resolve, reject) => {
+      session.defaultSession.once('will-download', (_event, item) => {
+        item.once('done', (_finished, state) => state === 'completed' ? resolve() : reject(new Error(state)));
+      });
+    });
+    await viewer.webContents.executeJavaScript("document.querySelector('#save').click()");
+    await Promise.race([completed, new Promise((_, reject) => setTimeout(() => reject(new Error('Viewer save timeout')), 10000))]);
+    const saved = fs.readFileSync(scenePath);
+    assert.deepEqual((await readScenePackage(saved)).scene, expectedScene);
+    await injectFile(viewer, { name, data: saved, input: '#file' });
+    await waitFor(viewer, status(name), name);
+  }
+  const ordinary = await readScenePackage(fs.readFileSync(scenePath));
+  await saveAndReopen('ordinary-reopened.glow', ordinary.scene);
+  const demo = fs.readFileSync(path.join(repo, 'apps/viewer-web/four-modes-demo.glow'));
+  await injectFile(viewer, { name: 'four-modes-demo.glow', data: demo, input: '#file' });
+  await waitFor(viewer, status('four-modes-demo.glow'), 'four-mode demo open');
+  assert.ok((await viewportPixels(viewer)).colored > 1000, 'demo geometry must render');
+  await captureWindow(viewer, directory, 'viewer-four-modes-demo');
+  await viewer.webContents.executeJavaScript("document.querySelector('#play').click()");
+  await waitFor(viewer, "Number(document.querySelector('#time').value.split(' / ')[0]) > 0.2", 'demo playback advances');
+  await saveAndReopen('four-modes-reopened.glow', (await readScenePackage(demo)).scene);
+  await injectFile(viewer, { name: 'broken.glow', data: Buffer.from('{'), input: '#file' });
+  await waitFor(viewer, "document.querySelector('#status').textContent.startsWith('无法打开场景。')", 'malformed package refused');
+  assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#playhead').max"), '4');
+  assert.ok((await viewportPixels(viewer)).colored > 1000, 'malformed package must leave the demo visible');
+  const v1 = fs.readFileSync(path.join(repo, 'workshop/official/packs/official.kcsa-data.glow'));
+  await injectFile(viewer, { name: 'legacy-v1.glow', data: v1, input: '#file' });
+  await waitFor(viewer, status('legacy-v1.glow'), 'legacy v1 open');
+  assert.equal(await viewer.webContents.executeJavaScript("document.querySelector('#legacy-viewer').hidden"), false);
+}
+
 function pdbAtom(serial, seq, x, y = 0, z = 0) {
   const line = Array(80).fill(' ');
   const put = (start, end, value) => line.splice(start, end - start, ...String(value).padEnd(end - start, ' ').slice(0, end - start));
@@ -127,6 +178,11 @@ async function run() {
     await waitFor(studio, `document.querySelector('#status').textContent === '新工程已建立。' && document.querySelector('#scene-picker').options.length === 1`, 'Studio startup');
     studio.show();
     await new Promise((resolve) => setTimeout(resolve, 250));
+    const m0Output = process.env.GLOW_M0_SCREENSHOTS;
+    if (m0Output) {
+      fs.mkdirSync(m0Output, { recursive: true });
+      await captureWindow(studio, m0Output, 'studio-baseline');
+    }
 
     stage = 'structure-import';
     const rawPdb = syntheticPdb();
@@ -250,6 +306,10 @@ async function run() {
     await viewer.webContents.executeJavaScript(`document.querySelector('#play').click()`);
     await waitFor(viewer, `document.querySelector('#play').textContent === '暂停'`, 'Viewer playback starts');
     await waitFor(viewer, `Number(document.querySelector('#time').value.split(' / ')[0]) > 0.2`, 'Viewer timeline advances');
+    if (m0Output) {
+      stage = 'm0-presentation-demo';
+      await verifyPresentationDemo(viewer, m0Output, scenePath, readScenePackage);
+    }
     assert.equal(studioErrors.length, 0, studioErrors.join('\n'));
     assert.equal(viewerErrors.length, 0, viewerErrors.join('\n'));
     assert.equal(networkRequests.length, 0, `unexpected external requests: ${networkRequests.join(', ')}`);
@@ -257,6 +317,7 @@ async function run() {
       ok: true, sourceSha256: sourceHash, scenes: decoded.project.scenes.length,
       keyframes: 2, notes: exportedScene.presentation.notes.length, evidence: exportedScene.evidence.length,
       bookmarks: exportedScene.presentation.bookmarks.length, viewerPlayback: true, inspectorUndoRedo: true,
+      ...(m0Output ? { m0PresentationRoundTrip: true, olderV1Import: true, failedLoadRetainsScene: true } : {}),
       gizmoAxisPixels: gizmoView.axes, noExternalRequests: true,
     }));
   } finally {
