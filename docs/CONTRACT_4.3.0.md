@@ -65,6 +65,7 @@
   },
   "outputs": { "state": ["fraction"], "observations": ["rmsd[Å]", "domainAngle[deg]", "domainShift[Å]"] },
   "model": { "kind": "geometric-interpolation", "assumptions": ["中间构象为教学插值，非动力学"], "refs": [] },
+  "audience": ["view", "author"],              // 见 §10：view 工具 Viewer 与 Studio 都能挂；author 工具只挂在 Studio
   "runtime": "player-v1",                      // prepare/create/advance/seek/snapshot/save/dispose
   "dependencies": [{ "id": "org.glow.structure", "version": "1.0.0", "optional": false }]
 }
@@ -199,6 +200,14 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 2. **能力命名（已确认）**：新增 `tools`，旧 `players` 保留为兼容名。
 3. **物理包粒度（已确认并细化）**：功能相近的合并到同一个包，不过度拆分，按 §3 的 4 个包组织；先在现有 `plugins/` 下提取，是否再细分待 4.4 完成后看依赖。
 
-## 10. 本设计**没有**做的事
+## 10. 前端分工（维护者 2026-11-19 确认）
+
+- **Studio（作品制作平台）**：借鉴专业分子软件（Mol\*、ChimeraX、PyMOL）的面板**结构**——场景树/对象列表 + 选中对象属性 + 按工具分块的面板。工具面板**由工具描述自动生成**（§3 的 `parameters`/`inputs`），所以新增或更新制作类工具时 Studio 无需改界面代码即可跟进。
+- **Viewer（展示界面）**：只采用这类软件的**视觉风格**（紧凑密度、标题条、参数行对齐、扁平按钮）；结构保持自己的（导航/机理/步骤/播放条），不照抄。
+- **工具的 `audience`**：`view` 类（表示切换、着色、选择、测量、视角、截图等）可挂在 Viewer 与 Studio，Viewer 保留这些按钮并随查看类工具更新；`author` 类（构象配置、粒子编排、反应网络编辑等）**只挂在 Studio**，Viewer 不加载、不展示。宿主按 `audience` 过滤，不靠界面代码约定。
+- 画面（蛋白质）始终是主体内置的 `core.ink` 白底墨线，不随面板风格变化。
+- 落地顺序：Viewer 风格改造不依赖工具协议，先做；Studio 结构改造依赖 4.3.3 的工具协议，随其落地。
+
+## 11. 本设计**没有**做的事
 
 不实现代码；不迁移经典 `src/`；不判断任何机制的科学正确性；不设计工坊视觉；不涉及沙箱（受信工具仍由应用内置，任意第三方插件隔离是单独验收）；不选定第二个科学结构对。

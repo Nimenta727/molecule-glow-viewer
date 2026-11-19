@@ -1,18 +1,20 @@
 /* Glow Viewer — paper-and-ink interface. The canvas is the page; panels float over it as light cards. */
 :root {
-  font: 13.5px/1.5 system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+  font: 12.5px/1.45 system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
   color-scheme: light;
   --paper: #f7f7f4;
-  --card: rgba(255, 255, 255, 0.94);
+  --card: rgba(255, 255, 255, 0.97);
+  --head: #eceef3;
+  --head-ink: #3a4352;
   --ink: #1f2733;
   --dim: #5d6676;
   --line: rgba(31, 39, 51, 0.12);
   --acc: #4a5fb0;
   --acc-ink: #2f3f86;
   --acc-soft: #eceffa;
-  --radius: 10px;
-  --shadow: 0 4px 18px rgba(31, 39, 51, 0.10);
-  --panel-w: 20.5rem;
+  --radius: 4px;
+  --shadow: 0 1px 3px rgba(31, 39, 51, 0.12), 0 4px 14px rgba(31, 39, 51, 0.06);
+  --panel-w: 19rem;
   --gap: 0.75rem;
   --startup-bg: var(--paper);
   --startup-fg: var(--ink);
@@ -38,16 +40,16 @@ main { position: fixed; inset: 0; display: block; }
 }
 .topbar > * { pointer-events: auto; }
 .brand, .actions { display: flex; align-items: center; gap: 0.5rem; }
-.actions { flex-wrap: wrap; padding: 0.25rem; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.actions { flex-wrap: wrap; padding: 0.2rem; gap: 0.15rem; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 h1 {
-  margin: 0; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em;
+  margin: 0; font-size: 1rem; font-weight: 700; letter-spacing: 0.01em;
   background: linear-gradient(90deg, #5a3b8c, #2a5fae); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 
 /* ---- controls ---- */
 button {
-  background: #fff; color: inherit; border: 1px solid var(--line); border-radius: 7px;
-  padding: 0.3rem 0.7rem; font: inherit; cursor: pointer; transition: border-color 0.12s, background 0.12s;
+  background: #fff; color: inherit; border: 1px solid var(--line); border-radius: 3px;
+  padding: 0.22rem 0.6rem; font: inherit; cursor: pointer; transition: border-color 0.12s, background 0.12s;
 }
 button:hover:enabled { border-color: var(--acc); background: var(--acc-soft); }
 button:disabled { cursor: default; opacity: 0.45; }
@@ -58,7 +60,7 @@ button:disabled { cursor: default; opacity: 0.45; }
 #panel-toggle { background: var(--card); box-shadow: var(--shadow); }
 #panel-toggle[aria-expanded="true"] { background: var(--acc-soft); border-color: var(--acc); color: var(--acc-ink); }
 input[type="text"], input[type="number"], select {
-  font: inherit; color: inherit; background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 0.22rem 0.4rem;
+  font: inherit; color: inherit; background: #fff; border: 1px solid var(--line); border-radius: 3px; padding: 0.16rem 0.35rem;
 }
 :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
 #reset-camera {
@@ -84,26 +86,35 @@ body.panel-collapsed .info-panel { display: none; }
 @media (min-width: 761px) {
   body:not(.panel-collapsed) .viewport-panel { left: calc(var(--panel-w) + 2 * var(--gap)); }
 }
-.info-panel > details, .info-panel > #scene-navigation, .info-panel > .mechanism-controls { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--line); }
+.info-panel > details { padding: 0; border-bottom: 1px solid var(--line); }
+.info-panel > #scene-navigation, .info-panel > .mechanism-controls { padding: 0.55rem 0.75rem 0.7rem; border-bottom: 1px solid var(--line); }
 .info-panel > :last-child { border-bottom: 0; }
+/* section content sits inside the header-bar rhythm used by professional molecular tools */
+.info-panel > details > :not(summary) { margin-left: 0.75rem; margin-right: 0.75rem; }
+.info-panel > details > :last-child { margin-bottom: 0.65rem; }
+.info-panel > details > summary + * { margin-top: 0.55rem; }
 .empty-hint { margin: 0; padding: 0.75rem 0.9rem; color: var(--dim); font-size: 0.82rem; border-bottom: 1px solid var(--line); }
 body:has(#close:not(:disabled)) .empty-hint { display: none; }
 
 /* summary rows act as accordion headers */
 .info-panel summary {
-  list-style: none; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer; font-weight: 650; color: var(--ink);
+  list-style: none; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer; font-weight: 600; color: var(--head-ink);
+  padding: 0.32rem 0.75rem; background: var(--head); border-bottom: 1px solid var(--line);
 }
+.info-panel > details:not([open]) > summary { border-bottom: 0; }
+.info-panel summary:hover { background: #e4e7ee; }
 .info-panel summary::-webkit-details-marker { display: none; }
 .info-panel summary::before {
   content: ''; width: 0.42rem; height: 0.42rem; flex: none; border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim);
   transform: rotate(-45deg); transition: transform 0.12s;
 }
 .info-panel details[open] > summary::before { transform: rotate(45deg); }
-.info-panel details details { margin-top: 0.5rem; }
-.info-panel details details > summary { font-weight: 600; font-size: 0.9rem; }
+.info-panel details details { margin-top: 0.45rem; }
+.info-panel details details > summary { padding: 0.2rem 0; background: transparent; border: 0; font-weight: 600; color: var(--ink); }
+.info-panel details details > summary:hover { background: transparent; color: var(--acc-ink); }
 .info-panel ul { margin: 0.5rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
 .info-panel li + li { margin-top: 0.3rem; }
-.info-panel label { display: block; margin-top: 0.45rem; }
+.info-panel label { display: block; margin-top: 0.4rem; }
 .info-panel > #presentation[hidden] { display: none; }
 
 /* ---- title and evidence badges (top right, under the file buttons) ---- */
@@ -119,7 +130,7 @@ body:has(#close:not(:disabled)) .empty-hint { display: none; }
 /* ---- scene navigation and mode panel ---- */
 #scene-navigation { overflow-wrap: anywhere; }
 #navigation-scene, #navigation-selection { margin: 0 0 0.3rem; color: var(--dim); font-size: 0.82rem; }
-#navigation-heading { margin: 0.3rem 0; font-size: 1.05rem; }
+#navigation-heading { margin: 0.3rem 0; font-size: 1rem; }
 #navigation-path { display: flex; flex-wrap: wrap; gap: 0.2rem 0.45rem; margin: 0; padding: 0; list-style: none; font-size: 0.8rem; color: var(--dim); }
 #navigation-path li + li::before { content: '›'; margin-right: 0.45rem; }
 #navigation-path [aria-current] { font-weight: 650; color: var(--ink); }
@@ -144,9 +155,9 @@ body:has(#close:not(:disabled)) .empty-hint { display: none; }
 .structure-summary { margin: 0.55rem 0 0; color: var(--dim); font-size: 0.82rem; line-height: 1.45; overflow-wrap: anywhere; }
 
 /* ---- mechanism controls ---- */
-.mechanism-controls h2 { margin: 0 0 0.5rem; font-size: 1.05rem; }
-.mechanism-controls label { display: block; margin: 0.45rem 0; }
-.mechanism-controls input[type="number"] { max-width: 6rem; margin-left: 0.5rem; }
+.mechanism-controls h2 { margin: 0 0 0.45rem; padding-bottom: 0.35rem; font-size: 0.95rem; border-bottom: 1px solid var(--line); }
+.mechanism-controls label { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin: 0.35rem 0; color: var(--dim); }
+.mechanism-controls input[type="number"], .mechanism-controls select { width: 6rem; margin-left: 0; color: var(--ink); }
 #mechanism-parameters input[type="range"] { display: block; width: 100%; max-width: 100%; margin-left: 0; accent-color: var(--acc); }
 .mechanism-controls button { margin: 0.2rem 0.2rem 0.2rem 0; }
 #mechanism-steps { padding-left: 1.2rem; }
