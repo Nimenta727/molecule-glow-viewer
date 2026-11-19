@@ -1,6 +1,6 @@
 # 4.3.0 资源 / 功能插件 / 作品契约与拆分设计
 
-状态：**设计稿，未实现、未经维护者评审**。核对日期 2026-11-19；代码基线 a28f6b9。本文只定义接口与迁移方式；不改任何代码，也不表示下列字段或能力已经存在。执行编号见 [ROADMAP](ROADMAP.md)，现状见 [ARCHITECTURE](ARCHITECTURE.md)。
+状态：**设计稿，§9 三点已获维护者确认；其余未实现。**核对日期 2026-11-19；代码基线 a28f6b9。本文只定义接口与迁移方式；不改任何代码，也不表示下列字段或能力已经存在。执行编号见 [ROADMAP](ROADMAP.md)，现状见 [ARCHITECTURE](ARCHITECTURE.md)。
 
 ## 0. 重点（先读这一节）
 
@@ -76,15 +76,16 @@
 - 工具通过宿主命令 `commands.dispatch` 提交可持久化数据，私有运行态只通过 `save()` 序列化（§5）。
 - 现有 `players`/`panels` 注册继续有效，等价于一个没有声明 `inputs/parameters` 的"旧式工具"，用于迁移期。
 
-**候选工具划分**（物理包是否合并留待实现时按依赖决定，本表不表示目录已存在）：
+**物理包划分（维护者要求：功能相近的放同一个包，不要拆散）**：一个包可以注册多个工具，包内共享算法只保留一份。按功能族只设 4 个包：
 
-| 候选工具 ID | 承接（现有代码） | 对应 ROADMAP |
-|---|---|---|
-| `…tool.conformation` | AdK `structure.mjs` 的 CORE 叠合/两态插值/域测量；ATP β 位点三构象插值 | 4.4.1 |
-| `…tool.rotation` | ATP 转子轴旋转（用 `plugins/structure/alignment.mjs`） | 4.4.1 |
-| `…tool.particles` | 各播放器内联的粒子/路径代码（KcsA `walk`/`transitions`） | 4.4.2 |
-| `…tool.reaction-network` | 经典 `data-anim`/`cell-kinetics`（尚未迁入新版） | 4.4.3 |
-| `…tool.gating` | KcsA `kinetics.mjs`（四态门控、阻断、通量） | 4.4.4 |
+| 包（目标目录） | 包含的工具/能力 | 承接（现有代码） | 对应 ROADMAP |
+|---|---|---|---|
+| `plugins/structure`（扩充现有包，并入 `plugins/rcsb`） | 导入（PDB/mmCIF/RCSB）、表示、选择与序列、拆装、测量/接触/口袋/界面等分析 | 现有 structure + rcsb；经典 `selection*`、`take-apart`、`pocket/measure` | 4.4.0、4.4.7 |
+| `plugins/motion` | 构象对应/叠合/插值、轴旋转、粒子/路径/流、环境（膜、拥挤） | AdK `structure.mjs`+`playback.mjs`；ATP 旋转与β插值；KcsA 的 `walk`/`transitions` 粒子代码 | 4.4.1、4.4.2、4.4.6 |
+| `plugins/simulation` | 数据反应/区室网络、门控与动力学、序列/随机状态过程（共用 RNG/时钟/计量） | KcsA `kinetics.mjs`；经典 `data-anim`/`cell-kinetics`/`translation` | 4.4.3、4.4.4、4.4.5 |
+| `plugins/teaching` | 字幕/步骤、证据、标签、计数/曲线/能量条、镜头书签 | 经典 `evidence`/`labels`/`energy-strip`；新版 presentation 的非核心部分 | 4.4.7 |
+
+工具 ID 仍按能力命名（如 `org.glow.tool.conformation`），与包无关；以后包内工具增减不影响作品引用。三个旧 `org.glow.legacy-process.*` 插件在迁移期保留为薄适配层。
 
 ## 4. 作品契约（Work）
 
@@ -192,11 +193,11 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 
 **必须保持绿的现有测试**：`packages/*/test`、`plugins/*/test` 全部（约 145 项）。
 
-## 9. 需要维护者确认的三点（我的默认写在前）
+## 9. 维护者已确认的三点（2026-11-19）
 
-1. **版本策略**：场景 schemaVersion 升到 3，读取时自动迁移 v2；v2 读取器不兼容 v3。备选：不升版本，把 `tools/resource` 暂存在 `provenance`/`extensions` 自由字段里（改动小，但缺少校验）。推荐升版本。
-2. **能力命名**：新增 `tools`，旧 `players` 保留为兼容名。备选：直接改名 `players`→`tools`（会一次性动三个插件与宿主测试）。推荐保留兼容。
-3. **物理包粒度**：先在现有 `plugins/` 下以"工具模块"形式提取，4.4 完成后再决定是否拆独立包。推荐延后拆包，避免过早制造十个包。
+1. **版本策略（已确认）**：场景 schemaVersion 升到 3，读取 v2 时自动无损迁移；v2 读取器不兼容 v3。
+2. **能力命名（已确认）**：新增 `tools`，旧 `players` 保留为兼容名。
+3. **物理包粒度（已确认并细化）**：功能相近的合并到同一个包，不过度拆分，按 §3 的 4 个包组织；先在现有 `plugins/` 下提取，是否再细分待 4.4 完成后看依赖。
 
 ## 10. 本设计**没有**做的事
 

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPresentationOverlay } from './presentation-overlay.mjs';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CORE_INK, createInkRenderer } from './ink-style.mjs';
 
 function applyTransform(object, transform) {
   object.position.set(...transform.position);
@@ -103,7 +104,7 @@ function* renderables(asset, layers) {
   }
 }
 
-export function createViewport(container, { onSelect, selectOnTap = false, TransformControls, onTransform, background = '#f5f7f8' } = {}) {
+export function createViewport(container, { onSelect, selectOnTap = false, TransformControls, onTransform, background = CORE_INK.background, style = 'ink' } = {}) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(background);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
@@ -139,6 +140,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   raycaster.params.Points.threshold = 0.08;
   const pointer = new THREE.Vector2();
   let active = null;
+  let ink = null;
   let disposed = false;
   let frameId;
   let transition;
@@ -191,8 +193,12 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         if (progress === 1) transition = undefined;
         else invalidate();
       }
-      renderer.render(scene, camera);
+      draw();
     });
+  }
+  function draw() {
+    if (ink) ink.render();
+    else renderer.render(scene, camera);
   }
   controls.addEventListener('change', invalidate);
   controls.addEventListener('start', cancelCameraTransition);
@@ -217,7 +223,12 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
+    ink?.setSize(width, height);
     invalidate();
+  }
+  if (style === 'ink') {
+    ink = createInkRenderer({ renderer, scene, camera,
+      getFocus: () => ({ distance: Math.max(camera.position.distanceTo(controls.target), 1e-3), radius: active?.radius ?? 0 }) });
   }
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(container);
@@ -683,13 +694,14 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     pointSelection?.geometry.dispose();
     pointSelection?.material.dispose();
     controls.dispose();
+    ink?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
 
   function snapshot(width) {
     if (disposed) throw new Error('视口已关闭。');
-    renderer.render(scene, camera);
+    draw();
     const source = renderer.domElement;
     if (width == null || width === source.width) return source.toDataURL('image/png');
     const canvas = document.createElement('canvas');
@@ -700,5 +712,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose };
+    orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose,
+    get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }
