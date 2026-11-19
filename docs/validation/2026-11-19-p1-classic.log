@@ -1,0 +1,31 @@
+sha256 index.html：da028760ed8112b3…
+sha256 dev.html：ab3fa27e9195340b…
+场景                    载入s     实体      链       残基       配体     FPS    几何体     过程计数                          
+4HHB-hemoglobin       1.9     2       4       574      2      4.8    26                                    
+6ZPO-atp-synthase     0.1     18      29      5150     4      5.3    53      ATP 1 H⁺ 2                    
+1K4C-kcsa             4.0     1       4       412      2      5.2    19      K⁺ 外流 0 K⁺ 内流 0               
+4V6F-translation      15.3    53      55      10600    2      1.6    79      肽键 0 蛋白质 0                    
+7CGO-flagellar-motor  2.2     19      612     154583   0      0.9    572     H⁺（示意） 3                      
+cell-corner           10.4    54      59      11012    4      1.9    85      肽键 0 蛋白质 0 K⁺ 外流 0 K⁺ 内流 0    
+
+回到 4HHB-hemoglobin：几何体 26 → 26，纹理 24 → 24，场景对象 31 → 31
+连切 1K4C-kcsa：残基 412，覆盖层对象 36，DOM 标签 132，监听器 14（单独加载：412 / 29 / 131 / 14）
+连切后的场景会话：第 14 个，存活 1，登记资源 {"disposer":1}
+rRNA 长度 4V6F-translation：23S 2908，16S 1515，5S 121
+rRNA 长度 cell-corner：23S 2908，16S 1515，5S 121
+可重复 kcsa：seed 7，K⁺ 外流 2，K⁺ 内流 0；事件 0（38135 ms）
+可重复 atp-synthase：seed 7，ATP 8，H⁺ 22；事件 17（61279 ms）
+可重复 translation：seed 7，肽键 1，蛋白质 0；事件 0（114864 ms）
+连载两次 whole-cell：几何体 123 → 123，监听器 14 → 14，DOM 标签 45 → 45
+返回导航：kcsa → 细胞一角：核糖体 + 钾通道（同时模拟），差异 0
+等待中的动画：运行中 1，清场后 0
+载入失败（找不到 PDB 条目 0000）：旧场景保留，会话 27 → 27，残基 412 → 412，几何体 20 → 20
+桥接：官方站 true，其他站 false，null false
+
+⚠ 4HHB-hemoglobin：FPS 10 → 4.8
+⚠ 6ZPO-atp-synthase：FPS 9.2 → 5.3
+⚠ 1K4C-kcsa：FPS 11.2 → 5.2
+⚠ 4V6F-translation：FPS 4.7 → 1.6
+⚠ 7CGO-flagellar-motor：FPS 1.7 → 0.9
+
+全部通过（和基线一致）

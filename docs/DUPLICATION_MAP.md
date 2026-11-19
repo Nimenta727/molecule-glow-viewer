@@ -28,3 +28,7 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 ## P0 模块调整（384cdcf）
 
 桌面开发入口与打包入口共用 `desktop/platform-shell.cjs` 的路由、默认经典入口、菜单和版本信息；打包脚本不再通过字符串替换制造第二份 Shell 业务逻辑。可选验收逻辑拆到 `desktop/smoke-runner.cjs`，普通运行不启用测试注入。科学与渲染双实现仍按上表待对照。[P0 实测记录](RELEASE_VALIDATION_2026-11-19.md)记录真实产物结果。
+
+## 4.1 安全模块调整（01c8dae）
+
+经典与新版共同使用 `src/api/embed-permissions.js` 的许可控制；经典将它内联进单文件，新版按模块导入，桌面复制相同源文件。两代命令队列只增加执行/返回前授权钩子，不复制另一套许可决策。Shell 缓存统一在 `desktop/response-cache.cjs` 流式限量处理，`desktop/network-policy.cjs` 统一导航/重定向/弹窗规则；前端解析器和科学模型仍按既有清单待对照。见 [4.1 安全验收](SECURITY_REMEDIATION_2026-11-19.md)。

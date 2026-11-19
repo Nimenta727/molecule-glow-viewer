@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "source_commit": "01c8daee546e1e4be0a7c8269646913b5f3c0a37",
+  "source_dirty": false,
+  "candidate": {
+    "file": "MoleculeGlow-0.4.0-01c8daee-win-x64.exe",
+    "bytes": 78927718,
+    "sha256": "2d473a3d6f0ad8b573ab4391f471192b15c4e7de5e4b3424b7d602e4bb1efa4b",
+    "sourceCommit": "01c8daee546e1e4be0a7c8269646913b5f3c0a37",
+    "sourceDirty": false,
+    "contentSha256": "bc57e81f33bdad2a7f8f5eb7f7c9dd70107bd98bb8806d54a66b5c00e209e768"
+  },
+  "asar_sha256": "b5cde19d3a64cfe196fe4ae827f27d8f2fa2f7ae6643f32fee37842d507fc312",
+  "environment": {
+    "os": "Windows 10.0.26300 x64",
+    "node": "26.13.1",
+    "electron": "33.4.11",
+    "artifact_renderer": "SwiftShader"
+  },
+  "security_cases": [
+    {
+      "kind": "classic-dom",
+      "stage": true,
+      "exe": true,
+      "result": {
+        "parserToLegend": true,
+        "bindingSiteTextOnly": true,
+        "focusControls": true,
+        "scriptExecutions": 0,
+        "title": "<img/src=x/onerror=globalThis.__xss=1> 结合位点"
+      },
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "screenshots": [
+        "docs/images/p1-classic-dom-normal.png",
+        "docs/images/p1-classic-dom-narrow.png"
+      ]
+    },
+    {
+      "kind": "embed-consent",
+      "stage": true,
+      "exe": true,
+      "result": {
+        "realParentIframe": true,
+        "refusedExport": true,
+        "separateScopes": true,
+        "mutationReplyRedacted": true,
+        "explicitPrivateFileRead": true,
+        "revoke": true,
+        "sceneChange": true,
+        "exportBytes": 3903
+      },
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "screenshots": [
+        "docs/images/p1-embed-consent-normal.png",
+        "docs/images/p1-embed-consent-narrow.png"
+      ]
+    },
+    {
+      "kind": "embed-classic",
+      "stage": true,
+      "exe": true,
+      "result": {
+        "realParentIframe": true,
+        "refusedExport": true,
+        "separateScopes": true,
+        "mutationReplyRedacted": true,
+        "explicitPrivateFileRead": true,
+        "revoke": true,
+        "sceneChange": true,
+        "exportBytes": 8432
+      },
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "screenshots": [
+        "docs/images/p1-embed-classic-normal.png",
+        "docs/images/p1-embed-classic-narrow.png"
+      ]
+    },
+    {
+      "kind": "network-live",
+      "stage": true,
+      "exe": true,
+      "result": {
+        "liveRetrieval": true,
+        "hash": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763",
+        "bytes": 570033,
+        "atomicDiskCache": true,
+        "subsequentCacheHit": true
+      },
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "screenshots": []
+    }
+  ],
+  "platform_cases": [
+    {
+      "kind": "classic",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": []
+    },
+    {
+      "kind": "studio",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": [
+        {
+          "extension": ".glow-project",
+          "state": "completed"
+        },
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ]
+    },
+    {
+      "kind": "local",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ]
+    },
+    {
+      "kind": "atp",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ]
+    },
+    {
+      "kind": "kcsa",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ]
+    },
+    {
+      "kind": "adk",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ]
+    }
+  ],
+  "source_checks": {
+    "node_tests": 134,
+    "build": true,
+    "copies": true,
+    "official_pack_data_validation": 15,
+    "studio_m3": true,
+    "local_command_workflow": true
+  },
+  "classic_regression": {
+    "status": "passed_source_desktop_regression",
+    "viewer_sha256": "da028760ed8112b3278a7550969529d2ebe1e340bfce6aae6f39fa830271a45c",
+    "six_scenes": [
+      {
+        "key": "4HHB-hemoglobin",
+        "residues": 574,
+        "fps": 4.8
+      },
+      {
+        "key": "6ZPO-atp-synthase",
+        "residues": 5150,
+        "fps": 5.3
+      },
+      {
+        "key": "1K4C-kcsa",
+        "residues": 412,
+        "fps": 5.2
+      },
+      {
+        "key": "4V6F-translation",
+        "residues": 10600,
+        "fps": 1.6
+      },
+      {
+        "key": "7CGO-flagellar-motor",
+        "residues": 154583,
+        "fps": 0.9
+      },
+      {
+        "key": "cell-corner",
+        "residues": 11012,
+        "fps": 1.9
+      }
+    ],
+    "log": "docs/validation/2026-11-19-p1-classic.log",
+    "performance": "Baseline content checks passed; FPS warnings recorded during concurrent local validation. Not a performance certification."
+  },
+  "ci": {
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44498741719",
+    "source": "success",
+    "windows-artifact": "success"
+  },
+  "initial_exe_attempt": "Two local portable suites were launched concurrently; one classic launch exited without report. Full six-case serial rerun passed. CI runs suites sequentially.",
+  "scope": "4.1 specific remediation; not full security audit, scientific parity, performance certification or formal release."
+}

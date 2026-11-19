@@ -47,3 +47,7 @@ EXE 测试还提取构建生成的 `win-unpacked/resources/app.asar` 执行闭�
 `.github/workflows/platform.yml` 对平台源码、插件、桌面、测试和依赖变更运行：完整 Node/包安全测试、经典构建/副本、15 个官方包校验；Windows 作业执行实时结构下载、暂存目录六例、Studio M3、portable 打包、实际 EXE 六例，并上传候选和日志/截图。所有测试都必须通过作业才为绿；维护者还需在仓库分支保护中把对应检查设为 required，不能把工作流文件存在说成分支保护已配置。
 
 15 包校验是数据合法性检查，不是 15 包科学模拟全部迁移完成。三个机制的发布冒烟也不替代各插件的完整科学对照。低画质/软件渲染用于 CI 可重复启动，不代表真实 GPU 性能。具体本次运行结果与产物哈希见 [P0 实测记录](RELEASE_VALIDATION_2026-11-19.md)；GitHub 作业是否通过需以对应提交的实际运行状态为准。
+
+## 4.1 增补门槛
+
+Windows 作业在暂存和实际 EXE 六例后，分别执行 `tools/security-smoke.cjs --live` 的四例：恶意 mmCIF、两代父 iframe 授权、Electron 实时网络缓存。实际通过的代码/产物见 [4.1 安全验收](SECURITY_REMEDIATION_2026-11-19.md)。同一个 portable 候选的两套回归按顺序运行，避免并发启动影响解包与退出。
