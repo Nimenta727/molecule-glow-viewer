@@ -2,7 +2,7 @@
 
 从真实分子结构到教学机制与细胞场景的 Three.js 查看器。项目正在把 Claude 经典 Viewer 的科学功能迁入 **Core 主体＋官方插件**；经典入口保留，新平台尚未达到完整功能和视觉等价。
 
-目标流程：**导入蛋白质等原始资源 → 使用动画/模拟/科研功能插件 → 制作并分享作品**。创意工坊将分资源区与作品区；线粒体、呼吸链等属于作品。现有专用播放器尚需按此边界拆分，详见 [架构与当前差距](docs/ARCHITECTURE.md)。
+目标流程：**导入蛋白质等原始资源 → 使用动画/模拟/科研功能插件 → 制作并分享作品**。创意工坊将分资源区与作品区；线粒体、呼吸链等属于作品。执行顺序为**制作基底 → Claude 经典已有功能按功能插件化 → 新增科研插件**。现有专用播放器尚需按此边界拆分，详见 [架构与当前差距](docs/ARCHITECTURE.md)。
 
 **Desktop v0.5.0**：[Windows 便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/MoleculeGlow-0.5.0-win-x64.exe) · [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/molecule-glow-viewer-skill-0.5.0.zip)
 

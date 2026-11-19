@@ -1,13 +1,13 @@
 # 当前文档入口
 
-日期：2026-11-19；Desktop/Skill 发布系列 0.5.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)。
+日期：2026-11-19；Desktop/Skill 发布系列 0.5.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。本次只更新文档；先制作基底，再经典已有功能插件化，最后新增科研插件。
 
 | 文档 | 阅读目的 |
 |---|---|
 | [CURRENT_FEATURES](CURRENT_FEATURES.md) | 经典、新 Viewer、Studio 当前能力与未迁范围 |
-| [ARCHITECTURE](ARCHITECTURE.md) | 主体＋插件、双入口、数据/生命周期、制作链 |
+| [ARCHITECTURE](ARCHITECTURE.md) | 当前代码结构/现状、制作基底、经典功能拆分矩阵与兼容方案（主文档） |
 | [AUDIT](AUDIT.md) | 已修风险、证据、剩余差异 |
-| [ROADMAP](ROADMAP.md) | 唯一当前执行计划，下一项 4.3.0：资源/功能插件/作品契约 |
+| [ROADMAP](ROADMAP.md) | 唯一当前顺序：4.3 制作基底 → 4.4 经典功能插件 → 4.5 作者/工坊 → 4.6 新增科研 → 4.7 验收；下一项 4.3.0 |
 | [CODEX_MIGRATION_HANDOFF](CODEX_MIGRATION_HANDOFF.md) | Claude 交接意图、当前回应、分工及完成门槛 |
 | [VIEWER_COMMAND_API](VIEWER_COMMAND_API.md) | 新版 API 与嵌入权限 |
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |

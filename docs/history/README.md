@@ -4,7 +4,13 @@
 
 本轮归档映射见 [ARCHIVE_MAP.json](ARCHIVE_MAP.json)。validation 和 images 保留稳定证据路径，历史通过不代表当前提交通过。routine 未纳入整理。
 
-## 本轮归档
+## 当前修订与综合
+
+- [历史沿革总结](EVOLUTION_SUMMARY.md)：经典、平台契约、交接、审计/整改与最新用户要求如何衔接。
+- [759102f 文档快照](2026-11-19-before-authoring-priority/README.md)：被本次综合替代的 ARCHITECTURE、ROADMAP、DUPLICATION_MAP 和交接回应；保留原理解与来源，仅重定位相对链接。
+- [快照映射](SNAPSHOT_MAP.json)：稳定当前路径与历史版本对应关系。当前文件重新综合，避免破坏活跃引用；历史副本不再作为执行入口。
+
+## 此前归档
 
 - [AI_AUDIT_AND_STABILIZATION.md](AI_AUDIT_AND_STABILIZATION.md)
 - [AUDIT_REPORT_2026-11-18.md](AUDIT_REPORT_2026-11-18.md)

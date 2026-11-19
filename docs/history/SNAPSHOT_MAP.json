@@ -1,0 +1,22 @@
+{
+  "source_commit": "759102f",
+  "reason": "Superseded by authoring foundation / classic functional plugins / new research priority; current canonical paths rewritten, old versions retained with rebased links.",
+  "snapshots": [
+    {
+      "current": "docs/ARCHITECTURE.md",
+      "snapshot": "docs/history/2026-11-19-before-authoring-priority/ARCHITECTURE.md"
+    },
+    {
+      "current": "docs/ROADMAP.md",
+      "snapshot": "docs/history/2026-11-19-before-authoring-priority/ROADMAP.md"
+    },
+    {
+      "current": "docs/DUPLICATION_MAP.md",
+      "snapshot": "docs/history/2026-11-19-before-authoring-priority/DUPLICATION_MAP.md"
+    },
+    {
+      "current": "docs/CODEX_MIGRATION_HANDOFF.md",
+      "snapshot": "docs/history/2026-11-19-before-authoring-priority/CODEX_MIGRATION_HANDOFF.md"
+    }
+  ]
+}
