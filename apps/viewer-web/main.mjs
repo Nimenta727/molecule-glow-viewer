@@ -25,6 +25,7 @@ const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
+const DEFAULT_STYLE = 'blob';   // classic default: flat colour domains with ink outlines
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
@@ -62,7 +63,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
-  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? 'cartoon';
+  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? DEFAULT_STYLE;
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
   if (!elements['functional-evidence'].hidden) elements['functional-evidence'].textContent = functionalDescription(active?.scene, active?.player);
 }
@@ -406,7 +407,7 @@ function boot() {
       if (!previews.length) continue;
       loaded.representationSource ??= source;
       const storedStyle = source.provenance?.viewerStyle;
-      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : 'cartoon');
+      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : DEFAULT_STYLE);
       const builds = new Map();
       const build = (mode) => {
         if (!builds.has(mode)) {
@@ -715,6 +716,7 @@ function boot() {
       item.textContent = [EVIDENCE_LABELS[type] ?? type, typeof citation === 'string' ? citation : assetId]
         .filter((value) => typeof value === 'string').join(' · ');
     });
+    showHud(active?.scene?.title, entries);
     renderList('viewer-bookmarks', bookmarks, (item, bookmark) => {
       const button = document.createElement('button');
       button.type = 'button';
@@ -722,6 +724,20 @@ function boot() {
       button.dataset.bookmarkId = bookmark.id;
       item.append(button);
     });
+  }
+
+  // Title and evidence badges, as in the classic viewer: how much of what is shown is measured, derived, modelled or schematic.
+  function showHud(title, entries) {
+    const counts = new Map();
+    for (const { type } of entries) if (EVIDENCE_LABELS[type] && type !== 'source') counts.set(type, (counts.get(type) ?? 0) + 1);
+    elements.hud.hidden = !title;
+    elements['hud-title'].textContent = title ?? '';
+    elements['hud-badges'].replaceChildren(...[...counts].map(([type, count]) => {
+      const badge = document.createElement('li');
+      badge.className = `badge badge-${type}`;
+      badge.textContent = `${EVIDENCE_LABELS[type]} ${count}`;
+      return badge;
+    }));
   }
 
   async function openScene(input = {}, { propagate = false } = {}) {

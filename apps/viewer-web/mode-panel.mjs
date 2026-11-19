@@ -1,5 +1,12 @@
 const TITLES = { cell: '细胞区域', system: '系统对象', protein: '蛋白质部件', mechanism: '机理步骤' };
 
+// Repeated chains of one subunit read as "name ×8" instead of eight copies of the same label.
+function summarizeNames(names) {
+  const counts = new Map();
+  for (const value of names) counts.set(value, (counts.get(value) ?? 0) + 1);
+  return [...counts].map(([value, count]) => count > 1 ? `${value} ×${count}` : value).join('、');
+}
+
 export function createModePanel(panel, { onObject, onStep, onRotate }) {
   let view, nodes, buttons = [], manualStep, currentStep;
   const element = (tag, text) => Object.assign(document.createElement(tag), { textContent: text });
@@ -46,7 +53,7 @@ export function createModePanel(panel, { onObject, onStep, onRotate }) {
         button.type = 'button';
         button.dataset.step = index;
         const timing = time === undefined ? '' : ` · ${time.toLocaleString('zh-CN')} 秒`;
-        const participants = element('small', `参与对象：${nodeIds.map(name).join('、')}${timing}`);
+        const participants = element('small', `参与对象：${summarizeNames(nodeIds.map(name))}${timing}`);
         item.append(button, participants);
         list.append(item);
         buttons.push(button);

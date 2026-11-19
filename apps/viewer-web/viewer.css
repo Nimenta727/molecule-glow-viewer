@@ -73,6 +73,17 @@ input[type="text"], input[type="number"], select {
   backdrop-filter: blur(8px);
 }
 body.panel-collapsed .info-panel { display: none; }
+.info-panel { display: flex; flex-direction: column; }
+.info-panel > * { flex: none; }
+.info-panel > .empty-hint { order: 0; }
+.info-panel > #scene-navigation { order: 1; }
+.info-panel > .mechanism-controls { order: 2; }
+.info-panel > #presentation { order: 3; }
+.info-panel > #structure-tools { order: 4; }
+/* the canvas stops at the panel so the model is centred in the free area */
+@media (min-width: 761px) {
+  body:not(.panel-collapsed) .viewport-panel { left: calc(var(--panel-w) + 2 * var(--gap)); }
+}
 .info-panel > details, .info-panel > #scene-navigation, .info-panel > .mechanism-controls { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--line); }
 .info-panel > :last-child { border-bottom: 0; }
 .empty-hint { margin: 0; padding: 0.75rem 0.9rem; color: var(--dim); font-size: 0.82rem; border-bottom: 1px solid var(--line); }
@@ -94,6 +105,16 @@ body:has(#close:not(:disabled)) .empty-hint { display: none; }
 .info-panel li + li { margin-top: 0.3rem; }
 .info-panel label { display: block; margin-top: 0.45rem; }
 .info-panel > #presentation[hidden] { display: none; }
+
+/* ---- title and evidence badges (top right, under the file buttons) ---- */
+.hud { position: absolute; z-index: 3; top: 4.1rem; right: var(--gap); max-width: min(26rem, 45%); text-align: right; pointer-events: none; }
+.hud-title { margin: 0; font-size: 1.05rem; font-weight: 650; letter-spacing: 0.01em; text-shadow: 0 0 6px var(--paper), 0 0 12px var(--paper); }
+.hud-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.3rem; margin: 0.35rem 0 0; padding: 0; list-style: none; }
+.badge { padding: 0.05rem 0.55rem; border: 1px solid currentColor; border-radius: 999px; background: rgba(255, 255, 255, 0.85); font-size: 0.75rem; font-weight: 600; }
+.badge-experimental { color: #2f7d4f; }
+.badge-derived { color: #2b6cb0; }
+.badge-modelled { color: #a8690f; }
+.badge-illustrative { color: #7b4fae; }
 
 /* ---- scene navigation and mode panel ---- */
 #scene-navigation { overflow-wrap: anywhere; }
@@ -151,9 +172,13 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
   .topbar { flex-direction: column; align-items: stretch; gap: 0.4rem; }
   .actions { width: 100%; justify-content: space-between; }
   .actions button { flex: 1; padding-inline: 0.3rem; }
-  .info-panel { top: auto; left: var(--gap); right: var(--gap); width: auto; max-width: none; top: auto; bottom: 7.4rem; max-height: min(40svh, 22rem); }
+  :root { --sheet-h: min(30svh, 16rem); }
+  .hud { top: 5.6rem; max-width: 60%; }
+  .viewport-panel { top: 5.4rem; bottom: 5.8rem; }
+  body:not(.panel-collapsed) .viewport-panel { bottom: calc(var(--sheet-h) + 7.2rem); }
+  .info-panel { left: var(--gap); right: var(--gap); width: auto; max-width: none; top: auto; bottom: 7rem; height: var(--sheet-h); max-height: none; }
   body:not(.panel-collapsed) footer { left: var(--gap); }
-  #reset-camera { bottom: auto; top: 6.3rem; }
+  #reset-camera { bottom: auto; right: auto; top: 0.5rem; left: var(--gap); }
   .transport { flex-wrap: wrap; row-gap: 0.4rem; }
   #playhead { flex-basis: 100%; order: 3; }
   #time { margin-left: auto; }
