@@ -12,6 +12,7 @@ import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
 import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
+import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 
@@ -941,9 +942,8 @@ function boot() {
       if (source) source.provenance.playback = active.player.save();
       if (active.player.evidence) {
         if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
-      } else if (!scene.evidence.some(({ citation }) => citation === 'ATP 合酶教学播放器')) {
-        scene.evidence.push({ type: 'modelled', citation: 'ATP 合酶教学播放器',
-          details: '牛 c8 环每圈 8 H⁺、3 ATP。β 形状在 6ZPO 三个位点实测坐标之间插值。粒子、路径、膜和时间为示意。' });
+      } else if (!scene.evidence.some(({ citation }) => citation === ATP_6ZPO_TEMPLATE.sceneEvidence.citation)) {
+        scene.evidence.push({ type: 'modelled', ...ATP_6ZPO_TEMPLATE.sceneEvidence });   // wording lives in the work configuration
       }
     }
     if (representationSource) {

@@ -4,31 +4,8 @@ import { atpSynthasePlugin, ATP_PLAYER, createAtpPlayer } from '../index.mjs';
 import { superpose } from '../../structure/alignment.mjs';
 import { structurePlugin } from '../../structure/index.mjs';
 import { createPluginHost } from '../../../packages/plugin-host/index.mjs';
-
-function fixture() {
-  const names = { C: 'ATP synthase subunit C1', G: 'ATP synthase subunit gamma' };
-  const atoms = [];
-  for (let i = 0; i < 8; i++) {
-    names[`C${i}`] = names.C;
-    atoms.push({ name: 'CA', element: 'C', record: 'ATOM', modelId: '1',
-      authChainId: `C${i}`, labelChainId: `C${i}`, labelSeqId: String(i + 1), authSeqId: String(i + 1),
-      residueName: 'GLY', position: [10 * Math.cos(i * Math.PI / 4), 0, 10 * Math.sin(i * Math.PI / 4)] });
-  }
-  for (let chain = 0; chain < 3; chain++) {
-    const id = String(chain);
-    names[id] = 'ATP synthase subunit beta';
-    for (let i = 0; i < 6; i++) atoms.push({ name: 'CA', element: 'C', record: 'ATOM', modelId: '1',
-      authChainId: id, labelChainId: id, labelSeqId: String(i + 1), authSeqId: String(i + 1),
-      residueName: 'ALA', position: [Math.cos(chain * 2 * Math.PI / 3) * 15 + i,
-        35 + i % 2, Math.sin(chain * 2 * Math.PI / 3) * 15 + i * (i > 2 ? chain + 1 : 1)] });
-  }
-  const scene = { assets: [{ id: 'source', kind: 'file', mediaType: 'chemical/x-mmcif' }],
-    nodes: Object.entries(names).map(([id, partName]) => ({
-      id, assetId: id, parentId: null, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-      extensions: { 'org.glow.structure': { sourceAssetId: 'source', partName, chainId: id } },
-    })) };
-  return { model: { format: 'mmcif', atoms, chainNames: names }, scene };
-}
+import { fixture } from './fixture.mjs';
+import { ATP_6ZPO_TEMPLATE } from '../config.mjs';
 
 test('Horn alignment recovers a rigid rotation without changing source coordinates', () => {
   const source = [[0, 0, 0], [1, 0, 0], [0, 2, 0], [0, 0, 3]];
@@ -80,4 +57,67 @@ test('deactivating the official plugin removes its panel and disposes all active
   assert.equal(host.getPlayer(ATP_PLAYER), undefined);
   assert.equal(host.getPanel(ATP_PLAYER), undefined);
   assert.throws(() => player.snapshot(), /释放/);
+});
+
+test('with the default work configuration the player behaves exactly as before the extraction (golden trace)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { trace } = await import('./golden-trace.mjs');
+  const golden = JSON.parse(readFileSync(new URL('./golden-default.json', import.meta.url), 'utf8'));
+  assert.deepEqual(trace(createAtpPlayer({ ...fixture(), state: { seed: 7, speed: 0.25 } })), golden);
+  assert.deepEqual(trace(createAtpPlayer({ ...fixture(), state: { seed: 7, speed: 0.25 }, config: ATP_6ZPO_TEMPLATE })), golden);
+});
+
+test('the same algorithm serves a different ring size when the work configuration says so (c10: 10 H+ and 3 ATP per turn)', () => {
+  const input = fixture({ ring: 10 });
+  assert.throws(() => createAtpPlayer({ ...input, state: { seed: 1 } }), /适用于具有 8 个 c 亚基/);
+  const player = createAtpPlayer({ ...input, state: { seed: 1, speed: 0.25 }, config: { counts: { ringSubunits: 10 } } });
+  const turn = player.seek(4);
+  assert.deepEqual(turn.counters, { ATP: 3, 'H⁺': 10 });
+  assert.equal(turn.particles.filter(({ name }) => name === 'H⁺').length, 10);
+  assert.equal(player.seek(8).counters['H⁺'], 20);
+  const any = createAtpPlayer({ ...input, state: { seed: 1 }, config: { counts: { ringSubunits: null } } });
+  assert.equal(any.seek(4).counters['H⁺'], 10, 'null accepts the detected ring size');
+});
+
+test('another labelling scheme needs only configuration, not code: renamed subunits give identical dynamics', () => {
+  const renamed = fixture({ ringName: 'c-ring protomer', betaName: 'F1 catalytic subunit', gammaName: 'central stalk' });
+  const config = { parts: { ring: 'c-ring', catalytic: 'F1 catalytic', rotor: ['central stalk', 'c-ring'] },
+    steps: ATP_6ZPO_TEMPLATE.steps.map((step) => ({ ...step, parts: ['central stalk', 'F1 catalytic'] })),
+    particles: { proton: { name: 'H⁺', color: '#112233' } }, counterLabels: { atp: 'ATP', proton: 'H⁺' } };
+  assert.throws(() => createAtpPlayer({ ...renamed, state: { seed: 7 } }), /c 环和 β 亚基/);
+  const custom = createAtpPlayer({ ...renamed, state: { seed: 7, speed: 0.25 }, config });
+  const standard = createAtpPlayer({ ...fixture(), state: { seed: 7, speed: 0.25 } });
+  for (const time of [0, 1, 4, 11.3]) {
+    const a = custom.seek(time), b = standard.seek(time);
+    assert.deepEqual(a.counters, b.counters);
+    assert.deepEqual(a.events, b.events);
+    assert.deepEqual([...a.transforms.values()].map((t) => t.rotation), [...b.transforms.values()].map((t) => t.rotation));
+  }
+  assert.equal(custom.seek(1).particles.find(({ name }) => name === 'H⁺').color, '#112233');
+  assert.ok(custom.steps.every(({ nodeIds }) => nodeIds.length > 0), 'step selectors resolve against the renamed parts');
+});
+
+test('texts, labels and navigation come from the work configuration', () => {
+  const player = createAtpPlayer({ ...fixture(), state: { seed: 1 }, config: {
+    navigation: { idPrefix: 'rot', systemTitle: '旋转酶系统', proteinTitle: '旋转酶结构', mechanismTitle: '旋转酶机理' },
+    counterLabels: { atp: '产物', proton: '质子' }, eventLabel: '释放产物' } });
+  assert.deepEqual(player.navigation.views.map(({ id }) => id), ['rot-system', 'rot-protein', 'rot-mechanism']);
+  assert.equal(player.navigation.views[2].title, '旋转酶机理');
+  assert.equal(player.navigation.views[2].steps[0].id, 'rot-step-0');
+  const snapshot = player.seek(4);
+  assert.deepEqual(Object.keys(snapshot.counters), ['产物', '质子']);
+  assert.equal(snapshot.events.at(-1).label, '释放产物');
+});
+
+test('an invalid work configuration is rejected with the offending field named', () => {
+  const make = (config) => () => createAtpPlayer({ ...fixture(), config });
+  assert.throws(make('x'), /必须是对象/);
+  assert.throws(make({ parts: { ring: '' } }), /parts\.ring/);
+  assert.throws(make({ parts: { rotor: [] } }), /parts\.rotor/);
+  assert.throws(make({ counts: { ringSubunits: 2 } }), /ringSubunits/);
+  assert.throws(make({ counts: { ringSubunits: 8.5 } }), /ringSubunits/);
+  assert.throws(make({ steps: ATP_6ZPO_TEMPLATE.steps.slice(0, 4) }), /正好有 5 步/);
+  assert.throws(make({ particles: { proton: { name: 'H⁺', color: 'red' } } }), /particles\.proton\.color/);
+  assert.throws(make({ navigation: 3 }), /navigation 必须是对象/);
+  assert.throws(() => { ATP_6ZPO_TEMPLATE.parts.ring = 'x'; }, TypeError, 'the built-in template is frozen');
 });

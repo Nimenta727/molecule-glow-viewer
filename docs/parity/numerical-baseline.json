@@ -9,7 +9,8 @@
     "src/data/parse.js": "8ce50230f6b273ec8142ff7db6f5e180db7a799c1ffd7d231a3fd9e8f1a8ec4f",
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
     "plugins/kcsa/kinetics.mjs": "eb65b1290a160493f7e2a21f4933c6748ad20bf55bca524be783e9529c33a31c",
-    "plugins/atp-synthase/index.mjs": "05ffd302edcf5874b8f327ec37f427a7c8e0bf34d52ac225d4525c5ae9e1a4e0",
+    "plugins/atp-synthase/index.mjs": "0a4b66b4d4adb182c958482ec21460585536478e13b02783eb4ac85c689552b4",
+    "plugins/atp-synthase/config.mjs": "1b9143b2567fd7c9db5b2e39e36410a1458341f8403444cc9323cb319d4b8ace",
     "plugins/adenylate-kinase/playback.mjs": "2ff7eedf32c44c5139c0a42e55a2404d38b594fe0d098b361c4f9f552cf35e6b",
     "plugins/adenylate-kinase/structure.mjs": "acffc48d7fac88464ce72b2669b67da457c87e0e64bd3d6e9a797a87dee96e7a",
     "plugins/structure/parser.mjs": "f40135e28c8adbcb4b929e67af6e2893ff7b5d023bdd0a7fb2172dd29dc6838d",
@@ -19,7 +20,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "9a0cf9bdbd3fbb63e7158a4c0135e481cc94a448fed5b532792cde30cce9a9b1",
-    "tools/parity-numerics.mjs": "f13605ef9f71ee9fb730188898e9e8a61f7c567725f6ba6f26896f53178838c0"
+    "tools/parity-numerics.mjs": "1efda377733b33cf73221d1f5c11ee13851a9aaecea1cfb1b1fdba4b4815bf5c"
   },
   "rows": [
     {
