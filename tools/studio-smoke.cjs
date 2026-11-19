@@ -10,6 +10,11 @@ const { app, BrowserWindow, session } = require('electron');
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  if (/^\/test\/adk\/(4AKE|1AKE)\.cif$/.test(pathname) && process.env.GLOW_ADK_CIF_DIR) {
+    res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' });
+    fs.createReadStream(path.join(process.env.GLOW_ADK_CIF_DIR, path.basename(pathname))).pipe(res);
+    return;
+  }
   if (/^\/test\/kcsa\/[0-9A-Z]{4}\.cif$/.test(pathname) && process.env.GLOW_KCSA_CIF_DIR) {
     res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' });
     fs.createReadStream(path.join(process.env.GLOW_KCSA_CIF_DIR, path.basename(pathname))).pipe(res);
@@ -993,8 +998,13 @@ async function run() {
   const port = server.address().port;
   const networkRequests = [];
   const kcsaRequests = [];
+  const adkRequests = [];
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
+    if (process.env.GLOW_ADK_CIF_DIR && /^https:\/\/files.rcsb.org\/download\/(4AKE|1AKE)\.cif$/.test(url.href)) {
+      adkRequests.push(url.href);
+      callback({ redirectURL: `http://127.0.0.1:${port}/test/adk/${url.pathname.split('/').pop()}` }); return;
+    }
     if (process.env.GLOW_KCSA_CIF_DIR && /^https:\/\/files.rcsb.org\/download\/(1K4C|5VK6|5VKE|2HVK|2ITD)\.cif$/.test(url.href)) {
       kcsaRequests.push(url.href);
       callback({ redirectURL: `http://127.0.0.1:${port}/test/kcsa/${url.pathname.split('/').pop()}` }); return;
@@ -1057,6 +1067,112 @@ async function run() {
     const { decodeProject } = await import(pathToFileURL(path.join(repo, 'packages/studio-editor/project-io.mjs')));
     const { readScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
+
+    if (process.env.GLOW_ADK_SMOKE) {
+      stage = 'adk-player';
+      const directory = process.env.GLOW_ADK_SMOKE;
+      fs.mkdirSync(directory, { recursive: true });
+      viewer = new BrowserWindow({ width: 1440, height: 1000, useContentSize: true, show: false,
+        webPreferences: { backgroundThrottling: false } });
+      const errors = [];
+      viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message); });
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例' && Boolean(window.glow)", 'AdK startup');
+      viewer.show();
+      const run = (code) => viewer.webContents.executeJavaScript(code);
+      const pack = fs.readFileSync(path.join(repo, 'workshop/official/packs/official.adenylate-kinase.glow'), 'utf8');
+      const opened = await run(`glow.load({packText:${JSON.stringify(pack)}})`);
+      assert.equal(await run("document.querySelector('#mechanism-title').textContent"), 'AdK 腺苷酸激酶');
+      assert.equal(await run("document.querySelectorAll('#mechanism-steps button').length"), 4);
+      assert.equal(opened.morph, 0);
+      assert(opened.plugins.some(({id}) => id === 'org.glow.legacy-process.adenylate-kinase'));
+      assert.equal(opened.counters.ADP, undefined);
+      await run("glow.represent('blob')");
+      const imageOpen = await run('glow.snapshot({width:800})');
+      await captureWindow(viewer, directory, 'adk-open', '#mechanism-controls');
+      const closed = await run('glow.animate({morph:1})');
+      assert.equal(closed.morph, 1); assert.equal(closed.parameters.auto, 0);
+      assert(Math.abs(closed.domainMeasurements.find(({name})=>name==='NMP').angle - 44.82) < 0.1);
+      assert(Math.abs(closed.domainMeasurements.find(({name})=>name==='LID').angle - 52.16) < 0.1);
+      const imageClosed = await run('glow.snapshot({width:800})'); assert.notEqual(imageOpen, imageClosed);
+      await captureWindow(viewer, directory, 'adk-closed', '#mechanism-controls');
+      await run('glow.animate({parameters:{ap5:0}})');
+      assert.notEqual(await run('glow.snapshot({width:800})'), imageClosed, 'inhibitor reference toggles');
+      await run('glow.animate({parameters:{ap5:1}})');
+      for (const style of ['cartoon', 'backbone', 'surface', 'functional']) {
+        await run(`glow.represent(${JSON.stringify(style)})`);
+        assert((await viewportPixels(viewer)).colored > 100, style);
+      }
+      await captureWindow(viewer, directory, 'adk-functional', '#mechanism-controls');
+      await run("document.querySelector('[data-parameter=morph]').value=0.4;document.querySelector('[data-parameter=morph]').dispatchEvent(new Event('input',{bubbles:true}))");
+      const intermediate = await run('glow.info()'); assert.equal(intermediate.morph, 0.4);
+      const selected = await run("glow.select({chainId:'A',residueId:'130'})");
+      assert.equal(selected.highlighted.residueId, '130');
+      const markerCenter = (data) => {
+        const image = require('electron').nativeImage.createFromDataURL(data), pixels = image.toBitmap(), width = image.getSize().width;
+        let x = 0, y = 0, count = 0;
+        for (let i = 0; i < pixels.length; i += 4) if (pixels[i + 2] > 210 && pixels[i + 1] > 130 && pixels[i + 1] < 185 && pixels[i] < 70) {
+          x += i / 4 % width; y += Math.floor(i / 4 / width); count++;
+        }
+        assert(count > 2, 'selection marker is visible'); return [x / count, y / count];
+      };
+      const markerBefore = markerCenter(await run('glow.snapshot({width:800})'));
+      await run('glow.animate({morph:1})');
+      const markerAfter = markerCenter(await run('glow.snapshot({width:800})'));
+      assert(Math.hypot(markerAfter[0] - markerBefore[0], markerAfter[1] - markerBefore[1]) > 2, 'selection follows the moving residue');
+      await run('glow.animate({morph:0.4})');
+      await assert.rejects(run('glow.animate({time:80,morph:2})'), /morph/);
+      assert.equal((await run('glow.info()')).time, intermediate.time);
+      await run('glow.animate({morph:"auto",pause:false})');
+      await waitFor(viewer, "Number(document.querySelector('#playhead').value)>0.05", 'AdK plays');
+      await run('glow.animate({pause:true})');
+      await run('glow.animate({time:0,seed:19,morph:"auto"})');
+      const stepped = await run('glow.animate({step:1/30,steps:300})');
+      const sought = await run('glow.animate({time:10})'); assert.equal(stepped.morph, sought.morph);
+      await run('glow.animate({speed:2})');
+      await run('glow.animate({time:15,morph:0.65})');
+      const savedState = await run('glow.info()');
+      const exported = await run('glow.exportPack()');
+      const decoded = await readScenePackage(Buffer.from(exported.data, 'base64'));
+      assert.equal(decoded.scene.assets.filter((a) => a.provenance?.mechanismState?.accession === '1AKE').length, 1);
+      assert(decoded.scene.evidence.some(({citation}) => citation === 'AdK 两态构象播放器'));
+      assert.equal(decoded.scene.legacy.scene.process, undefined);
+      const count = adkRequests.length;
+      await run("document.querySelector('#close').click()");
+      const reopened = await run(`glow.load(${JSON.stringify(exported)})`);
+      assert.equal(adkRequests.length, count, 'AdK reopen is offline');
+      assert.equal(reopened.morph, savedState.morph); assert.equal(reopened.metrics, savedState.metrics);
+      assert.deepEqual(reopened.parameters, savedState.parameters);
+      assert.deepEqual(reopened.selection, savedState.selection);
+      assert.deepEqual(reopened.camera.position, savedState.camera.position);
+      assert.deepEqual(reopened.camera.target, savedState.camera.target);
+      await run("document.querySelector('#mechanism-enter').click()");
+      assert.equal(await run("document.querySelector('#navigation-heading').dataset.mode"), 'mechanism');
+      await run("document.querySelector('#mode-panel [data-step=\"2\"]').click()");
+      assert.match(await run("document.querySelector('#mechanism-caption').textContent"), /不执行化学反应/);
+      await run("document.querySelector('#mechanism-back').click()");
+      assert.equal(await run("document.querySelector('#navigation-heading').dataset.mode"), 'protein');
+      await run("document.querySelector('#atp-enabled').click()");
+      await waitFor(viewer, "document.querySelector('#mechanism-controls').hidden", 'AdK disabled');
+      assert((await viewportPixels(viewer)).colored > 100);
+      await run("document.querySelector('#atp-enabled').click()");
+      await waitFor(viewer, "!document.querySelector('#mechanism-controls').hidden", 'AdK enabled');
+      assert.equal((await run('glow.info()')).morph, savedState.morph);
+      await captureWindow(viewer, directory, 'adk-reopened', '#mechanism-controls');
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'AdK failure startup');
+      await run("void (window.originalFetch=window.fetch);void (window.fetch=(url,options)=>String(url).includes('/1AKE.cif')?Promise.resolve(new Response('',{status:503})):originalFetch(url,options))");
+      const unavailable = await run(`glow.load({packText:${JSON.stringify(pack)}})`);
+      assert.equal(await run("document.querySelector('#mechanism-controls').hidden"), true);
+      assert(unavailable.warnings.some((text) => text.includes('机制构象准备失败')));
+      assert((await viewportPixels(viewer)).colored > 100);
+      const fallback = await run('glow.exportPack()');
+      const fallbackPack = await readScenePackage(Buffer.from(fallback.data, 'base64'));
+      assert.equal(fallbackPack.scene.assets.filter((a) => a.provenance?.mechanismState).length, 0);
+      assert.deepEqual(errors, []); assert.deepEqual(networkRequests, []);
+      console.log(JSON.stringify({ok:true,adkPlayer:true,roundTrip:true,requests:adkRequests.length}));
+      return;
+    }
 
     if (process.env.GLOW_KCSA_SMOKE) {
       stage = 'kcsa-player';

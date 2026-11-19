@@ -39,6 +39,7 @@ export function createViewerCommands(host) {
       paused: snapshot ? !snapshot.playing : !current?.timeline.playing,
       time: snapshot?.time ?? current?.timeline.time ?? 0,
       counters: snapshot?.counters ?? {}, seed: snapshot?.seed ?? null,
+      ...(snapshot?.domainMeasurements ? { domainMeasurements: snapshot.domainMeasurements, morph: snapshot.fraction } : {}),
       parameters: snapshot?.parameters ?? {}, metrics: snapshot?.metrics ?? null,
       ...(snapshot?.parameters ? { gate: snapshot.gate, current: snapshot.current, openCurrent: snapshot.openCurrent,
         reversalPotential: snapshot.reversalPotential, gateSeconds: snapshot.gateSeconds,
@@ -123,7 +124,11 @@ export function createViewerCommands(host) {
     },
     animate(value = {}) {
       const current = needScene(); const player = current.player;
-      if (!object(value) || Object.keys(value).some((key) => !['pause', 'time', 'speed', 'seed', 'step', 'steps', 'parameters'].includes(key))) throw new Error('动画参数无效或尚未迁移。');
+      if (!object(value) || Object.keys(value).some((key) => !['pause', 'time', 'speed', 'seed', 'step', 'steps', 'parameters', 'morph'].includes(key))) throw new Error('动画参数无效或尚未迁移。');
+      if (value.morph != null) {
+        if (!player?.setMorph) throw new Error('当前机制不支持两态构象控制。');
+        if (value.morph !== 'auto') finite(value.morph, 0, 1, 'morph');
+      }
       if (value.parameters != null) {
         if (!player?.validateParameters) throw new Error('当前机制不支持领域参数。');
         player.validateParameters(value.parameters);

@@ -73,6 +73,9 @@ export async function migrateLegacyScene(raw) {
     const processId = legacyProcess.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
     dependencies.push({ id: `org.glow.legacy-process.${processId}`, version: '1.0.0', optional: true });
   }
+  if (!legacyProcess && cleanScene.id === '4AKE' && cleanScene.states?.length === 2 && cleanScene.states[0] === '4AKE' && cleanScene.states[1] === '1AKE' && !cleanScene.components?.length) {
+    dependencies.push({ id: 'org.glow.legacy-process.adenylate-kinase', version: '1.0.0', optional: true });
+  }
   if (assets.length) {
     dependencies.push({ id: 'org.glow.structure', version: '1.0.0', optional: true });
   }

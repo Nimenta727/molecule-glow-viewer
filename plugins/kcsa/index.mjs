@@ -12,6 +12,7 @@ export const kcsaPlugin = {
       async prepare(input) {
         context.signal.throwIfAborted();
         await prepareKcsa({ ...input, signal: AbortSignal.any([context.signal, input.signal]) });
+        return { states: input.loaded.kcsaModels };
       },
       create(input) {
         if (context.signal.aborted) throw new Error('KcsA 插件已停用。');
@@ -21,7 +22,7 @@ export const kcsaPlugin = {
       },
     });
     context.registerPanel(KCSA_PLAYER, {
-      title: 'KcsA 钾通道', speed: { label: '模拟时钟倍率', min: 0.05, max: 3, step: 0.05 },
+      title: 'KcsA 钾通道', parametersTitle: '环境与阻断剂参数', speed: { label: '模拟时钟倍率', min: 0.05, max: 3, step: 0.05 },
       seed: { label: '随机种子', min: 0, max: 4294967295, step: 1 }, parameters: PARAMETERS,
       evidence: '结构：1K4C / 5VK6 / 5VKE / 2HVK / 2ITD。构象按孔区叠合，粒子和膜为教学显示。门控秒与渗透纳秒分别计时；速率模型用于教学，不是分子动力学。开放结构为 E71A；野生型选项只改变动力学。',
     });

@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, mechanismPlayers } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, resolveMechanism } from '../../plugins/mechanism-catalog.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -27,9 +27,9 @@ const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface'])
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
-const functionalDescription = (scene) => Array.isArray(scene?.legacy?.scene?.core) && scene.legacy.scene.core.length
+const functionalDescription = (scene, player) => player?.functionalDescription ?? (Array.isArray(scene?.legacy?.scene?.core) && scene.legacy.scene.core.length
   ? '橙色标记显示配体邻域及场景指定的核心残基。其余形状由残基坐标生成低分辨率密度表面。'
-  : '橙色标记显示配体重原子 8 Å 内的残基代表点。其余形状由残基坐标生成低分辨率密度表面。';
+  : '橙色标记显示配体重原子 8 Å 内的残基代表点。其余形状由残基坐标生成低分辨率密度表面。');
 const host = createPluginHost({
   getScene: () => active?.store.getSnapshot() ?? null,
   dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
@@ -63,7 +63,7 @@ function syncControls() {
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? 'cartoon';
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
-  if (!elements['functional-evidence'].hidden) elements['functional-evidence'].textContent = functionalDescription(active?.scene);
+  if (!elements['functional-evidence'].hidden) elements['functional-evidence'].textContent = functionalDescription(active?.scene, active?.player);
 }
 
 function showDiagnostics() {
@@ -265,25 +265,27 @@ function boot() {
 
   function createPlayer(loaded, state) {
     if (!loaded.model) return;
-    loaded.playerId = mechanismPlayers[loaded.scene.legacy?.scene?.process];
+    loaded.playerId = resolveMechanism(loaded.scene);
     const factory = host.getPlayer(loaded.playerId);
     if (!factory) return;
     try {
       const source = loaded.scene.assets.find((asset) => asset.provenance?.parserVersion);
-      return factory.create({ model: loaded.model, scene: loaded.scene, states: loaded.kcsaModels, state: state ?? source?.provenance?.playback });
+      return factory.create({ ...loaded.playerInputs?.get(loaded.playerId), model: loaded.model, scene: loaded.scene, state: state ?? source?.provenance?.playback });
     } catch (error) {
       loaded.warnings = [...loaded.warnings, `机制播放器无法启动。 ${error.message}`];
     }
   }
 
   async function preparePlayer(loaded, signal) {
-    const id = mechanismPlayers[loaded.scene.legacy?.scene?.process];
+    const id = resolveMechanism(loaded.scene);
     const factory = host.getPlayer(id);
     if (!loaded.model || !factory?.prepare) return;
     try {
       setStatus('正在准备机制构象坐标…');
-      await factory.prepare({ loaded, signal, loadAccession,
+      const prepared = await factory.prepare({ loaded, signal, loadAccession,
         parse: host.getService(MODEL_SERVICE, '1.0.0').parse });
+      loaded.playerInputs ??= new Map();
+      loaded.playerInputs.set(id, prepared ?? {});
     } catch (error) {
       signal.throwIfAborted();
       loaded.warnings = [...loaded.warnings, `机制构象准备失败。 ${error.message}`];
@@ -315,11 +317,12 @@ function boot() {
       elements['mechanism-parameters'].replaceChildren(...Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => {
         const label = document.createElement('label'), input = document.createElement('input');
         label.append(document.createTextNode(parameter.label));
-        input.type = 'number'; input.dataset.parameter = key;
+        input.type = parameter.control === 'range' ? 'range' : 'number'; input.dataset.parameter = key;
         for (const attribute of ['min', 'max', 'step']) input.setAttribute(attribute, parameter[attribute]);
         input.value = snapshot.parameters[key]; label.append(input); return label;
       }));
       elements['mechanism-parameter-panel'].hidden = !panel?.parameters;
+      elements['mechanism-parameter-title'].textContent = panel?.parametersTitle ?? '机制参数';
       elements['mechanism-back'].disabled = true;
       elements['mechanism-steps'].replaceChildren(...player.steps.map(({ title }, index) => {
         const li = document.createElement('li');
@@ -377,8 +380,9 @@ function boot() {
   });
 
   function restoreStructureView() {
-    const view = active.scene.assets.find((asset) => ['chemical/x-mmcif', 'chemical/x-pdb'].includes(asset.mediaType))
-      ?.provenance?.viewerState;
+    const view = active.representationSource?.provenance?.viewerState ?? active.scene.assets.find((asset) =>
+      asset.kind === 'file' && ['chemical/x-mmcif', 'chemical/x-pdb'].includes(asset.mediaType) && asset.provenance?.viewerState)
+      ?.provenance.viewerState;
     if (isViewCamera(view?.camera)) viewport.setCamera(view.camera);
     else if (active.scene.legacy && !active.navigation) resetPreviewCamera();
     if (typeof view?.selection === 'string') {
@@ -453,7 +457,7 @@ function boot() {
             }
           }
           layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
-            ...layer, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
+            ...layer, representationStyle: effective, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
               ? { color: asset.provenance.legacyColor } : {}),
             pointTargets: group.pointTargets[layerIndex],
           })));
@@ -860,6 +864,7 @@ function boot() {
       }
       if (active) active.handles.player = active.player;
       refreshStructureView();
+      setStatus(checkbox.checked ? '官方机制插件已启用。' : '官方机制插件已停用。');
     } catch (error) {
       setStatus(`无法切换机制播放器。 ${error.message}`);
     } finally {
@@ -934,7 +939,7 @@ function boot() {
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {
-        const citation = `功能分区为示意。${functionalDescription(scene)}`;
+        const citation = `功能分区为示意。${functionalDescription(scene, active.player)}`;
         if (!scene.evidence.some((item) => item.assetId === source.id && item.citation === citation)) {
           scene.evidence.push({ type: 'illustrative', assetId: source.id, citation });
         }
@@ -1048,6 +1053,9 @@ function boot() {
     const value = active.player.snapshot().parameters[key];
     event.target.value = value;
   });
+  elements['mechanism-parameters'].addEventListener('input', (event) => {
+    if (event.target.type === 'range') event.target.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   elements['mechanism-reset'].addEventListener('click', () => {
     const seed = Number(elements['mechanism-seed'].value);
     if (!active?.player || !Number.isSafeInteger(seed) || seed < 0 || seed > 4294967295) {
@@ -1132,7 +1140,7 @@ function boot() {
     animate(value) {
       active.inspectionStep = undefined;
       const playing = active.player ? active.player.snapshot().playing : active.timeline.playing;
-      const changesTime = value.time != null || value.seed != null || value.step != null || value.steps != null;
+      const changesTime = value.time != null || value.seed != null || value.step != null || value.steps != null || typeof value.morph === 'number';
       const paused = changesTime || (value.pause ?? !playing);
       if (playing) elements.play.click();
       if (value.seed != null) {
@@ -1146,6 +1154,7 @@ function boot() {
       if (value.time != null) player.seek(value.time);
       if (value.speed != null) active.player.setSpeed(value.speed);
       if (value.parameters != null) active.player.setParameters(value.parameters);
+      if (value.morph != null) active.player.setMorph(value.morph);
       if (value.step != null || value.steps != null) {
         const time = active.player?.snapshot().time ?? active.timeline.time;
         // seek uses the player's deterministic event schedule and preserves intervention history.

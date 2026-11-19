@@ -56,6 +56,16 @@ test('maps known processes and preserves unsupported playback as a named optiona
   assert.equal(scene.legacy.scene.process, 'kcsa');
 });
 
+test('declared AdK states receive a trusted optional player without changing process data', async () => {
+  const source = await readPack('official.adenylate-kinase.glow');
+  const { scene } = await migrateLegacyScene(source);
+  assert(scene.dependencies.some(({ id }) => id === 'org.glow.legacy-process.adenylate-kinase'));
+  assert.deepEqual(scene.legacy.scene.states, ['4AKE', '1AKE']);
+  assert.equal(scene.legacy.scene.process, undefined);
+  const data = await migrateLegacyScene(await readPack('official.adk-reaction-data.glow'));
+  assert(!data.scene.dependencies.some(({ id }) => id === 'org.glow.legacy-process.adenylate-kinase'));
+});
+
 test('embeds generic structure bytes in resources and records digest without duplicating text', async () => {
   const source = {
     format: 'glow-scene', version: 1, id: 'test.embed', title: 'Embedded',

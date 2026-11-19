@@ -7,7 +7,7 @@ export const COMMANDS = {
   select: '选择 {chainId?, residueId?, sourceAssetId?}，或 chain A / resid 8 / none。',
   represent: '切换 cartoon / backbone / blob / functional / surface。',
   camera: '读取镜头，或设置 {position:[x,y,z],target:[x,y,z]}，或 reset。',
-  animate: '设置 {pause?,time?,speed?,seed?,step?,steps?}；定步推进后暂停。',
+  animate: '设置 {pause?,time?,speed?,seed?,step?,steps?,parameters?,morph?}；morph 为 0–1 或 auto，需要两态构象插件。定步推进后暂停。',
   snapshot: '返回视口 PNG data URL，接受 {width:64..4096}。',
   exportPack: '返回 {format:"glow-v2",encoding:"base64",data}，包括原始资源。',
   validatePack: '检查 v1 JSON 文本或 exportPack 返回的 v2 包。',

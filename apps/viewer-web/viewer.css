@@ -79,6 +79,7 @@ footer { border-top: 1px solid var(--line); background: #fbfdf9; }
 .mechanism-controls h2 { margin: 0 0 0.6rem; font-size: 1.1rem; }
 .mechanism-controls label { display: block; margin: 0.5rem 0; }
 .mechanism-controls input { max-width: 7rem; margin-left: 0.5rem; }
+#mechanism-parameters input[type="range"] { display: block; width: 100%; max-width: 100%; margin-left: 0; }
 .mechanism-controls button { margin: 0.2rem 0; }
 #mechanism-steps button[aria-current="step"] { border-color: #286951; background: #e3f0e8; }
 #mechanism-counters { display: block; font-variant-numeric: tabular-nums; }

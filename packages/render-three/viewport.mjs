@@ -154,6 +154,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         pointSelection ??= new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8),
           new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }));
         pointSelection.renderOrder = 10;
+        pointSelection.userData.pointIndex = index;
         pointSelection.scale.setScalar(Math.max(mesh.material.size * 0.7, 0.04));
         pointSelection.position.fromBufferAttribute(mesh.geometry.getAttribute('position'), index);
         mesh.add(pointSelection);
@@ -428,6 +429,9 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         }
       }
       mesh.frustumCulled = false;
+    }
+    if (pointSelection?.parent && Number.isSafeInteger(pointSelection.userData.pointIndex)) {
+      pointSelection.position.fromBufferAttribute(pointSelection.parent.geometry.getAttribute('position'), pointSelection.userData.pointIndex);
     }
     if (active.particles) {
       for (const [index, marker] of active.particles.entries()) {
