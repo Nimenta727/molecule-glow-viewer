@@ -1,6 +1,6 @@
 # 网页版
 
-`index.html` 就是整个查看器：一个文件，不需要安装。
+这里是经典 Viewer：index.html 为单文件经典运行入口。新平台 Viewer/Studio 的结构、能力和迁移状态见 [当前文档](../docs/README.md)。
 
 > 这个目录里的 `index.html`、`dev.html` 是**构建生成**的（`node tools/build.mjs`，源码在 [`../src/`](../src/)）。改查看器请改 `src/`，不要手改这里。
 
@@ -21,5 +21,5 @@ python -m http.server 8765
 想离线用、或者想让下载过的结构存在本地，用 [桌面版](../desktop/)。
 
 ## 和其他两部分的关系
-- 桌面版打包的就是这个文件，两边功能完全一样。
-- [skill](../skill/) 里的 `assets/viewer.html` 是它的副本（单独使用 skill 时给 AI 在上面改；在本仓库里开发请改 `src/`）。
+- 桌面版包含这个经典工作区，并另外提供新 Viewer/Studio 菜单；不同入口的功能不能混为一谈。
+- [skill](../skill/) 里的 assets/index.html 和 viewer.html 是它的构建副本，dev.html 是配套工作台；仓库经典修改 src，新功能迁移按主体＋插件流程。

@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (spawnSync(process.execPath, [path.join(ROOT, 'tools', 'build.mjs')], { stdio: 'inherit' }).status !== 0) process.exit(1);
-for (const [src, dst] of [['web/index.html', 'skill/assets/viewer.html'], ['web/dev.html', 'skill/assets/dev.html']]) {
+for (const [src, dst] of [['web/index.html', 'skill/assets/index.html'], ['web/index.html', 'skill/assets/viewer.html'], ['web/dev.html', 'skill/assets/dev.html']]) {
   fs.copyFileSync(path.join(ROOT, src), path.join(ROOT, dst));
   console.log('synced', src, '->', dst);
 }

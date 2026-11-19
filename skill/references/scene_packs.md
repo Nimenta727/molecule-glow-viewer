@@ -1,3 +1,5 @@
+> 这是经典 v1 数据包指南；新平台 v2 与迁移状态见 [platform.md](platform.md)。
+
 # 场景包格式 `.glow`（glow-scene v1）
 
 一个场景包就是一个 UTF-8 JSON 文件，扩展名为 `.glow`，里面只有数据，没有代码。查看器和工坊的自动检查用的是同一套规则：`web/index.html` 里的 `sanitizePack` 和 `checkAnimation`。
@@ -50,7 +52,7 @@
 社区作品里的文字会被转义（`<` → `&lt;`），不能插入 HTML；`/正则/` 写错或超过 200 字会当成普通文字处理。
 
 ## 用工作台和命令接口制作
-- 打开 [`web/dev.html`](../web/dev.html)（[在线版](https://nimenta727.github.io/molecule-glow-viewer/dev.html)）：左边编辑 JSON，“校验”用的就是查看器和 CI 同一套规则，“预览”在右边实时打开，“下载 .glow”后可“投稿到工坊”。
+- 打开 [`web/dev.html`](../assets/dev.html)（[在线版](https://nimenta727.github.io/molecule-glow-viewer/dev.html)）：左边编辑 JSON，“校验”用的就是查看器和 CI 同一套规则，“预览”在右边实时打开，“下载 .glow”后可“投稿到工坊”。
 - AI 或脚本可以直接调用查看器的 `window.glow`（同页）或 `postMessage`（嵌入时）：`glow.help()` 列出全部命令；`glow.validatePack(pack)` 校验；`glow.load({pack})` 预览；`glow.exportPack({title, ...})` 从当前画面生成场景包。
 
 ## `animation`：纯数据动画（v1）

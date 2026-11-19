@@ -1,10 +1,10 @@
 name: platform-release-gate
 on:
   pull_request:
-    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', '.github/workflows/platform.yml']
+    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', 'docs/*.md', 'docs/history/**', 'README.md', 'skill/**', '.github/workflows/platform.yml']
   push:
     branches: [main]
-    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', '.github/workflows/platform.yml']
+    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', 'docs/*.md', 'docs/history/**', 'README.md', 'skill/**', '.github/workflows/platform.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,6 +21,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: node tools/check-feature-parity.mjs
+      - run: node tools/check-docs.mjs
       - run: node tools/build.mjs --check
       - run: node desktop/scripts/sync.js --viewer-only
       - run: node tools/check-copies.mjs
@@ -66,6 +67,8 @@ jobs:
           $process = Start-Process -FilePath desktop/node_modules/electron/dist/electron.exe -ArgumentList @('--enable-unsafe-swiftshader','--use-angle=swiftshader',('"'+$scriptPath+'"')) -Wait -WindowStyle Hidden -PassThru -RedirectStandardOutput desktop/dist/gate-m3/stdout.log -RedirectStandardError desktop/dist/gate-m3/stderr.log
           Get-Content desktop/dist/gate-m3/stdout.log,desktop/dist/gate-m3/stderr.log
           if ($process.ExitCode -ne 0) { throw 'Studio M3 failed' }
+      - name: Package and verify standalone authoring Skill
+        run: node tools/package-skill.mjs
       - name: Build Windows portable candidate (never publish)
         run: node desktop/scripts/package-platform.cjs
       - name: Actual portable EXE three-entry and mechanism round trips

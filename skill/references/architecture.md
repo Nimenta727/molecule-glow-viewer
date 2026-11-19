@@ -1,3 +1,5 @@
+> 本文是经典实现参考；当前主体＋插件、权限和迁移状态先读 [platform.md](platform.md)。章节中的旧版本规则不能覆盖当前平台说明。
+
 # 查看器内部结构（改代码前必读）
 
 单文件 `assets/viewer.html`（约 1250 行）：HTML 面板 + CSS + 一个 ES module 脚本。
@@ -362,7 +364,7 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 - 注意：开发机是 Hyper-V 虚拟机，Electron 走 SwiftShader 软件渲染，回归里的 FPS（4HHB 约 10）只代表这台机器；真实显卡上要高一个数量级。
 
 ## 37. v18.1：第二次复审后的修正（审计 → 执行 → 我独立复核）
-- **postMessage 桥只在 `?embed=1` / `?dev=1` 时监听**；父窗口必须同源或在 `?origin=https://…` 白名单里，永不接受 `null`；`load({url})` 只接受工坊、files.rcsb.org、alphafold.ebi.ac.uk 或同源；回复只发给请求方 origin。所以 dev.html 要通过 http(s) 打开（file:// 下 origin 是 null，桥不通——用 GitHub Pages 在线版或 `python -m http.server`）。
+- **postMessage 桥只在 `?embed=1` / `?dev=1` 时监听**；来源与窗口必须通过代码策略及用户分级授权，`origin=` 不能自授权，永不接受 `null`；`load({url})` 只接受工坊、files.rcsb.org、alphafold.ebi.ac.uk 或同源；回复只发给请求方 origin。所以 dev.html 要通过 http(s) 打开（file:// 下 origin 是 null，桥不通——用 GitHub Pages 在线版或 `python -m http.server`）。
 - **动画协程**：clearScene 时挂起的 anim 以 `Stale` reject，协程捕获后退出；probe 报 `pendingAnims`。
 - **呼吸链守恒**：每个 QH₂ 在 Qo 给 2 e⁻ 并释放 2 H⁺（一轮 Q 循环 2 个 QH₂ → 4 H⁺，Qi 还原 1 个 Q 吸收 2 H⁺），细胞色素 c 每趟 1 e⁻，复合体 IV 按电子计；每个 NADH：泵出 6（I 4 + IV 2）、Q 循环释放 4；ATP = 回流 H⁺ × 3/8（牛 c8），说明文字写明；快放也计数。
 - **随机数**：`rand()`（模拟）和 `randVis()`（布景）两条流，`randDir()` 取代 randomDirection；`glow.animate({seed, step, steps})`；`load({seed})` 后暂停；回归里同一种子跑两次必须完全一致（kcsa、atp-synthase、translation）。
@@ -375,7 +377,7 @@ molmap 做法：每残基一个高斯（σ = 0.225 × 分辨率），网格 = �
 
 ## 38. v18.2：第三次审计（教师视角）后的修正
 - **物种与代用结构**：信息卡第一行“物种：…”；用别的物种的结构代表时写明（细胞场景里 4V6F 是嗜热栖热菌核糖体，1K4C 是链霉菌 KcsA——大肠杆菌没有 KcsA），图例“· 代用：…”、证据徽章也列出。ATP 合酶链接写明化学计量差别：牛 6ZPO c8 = 8 H⁺ : 3 ATP，大肠杆菌 6OQR c10 = 10 H⁺ : 3 ATP。
-- **嵌入桥**：完全权限只给写死的 `EMBED_ORIGINS`（官方 Pages）或同源且 `?dev=1`（dev.html 的 iframe）；其他 https 页面只有安全子集，且要用户在查看器里点“允许此网页控制查看器”后才回应；snapshot / exportPack / log / 场景包载入、打开本地文件时的 info 永不发给它们；null 和 http 忽略。回归 `bridgeTest`。
+- **嵌入桥**：官方 Pages 或 dev 同源也必须经过当前分级授权，没有固定域名自动完全权限；其他 https 页面只有安全子集，且要用户在查看器里点“允许此网页控制查看器”后才回应；snapshot / exportPack / log / 场景包载入、打开本地文件时的 info 永不发给它们；null 和 http 忽略。回归 `bridgeTest`。
 - **质子账本**（呼吸链）：泵出 / Q 循环释放 / 回流 / 膜间隙池 / ATP / ATP 每 NADH；ATP = floor(回流 H⁺ × 3/8)，池里没有 H⁺ 转子就停；`ATP_PER_NADH` 一处定义（理论 ≈ 2.7，实测约 2.5），说明、能量条、HUD 共用。叶绿体质体蓝素每循环真的走两趟。
 - **每个粒子都有名字**：包括实例化的珠子（肽链、mRNA、粒子流）和事件，悬停有提示、点击出卡片；回归 `unnamedParticles > 0` 即失败。
 - **时间尺度**：每个运行中的模拟一行（翻译 ×1/N、K⁺“1 s = 10 ns（慢约 10⁸ 倍）”、门控、转子每秒转数对比真实值）；细胞一角同时显示两套。

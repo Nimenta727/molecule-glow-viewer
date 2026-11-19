@@ -1,6 +1,6 @@
 # 4.1 安全整改与验收
 
-代码：`01c8daee546e1e4be0a7c8269646913b5f3c0a37`。本轮处理 [执行计划](MIGRATION_EXECUTION_PLAN.md)的 4.1，保持经典科学实现及新版主体＋官方插件方向。本次干净提交的暂存目录、真实 EXE 和远端 CI 均通过下述范围，机器记录见 [验收 JSON](validation/2026-11-19-p1.json)。
+代码：`01c8daee546e1e4be0a7c8269646913b5f3c0a37`。本轮处理 [执行计划](MIGRATION_EXECUTION_PLAN.md)的 4.1，保持经典科学实现及新版主体＋官方插件方向。本次干净提交的暂存目录、真实 EXE 和远端 CI 均通过下述范围，机器记录见 [验收 JSON](../validation/2026-11-19-p1.json)。
 
 ## 修复范围
 
@@ -8,7 +8,7 @@
 
 图例的实体名、配体代码/名称/标题改为 DOM 文本与属性赋值，仅固定模板解析 HTML。结合位点信息卡的宿主、接触残基、原子名、来源、域名及说明在固定模板中统一转义。拆装信息里的配体和接触标签也转义。序列条、选择说明及证据相关路径核对既有转义；没有为显示文本去修改科学坐标解析结果。
 
-加入 [恶意 mmCIF 样本](../tools/fixtures/security/malicious.cif)，含实体、配体、作者编号和原子名中的标签/事件载荷。真实页面沿文件输入→解析→图例验证，再以同一组合成坐标模拟 ModelServer 的结合位点响应，实测氢键信息和聚焦控件：没有生成 img/svg，没有执行事件。样本是安全回归用合成坐标，不是科学结构或远程 RCSB 实验数据。生成的 web、skill 和桌面副本保持一致。
+加入 [恶意 mmCIF 样本](../../tools/fixtures/security/malicious.cif)，含实体、配体、作者编号和原子名中的标签/事件载荷。真实页面沿文件输入→解析→图例验证，再以同一组合成坐标模拟 ModelServer 的结合位点响应，实测氢键信息和聚焦控件：没有生成 img/svg，没有执行事件。样本是安全回归用合成坐标，不是科学结构或远程 RCSB 实验数据。生成的 web、skill 和桌面副本保持一致。
 
 ### 桌面响应缓存与外链
 
@@ -28,7 +28,7 @@
 - 拒绝、撤销、换场景尝试和页面关闭使权限失效；队列执行前、异步结果返回前和重放每一步重新检查。已开始的修改不自动回滚；load 成功只回确认，新场景重新授权。
 - 经典入口保留其他 HTTPS 父窗口经允许后的控制，但不给这些来源敏感读取。新版仍限制到官方站点和 dev 同源。
 
-同源页面原本可以直接访问彼此 DOM；权限提示不能替代浏览器同源隔离或后续完整插件沙箱。详细协议见 [命令接口](VIEWER_COMMAND_API.md)。
+同源页面原本可以直接访问彼此 DOM；权限提示不能替代浏览器同源隔离或后续完整插件沙箱。详细协议见 [命令接口](../VIEWER_COMMAND_API.md)。
 
 ## 可复验检查
 
@@ -62,13 +62,13 @@ node tools/security-smoke.cjs --exe <候选EXE> --live --output <证据目录>
 
 | 实际 EXE 安全界面 | 常规 | 560 px |
 |---|---|---|
-| 恶意 mmCIF 与接触标签 | [截图](images/p1-classic-dom-normal.png) | [截图](images/p1-classic-dom-narrow.png) |
-| 新 Viewer 数据读取提示 | [截图](images/p1-embed-consent-normal.png) | [截图](images/p1-embed-consent-narrow.png) |
-| 经典 Viewer 数据读取提示 | [截图](images/p1-embed-classic-normal.png) | [截图](images/p1-embed-classic-narrow.png) |
+| 恶意 mmCIF 与接触标签 | [截图](../images/p1-classic-dom-normal.png) | [截图](../images/p1-classic-dom-narrow.png) |
+| 新 Viewer 数据读取提示 | [截图](../images/p1-embed-consent-normal.png) | [截图](../images/p1-embed-consent-narrow.png) |
+| 经典 Viewer 数据读取提示 | [截图](../images/p1-embed-classic-normal.png) | [截图](../images/p1-embed-classic-narrow.png) |
 
 已人工查看以上六张图。授权文案和按钮在窄屏可读；经典窄屏面板仍有遮挡，最终布局收尾没有计入本轮。
 
-此外，经典原有完整脚本本轮在源码桌面环境通过：六科学场景、连切、seed 7、全细胞重复加载、返回、待定动画、失败保留和桥接；[原始结果](validation/2026-11-19-p1-classic.log)保留数值及 FPS 警告。它核对的经典 HTML 哈希另见 JSON；这不是在 EXE 中完整重跑经典科学套件。并行验证期间帧率较低，未将其算作性能等价。Studio M3、命令导出/重开、经典构建/副本和 15 包数据校验也通过。
+此外，经典原有完整脚本本轮在源码桌面环境通过：六科学场景、连切、seed 7、全细胞重复加载、返回、待定动画、失败保留和桥接；[原始结果](../validation/2026-11-19-p1-classic.log)保留数值及 FPS 警告。它核对的经典 HTML 哈希另见 JSON；这不是在 EXE 中完整重跑经典科学套件。并行验证期间帧率较低，未将其算作性能等价。Studio M3、命令导出/重开、经典构建/副本和 15 包数据校验也通过。
 
 当前下一项是 **4.2 经典功能对照与科学验收基础**。
 

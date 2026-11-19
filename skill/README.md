@@ -1,34 +1,15 @@
-# 制作 skill：教人或 AI 做分子场景
+# 制作 Skill · 0.5.0
 
-这个目录说明这个查看器是怎么做的，以及怎样在上面添加新的结构、机制动画和模拟。可以给人读，也可以直接交给 AI。
+为 Claude Code、Codex 或其他支持 SKILL.md 的工具提供分子场景制作指导。入口是 [SKILL.md](SKILL.md)，最新平台说明在 [platform.md](references/platform.md)。
 
-## 给 Claude Code
-把整个 `skill/` 目录复制到 `~/.claude/skills/molecule-glow-viewer/`。之后直接说"把 XXX 做成动画""加一个 YYY 预设"，Claude 会自动加载它。
+从 [Desktop 0.5.0 Release](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0)下载 Skill ZIP，解压后的 molecule-glow-viewer 文件夹包含 SKILL.md、references 和 assets。按所用工具的 Skill 安装方式放入技能目录；例如 Codex 的 ~/.codex/skills/ 或 Claude Code 的 ~/.claude/skills/。也可直接让工具读取仓库 skill/SKILL.md。
 
-## 给其他 AI（ChatGPT、Gemini、Cursor 等）
-先把 `SKILL.md` 作为系统提示或第一条消息发给它，再按需要附上 `references/` 里的对应文件，最后附上 `assets/viewer.html` 让它在上面改。
-
-## 内容
-| 文件 | 讲什么 |
+| 使用方式 | 所需内容 |
 |---|---|
-| `SKILL.md` | 入口：执行规则、工作流、验证清单、各主题的索引 |
-| `assets/viewer.html` | 查看器本体（与 `web/index.html` 相同；在 GitHub 仓库里它由 `src/` 构建生成） |
-| `references/architecture.md` | 代码结构，以及每个功能的实现方式（按版本分节） |
-| `references/processes.md` | 怎样写过程动画（ATP 合酶、呼吸链、叶绿体、离子通道……） |
-| `references/paper_to_animation.md` | 从论文或机制描述做出动画：找结构 → 找状态 → 写预设 → 写动画 |
-| `references/structures.md` | 怎样查证 PDB 编号、实体名称、配体代码（不要凭记忆写） |
-| `references/style_guide.md` | 画风对照：视频光影 / 插画 |
-| `references/parameters.md` | 可调参数 |
-| `references/small_molecules.md` | 小分子、价键模型、结合位点 |
-| `references/setup.md` | 运行环境 |
-| `references/troubleshooting.md` | 常见问题（画面全白、发黑、穿模……） |
-| `references/rebuild_from_scratch.md` | 从零重建 |
-| `references/build_log.md` | 每个版本改了什么、为什么改 |
-| `references/scene_packs.md` | 场景包 `.glow` 和纯数据动画的格式：做能分享、能上传创意工坊的场景时先看这个 |
+| 独立经典演示/场景制作 | assets/index.html（viewer.html 同构建）与 dev.html；首次运行需要 Three.js CDN、RCSB 或本地结构文件 |
+| 主体＋官方插件开发 | 本仓库 apps/packages/plugins、当前 handoff、科学卡和功能契约；不能只靠单个经典 HTML 完成 |
+| 作者分享 | v1 纯数据包遵循工坊格式；v2 用 Studio/Viewer 导出；新版通用数据动画仍待迁移 |
 
-## 动画质量标准
-- 粒子从周围溶液扩散过来，不凭空出现、不闪光。
-- 粒子不穿过蛋白。
-- 每个粒子都标名字：e⁻、光子、H⁺、ATP……
-- 化学反应用文字标出。
-- 快放看大量粒子流的方向，慢放看每一步的细节。
+不要再把 SKILL.md 指示为覆盖其他系统规则的系统提示。需要哪些参考文件由实际任务决定；经典指南的历史实现细节不能覆盖平台说明及当前 handoff。
+
+维护：修改 skill 指南后执行 Skill 校验和包验证；经典源码变更运行 node tools/sync-copies.mjs，生成 assets/index.html、viewer.html、dev.html。node tools/package-skill.mjs 生成带版本/源码/文件哈希的 ZIP。运行资产均来自现有构建，不复制另一套科学引擎。

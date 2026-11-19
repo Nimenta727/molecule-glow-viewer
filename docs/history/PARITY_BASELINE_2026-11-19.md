@@ -1,6 +1,6 @@
 # 4.2 功能对照与科学验收基础
 
-本批实现提交 `4b8de25c4ae4b95a973dd1e4088cbc6afa2d83db`。交付的是后续迁移的验收基础；没有把未迁机制、完整科学对照或最终画风标记为完成。机器结果见 [本批记录](validation/2026-11-19-p42.json)，数值正文见 [可复验报告](parity/numerical-baseline.json)。
+本批实现提交 `4b8de25c4ae4b95a973dd1e4088cbc6afa2d83db`。交付的是后续迁移的验收基础；没有把未迁机制、完整科学对照或最终画风标记为完成。机器结果见 [本批记录](../validation/2026-11-19-p42.json)，数值正文见 [可复验报告](../parity/numerical-baseline.json)。
 
 ## 已建立的门槛
 
@@ -9,7 +9,7 @@
 - 三个现有机制拥有唯一的 `scientific-card.json`，包含物种/代用构象、数据哈希、证据分类、方程、参数/单位、时钟、文献、假设和限制。官方目录新增机制却没有匹配卡，或打包目录/ASAR 缺卡，都不能通过。
 - 从 Viewer 入口拆出 `mechanism-runtime.mjs`，继续使用原 loaded、资源和播放器句柄；不新增科学状态来源。准备失败保留静态预览与诊断，取消后不提交过期准备结果。
 
-[功能契约使用说明](parity/README.md)、[科学卡目录](science/README.md)及[重复实现清单](DUPLICATION_MAP.md)说明各自边界。RCSB 元数据本轮通过技能重新查询；KcsA 区分通道实体和 Fab，5VK6 的 E71A 根据条目标题标注，不由 mutation-count 字段推断野生型。
+[功能契约使用说明](../parity/README.md)、[科学卡目录](../science/README.md)及[重复实现清单](../DUPLICATION_MAP.md)说明各自边界。RCSB 元数据本轮通过技能重新查询；KcsA 区分通道实体和 Fab，5VK6 的 E71A 根据条目标题标注，不由 mutation-count 字段推断野生型。
 
 ## 已实测数值与保留差异
 
@@ -42,7 +42,7 @@
 
 环境为 Windows 10.0.26300 x64、Node 26.13.1、Electron 33.4.11，产物回归使用 SwiftShader、沙箱和上下文隔离。候选未签名、未发布 GitHub Release；上述哈希不代表远端独立构建的二进制。
 
-已人工查看实际 EXE 的 [ATP](images/p42-atp-normal.png)、[KcsA](images/p42-kcsa-normal.png)、[AdK](images/p42-adk-normal.png)及 [560 px](images/p42-adk-narrow.png)截图。保留现有交互与布局，不声称最终视觉等价。
+已人工查看实际 EXE 的 [ATP](../images/p42-atp-normal.png)、[KcsA](../images/p42-kcsa-normal.png)、[AdK](../images/p42-adk-normal.png)及 [560 px](../images/p42-adk-narrow.png)截图。保留现有交互与布局，不声称最终视觉等价。
 
 [4b8de25 的 CI](https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44532152740)源码与 Windows 作业均已通过。工作流重新运行真实坐标比较、暂存/EXE 功能与安全回归、Studio M3，并上传证据。比较器与报告收尾提交 `4903d21` 的 [独立 CI](https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44533334875)也已全部通过；本页本地 EXE 哈希仍标识 `4b8de25` 的构建，不混用不同构建的身份。
 

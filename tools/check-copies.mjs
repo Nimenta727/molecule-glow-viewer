@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (f) => crypto.createHash('sha256').update(fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n')).digest('hex');
 const PAIRS = [
+  ['web/index.html', 'skill/assets/index.html', true],
   ['web/index.html', 'skill/assets/viewer.html', true],
   ['web/dev.html', 'skill/assets/dev.html', true],
   ['web/index.html', 'desktop/app/index.html', false],

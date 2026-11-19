@@ -1,6 +1,6 @@
 # Molecule Glow 整体规划摘要
 
-> 本文归纳仓库早期规划并记录当前方向。2026-11-19 按 [Claude 交接](CODEX_MIGRATION_HANDOFF.md)和维护者提供的深度审计修订：[执行计划](MIGRATION_EXECUTION_PLAN.md)规定工作顺序，[功能清单](feature-parity.json)记录范围与待验收项，[实测记录](BASELINE_AND_STRUCTURE_WORKFLOW.md)保存证据。历史审计与 `docs/history/` 是基线，不代表最新源码或已发行 EXE 的现状。
+> 本文归纳仓库早期规划并记录当前方向。2026-11-19 按 [Claude 交接](CODEX_MIGRATION_HANDOFF_2026-11-18.md)和维护者提供的深度审计修订：[执行计划](MIGRATION_EXECUTION_PLAN.md)规定工作顺序，[功能清单](../feature-parity.json)记录范围与待验收项，[实测记录](BASELINE_AND_STRUCTURE_WORKFLOW.md)保存证据。历史审计与 `docs/history/` 是基线，不代表最新源码或已发行 EXE 的现状。
 
 ## 产品目标
 
@@ -87,11 +87,11 @@ Codex 负责功能插件、必要代码重构、发布/安全整改及可复验�
 
 ## 归档资料索引
 
-- [`DEVELOPMENT_FRAMEWORK.md`](history/DEVELOPMENT_FRAMEWORK.md)：旧总体开发总纲。
-- [`PLATFORM_2_0_REFACTOR_PLAN.md`](history/PLATFORM_2_0_REFACTOR_PLAN.md)：平台化目标与阶段计划。
-- [`HANDOFF_PLAN.md`](history/HANDOFF_PLAN.md)、[`HANDOFF_CORE_PLUGINS.md`](history/HANDOFF_CORE_PLUGINS.md)：旧工作包和 Core/插件交接。
-- [`HANDOFF_FOUR_PRESENTATION_MODES.md`](history/HANDOFF_FOUR_PRESENTATION_MODES.md)、[`FOUR_PRESENTATION_MODES_M0.md`](history/FOUR_PRESENTATION_MODES_M0.md)–[`M2.md`](history/FOUR_PRESENTATION_MODES_M2.md)：四模式已完成工作记录。
-- [`PLATFORM_2_0_BASELINE.md`](history/PLATFORM_2_0_BASELINE.md)、[`PLATFORM_AUDIT_REPORT.md`](history/PLATFORM_AUDIT_REPORT.md)、[`PLATFORM_ENGINEERING_SPEC.md`](history/PLATFORM_ENGINEERING_SPEC.md)、[`AI_AUDIT_AND_STABILIZATION.md`](history/AI_AUDIT_AND_STABILIZATION.md)、[`AUDIT_ROUND2.md`](history/AUDIT_ROUND2.md)、[`ROADMAP.md`](history/ROADMAP.md)：历史基线、审计、工程建议及早期路线。
-- [`PLATFORM_2_0_COMPATIBILITY.md`](history/PLATFORM_2_0_COMPATIBILITY.md)、[`PLATFORM_2_0_CORE_CONTRACT.md`](history/PLATFORM_2_0_CORE_CONTRACT.md)、[`PLATFORM_2_0_PACKAGE_AND_PLUGINS.md`](history/PLATFORM_2_0_PACKAGE_AND_PLUGINS.md)：旧版兼容、Core 和插件/包契约参考。
+- [`DEVELOPMENT_FRAMEWORK.md`](DEVELOPMENT_FRAMEWORK.md)：旧总体开发总纲。
+- [`PLATFORM_2_0_REFACTOR_PLAN.md`](PLATFORM_2_0_REFACTOR_PLAN.md)：平台化目标与阶段计划。
+- [`HANDOFF_PLAN.md`](HANDOFF_PLAN.md)、[`HANDOFF_CORE_PLUGINS.md`](HANDOFF_CORE_PLUGINS.md)：旧工作包和 Core/插件交接。
+- [`HANDOFF_FOUR_PRESENTATION_MODES.md`](HANDOFF_FOUR_PRESENTATION_MODES.md)、[`FOUR_PRESENTATION_MODES_M0.md`](FOUR_PRESENTATION_MODES_M0.md)–[`M2.md`](FOUR_PRESENTATION_MODES_M2.md)：四模式已完成工作记录。
+- [`PLATFORM_2_0_BASELINE.md`](PLATFORM_2_0_BASELINE.md)、[`PLATFORM_AUDIT_REPORT.md`](PLATFORM_AUDIT_REPORT.md)、[`PLATFORM_ENGINEERING_SPEC.md`](PLATFORM_ENGINEERING_SPEC.md)、[`AI_AUDIT_AND_STABILIZATION.md`](AI_AUDIT_AND_STABILIZATION.md)、[`AUDIT_ROUND2.md`](AUDIT_ROUND2.md)、[`ROADMAP.md`](ROADMAP.md)：历史基线、审计、工程建议及早期路线。
+- [`PLATFORM_2_0_COMPATIBILITY.md`](PLATFORM_2_0_COMPATIBILITY.md)、[`PLATFORM_2_0_CORE_CONTRACT.md`](PLATFORM_2_0_CORE_CONTRACT.md)、[`PLATFORM_2_0_PACKAGE_AND_PLUGINS.md`](PLATFORM_2_0_PACKAGE_AND_PLUGINS.md)：旧版兼容、Core 和插件/包契约参考。
 
 旧场景和插件契约、兼容检查清单现已统一归档在 `docs/history/PLATFORM_2_0_*.md`，可作为迁移时的技术参考。当前迁移目标和优先级以本目录中的审计报告与插件建议为准。

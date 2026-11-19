@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "version": "0.5.0",
+  "tag": "desktop-v0.5.0",
+  "status": "build_source_snapshot",
+  "scope": "Classic default plus migrating Core/plugins; not migration-complete.",
+  "release_url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0",
+  "note": "This source snapshot precedes artifact validation. Published release-manifest.json carries final results; main record is updated after publication."
+}
