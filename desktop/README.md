@@ -3,8 +3,8 @@
 Desktop 0.5.0 用 Electron 提供经典、新 Viewer、Studio 和工作台。当前能力与边界见 [文档首页](../docs/README.md)：
 - **不用浏览器**：双击 exe 就能打开。
 - **Three.js 打包在程序里**：不依赖 CDN。
-- **结构缓存**：从 RCSB / UniProt 下载过的数据存在本地（`%APPDATA%\分子光影\structure-cache`）。第二次打开同一个结构不用下载，断网时也能看已经看过的结构。
-  - 坐标文件优先读缓存，因为一个条目的坐标不会变。
+- **结构缓存**：从 RCSB / UniProt 下载过的数据存在 Electron `userData/structure-cache`，实际目录可由 `glowDesktop.cacheInfo()` 查询。再次打开已有缓存的结构可复用数据，断网时也能看缓存中的结构。
+  - 坐标文件优先读缓存；上游可能修订坐标，科学对照使用固定原始哈希，不把编号相同当作字节永远相同。
   - 名称、注释等元数据优先联网，断网时退回缓存。
 - **外部链接**（DOI、UniProt 页面）用系统浏览器打开。
 

@@ -2,8 +2,108 @@
   "schema_version": 1,
   "version": "0.5.0",
   "tag": "desktop-v0.5.0",
-  "status": "build_source_snapshot",
-  "scope": "Classic default plus migrating Core/plugins; not migration-complete.",
+  "sourceCommit": "20cf0790c680ff3ddd54d928f086cde5881e6363",
+  "sourceDirty": false,
+  "scope": "Classic default; Core/plugins and Studio migration preview. Not migration-complete.",
   "release_url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0",
-  "note": "This source snapshot precedes artifact validation. Published release-manifest.json carries final results; main record is updated after publication."
+  "signed": false,
+  "electron": "33.4.11",
+  "build": {
+    "contentSha256": "cfb446709f2f7a178e35ea46b6edacd70b24a45d92709f7ce546c341288937a8",
+    "asarSha256": "ad828992831cdbd5f089d65c5e1f49c2c0b0c133eca7dcc45714c09f9d431c5f",
+    "platform": "win32",
+    "arch": "x64",
+    "localNode": "26.13.1"
+  },
+  "skill": {
+    "sourceCommit": "20cf0790c680ff3ddd54d928f086cde5881e6363",
+    "sourceDirty": false,
+    "sourceFiles": 22,
+    "bundled_runtime": "classic HTML; repository required for Core/plugins work",
+    "coordinates_included": false
+  },
+  "assets": [
+    {
+      "name": "desktop-validation-0.5.0.zip",
+      "bytes": 2175717,
+      "sha256": "1b66b9b7d1889a26922867b71e73189f3cf7efd5cc19e40194643142e6a72ed6",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/desktop-validation-0.5.0.zip"
+    },
+    {
+      "name": "molecule-glow-viewer-skill-0.5.0.zip",
+      "bytes": 698538,
+      "sha256": "48236b2e16274ed9efaff266b3c10e14fd265c5b699f22bb9826acdf61878ab0",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/molecule-glow-viewer-skill-0.5.0.zip"
+    },
+    {
+      "name": "MoleculeGlow-0.5.0-win-x64.exe",
+      "bytes": 78933816,
+      "sha256": "064d997f293531c6219e4b6272dd11558fe7e7f1c13687a66c168df51242900b",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/MoleculeGlow-0.5.0-win-x64.exe"
+    },
+    {
+      "name": "release-manifest.json",
+      "bytes": 3195,
+      "sha256": "d84d5ed82d6d47b3ea78dd5e87756946e326efb2ff4a91e1e3db062e2bdb1b40",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/release-manifest.json"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 478,
+      "sha256": "932697d844e5cb93aca468549f35d6ae5dd16c45aa70e6d78647cf8f04691af8",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/SHA256SUMS.txt"
+    },
+    {
+      "name": "validation-summary.json",
+      "bytes": 9611,
+      "sha256": "ea74830f3fe99ab74e0e2ef0c6cbf5ac3d9b749b375ff0136a4c63fa9883b4fd",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/validation-summary.json"
+    }
+  ],
+  "validation": {
+    "actual_exe_cases": 6,
+    "actual_exe_security_cases": 4,
+    "unit_tests_passed": 145,
+    "ci": {
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44537831284",
+      "sourceCommit": "20cf0790c680ff3ddd54d928f086cde5881e6363",
+      "conclusion": "success",
+      "includes": [
+        "source tests",
+        "live RCSB hashes",
+        "numeric invariants",
+        "stage closure and round trips",
+        "Studio M3",
+        "Skill packaging",
+        "actual Windows EXE round trips and security"
+      ]
+    }
+  },
+  "limitations": [
+    "Unsigned portable Windows x64 EXE.",
+    "Desktop bundles Three.js. Standalone Skill HTML uses the Three.js CDN. First coordinate retrieval requires network unless coordinates are imported or embedded.",
+    "New platform is not fully equivalent to classic Viewer.",
+    "Screenshots use synthetic smoke fixtures and deposited coordinate inputs; they are not evidence of complete visual parity."
+  ],
+  "status": "published",
+  "publishedAt": "2026-11-19T14:03:42Z",
+  "isPrerelease": false,
+  "latest": true,
+  "verification": {
+    "github_asset_sizes_and_digests_match": true,
+    "public_skill_download_and_independent_zip_verification": true,
+    "public_exe_download_sha256": "pending",
+    "tag_target_verified": "20cf0790c680ff3ddd54d928f086cde5881e6363",
+    "notes": "Release tag identifies the clean build source. Subsequent main commits only record publication evidence and documentation corrections; they do not change the released binary."
+  },
+  "documentation": {
+    "index": "docs/README.md",
+    "features": "docs/CURRENT_FEATURES.md",
+    "architecture": "docs/ARCHITECTURE.md",
+    "audit": "docs/AUDIT.md",
+    "plan": "docs/ROADMAP.md",
+    "handoff": "docs/CODEX_MIGRATION_HANDOFF.md",
+    "next": "4.3.1 data-animation and AdK/KcsA data packs",
+    "routine_modified": false
+  }
 }
