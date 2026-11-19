@@ -19,6 +19,7 @@ function fixture(t) {
   put('app/apps/viewer-web/main.mjs', "import '../../plugins/mechanism-catalog.mjs';");
   put('app/plugins/mechanism-catalog.mjs', "export { player } from './kcsa/index.mjs';");
   put('app/plugins/kcsa/index.mjs', 'export const player = {};');
+  put('app/plugins/kcsa/scientific-card.json', JSON.stringify({plugin:{id:'test.kcsa',version:'1'},structures:[{id:'fixture'}],validation:{completion:'documented_model_not_full_parity'}}));
   for (const name of ['main.js', 'preload.js', 'platform-shell.cjs', 'smoke-runner.cjs']) put(name, 'void 0;');
   put('build-info.json', JSON.stringify({ files: [], contentSha256: sha256('[]') }));
   return { stage, put };
@@ -52,4 +53,10 @@ test('remote module script and missing CommonJS helper block the candidate', (t)
   put('app/apps/viewer-web/index.html', '<html></html>');
   put('main.js', "require('./missing-helper.cjs');");
   assert.throws(() => checkStage(stage), /missing-helper/);
+});
+
+test('packaged mechanisms must carry scientific cards in the checked stage, not only in source', t => {
+  const { stage }=fixture(t);assert.deepEqual(checkStage(stage).scientificCards,['test.kcsa']);
+  fs.unlinkSync(path.join(stage,'app/plugins/kcsa/scientific-card.json'));
+  assert.throws(()=>checkStage(stage),/scientific-card.json/);
 });

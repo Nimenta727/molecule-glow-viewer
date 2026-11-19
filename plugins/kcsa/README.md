@@ -19,3 +19,7 @@ Bulk compartment particles, hydration-shell rendering, extracellular sodium cont
 ## Verification
 
 Node tests cover reversal potential, 80–120 pS symmetric-concentration conductance, ensemble flux against analytic current (128 seeds), pH/block/inactivation responses, clock scaling, replay, parameter validation, resource rollback/reuse, cancellation and expired factories. Electron `GLOW_KCSA_SMOKE` covers real-coordinate representations, captions, parameter changes, voltage reversal, neutral-pH inhibition, fixed stepping, package round-trip, navigation, plugin disable/re-enable, and missing-state fallback. `GLOW_KCSA_CIF_DIR` may point to the five unchanged RCSB files for repeatable tests; they are not bundled in the repository.
+
+## Scientific acceptance
+
+[scientific-card.json](scientific-card.json) records structure hashes, species/substitutions, equations, parameter units, clock semantics, evidence classes, literature and unresolved limitations. It ships with the trusted plugin. The [cross-implementation baseline](../../docs/parity/README.md) validates selected invariants, not full experimental or visual parity.

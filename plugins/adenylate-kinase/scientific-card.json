@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "id": "adenylate-kinase",
+  "feature": "mechanism.adk-conformations",
+  "plugin": {
+    "id": "org.glow.legacy-process.adenylate-kinase",
+    "version": "1.0.0"
+  },
+  "species": "Escherichia coli",
+  "structure_metadata": "docs/science/structures.json",
+  "structures": [
+    {
+      "id": "4AKE",
+      "url": "https://files.rcsb.org/download/4AKE.cif",
+      "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9",
+      "interpretation": "ADENYLATE KINASE"
+    },
+    {
+      "id": "1AKE",
+      "url": "https://files.rcsb.org/download/1AKE.cif",
+      "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948",
+      "interpretation": "STRUCTURE OF THE COMPLEX BETWEEN ADENYLATE KINASE FROM ESCHERICHIA COLI AND THE INHIBITOR AP5A REFINED AT 1.9 ANGSTROMS RESOLUTION: A MODEL FOR A CATALYTIC TRANSITION STATE"
+    }
+  ],
+  "evidence_classes": {
+    "experimental": "Deposited coordinate endpoints only.",
+    "derived": "Fits, distances, domain angles and stationary-current calculations from stated software rules.",
+    "modelled": "4AKE open A chain and 1AKE Ap5A-bound closed A chain, 214 matched CA. Ap5A is an inhibitor reference, not a substrate/product trajectory.",
+    "illustrative": "Membrane, moving particles, interpolated shapes, colors and display time."
+  },
+  "equations": [
+    {
+      "name": "morph",
+      "formula": "f=smoothstep(clamp(((sin(phase)+1)/2-.1)/.8)); phase=-pi/2+.35*speed*t",
+      "unit": "fraction; radians; demonstration seconds"
+    },
+    {
+      "name": "alignment",
+      "formula": "Horn fit on CORE 1-29/60-121/160-214; NMP 30-59; LID 122-159; domain angle from rigid rotation, shift from centroids",
+      "unit": "degrees; Angstrom"
+    }
+  ],
+  "parameters": {
+    "morph": {
+      "label": "构象闭合程度（0=张开，1=闭合）",
+      "control": "range",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "value": 0,
+      "unit": "fraction"
+    },
+    "auto": {
+      "label": "自动往复（0=手动，1=自动）",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "value": 1,
+      "unit": "0/1"
+    },
+    "ap5": {
+      "label": "显示闭合态 Ap5A 参考（0/1）",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "value": 1,
+      "unit": "0/1"
+    }
+  },
+  "clocks": "Demonstration time only; no random events. Shared uint32 seed stored for API compatibility. Classic phase starts at 0 and persists between loads; candidate starts open at -pi/2.",
+  "limitations": [
+    "Classic whole-chain global fit versus candidate CORE display fit can change interpolated paths. Endpoint relative-domain agreement is not an experimental transition trajectory.",
+    "No ATP/AMP pool, ADP production, reaction rate or catalytic stoichiometric playback.",
+    "Coarse surfaces and residue displacement fields, not atomic molecular dynamics."
+  ],
+  "software": [
+    "plugins/adenylate-kinase/test/playback.test.mjs",
+    "plugins/adenylate-kinase/test/structure.test.mjs"
+  ],
+  "classic_sources": [
+    "src/core/load-scene.js",
+    "src/view/frame-loop.js",
+    "src/ui/ligand-focus.js"
+  ],
+  "new_sources": [
+    "plugins/adenylate-kinase/playback.mjs",
+    "plugins/adenylate-kinase/structure.mjs"
+  ],
+  "literature": [
+    {
+      "pdb": "4AKE",
+      "title": "Adenylate kinase motions during catalysis: an energetic counterweight balancing substrate binding.",
+      "year": 1996,
+      "pdbx_database_id_PubMed": 8805521,
+      "pdbx_database_id_DOI": "10.1016/S0969-2126(96)00018-4",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    },
+    {
+      "pdb": "1AKE",
+      "title": "Structure of the complex between adenylate kinase from Escherichia coli and the inhibitor Ap5A refined at 1.9 A resolution. A model for a catalytic transition state.",
+      "year": 1992,
+      "pdbx_database_id_PubMed": 1548697,
+      "pdbx_database_id_DOI": "10.1016/0022-2836(92)90582-5",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    }
+  ],
+  "validation": {
+    "software": "tested_scoped_invariants",
+    "classic_comparison": "partial",
+    "expert_experimental_validation": "pending",
+    "comparison_report": "docs/parity/numerical-baseline.json",
+    "artifact_evidence": [
+      "docs/validation/2026-11-19-p1.json"
+    ],
+    "completion": "documented_model_not_full_parity"
+  }
+}

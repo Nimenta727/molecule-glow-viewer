@@ -10,7 +10,8 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, resolveMechanism } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
+import { createMechanismRuntime } from './mechanism-runtime.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -177,6 +178,8 @@ function boot() {
     },
     onRotate(direction) { viewport.orbitBy(direction * Math.PI / 8, { duration: cameraDuration() }); },
   });
+  const { createPlayer, preparePlayer } = createMechanismRuntime(host, { loadAccession, onProgress: setStatus });
+
   const scenes = createLoadCoordinator({
     async prepare(input, { signal, scope }) {
       let loaded;
@@ -261,35 +264,6 @@ function boot() {
 
   function playerViewportOptions(player) {
     return player ? { particles: player.snapshot().particles, particleParentId: player.particleParentId, membrane: player.membrane } : {};
-  }
-
-  function createPlayer(loaded, state) {
-    if (!loaded.model) return;
-    loaded.playerId = resolveMechanism(loaded.scene);
-    const factory = host.getPlayer(loaded.playerId);
-    if (!factory) return;
-    try {
-      const source = loaded.scene.assets.find((asset) => asset.provenance?.parserVersion);
-      return factory.create({ ...loaded.playerInputs?.get(loaded.playerId), model: loaded.model, scene: loaded.scene, state: state ?? source?.provenance?.playback });
-    } catch (error) {
-      loaded.warnings = [...loaded.warnings, `机制播放器无法启动。 ${error.message}`];
-    }
-  }
-
-  async function preparePlayer(loaded, signal) {
-    const id = resolveMechanism(loaded.scene);
-    const factory = host.getPlayer(id);
-    if (!loaded.model || !factory?.prepare) return;
-    try {
-      setStatus('正在准备机制构象坐标…');
-      const prepared = await factory.prepare({ loaded, signal, loadAccession,
-        parse: host.getService(MODEL_SERVICE, '1.0.0').parse });
-      loaded.playerInputs ??= new Map();
-      loaded.playerInputs.set(id, prepared ?? {});
-    } catch (error) {
-      signal.throwIfAborted();
-      loaded.warnings = [...loaded.warnings, `机制构象准备失败。 ${error.message}`];
-    }
   }
 
   function showMechanism() {

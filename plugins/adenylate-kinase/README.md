@@ -23,3 +23,7 @@ Teaching steps inspect captions and participants without forcing chemical transi
 ## Verification
 
 Synthetic rigid-domain tests independently verify known rotation angles, complete residue mapping, exact point deformation, identity retention, state validation and persistence. Real-coordinate Electron tests use `GLOW_ADK_SMOKE=<output directory>` with optional `GLOW_ADK_CIF_DIR=<directory containing unchanged 4AKE.cif and 1AKE.cif>`. They cover all five representations, manual/automatic motion, inhibitor visibility, endpoint measurements, fixed stepping, saved selection/camera, moving selection markers, offline reopen, navigation, plugin disable/re-enable and missing-state fallback. RCSB coordinate files are downloaded at runtime and are not bundled in the repository.
+
+## Scientific acceptance
+
+[scientific-card.json](scientific-card.json) records structure hashes, species/substitutions, equations, parameter units, clock semantics, evidence classes, literature and unresolved limitations. It ships with the trusted plugin. The [cross-implementation baseline](../../docs/parity/README.md) validates selected invariants, not full experimental or visual parity.

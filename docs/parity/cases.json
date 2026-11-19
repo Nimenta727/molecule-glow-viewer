@@ -1,0 +1,771 @@
+{
+  "schema_version": 1,
+  "data": [
+    {
+      "id": "official-packs",
+      "kind": "directory",
+      "path": "workshop/official/packs"
+    },
+    {
+      "id": "coordinate-hashes",
+      "kind": "manifest",
+      "path": "tools/fixtures/structures.json"
+    },
+    {
+      "id": "malicious-cif",
+      "kind": "fixture",
+      "path": "tools/fixtures/security/malicious.cif"
+    },
+    {
+      "id": "local-pdb-generator",
+      "kind": "generator",
+      "path": "tools/platform-release-smoke.cjs"
+    },
+    {
+      "id": "studio-m3-generator",
+      "kind": "generator",
+      "path": "tools/studio-smoke.cjs"
+    }
+  ],
+  "cases": [
+    {
+      "id": "classic.release.packaging",
+      "kind": "manual-contract",
+      "source": "desktop/scripts/regress.mjs",
+      "steps": [
+        "Build candidate; open three workspaces; play all installed mechanisms; save and reopen."
+      ],
+      "expected": "Stage and actual EXE cases all pass with matching ASAR hash and no repo module fallback."
+    },
+    {
+      "id": "new.release.packaging",
+      "kind": "partial-automation",
+      "runner": "tools/test/packaging.test.cjs",
+      "steps": [
+        "Build candidate; open three workspaces; play all installed mechanisms; save and reopen."
+      ],
+      "expected": "Stage and actual EXE cases all pass with matching ASAR hash and no repo module fallback.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.security.classic-dom",
+      "kind": "manual-contract",
+      "source": "src/ui/legend.js",
+      "steps": [
+        "Import malicious coordinates; inspect legend, binding site and subunit cards."
+      ],
+      "expected": "Zero injected img/svg nodes and zero executed handlers; focus controls remain usable."
+    },
+    {
+      "id": "new.security.classic-dom",
+      "kind": "partial-automation",
+      "runner": "tools/security-smoke.cjs",
+      "steps": [
+        "Import malicious coordinates; inspect legend, binding site and subunit cards."
+      ],
+      "expected": "Zero injected img/svg nodes and zero executed handlers; focus controls remain usable.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.security.desktop-network-protocol",
+      "kind": "manual-contract",
+      "source": "desktop/main.js",
+      "steps": [
+        "Download chunked, oversized, aborted and concurrent responses; navigate external URLs."
+      ],
+      "expected": "30 MiB resource bound and 2 GiB committed body budget; no partial successful cache; only http/https reach OS."
+    },
+    {
+      "id": "new.security.desktop-network-protocol",
+      "kind": "partial-automation",
+      "runner": "tools/test/desktop-security.test.cjs",
+      "steps": [
+        "Download chunked, oversized, aborted and concurrent responses; navigate external URLs."
+      ],
+      "expected": "30 MiB resource bound and 2 GiB committed body budget; no partial successful cache; only http/https reach OS.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.security.embed-consent",
+      "kind": "manual-contract",
+      "source": "src/api/bridge.js",
+      "steps": [
+        "Parent frame requests control and private reads; deny, grant, revoke and replace scene."
+      ],
+      "expected": "No sensitive reply before explicit consent; unrelated windows and revoked queued reads blocked."
+    },
+    {
+      "id": "new.security.embed-consent",
+      "kind": "partial-automation",
+      "runner": "apps/viewer-web/test/command-api.test.mjs",
+      "steps": [
+        "Parent frame requests control and private reads; deny, grant, revoke and replace scene."
+      ],
+      "expected": "No sensitive reply before explicit consent; unrelated windows and revoked queued reads blocked.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.io-assembly-cache",
+      "kind": "manual-contract",
+      "source": "src/data/rcsb.js",
+      "steps": [
+        "Import same PDB/mmCIF and assembly in both viewers; save, close and reopen offline."
+      ],
+      "expected": "Auth/label chain, residue and insertion identities, atom/model counts and coordinates preserved; cancellation retains previous scene."
+    },
+    {
+      "id": "new.structure.io-assembly-cache",
+      "kind": "partial-automation",
+      "runner": "plugins/structure/test/parser.test.mjs",
+      "steps": [
+        "Import same PDB/mmCIF and assembly in both viewers; save, close and reopen offline."
+      ],
+      "expected": "Auth/label chain, residue and insertion identities, atom/model counts and coordinates preserved; cancellation retains previous scene.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.representations-clipping",
+      "kind": "manual-contract",
+      "source": "src/repr/",
+      "steps": [
+        "Switch all representations, per-part visibility and clipping; save and reopen."
+      ],
+      "expected": "Same selected residues remain mapped in all five styles; clipping plane/visibility persist; no missing polymer segments beyond source gaps."
+    },
+    {
+      "id": "new.structure.representations-clipping",
+      "kind": "partial-automation",
+      "runner": "plugins/structure/test/representation.test.mjs",
+      "steps": [
+        "Switch all representations, per-part visibility and clipping; save and reopen."
+      ],
+      "expected": "Same selected residues remain mapped in all five styles; clipping plane/visibility persist; no missing polymer segments beyond source gaps.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.ligand-analysis",
+      "kind": "manual-contract",
+      "source": "src/ui/ligand-focus.js",
+      "steps": [
+        "Select same ligand; load CCD, focus site, measure contacts and pocket."
+      ],
+      "expected": "CCD bond orders match source; distances in Angstrom within 0.01 A for same atoms; pocket and contact labels identify source atoms."
+    },
+    {
+      "id": "new.structure.ligand-analysis",
+      "kind": "partial-automation",
+      "runner": "plugins/structure/test/representation.test.mjs",
+      "steps": [
+        "Select same ligand; load CCD, focus site, measure contacts and pocket."
+      ],
+      "expected": "CCD bond orders match source; distances in Angstrom within 0.01 A for same atoms; pocket and contact labels identify source atoms.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.disassembly-interfaces",
+      "kind": "manual-contract",
+      "source": "src/ui/take-apart.js",
+      "steps": [
+        "Take apart and restore a subunit with attached ligand; compute all-atom interface."
+      ],
+      "expected": "Ligand uses same rigid transform; interface partners and counts match with recorded cutoffs; restore original coordinates within 1e-6 A."
+    },
+    {
+      "id": "new.structure.disassembly-interfaces",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Take apart and restore a subunit with attached ligand; compute all-atom interface."
+      ],
+      "expected": "Ligand uses same rigid transform; interface partners and counts match with recorded cutoffs; restore original coordinates within 1e-6 A.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.auto-introduction",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/auto.js",
+      "steps": [
+        "Load entry lacking preset; open introduction and external annotations."
+      ],
+      "expected": "Species, substitutions, method/resolution and citations identify authoritative source; absent data shown unavailable, never fabricated."
+    },
+    {
+      "id": "new.structure.auto-introduction",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Load entry lacking preset; open introduction and external annotations."
+      ],
+      "expected": "Species, substitutions, method/resolution and citations identify authoritative source; absent data shown unavailable, never fabricated.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.sequence",
+      "kind": "manual-contract",
+      "source": "src/ui/sequence-bar.js",
+      "steps": [
+        "Select a sequence segment and a 3D residue across numbering gaps; inspect UniProt site."
+      ],
+      "expected": "Same auth/label/insertion identity both ways; deposited gaps retained; functional annotation includes source accession."
+    },
+    {
+      "id": "new.structure.sequence",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Select a sequence segment and a 3D residue across numbering gaps; inspect UniProt site."
+      ],
+      "expected": "Same auth/label/insertion identity both ways; deposited gaps retained; functional annotation includes source accession.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.structure.auto-membrane",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/auto.js",
+      "steps": [
+        "Load membrane and soluble reference entries without preset; inspect membrane and pore."
+      ],
+      "expected": "Report source/prediction distinction, orientation and algorithm tolerance; soluble negative control not assigned confident membrane."
+    },
+    {
+      "id": "new.structure.auto-membrane",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Load membrane and soluble reference entries without preset; inspect membrane and pore."
+      ],
+      "expected": "Report source/prediction distinction, orientation and algorithm tolerance; soluble negative control not assigned confident membrane.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.atp-synthase",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/atp-synthase.js",
+      "steps": [
+        "Use 6ZPO, seed 7, normalized rotor speed and fixed dt; compare phases, counters, save/reopen."
+      ],
+      "expected": "Compare 8 H+/turn and 3 ATP/turn after explicit production/release convention; record phase offsets and rad/s versus turns/s. Full event parity remains pending."
+    },
+    {
+      "id": "new.mechanism.atp-synthase",
+      "kind": "partial-automation",
+      "runner": "plugins/atp-synthase/test/player.test.mjs",
+      "steps": [
+        "Use 6ZPO, seed 7, normalized rotor speed and fixed dt; compare phases, counters, save/reopen."
+      ],
+      "expected": "Compare 8 H+/turn and 3 ATP/turn after explicit production/release convention; record phase offsets and rad/s versus turns/s. Full event parity remains pending.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.kcsa",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/kcsa.js",
+      "steps": [
+        "Use five pinned structures; compare identical pH/V/concentrations/blockers and seed 7."
+      ],
+      "expected": "Rate vectors/current within relative 1e-12 or absolute 1e-10 pA; E_K=25.69 ln(Ko/Ki) mV; record stochastic clock/RNG differences, bulk/hydration and curves pending."
+    },
+    {
+      "id": "new.mechanism.kcsa",
+      "kind": "partial-automation",
+      "runner": "plugins/kcsa/test/kinetics.test.mjs",
+      "steps": [
+        "Use five pinned structures; compare identical pH/V/concentrations/blockers and seed 7."
+      ],
+      "expected": "Rate vectors/current within relative 1e-12 or absolute 1e-10 pA; E_K=25.69 ln(Ko/Ki) mV; record stochastic clock/RNG differences, bulk/hydration and curves pending.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.adk-conformations",
+      "kind": "manual-contract",
+      "source": "src/core/load-scene.js",
+      "steps": [
+        "Use 4AKE/1AKE A-chain, same domain boundaries, manual fractions and seed 7."
+      ],
+      "expected": "214 matched CA; relative CORE domain angle/shift differences <=1e-6 degrees/A; record global-fit/interpolation and initial-phase differences; no reaction counters inferred."
+    },
+    {
+      "id": "new.mechanism.adk-conformations",
+      "kind": "partial-automation",
+      "runner": "plugins/adenylate-kinase/test/playback.test.mjs",
+      "steps": [
+        "Use 4AKE/1AKE A-chain, same domain boundaries, manual fractions and seed 7."
+      ],
+      "expected": "214 matched CA; relative CORE domain angle/shift differences <=1e-6 degrees/A; record global-fit/interpolation and initial-phase differences; no reaction counters inferred.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.animation.data-v1-adk-kcsa",
+      "kind": "manual-contract",
+      "source": "src/sim/data-anim.js",
+      "steps": [
+        "Open AdK and KcsA pure-data official packs; play, intervene, rewind and export."
+      ],
+      "expected": "Compartment/species names and stoichiometry preserved; events follow declared flows/reactions; no code from pack; quantities recover after reopen."
+    },
+    {
+      "id": "new.animation.data-v1-adk-kcsa",
+      "kind": "partial-automation",
+      "runner": "packages/legacy-compat/test/migrate.test.mjs",
+      "steps": [
+        "Open AdK and KcsA pure-data official packs; play, intervene, rewind and export."
+      ],
+      "expected": "Compartment/species names and stoichiometry preserved; events follow declared flows/reactions; no code from pack; quantities recover after reopen.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.respiratory-chain",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/respiratory-chain.js",
+      "steps": [
+        "Play respiratory-chain pack; toggle inhibitors and track proton/electron ledger."
+      ],
+      "expected": "Q-cycle semantics preserved; no negative pools; ATP equals returning H+ times 3/8 under declared accounting; inhibitor responses match classic."
+    },
+    {
+      "id": "new.mechanism.respiratory-chain",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Play respiratory-chain pack; toggle inhibitors and track proton/electron ledger."
+      ],
+      "expected": "Q-cycle semantics preserved; no negative pools; ATP equals returning H+ times 3/8 under declared accounting; inhibitor responses match classic.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.chloroplast",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/chloroplast.js",
+      "steps": [
+        "Play light reaction pack with zero and positive light; save and replay."
+      ],
+      "expected": "Light response, linear electron flow and NADPH/ATP ledger match declared stoichiometry; compartment totals and units explicit."
+    },
+    {
+      "id": "new.mechanism.chloroplast",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Play light reaction pack with zero and positive light; save and replay."
+      ],
+      "expected": "Light response, linear electron flow and NADPH/ATP ledger match declared stoichiometry; compartment totals and units explicit.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.flagellar-motor",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/flagellar-motor.js",
+      "steps": [
+        "Play flagellar motor; change direction and driving gradient."
+      ],
+      "expected": "Rotation couples to stator/proton events; reversal and counters respond; rotation alone cannot pass."
+    },
+    {
+      "id": "new.mechanism.flagellar-motor",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Play flagellar motor; change direction and driving gradient."
+      ],
+      "expected": "Rotation couples to stator/proton events; reversal and counters respond; rotation alone cannot pass.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.mechanism.translation",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/translation.js",
+      "steps": [
+        "Run 4V6F with seed 7, fixed dt and matched drug/concentration parameters twice."
+      ],
+      "expected": "Replays deterministic within each engine; tRNA and peptide events, sequence/units/names and drug response compared; mismatched RNG requires justified statistical tolerances."
+    },
+    {
+      "id": "new.mechanism.translation",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Run 4V6F with seed 7, fixed dt and matched drug/concentration parameters twice."
+      ],
+      "expected": "Replays deterministic within each engine; tRNA and peptide events, sequence/units/names and drug response compared; mismatched RNG requires justified statistical tolerances.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.system.cell-corner",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/cell-corner.js",
+      "steps": [
+        "Run translation and KcsA concurrently; intervene in one station; navigate away/back."
+      ],
+      "expected": "Independent clocks, controls and counters; return restores each state; compartment pH/V/concentrations remain associated with correct station."
+    },
+    {
+      "id": "new.system.cell-corner",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Run translation and KcsA concurrently; intervene in one station; navigate away/back."
+      ],
+      "expected": "Independent clocks, controls and counters; return restores each state; compartment pH/V/concentrations remain associated with correct station.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.system.whole-cell",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/whole-cell.js",
+      "steps": [
+        "Enter cell at 2 micrometers; navigate system/protein/mechanism and back; load twice."
+      ],
+      "expected": "Real content at each scale; full state restoration; scene/resources/listeners do not grow relative to same settled scene."
+    },
+    {
+      "id": "new.system.whole-cell",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Enter cell at 2 micrometers; navigate system/protein/mechanism and back; load twice."
+      ],
+      "expected": "Real content at each scale; full state restoration; scene/resources/listeners do not grow relative to same settled scene.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.selection.full-language-sets",
+      "kind": "manual-contract",
+      "source": "src/derived/selection-language.js",
+      "steps": [
+        "Use auth/label/asym, insertion, within, ligand and Boolean expressions."
+      ],
+      "expected": "Entire matching set highlighted with correct atom/residue identities; sequence linkage and background dimming agree, not only first match."
+    },
+    {
+      "id": "new.selection.full-language-sets",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Use auth/label/asym, insertion, within, ligand and Boolean expressions."
+      ],
+      "expected": "Entire matching set highlighted with correct atom/residue identities; sequence linkage and background dimming agree, not only first match.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.presentation.navigation-evidence",
+      "kind": "manual-contract",
+      "source": "src/ui/",
+      "steps": [
+        "Inspect evidence/captions/particle names; traverse four modes and return."
+      ],
+      "expected": "Restore selection/camera/visibility/style/time tuple; every moving particle named; scientific evidence grades and time units retained."
+    },
+    {
+      "id": "new.presentation.navigation-evidence",
+      "kind": "partial-automation",
+      "runner": "packages/schema/test/presentation-navigation.test.mjs",
+      "steps": [
+        "Inspect evidence/captions/particle names; traverse four modes and return."
+      ],
+      "expected": "Restore selection/camera/visibility/style/time tuple; every moving particle named; scientific evidence grades and time units retained.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.api.classic-workbench",
+      "kind": "manual-contract",
+      "source": "src/api/",
+      "steps": [
+        "Run classic command transcript against new local API and authorized parent bridge."
+      ],
+      "expected": "Compare argument/response schemas and load/select/color/style/measure/sequence semantics; unauthorized private reads remain blocked."
+    },
+    {
+      "id": "new.api.classic-workbench",
+      "kind": "partial-automation",
+      "runner": "apps/viewer-web/test/command-api.test.mjs",
+      "steps": [
+        "Run classic command transcript against new local API and authorized parent bridge."
+      ],
+      "expected": "Compare argument/response schemas and load/select/color/style/measure/sequence semantics; unauthorized private reads remain blocked.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.workshop.discovery-playback-submission",
+      "kind": "manual-contract",
+      "source": "workshop/",
+      "steps": [
+        "Discover all 15 official packs, edit, validate, export and reopen data-only submission."
+      ],
+      "expected": "Every declared dynamic process has an installed player or explicit unsupported status; no static preview counted as behavior parity; metadata and assets round trip."
+    },
+    {
+      "id": "new.workshop.discovery-playback-submission",
+      "kind": "planned",
+      "runner": null,
+      "steps": [
+        "Discover all 15 official packs, edit, validate, export and reopen data-only submission."
+      ],
+      "expected": "Every declared dynamic process has an installed player or explicit unsupported status; no static preview counted as behavior parity; metadata and assets round trip.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.performance.fallback-resources",
+      "kind": "manual-contract",
+      "source": "src/view/renderer.js",
+      "steps": [
+        "Use low-quality/GPU-less path; abort and repeat large scene loads."
+      ],
+      "expected": "Content remains inspectable; no unbounded resource/listener growth; record CPU/GPU/heap/FPS and hardware; set thresholds before claiming performance parity."
+    },
+    {
+      "id": "new.performance.fallback-resources",
+      "kind": "partial-automation",
+      "runner": "packages/core/test/lifecycle.test.mjs",
+      "steps": [
+        "Use low-quality/GPU-less path; abort and repeat large scene loads."
+      ],
+      "expected": "Content remains inspectable; no unbounded resource/listener growth; record CPU/GPU/heap/FPS and hardware; set thresholds before claiming performance parity.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    },
+    {
+      "id": "classic.authoring.studio-viewer-release",
+      "kind": "manual-contract",
+      "source": "web/dev.html",
+      "steps": [
+        "Execute M3 multi-scene authoring, scientific fields, project reopen and v2 export."
+      ],
+      "expected": "Two scenes/keyframes/notes/evidence/bookmarks and domain fields preserved; preview and playback use same resources; build identity visible."
+    },
+    {
+      "id": "new.authoring.studio-viewer-release",
+      "kind": "partial-automation",
+      "runner": "tools/studio-smoke.cjs",
+      "steps": [
+        "Execute M3 multi-scene authoring, scientific fields, project reopen and v2 export."
+      ],
+      "expected": "Two scenes/keyframes/notes/evidence/bookmarks and domain fields preserved; preview and playback use same resources; build identity visible.",
+      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+    }
+  ],
+  "classic_regressions": [
+    {
+      "id": "scene.4HHB-hemoglobin",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "4HHB-hemoglobin",
+      "features": [
+        "structure.io-assembly-cache",
+        "structure.auto-introduction",
+        "structure.sequence",
+        "structure.auto-membrane"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.structure.io-assembly-cache",
+        "new.structure.auto-introduction",
+        "new.structure.sequence",
+        "new.structure.auto-membrane"
+      ]
+    },
+    {
+      "id": "scene.6ZPO-atp-synthase",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "6ZPO-atp-synthase",
+      "features": [
+        "mechanism.atp-synthase"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.atp-synthase"
+      ]
+    },
+    {
+      "id": "scene.1K4C-kcsa",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "1K4C-kcsa",
+      "features": [
+        "mechanism.kcsa"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.kcsa"
+      ]
+    },
+    {
+      "id": "scene.4V6F-translation",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "4V6F-translation",
+      "features": [
+        "mechanism.translation"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.translation"
+      ]
+    },
+    {
+      "id": "scene.7CGO-flagellar-motor",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "7CGO-flagellar-motor",
+      "features": [
+        "mechanism.flagellar-motor"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.flagellar-motor"
+      ]
+    },
+    {
+      "id": "scene.cell-corner",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "key": "cell-corner",
+      "features": [
+        "system.cell-corner"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.system.cell-corner"
+      ]
+    },
+    {
+      "id": "rapid-switch",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "performance.fallback-resources"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.performance.fallback-resources"
+      ]
+    },
+    {
+      "id": "seed-7-kcsa",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "mechanism.kcsa"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.kcsa"
+      ]
+    },
+    {
+      "id": "seed-7-atp-synthase",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "mechanism.atp-synthase"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.atp-synthase"
+      ]
+    },
+    {
+      "id": "seed-7-translation",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "mechanism.translation"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.translation"
+      ]
+    },
+    {
+      "id": "whole-cell-twice",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "system.whole-cell",
+        "performance.fallback-resources"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.system.whole-cell",
+        "new.performance.fallback-resources"
+      ]
+    },
+    {
+      "id": "return-navigation",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "presentation.navigation-evidence"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.presentation.navigation-evidence"
+      ]
+    },
+    {
+      "id": "pending-animation",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "performance.fallback-resources"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.performance.fallback-resources"
+      ]
+    },
+    {
+      "id": "failed-load-keeps-scene",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "structure.io-assembly-cache"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.structure.io-assembly-cache"
+      ]
+    },
+    {
+      "id": "bridge",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "security.embed-consent",
+        "api.classic-workbench"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.security.embed-consent",
+        "new.api.classic-workbench"
+      ]
+    },
+    {
+      "id": "rrna-length",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "mechanism.translation",
+        "system.cell-corner"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.mechanism.translation",
+        "new.system.cell-corner"
+      ]
+    },
+    {
+      "id": "particle-names",
+      "classic_runner": "desktop/scripts/regress.mjs",
+      "source_config": "desktop/scripts/regress-scenes.json",
+      "features": [
+        "presentation.navigation-evidence",
+        "system.cell-corner"
+      ],
+      "candidate_status": "pending",
+      "candidate_cases": [
+        "new.presentation.navigation-evidence",
+        "new.system.cell-corner"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,623 @@
+{
+  "schema_version": 1,
+  "note": "Compact RCSB lookup. ATP/AdK entity 1 checked; KcsA channel entities selected by protein description, excluding antibody Fab entities. No raw payload retained.",
+  "structures": [
+    {
+      "id": "6ZPO",
+      "coordinate": {
+        "id": "6ZPO",
+        "bytes": 9215764,
+        "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec",
+        "url": "https://files.rcsb.org/download/6ZPO.cif"
+      },
+      "title": "bovine ATP synthase monomer state 1 (combined)",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of the dimeric ATP synthase from bovine mitochondria.",
+        "year": 2020,
+        "pdbx_database_id_PubMed": 32900941,
+        "pdbx_database_id_DOI": "10.1073/pnas.2013998117"
+      },
+      "polymer_entity_checked": "1",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Bos taurus",
+          "ncbi_taxonomy_id": 9913,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6ZPO",
+          "retrieved_at": "2026-11-19T11:29:58.415104+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6ZPO",
+          "canonical_url": "https://www.rcsb.org/structure/6ZPO"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/6ZPO/1",
+          "retrieved_at": "2026-11-19T11:29:59.544090+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/6ZPO/1",
+          "canonical_url": "https://www.rcsb.org/structure/6ZPO",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/6ZPO"
+          ]
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1K4C",
+      "coordinate": {
+        "id": "1K4C",
+        "bytes": 570033,
+        "sha256": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763",
+        "url": "https://files.rcsb.org/download/1K4C.cif"
+      },
+      "title": "Potassium Channel KcsA-Fab complex in high concentration of K+",
+      "method": [
+        {
+          "crystals_number": 1,
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Chemistry of ion coordination and hydration revealed by a K+ channel-Fab complex at 2.0 A resolution.",
+        "year": 2001,
+        "pdbx_database_id_PubMed": 11689936,
+        "pdbx_database_id_DOI": "10.1038/35102009"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1K4C",
+          "retrieved_at": "2026-11-19T11:29:58.550790+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1K4C",
+          "canonical_url": "https://www.rcsb.org/structure/1K4C"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1K4C/1",
+          "retrieved_at": "2026-11-19T11:29:59.856478+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1K4C/1",
+          "canonical_url": "https://www.rcsb.org/structure/1K4C",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/1K4C"
+          ]
+        }
+      ],
+      "checked_sources": [],
+      "channel_entities": [
+        {
+          "entity_id": "3",
+          "description": "potassium channel KcsA",
+          "organisms": [
+            {
+              "ncbi_scientific_name": "Streptomyces lividans",
+              "ncbi_taxonomy_id": 1916,
+              "source_type": "genetically engineered"
+            }
+          ],
+          "mutation_count": 2,
+          "sequence_differences": [
+            {
+              "assignment_version": "V1.0",
+              "feature_id": "monomer_feature_1",
+              "name": "engineered mutation",
+              "provenance_source": "PDB",
+              "type": "mutation",
+              "feature_positions": [
+                {
+                  "beg_seq_id": 2
+                }
+              ]
+            },
+            {
+              "assignment_version": "V1.0",
+              "feature_id": "monomer_feature_2",
+              "name": "engineered mutation",
+              "provenance_source": "PDB",
+              "type": "mutation",
+              "feature_positions": [
+                {
+                  "beg_seq_id": 90
+                }
+              ]
+            }
+          ],
+          "sources": [
+            {
+              "name": "RCSB Protein Data Bank",
+              "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1K4C/3",
+              "retrieved_at": "2026-11-19T11:30:32.181535+00:00",
+              "supports_claim": true,
+              "kind": "evidence",
+              "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1K4C/3",
+              "canonical_url": "https://www.rcsb.org/structure/1K4C",
+              "canonical_urls": [
+                "https://www.rcsb.org/structure/1K4C"
+              ]
+            }
+          ],
+          "checked_sources": []
+        }
+      ]
+    },
+    {
+      "id": "5VK6",
+      "coordinate": {
+        "id": "5VK6",
+        "bytes": 842196,
+        "sha256": "2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b",
+        "url": "https://files.rcsb.org/download/5VK6.cif"
+      },
+      "title": "Open conformation of KcsA non-inactivating E71A mutant",
+      "method": [
+        {
+          "crystals_number": 1,
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "The gating cycle of a K+ channel at atomic resolution.",
+        "year": 2017,
+        "pdbx_database_id_PubMed": 29165243,
+        "pdbx_database_id_DOI": "10.7554/eLife.28032"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/5VK6",
+          "retrieved_at": "2026-11-19T11:29:58.385940+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/5VK6",
+          "canonical_url": "https://www.rcsb.org/structure/5VK6"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VK6/1",
+          "retrieved_at": "2026-11-19T11:29:59.296173+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VK6/1",
+          "canonical_url": "https://www.rcsb.org/structure/5VK6",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/5VK6"
+          ]
+        }
+      ],
+      "checked_sources": [],
+      "channel_entities": [
+        {
+          "entity_id": "3",
+          "description": "pH-gated potassium channel KcsA",
+          "organisms": [
+            {
+              "ncbi_scientific_name": "Streptomyces lividans",
+              "ncbi_taxonomy_id": 1916,
+              "source_type": "genetically engineered"
+            }
+          ],
+          "mutation_count": 0,
+          "sequence_differences": [],
+          "sources": [
+            {
+              "name": "RCSB Protein Data Bank",
+              "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VK6/3",
+              "retrieved_at": "2026-11-19T11:30:32.121837+00:00",
+              "supports_claim": true,
+              "kind": "evidence",
+              "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VK6/3",
+              "canonical_url": "https://www.rcsb.org/structure/5VK6",
+              "canonical_urls": [
+                "https://www.rcsb.org/structure/5VK6"
+              ]
+            }
+          ],
+          "checked_sources": []
+        }
+      ]
+    },
+    {
+      "id": "5VKE",
+      "coordinate": {
+        "id": "5VKE",
+        "bytes": 839525,
+        "sha256": "d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65",
+        "url": "https://files.rcsb.org/download/5VKE.cif"
+      },
+      "title": "Open conformation of KcsA deep-inactivated",
+      "method": [
+        {
+          "crystals_number": 1,
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "The gating cycle of a K+ channel at atomic resolution.",
+        "year": 2017,
+        "pdbx_database_id_PubMed": 29165243,
+        "pdbx_database_id_DOI": "10.7554/eLife.28032"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/5VKE",
+          "retrieved_at": "2026-11-19T11:29:58.591417+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/5VKE",
+          "canonical_url": "https://www.rcsb.org/structure/5VKE"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VKE/1",
+          "retrieved_at": "2026-11-19T11:29:59.233776+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VKE/1",
+          "canonical_url": "https://www.rcsb.org/structure/5VKE",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/5VKE"
+          ]
+        }
+      ],
+      "checked_sources": [],
+      "channel_entities": [
+        {
+          "entity_id": "3",
+          "description": "pH-gated potassium channel KcsA",
+          "organisms": [
+            {
+              "ncbi_scientific_name": "Streptomyces lividans",
+              "ncbi_taxonomy_id": 1916,
+              "source_type": "genetically engineered"
+            }
+          ],
+          "mutation_count": 0,
+          "sequence_differences": [],
+          "sources": [
+            {
+              "name": "RCSB Protein Data Bank",
+              "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VKE/3",
+              "retrieved_at": "2026-11-19T11:30:32.281254+00:00",
+              "supports_claim": true,
+              "kind": "evidence",
+              "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/5VKE/3",
+              "canonical_url": "https://www.rcsb.org/structure/5VKE",
+              "canonical_urls": [
+                "https://www.rcsb.org/structure/5VKE"
+              ]
+            }
+          ],
+          "checked_sources": []
+        }
+      ]
+    },
+    {
+      "id": "2HVK",
+      "coordinate": {
+        "id": "2HVK",
+        "bytes": 532711,
+        "sha256": "2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df",
+        "url": "https://files.rcsb.org/download/2HVK.cif"
+      },
+      "title": "crystal structure of the KcsA-Fab-TBA complex in high K+",
+      "method": [
+        {
+          "crystals_number": 1,
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Crystallographic Study of the Tetrabutylammonium Block to the KcsA K(+) Channel.",
+        "year": 2007,
+        "pdbx_database_id_PubMed": 17196615,
+        "pdbx_database_id_DOI": "10.1016/j.jmb.2006.11.081"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/2HVK",
+          "retrieved_at": "2026-11-19T11:30:00.139422+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/2HVK",
+          "canonical_url": "https://www.rcsb.org/structure/2HVK"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2HVK/1",
+          "retrieved_at": "2026-11-19T11:30:01.270781+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2HVK/1",
+          "canonical_url": "https://www.rcsb.org/structure/2HVK",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/2HVK"
+          ]
+        }
+      ],
+      "checked_sources": [],
+      "channel_entities": [
+        {
+          "entity_id": "3",
+          "description": "Voltage-gated potassium channel",
+          "organisms": [
+            {
+              "ncbi_scientific_name": "Streptomyces lividans",
+              "ncbi_taxonomy_id": 1916,
+              "source_type": "genetically engineered"
+            }
+          ],
+          "mutation_count": 2,
+          "sequence_differences": [
+            {
+              "assignment_version": "V1.0",
+              "feature_id": "monomer_feature_1",
+              "name": "engineered mutation",
+              "provenance_source": "PDB",
+              "type": "mutation",
+              "feature_positions": [
+                {
+                  "beg_seq_id": 2
+                }
+              ]
+            },
+            {
+              "assignment_version": "V1.0",
+              "feature_id": "monomer_feature_2",
+              "name": "engineered mutation",
+              "provenance_source": "PDB",
+              "type": "mutation",
+              "feature_positions": [
+                {
+                  "beg_seq_id": 90
+                }
+              ]
+            }
+          ],
+          "sources": [
+            {
+              "name": "RCSB Protein Data Bank",
+              "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2HVK/3",
+              "retrieved_at": "2026-11-19T11:30:32.347543+00:00",
+              "supports_claim": true,
+              "kind": "evidence",
+              "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2HVK/3",
+              "canonical_url": "https://www.rcsb.org/structure/2HVK",
+              "canonical_urls": [
+                "https://www.rcsb.org/structure/2HVK"
+              ]
+            }
+          ],
+          "checked_sources": []
+        }
+      ]
+    },
+    {
+      "id": "2ITD",
+      "coordinate": {
+        "id": "2ITD",
+        "bytes": 468193,
+        "sha256": "30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828",
+        "url": "https://files.rcsb.org/download/2ITD.cif"
+      },
+      "title": "Potassium Channel KcsA-Fab complex in Barium Chloride",
+      "method": [
+        {
+          "crystals_number": 1,
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structural and Thermodynamic Properties of Selective Ion Binding in a K(+) Channel.",
+        "year": 2007,
+        "pdbx_database_id_PubMed": 17472437,
+        "pdbx_database_id_DOI": "10.1371/journal.pbio.0050121"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/2ITD",
+          "retrieved_at": "2026-11-19T11:29:59.919327+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/2ITD",
+          "canonical_url": "https://www.rcsb.org/structure/2ITD"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2ITD/1",
+          "retrieved_at": "2026-11-19T11:30:00.598911+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2ITD/1",
+          "canonical_url": "https://www.rcsb.org/structure/2ITD",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/2ITD"
+          ]
+        }
+      ],
+      "checked_sources": [],
+      "channel_entities": [
+        {
+          "entity_id": "3",
+          "description": "Voltage-gated potassium channel",
+          "organisms": [
+            {
+              "ncbi_scientific_name": "Streptomyces lividans",
+              "ncbi_taxonomy_id": 1916,
+              "source_type": "genetically engineered"
+            }
+          ],
+          "mutation_count": 1,
+          "sequence_differences": [
+            {
+              "assignment_version": "V1.0",
+              "feature_id": "monomer_feature_1",
+              "name": "engineered mutation",
+              "provenance_source": "PDB",
+              "type": "mutation",
+              "feature_positions": [
+                {
+                  "beg_seq_id": 90
+                }
+              ]
+            }
+          ],
+          "sources": [
+            {
+              "name": "RCSB Protein Data Bank",
+              "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2ITD/3",
+              "retrieved_at": "2026-11-19T11:30:37.059685+00:00",
+              "supports_claim": true,
+              "kind": "evidence",
+              "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/2ITD/3",
+              "canonical_url": "https://www.rcsb.org/structure/2ITD",
+              "canonical_urls": [
+                "https://www.rcsb.org/structure/2ITD"
+              ]
+            }
+          ],
+          "checked_sources": []
+        }
+      ]
+    },
+    {
+      "id": "4AKE",
+      "coordinate": {
+        "id": "4AKE",
+        "bytes": 381852,
+        "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9",
+        "url": "https://files.rcsb.org/download/4AKE.cif"
+      },
+      "title": "ADENYLATE KINASE",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Adenylate kinase motions during catalysis: an energetic counterweight balancing substrate binding.",
+        "year": 1996,
+        "pdbx_database_id_PubMed": 8805521,
+        "pdbx_database_id_DOI": "10.1016/S0969-2126(96)00018-4"
+      },
+      "polymer_entity_checked": "1",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Escherichia coli",
+          "ncbi_taxonomy_id": 562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/4AKE",
+          "retrieved_at": "2026-11-19T11:30:00.433177+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/4AKE",
+          "canonical_url": "https://www.rcsb.org/structure/4AKE"
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/4AKE/1",
+          "retrieved_at": "2026-11-19T11:30:01.953766+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/4AKE/1",
+          "canonical_url": "https://www.rcsb.org/structure/4AKE",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/4AKE"
+          ]
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1AKE",
+      "coordinate": {
+        "id": "1AKE",
+        "bytes": 426810,
+        "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948",
+        "url": "https://files.rcsb.org/download/1AKE.cif"
+      },
+      "title": "STRUCTURE OF THE COMPLEX BETWEEN ADENYLATE KINASE FROM ESCHERICHIA COLI AND THE INHIBITOR AP5A REFINED AT 1.9 ANGSTROMS RESOLUTION: A MODEL FOR A CATALYTIC TRANSITION STATE",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of the complex between adenylate kinase from Escherichia coli and the inhibitor Ap5A refined at 1.9 A resolution. A model for a catalytic transition state.",
+        "year": 1992,
+        "pdbx_database_id_PubMed": 1548697,
+        "pdbx_database_id_DOI": "10.1016/0022-2836(92)90582-5"
+      },
+      "polymer_entity_checked": "1",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Escherichia coli",
+          "ncbi_taxonomy_id": 562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/entry/1AKE",
+          "retrieved_at": "2026-11-19T11:30:00.736484+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1AKE",
+          "canonical_url": "https://www.rcsb.org/structure/1AKE",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/1AKE"
+          ]
+        },
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1AKE/1",
+          "retrieved_at": "2026-11-19T11:30:01.979901+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/polymer_entity/1AKE/1",
+          "canonical_url": "https://www.rcsb.org/structure/1AKE",
+          "canonical_urls": [
+            "https://www.rcsb.org/structure/1AKE"
+          ]
+        }
+      ],
+      "checked_sources": []
+    }
+  ]
+}

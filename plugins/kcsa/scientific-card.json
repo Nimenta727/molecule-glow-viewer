@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "id": "kcsa",
+  "feature": "mechanism.kcsa",
+  "plugin": {
+    "id": "org.glow.legacy-process.kcsa",
+    "version": "1.0.0"
+  },
+  "species": "Streptomyces lividans (channel entity 3; antibody Fab entities excluded)",
+  "structure_metadata": "docs/science/structures.json",
+  "structures": [
+    {
+      "id": "1K4C",
+      "url": "https://files.rcsb.org/download/1K4C.cif",
+      "sha256": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763",
+      "interpretation": "Potassium Channel KcsA-Fab complex in high concentration of K+"
+    },
+    {
+      "id": "5VK6",
+      "url": "https://files.rcsb.org/download/5VK6.cif",
+      "sha256": "2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b",
+      "interpretation": "Open conformation of KcsA non-inactivating E71A mutant"
+    },
+    {
+      "id": "5VKE",
+      "url": "https://files.rcsb.org/download/5VKE.cif",
+      "sha256": "d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65",
+      "interpretation": "Open conformation of KcsA deep-inactivated"
+    },
+    {
+      "id": "2HVK",
+      "url": "https://files.rcsb.org/download/2HVK.cif",
+      "sha256": "2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df",
+      "interpretation": "crystal structure of the KcsA-Fab-TBA complex in high K+"
+    },
+    {
+      "id": "2ITD",
+      "url": "https://files.rcsb.org/download/2ITD.cif",
+      "sha256": "30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828",
+      "interpretation": "Potassium Channel KcsA-Fab complex in Barium Chloride"
+    }
+  ],
+  "evidence_classes": {
+    "experimental": "Deposited coordinate endpoints only.",
+    "derived": "Fits, distances, domain angles and stationary-current calculations from stated software rules.",
+    "modelled": "5VK6 entry title explicitly identifies non-inactivating E71A; wt changes kinetics but does not replace this open template. All coordinate entries are engineered constructs; deposited mutation-count fields alone are not proof of wild type.",
+    "illustrative": "Membrane, moving particles, interpolated shapes, colors and display time."
+  },
+  "equations": [
+    {
+      "name": "Nernst",
+      "formula": "E_K=25.69*ln(Ko/Ki)",
+      "unit": "mV, fixed RT/F constant"
+    },
+    {
+      "name": "cycle rates",
+      "formula": "k1=9e8; km1=1.5e8; k2=1.5e9; km2=3e8; k3=4.5e8; k4=9e8; km4=6e8; km3=product(k_forward)/(km1*km2*km4); electrical distances=.15/.35/.15/.35",
+      "unit": "s^-1; k1 association term multiplied by Ki/1000; km3 term by Ko/1000"
+    },
+    {
+      "name": "current",
+      "formula": "Solve four-state stationary probabilities; I=(pA*f0-pB*b0)*1.602e-7",
+      "unit": "pA"
+    },
+    {
+      "name": "gate opening",
+      "formula": "h=1/(1+10^(2*(pH-4.2))); C->O=50*h; O->C=50*(1-h)+2",
+      "unit": "s^-1"
+    }
+  ],
+  "parameters": {
+    "pH": {
+      "label": "胞内 pH",
+      "min": 3.5,
+      "max": 8,
+      "step": 0.1,
+      "value": 4,
+      "unit": "dimensionless"
+    },
+    "V": {
+      "label": "膜电位（mV）",
+      "min": -160,
+      "max": 150,
+      "step": 5,
+      "value": 50,
+      "unit": "mV"
+    },
+    "Ki": {
+      "label": "胞内 K⁺（mM）",
+      "min": 1,
+      "max": 300,
+      "step": 1,
+      "value": 140,
+      "unit": "mM"
+    },
+    "Ko": {
+      "label": "胞外 K⁺（mM）",
+      "min": 1,
+      "max": 300,
+      "step": 1,
+      "value": 5,
+      "unit": "mM"
+    },
+    "Nai": {
+      "label": "胞内 Na⁺（mM）",
+      "min": 0,
+      "max": 150,
+      "step": 5,
+      "value": 10,
+      "unit": "mM"
+    },
+    "TBA": {
+      "label": "胞内 TBA（µM）",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "value": 0,
+      "unit": "micromolar"
+    },
+    "Ba": {
+      "label": "胞内 Ba²⁺（µM）",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "value": 0,
+      "unit": "micromolar"
+    },
+    "wt": {
+      "label": "野生型失活动力学（0=E71A，1=野生型）",
+      "min": 0,
+      "max": 1,
+      "step": 1,
+      "value": 0,
+      "unit": "0/1"
+    },
+    "ionSpeed": {
+      "label": "渗透时钟（ns/示意秒）",
+      "min": 2,
+      "max": 50,
+      "step": 1,
+      "value": 10,
+      "unit": "ns/demonstration-second"
+    },
+    "gateSpeed": {
+      "label": "门控时钟（s/示意秒）",
+      "min": 0.01,
+      "max": 1,
+      "step": 0.01,
+      "value": 0.05,
+      "unit": "s/demonstration-second"
+    }
+  },
+  "clocks": "Gate/block rates multiply gateSpeed seconds per display second; permeation multiplies ionSpeed*1e-9 seconds per display second only while conducting. Classic additionally stops permeation during blocking tweens; candidate interpolation is non-blocking. Seed stream consumption differs.",
+  "limitations": [
+    "Four-state teaching Markov model and chosen rates; not independently fitted or validated experimental kinetics.",
+    "No frame-by-frame or seed-by-seed cross-engine event equivalence claimed.",
+    "Bulk compartments, hydration rendering, concentration/current plots and cell coupling remain pending.",
+    "Nai rejection is a teaching pathway; no full sodium permeation/selectivity free-energy model."
+  ],
+  "software": [
+    "plugins/kcsa/test/kinetics.test.mjs",
+    "plugins/kcsa/test/resources.test.mjs"
+  ],
+  "classic_sources": [
+    "src/sim/processes/kcsa.js"
+  ],
+  "new_sources": [
+    "plugins/kcsa/kinetics.mjs",
+    "plugins/kcsa/structure.mjs"
+  ],
+  "literature": [
+    {
+      "pdb": "1K4C",
+      "title": "Chemistry of ion coordination and hydration revealed by a K+ channel-Fab complex at 2.0 A resolution.",
+      "year": 2001,
+      "pdbx_database_id_PubMed": 11689936,
+      "pdbx_database_id_DOI": "10.1038/35102009",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    },
+    {
+      "pdb": "5VK6",
+      "title": "The gating cycle of a K+ channel at atomic resolution.",
+      "year": 2017,
+      "pdbx_database_id_PubMed": 29165243,
+      "pdbx_database_id_DOI": "10.7554/eLife.28032",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    },
+    {
+      "pdb": "5VKE",
+      "title": "The gating cycle of a K+ channel at atomic resolution.",
+      "year": 2017,
+      "pdbx_database_id_PubMed": 29165243,
+      "pdbx_database_id_DOI": "10.7554/eLife.28032",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    },
+    {
+      "pdb": "2HVK",
+      "title": "Crystallographic Study of the Tetrabutylammonium Block to the KcsA K(+) Channel.",
+      "year": 2007,
+      "pdbx_database_id_PubMed": 17196615,
+      "pdbx_database_id_DOI": "10.1016/j.jmb.2006.11.081",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    },
+    {
+      "pdb": "2ITD",
+      "title": "Structural and Thermodynamic Properties of Selective Ion Binding in a K(+) Channel.",
+      "year": 2007,
+      "pdbx_database_id_PubMed": 17472437,
+      "pdbx_database_id_DOI": "10.1371/journal.pbio.0050121",
+      "scope": "Primary deposited-structure publication; does not validate chosen kinetic rates."
+    }
+  ],
+  "validation": {
+    "software": "tested_scoped_invariants",
+    "classic_comparison": "partial",
+    "expert_experimental_validation": "pending",
+    "comparison_report": "docs/parity/numerical-baseline.json",
+    "artifact_evidence": [
+      "docs/validation/2026-11-19-p1.json"
+    ],
+    "completion": "documented_model_not_full_parity"
+  }
+}

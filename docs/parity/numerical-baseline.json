@@ -1,0 +1,495 @@
+{
+  "schema_version": 1,
+  "scope": "Selected analytic and coordinate invariants, not full scientific or visual parity.",
+  "source_hashes": {
+    "src/sim/processes/kcsa.js": "b1a3da4f7166f202aa44b072c40c7324480713c259fc7a5182e1ec281499144a",
+    "src/sim/processes/atp-synthase.js": "9d998ccb2049371042fdd2a6958d364965b309a2c8f966672bc8ad5c20f69a12",
+    "src/view/frame-loop.js": "9223e26b6ca882686e9002e8736bf950c8de403d8250336317841ad2b11e7035",
+    "src/derived/geometry.js": "55c6970feed02b97cb00e0aca41a91bf2cc3f374bcf2aec73f9b05ae2b28b42d",
+    "src/data/parse.js": "8ce50230f6b273ec8142ff7db6f5e180db7a799c1ffd7d231a3fd9e8f1a8ec4f",
+    "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
+    "plugins/kcsa/kinetics.mjs": "eb65b1290a160493f7e2a21f4933c6748ad20bf55bca524be783e9529c33a31c",
+    "plugins/atp-synthase/index.mjs": "05ffd302edcf5874b8f327ec37f427a7c8e0bf34d52ac225d4525c5ae9e1a4e0",
+    "plugins/adenylate-kinase/playback.mjs": "2ff7eedf32c44c5139c0a42e55a2404d38b594fe0d098b361c4f9f552cf35e6b",
+    "plugins/adenylate-kinase/structure.mjs": "acffc48d7fac88464ce72b2669b67da457c87e0e64bd3d6e9a797a87dee96e7a",
+    "plugins/structure/parser.mjs": "f40135e28c8adbcb4b929e67af6e2893ff7b5d023bdd0a7fb2172dd29dc6838d",
+    "plugins/structure/assembly.mjs": "f7b1c6adf1e60430ca295fd3e4f9049fab7f537adc767de0246e0b7d44325de8",
+    "plugins/structure/alignment.mjs": "8382195b2ddbeffcf04b9ee012c4d9d5ae29775939048d7c55d0b7ea0900a9eb",
+    "plugins/structure/representation.mjs": "7426f1a7edd7bfaf31923e286c3abf0486de8b5fcf67dd615dc897c1d4314b35",
+    "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
+    "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
+    "desktop/package-lock.json": "e7fe321946cbf848a8094a34058650db47d3d65e4af662cc90eac49be435aaaf",
+    "tools/parity-numerics.mjs": "d3fd90ffde8c9d7776227e26c253b52376021d428436792eb9cf8a127582665a"
+  },
+  "rows": [
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 150,
+        "Ko": 150,
+        "V": -150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -16.220597853271435,
+      "candidate": -16.220597853271435,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 150,
+        "Ko": 150,
+        "V": -50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -4.3768279204228335,
+      "candidate": -4.3768279204228335,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 150,
+        "Ko": 150,
+        "V": 0,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -5.967915058135986e-16,
+      "candidate": -5.967915058135986e-16,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 150,
+        "Ko": 150,
+        "V": 50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 4.568190346924468,
+      "candidate": 4.568190346924468,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 150,
+        "Ko": 150,
+        "V": 150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 16.251009536367082,
+      "candidate": 16.251009536367082,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 140,
+        "Ko": 5,
+        "V": -150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -5.494210861108692,
+      "candidate": -5.494210861108692,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 140,
+        "Ko": 5,
+        "V": -50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 2.9144931616557948,
+      "candidate": 2.914493161655794,
+      "absolute_error": 8.881784197001252e-16,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 140,
+        "Ko": 5,
+        "V": 0,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 7.091479878717712,
+      "candidate": 7.091479878717711,
+      "absolute_error": 8.881784197001252e-16,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 140,
+        "Ko": 5,
+        "V": 50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 11.419754348494465,
+      "candidate": 11.419754348494463,
+      "absolute_error": 1.7763568394002505e-15,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 140,
+        "Ko": 5,
+        "V": 150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 20.257242249115674,
+      "candidate": 20.257242249115663,
+      "absolute_error": 1.0658141036401503e-14,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 5,
+        "Ko": 140,
+        "V": -150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -16.87916891986586,
+      "candidate": -16.87916891986586,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 5,
+        "Ko": 140,
+        "V": -50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -5.674233198935292,
+      "candidate": -5.674233198935291,
+      "absolute_error": 8.881784197001252e-16,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 5,
+        "Ko": 140,
+        "V": 0,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -2.5369759971730708,
+      "candidate": -2.536975997173071,
+      "absolute_error": 4.440892098500626e-16,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 5,
+        "Ko": 140,
+        "V": 50,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": -0.7386703131057264,
+      "candidate": -0.7386703131057262,
+      "absolute_error": 2.220446049250313e-16,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "kcsa",
+      "observable": "open-channel-current",
+      "input": {
+        "Ki": 5,
+        "Ko": 140,
+        "V": 150,
+        "seed": 7
+      },
+      "unit": "pA",
+      "classic": 0.7444147470227378,
+      "candidate": 0.7444147470227378,
+      "absolute_error": 0,
+      "tolerance": 1e-10,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "oscillator-at-matched-phase",
+      "input": {
+        "dt": 0.1,
+        "steps": 10,
+        "seed": 7,
+        "phase": 0.3499999999999999
+      },
+      "unit": "fraction",
+      "classic": 0.8017803911725498,
+      "candidate": 0.8017803911725498,
+      "absolute_error": 0,
+      "tolerance": 1e-12,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "oscillator-at-matched-phase",
+      "input": {
+        "dt": 0.1,
+        "steps": 20,
+        "seed": 7,
+        "phase": 0.7
+      },
+      "unit": "fraction",
+      "classic": 0.9734067557276939,
+      "candidate": 0.9734067557276939,
+      "absolute_error": 0,
+      "tolerance": 1e-12,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "oscillator-at-matched-phase",
+      "input": {
+        "dt": 0.1,
+        "steps": 30,
+        "seed": 7,
+        "phase": 1.05
+      },
+      "unit": "fraction",
+      "classic": 1,
+      "candidate": 1,
+      "absolute_error": 0,
+      "tolerance": 1e-12,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "oscillator-at-matched-phase",
+      "input": {
+        "dt": 0.1,
+        "steps": 40,
+        "seed": 7,
+        "phase": 1.3999999999999992
+      },
+      "unit": "fraction",
+      "classic": 1,
+      "candidate": 1,
+      "absolute_error": 0,
+      "tolerance": 1e-12,
+      "status": "passed"
+    }
+  ],
+  "aggregates": {
+    "kcsa_max_rate_relative_error": 2.0440197075895296e-16,
+    "kcsa_max_current_absolute_error": 1.0658141036401503e-14,
+    "kcsa_max_gate_rate_absolute_error": 0,
+    "kcsa_parameter_combinations": 1080
+  },
+  "atpProjection": {
+    "scope": "Actual classic update with empty catalytic sites and no rendering flow; only proton rotor ledger is compared.",
+    "classic_protons_at_one_exact_turn": 8,
+    "classic_spin_rad_per_second": 1.5707963267948966,
+    "candidate_turns_per_second": 0.25,
+    "seed": 7,
+    "candidate_counters_at_one_turn": {
+      "ATP": 3,
+      "H⁺": 8
+    }
+  },
+  "adkInitialDifference": {
+    "classic_phase": 0,
+    "classic_fraction": 0.5,
+    "candidate_phase": -1.5707963267948966,
+    "candidate_fraction": 0,
+    "status": "known_difference"
+  },
+  "reversal_mV": -85.60433386640099,
+  "coordinate_rows": [
+    {
+      "model": "adk",
+      "observable": "NMP angle",
+      "input": {
+        "structures": [
+          "4AKE",
+          "1AKE"
+        ],
+        "chain": "A",
+        "fraction": 1,
+        "seed": 7
+      },
+      "unit": "degree",
+      "classic": 44.82077630987408,
+      "candidate": 44.82077630987401,
+      "absolute_error": 6.394884621840902e-14,
+      "tolerance": 0.000001,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "NMP shift",
+      "input": {
+        "structures": [
+          "4AKE",
+          "1AKE"
+        ],
+        "chain": "A",
+        "fraction": 1,
+        "seed": 7
+      },
+      "unit": "Angstrom",
+      "classic": 9.785947804262626,
+      "candidate": 9.785947804262626,
+      "absolute_error": 0,
+      "tolerance": 0.000001,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "LID angle",
+      "input": {
+        "structures": [
+          "4AKE",
+          "1AKE"
+        ],
+        "chain": "A",
+        "fraction": 1,
+        "seed": 7
+      },
+      "unit": "degree",
+      "classic": 52.15992346354407,
+      "candidate": 52.159923463544224,
+      "absolute_error": 1.5631940186722204e-13,
+      "tolerance": 0.000001,
+      "status": "passed"
+    },
+    {
+      "model": "adk",
+      "observable": "LID shift",
+      "input": {
+        "structures": [
+          "4AKE",
+          "1AKE"
+        ],
+        "chain": "A",
+        "fraction": 1,
+        "seed": 7
+      },
+      "unit": "Angstrom",
+      "classic": 14.38030077346851,
+      "candidate": 14.3803007734685,
+      "absolute_error": 1.0658141036401503e-14,
+      "tolerance": 0.000001,
+      "status": "passed"
+    },
+    {
+      "model": "atp",
+      "observable": "proton rotor ledger, not catalytic site events",
+      "input": {
+        "structure": "6ZPO",
+        "seed": 7,
+        "turns": 1
+      },
+      "unit": "protons",
+      "classic": 8,
+      "candidate": 8,
+      "absolute_error": 0,
+      "tolerance": 0,
+      "status": "passed"
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "4AKE",
+      "bytes": 381852,
+      "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9",
+      "url": "https://files.rcsb.org/download/4AKE.cif"
+    },
+    {
+      "id": "1AKE",
+      "bytes": 426810,
+      "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948",
+      "url": "https://files.rcsb.org/download/1AKE.cif"
+    },
+    {
+      "id": "6ZPO",
+      "bytes": 9215764,
+      "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec",
+      "url": "https://files.rcsb.org/download/6ZPO.cif"
+    }
+  ],
+  "adk_coordinate_summary": {
+    "matched": 214,
+    "core_rmsd_A": 1.9750535472964525
+  },
+  "unresolved": [
+    {
+      "id": "kcsa-clock-rng",
+      "status": "pending",
+      "reason": "Classic separate gate/permeation RNG consumption and blocking tweens differ from continuous-time, non-blocking candidate scheduling. Seed 7 is not a cross-engine event equivalence proof."
+    },
+    {
+      "id": "atp-atp-counter-phase",
+      "status": "pending",
+      "reason": "Classic synth() counts formation inside occupied sites; candidate counts completed release sectors. Empty-site proton probe does not measure ATP production or full classic event phase."
+    },
+    {
+      "id": "adk-initial-and-intermediate",
+      "status": "pending",
+      "reason": "Classic oscillator starts at phase 0 and persists between loads; candidate starts open at -pi/2. Classic morph uses whole-chain fit, candidate CORE fit; endpoint relative-domain invariants do not prove intermediate geometry parity."
+    },
+    {
+      "id": "whole-feature-and-experiment",
+      "status": "pending",
+      "reason": "Bulk particles, hydration, curves, full workflows and experimental validation remain outside these selected software comparisons."
+    }
+  ],
+  "ok": true
+}

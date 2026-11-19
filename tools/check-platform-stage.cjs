@@ -44,6 +44,14 @@ function checkStage(directory) {
       } else if (tag.toLowerCase() === 'script' && /\btype=["']module["']/.test(attributes)) compile(body, file, imports, base);
     }
   }
+  const catalog = path.join(app, 'plugins/mechanism-catalog.mjs');
+  const scientificCards = [];
+  if (fs.existsSync(catalog)) for (const match of fs.readFileSync(catalog, 'utf8').matchAll(/\bfrom\s+['"](\.\/[^'"]+\/index\.mjs)['"]/g)) {
+    const cardFile = required(path.join(path.dirname(path.resolve(path.dirname(catalog), match[1])), 'scientific-card.json'));
+    const card = JSON.parse(fs.readFileSync(cardFile, 'utf8'));
+    if (!card.plugin?.id || !card.plugin.version || !card.structures?.length || !card.validation?.completion) throw new Error('Incomplete packaged scientific card: ' + cardFile);
+    scientificCards.push(card.plugin.id);
+  }
   const info = JSON.parse(fs.readFileSync(required(path.join(stage, 'build-info.json')), 'utf8'));
   if (sha256(JSON.stringify(info.files)) !== info.contentSha256) throw new Error('Build file-list hash mismatch');
   for (const record of info.files) if (sha256(fs.readFileSync(required(path.resolve(stage, record.path)))) !== record.sha256) throw new Error('Build content hash mismatch: ' + record.path);
@@ -56,7 +64,7 @@ function checkStage(directory) {
     for (const match of source.matchAll(/\brequire\s*\(\s*(['"])(\.[^'"]+)\1\s*\)/g)) checkCommonJs(path.resolve(path.dirname(file), match[2]));
   }
   for (const file of ['main.js', 'preload.js', 'platform-shell.cjs', 'smoke-runner.cjs']) checkCommonJs(path.join(stage, file));
-  return { ok: true, modules, contentSha256: info.contentSha256, sourceCommit: info.sourceCommit, sourceDirty: info.sourceDirty };
+  return { ok: true, modules, scientificCards, contentSha256: info.contentSha256, sourceCommit: info.sourceCommit, sourceDirty: info.sourceDirty };
 }
 module.exports = { checkStage };
 if (require.main === module) {

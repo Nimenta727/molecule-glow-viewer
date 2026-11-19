@@ -6,7 +6,7 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 
 | 功能 | 经典位置 | 新位置 | 是否等价 / 后续动作 |
 |---|---|---|---|
-| RCSB 下载、缓存、错误处理 | `src/data/rcsb.js`、`desktop/main.js` | `plugins/rcsb/index.mjs` | 不等价；插件有限流/容量保护，Shell 的响应缓冲与缓存提交仍需整改，统一资源策略 |
+| RCSB 下载、缓存、错误处理 | `src/data/rcsb.js`、`desktop/main.js` | `plugins/rcsb/index.mjs` | 不等价；插件有限流/容量保护，4.1 Shell 已改为 30 MiB 限量流式缓存和原子提交；浏览器插件与 Shell 各承担请求/缓存层，统一策略仍需按环境对照 |
 | PDB/mmCIF 解析与身份 | `src/data/parse.js` | `plugins/structure/parser.mjs` | 部分覆盖；当前有 auth/label、插入码、模型及 altLoc 测试，需经典同文件对照 |
 | 生物组装体展开 | `src/data/rcsb.js` | `plugins/structure/assembly.mjs` | 部分覆盖；操作符、链与副本已有测试，需完整经典样例对照 |
 | 构象叠合 | `src/derived/geometry.js` | `plugins/structure/alignment.mjs` | 同类 Horn 方法；已用于 ATP/KcsA/AdK，不意味着所有拟合策略相同；AdK 改以 CORE 作显示参考 |
@@ -21,7 +21,7 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 | AdK 两态开合与域角度 | `src/core/load-scene.js`、`src/view/frame-loop.js`、`src/ui/ligand-focus.js`、`src/data/presets.js` | `plugins/adenylate-kinase/{index,playback,structure}.mjs` | 部分接入；CORE 对齐、三域表示和两态控制已做；纯数据催化反应与通用分析未迁移 |
 | 纯数据动画、区室动力学 | `src/sim/data-anim.js`、`src/sim/cell-kinetics.js` | 尚无等价通用插件 | 待迁移；复用共享时钟/场景/资源接口，避免给每个包再写独立播放器 |
 | 场景包与状态持久化 | `src/pack/`、`src/api/run.js` | `packages/legacy-compat/`、`packages/schema/`、`packages/core/` | 格式及状态模型不同；v1 保留＋v2 ZIP 校验已实现，完整行为及状态恢复逐项对照 |
-| 命令和嵌入桥 | `src/api/` | `apps/viewer-web/command-api.mjs`、`apps/viewer-web/viewer-commands.mjs` | 部分兼容；回包/参数及权限不完整，敏感导出需先整改，开发者工作台适配待做 |
+| 命令和嵌入桥 | `src/api/` | `apps/viewer-web/command-api.mjs`、`apps/viewer-web/viewer-commands.mjs` | 部分兼容；4.1 两代共用分级授权且控制回包脱敏，完整命令参数/回包及工作台适配仍待做 |
 
 后续新增迁移必须补本表与 [功能对照清单](feature-parity.json)。仅规划的新位置要写“待迁移”，不能列成已存在实现；“是否等价”必须能链接到对照证据后再改为通过。
 
@@ -32,3 +32,9 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 ## 4.1 安全模块调整（01c8dae）
 
 经典与新版共同使用 `src/api/embed-permissions.js` 的许可控制；经典将它内联进单文件，新版按模块导入，桌面复制相同源文件。两代命令队列只增加执行/返回前授权钩子，不复制另一套许可决策。Shell 缓存统一在 `desktop/response-cache.cjs` 流式限量处理，`desktop/network-policy.cjs` 统一导航/重定向/弹窗规则；前端解析器和科学模型仍按既有清单待对照。见 [4.1 安全验收](SECURITY_REMEDIATION_2026-11-19.md)。
+
+## 4.2 对照与适配边界
+
+- `apps/viewer-web/mechanism-runtime.mjs` 从入口拆出机制解析、prepare/create 和预览降级适配，直接使用原 loaded、资源映射与播放器句柄，不建立另一份时钟或场景状态。新增取消后准备结果禁止提交的检查。
+- [数值基线](parity/README.md)直接执行经典函数和现有插件，不拷贝第三套动力学公式。KcsA 解析速率/电流、AdK CORE 相对端点及 ATP 质子账本已有比较；完整事件、时钟/随机和视觉差异保持待验收。
+- [科学卡](science/README.md)的唯一正文位于各官方机制插件内，结构查询摘要集中保存；打包目录缺卡也会失败。全面状态/渲染合并仍由后续交接处理。

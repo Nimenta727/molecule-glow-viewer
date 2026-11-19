@@ -1,10 +1,10 @@
 name: platform-release-gate
 on:
   pull_request:
-    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', '.github/workflows/platform.yml']
+    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', '.github/workflows/platform.yml']
   push:
     branches: [main]
-    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', '.github/workflows/platform.yml']
+    paths: ['apps/**', 'packages/**', 'plugins/**', 'desktop/**', 'tools/**', 'src/**', 'web/**', 'workshop/**', 'package*.json', 'docs/feature-parity.json', 'docs/parity/**', 'docs/science/**', '.github/workflows/platform.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -20,6 +20,7 @@ jobs:
         with: { node-version: 20, cache: npm }
       - run: npm ci
       - run: npm test
+      - run: node tools/check-feature-parity.mjs
       - run: node tools/build.mjs --check
       - run: node desktop/scripts/sync.js --viewer-only
       - run: node tools/check-copies.mjs
@@ -43,6 +44,8 @@ jobs:
       - run: npm ci --prefix desktop
       - name: Live RCSB retrieval, pinned hashes
         run: node tools/fetch-smoke-structures.mjs --dir desktop/dist/smoke-structures --refresh
+      - name: Real-coordinate classic/candidate numeric invariants
+        run: node tools/parity-numerics.mjs --fixtures desktop/dist/smoke-structures --output desktop/dist/gate-parity-numerics.json
       - name: Build and check stage dependency closure
         shell: pwsh
         run: |
@@ -90,6 +93,7 @@ jobs:
             desktop/dist/gate-stage/**
             desktop/dist/gate-exe/**
             desktop/dist/gate-m3/**
+            desktop/dist/gate-parity-numerics.json
             desktop/dist/gate-security-stage/**
             desktop/dist/gate-security-exe/**
             !desktop/dist/**/profile/**
