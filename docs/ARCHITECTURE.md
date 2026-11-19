@@ -26,7 +26,7 @@
 | `packages/core/` | 场景文档、事务命令、撤销/重做、时间轴、生命周期 | 复用既有状态；不能另建插件私有的平行场景文档 |
 | `packages/schema/` | scene/project/ZIP 格式、资源引用、依赖、证据、哈希与安全校验 | 已有 file/external/primitive 资产与 v2 包；不等于已有独立工坊资源库 |
 | `packages/plugin-host/` | 应用提供的受信模块注册、版本/依赖、激活/卸载、生命周期 | 有 importer/representation/service/player/panel；完整沙箱和通用作者工具协议尚未完成 |
-| `packages/render-three/` | 新版 Three.js 视口及讲解覆盖层 | 与经典渲染仍两套并存；渲染基础属于主体，领域表示通过能力提供 |
+| `packages/render-three/` | 新版 Three.js 视口及讲解覆盖层；`ink-style.mjs` 为主体内置默认画风 `core.ink`（白底墨线，移植自经典 InkPass） | 与经典渲染仍两套并存；画风只改表现、不碰场景数据；发光黑底等其他画风后续做成光影包（尚未实现） |
 | `packages/studio-editor/` | 编辑会话、场景与工程往返、资源处理 | 需扩充工具配置与作品状态的可编辑往返 |
 | `packages/legacy-compat/` | v1 声明、来源与兼容数据迁移 | 静态结构可恢复不代表所有动态行为可用 |
 | `plugins/structure/` | 解析、组装体、表示、叠合、密度/功能预览 | 可复用基础已存在；导入、表示与分析边界仍可细分，先提取接口再迁目录 |

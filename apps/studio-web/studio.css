@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
-  font: 14px/1.45 "Inter", system-ui, sans-serif;
-  color: #182520;
-  background: #edf1ed;
-  --line: #cbd4cd;
-  --panel: #fbfcfa;
-  --muted: #5c7065;
-  --accent: #28755c;
-  --startup-bg: #edf1ed;
-  --startup-fg: #182520;
+  font: 14px/1.45 system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+  color: #1f2733;
+  background: #f7f7f4;
+  --line: #d9dce2;
+  --panel: #ffffff;
+  --muted: #5d6676;
+  --accent: #4a5fb0;
+  --startup-bg: #f7f7f4;
+  --startup-fg: #1f2733;
 }
 
 * { box-sizing: border-box; }
@@ -33,7 +33,7 @@ input:not([type="checkbox"]):not([type="color"]), select, textarea {
 }
 input[type="checkbox"] { accent-color: var(--accent); }
 input[type="color"] { width: 2.5rem; height: 2rem; padding: 0.1rem; border: 1px solid var(--line); background: white; border-radius: 0.3rem; }
-:focus-visible { outline: 2px solid #388d6d; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #4a5fb0; outline-offset: 2px; }
 
 .studio { height: 100svh; min-height: 32rem; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .topbar {
@@ -49,7 +49,7 @@ input[type="color"] { width: 2.5rem; height: 2rem; padding: 0.1rem; border: 1px 
 .brand { min-width: 18rem; }
 h1, h2 { margin: 0; }
 h1 { font-size: 1.15rem; white-space: nowrap; }
-h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
+h2 { color: #2f3f86; font-size: 0.9rem; font-weight: 650; }
 .brand label, .timeline-heading label { color: var(--muted); white-space: nowrap; }
 #project-title { width: min(15rem, 25vw); }
 .project-actions { flex-wrap: wrap; justify-content: flex-end; }
@@ -58,17 +58,17 @@ h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
 .panel { min-width: 0; overflow: auto; background: var(--panel); }
 .left-panel { border-right: 1px solid var(--line); }
 .right-panel { border-left: 1px solid var(--line); }
-.panel-section { display: grid; gap: 0.55rem; padding: 0.9rem; border-bottom: 1px solid #e3e8e3; }
+.panel-section { display: grid; gap: 0.55rem; padding: 0.9rem; border-bottom: 1px solid #e6e8ee; }
 .scene-section { min-height: 11rem; }
 .asset-section { min-height: 8rem; }
 .tree-list, .text-list { min-width: 0; margin: 0; padding: 0; list-style: none; }
 .tree-list { display: grid; gap: 0.2rem; }
 .tree-list li, .text-list li { overflow-wrap: anywhere; border-radius: 0.25rem; padding: 0.32rem 0.4rem; }
 .tree-list button { width: 100%; text-align: start; overflow-wrap: anywhere; }
-.tree-list button[aria-pressed="true"] { color: #154b39; background: #e4f1e9; border-color: #7fae96; }
+.tree-list button[aria-pressed="true"] { color: #2f3f86; background: #eceffa; border-color: #a6b1de; }
 .text-list { display: grid; gap: 0.25rem; color: var(--muted); }
 
-.viewport-panel { position: relative; min-width: 0; min-height: 0; background: #f2f5f1; }
+.viewport-panel { position: relative; min-width: 0; min-height: 0; background: #f3f4f8; }
 .viewport-tools { position: absolute; z-index: 2; top: 0.8rem; left: 0.8rem; right: 0.8rem; display: flex; align-items: flex-start; gap: 0.45rem; pointer-events: none; }
 .viewport-toolbar, .primitive-tools { display: flex; align-items: center; gap: 0.45rem; pointer-events: auto; }
 .viewport-toolbar label { margin-left: 0.4rem; color: var(--muted); }
@@ -82,7 +82,7 @@ h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
 .inspector-form .wide { grid-column: 1 / -1; }
 .inspector-form label, .panel-section > label { color: var(--muted); }
 .check-row { display: flex; align-items: center; gap: 0.4rem; }
-.vector-fields { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.35rem; min-width: 0; padding: 0.5rem; border: 1px solid #e0e6e0; border-radius: 0.35rem; }
+.vector-fields { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.35rem; min-width: 0; padding: 0.5rem; border: 1px solid #e6e8ee; border-radius: 0.35rem; }
 .vector-fields legend { padding: 0 0.25rem; color: var(--muted); }
 .vector-fields label { text-align: center; font-size: 0.8rem; }
 .vector-fields input { width: 100%; }
@@ -137,7 +137,7 @@ h2 { color: #304a3d; font-size: 0.9rem; font-weight: 650; }
   .timeline-heading { flex-wrap: wrap; }
   .timeline-controls { flex-wrap: wrap; }
   #studio-playhead { flex-basis: 100%; order: 3; }
-  .bottom-dock { position: sticky; bottom: 0; box-shadow: 0 -0.4rem 1.2rem #18252018; }
+  .bottom-dock { position: sticky; bottom: 0; box-shadow: 0 -0.4rem 1.2rem #1f273318; }
 }
 
 @media (max-width: 420px) {

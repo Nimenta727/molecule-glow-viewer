@@ -134,7 +134,6 @@ function boot() {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   const cameraDuration = () => reducedMotion.matches ? 0 : 280;
   const viewport = createViewport(elements.viewport, {
-    background: '#ffffff',
     selectOnTap: true,
     onSelect(id, target, point) {
       if (target && active?.model) {
