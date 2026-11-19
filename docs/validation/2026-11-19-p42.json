@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "implementation_commit": "4b8de25c4ae4b95a973dd1e4088cbc6afa2d83db",
+  "candidate": {
+    "file": "MoleculeGlow-0.4.0-4b8de25c-win-x64.exe",
+    "bytes": 78932155,
+    "sha256": "6c20c6b3f87b1741950fd4a29b7f328a30fc2c5748691a20bee670ee2b94cd98",
+    "sourceCommit": "4b8de25c4ae4b95a973dd1e4088cbc6afa2d83db",
+    "sourceDirty": false,
+    "contentSha256": "2f5daacdaf7ac1ed14c363665ce22a10dc1101f13434d9e3d2237c8f2a8108cd"
+  },
+  "asar_sha256": "3ad2d8e0d4c29ac57ccadea31f1be03f6911f667af9c0e7b5265d7acbaef31ee",
+  "scope": "4.2 acceptance infrastructure; existing feature/scientific/visual parity remains partial or pending.",
+  "checks": {
+    "node_tests": 143,
+    "feature_contracts": 27,
+    "classic_candidate_contracts": 54,
+    "classic_regression_mappings": 17,
+    "scientific_cards_in_asar": 3,
+    "analytic_numeric_rows": 19,
+    "coordinate_numeric_rows": 5,
+    "gate_rate_parameter_combinations": 1080
+  },
+  "numerical_evidence": "docs/parity/numerical-baseline.json",
+  "unresolved": [
+    "kcsa-clock-rng",
+    "atp-atp-counter-phase",
+    "adk-initial-and-intermediate",
+    "whole-feature-and-experiment"
+  ],
+  "artifact_cases": [
+    {
+      "case": "classic",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    },
+    {
+      "case": "studio",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    },
+    {
+      "case": "local",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    },
+    {
+      "case": "atp",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    },
+    {
+      "case": "kcsa",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    },
+    {
+      "case": "adk",
+      "stage": true,
+      "exe": true,
+      "errors": [],
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      }
+    }
+  ],
+  "ci": {
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44532152740",
+    "source": "success",
+    "windows_artifact": "success"
+  },
+  "notes": [
+    "P1 complete classic regression is historical and not rerun for this new-Viewer-only adapter extraction.",
+    "No GitHub Release, signing, performance or experimental-science equivalence claimed."
+  ],
+  "packaged_scientific_cards": [
+    {
+      "path": "plugins/atp-synthase/scientific-card.json",
+      "plugin": {
+        "id": "org.glow.legacy-process.atp-synthase",
+        "version": "1.0.0"
+      },
+      "sha256": "c19a12439577599c1674aaf3b8e95b7433a9349b8bdc5e12580da658dd16c920"
+    },
+    {
+      "path": "plugins/kcsa/scientific-card.json",
+      "plugin": {
+        "id": "org.glow.legacy-process.kcsa",
+        "version": "1.0.0"
+      },
+      "sha256": "d783d312f8c6d23c138f4323203c1b88007b6343f72551a23936029b99be18a8"
+    },
+    {
+      "path": "plugins/adenylate-kinase/scientific-card.json",
+      "plugin": {
+        "id": "org.glow.legacy-process.adenylate-kinase",
+        "version": "1.0.0"
+      },
+      "sha256": "fcb29a4bf748c4c6dfbc0994357c84e53afd6ba2695da945c2fb740df1390ae4"
+    }
+  ]
+}

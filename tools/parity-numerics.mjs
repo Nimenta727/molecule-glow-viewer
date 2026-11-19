@@ -93,7 +93,7 @@ export async function compare({fixtures}={}) {
     const scene={assets:[{id:'source',kind:'file',mediaType:'chemical/x-mmcif'}],nodes:names.map((partName,i)=>({id:String(i),parentId:'root',transform:{position:[0,0,0],rotation:[0,0,0,1],scale:[1,1,1]},extensions:{'org.glow.structure':{sourceAssetId:'source',partName}}}))};
     const atp=createAtpPlayer({model:atpModel,scene,state:{seed:7,speed:.25,time:4}}),snapshot=atp.snapshot();
     result.atpProjection.candidate_counters_at_one_turn=snapshot.counters;
-    result.coordinate_rows.push({model:'atp',observable:'proton rotor ledger, not catalytic site events',input:{structure:'6ZPO',seed:7,turns:1},unit:'protons',classic:result.atpProjection.classic_protons_at_one_exact_turn,candidate:snapshot.counters['H⁺'],absolute_error:Math.abs(8-snapshot.counters['H⁺']),tolerance:0,status:snapshot.counters['H⁺']===8?'passed':'failed'});
+    result.coordinate_rows.push({model:'atp',observable:'proton rotor ledger, not catalytic site events',input:{structure:'6ZPO',seed:7,turns:1},unit:'protons',classic:result.atpProjection.classic_protons_at_one_exact_turn,candidate:snapshot.counters['H⁺'],absolute_error:Math.abs(result.atpProjection.classic_protons_at_one_exact_turn-snapshot.counters['H⁺']),tolerance:0,status:snapshot.counters['H⁺']===result.atpProjection.classic_protons_at_one_exact_turn?'passed':'failed'});
     atp.dispose();
   }
   result.unresolved=[

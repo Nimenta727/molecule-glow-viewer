@@ -19,7 +19,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "e7fe321946cbf848a8094a34058650db47d3d65e4af662cc90eac49be435aaaf",
-    "tools/parity-numerics.mjs": "d3fd90ffde8c9d7776227e26c253b52376021d428436792eb9cf8a127582665a"
+    "tools/parity-numerics.mjs": "f13605ef9f71ee9fb730188898e9e8a61f7c567725f6ba6f26896f53178838c0"
   },
   "rows": [
     {
