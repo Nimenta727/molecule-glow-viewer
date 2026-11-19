@@ -1,0 +1,26 @@
+# 经典与新版重复实现清单
+
+更新：2026-11-19，基于 `4e4b620`。本表是静态定位和已知差异清单，不表示已完成合并或等价验证。执行顺序见 [迁移计划](MIGRATION_EXECUTION_PLAN.md)。
+
+Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/新版两套实现与差异，避免第三份实现；必要的模块拆分随功能交付。全面合并两套前端的状态/渲染及最终去重按交接由 Claude 收尾，安全缺陷和发布阻断立即修复。
+
+| 功能 | 经典位置 | 新位置 | 是否等价 / 后续动作 |
+|---|---|---|---|
+| RCSB 下载、缓存、错误处理 | `src/data/rcsb.js`、`desktop/main.js` | `plugins/rcsb/index.mjs` | 不等价；插件有限流/容量保护，Shell 的响应缓冲与缓存提交仍需整改，统一资源策略 |
+| PDB/mmCIF 解析与身份 | `src/data/parse.js` | `plugins/structure/parser.mjs` | 部分覆盖；当前有 auth/label、插入码、模型及 altLoc 测试，需经典同文件对照 |
+| 生物组装体展开 | `src/data/rcsb.js` | `plugins/structure/assembly.mjs` | 部分覆盖；操作符、链与副本已有测试，需完整经典样例对照 |
+| 构象叠合 | `src/derived/geometry.js` | `plugins/structure/alignment.mjs` | 同类 Horn 方法；已用于 ATP/KcsA/AdK，不意味着所有拟合策略相同；AdK 改以 CORE 作显示参考 |
+| 布局、方向、镜头 | `src/view/placement.js`、`src/view/camera.js`、`src/core/load-scene.js` | `apps/viewer-web/legacy-layout.mjs`、`packages/render-three/viewport.mjs` | 旧布局与镜头部分移植；完整跨尺度/导航/选择状态对照待补 |
+| cartoon | `src/repr/cartoon.js` | `plugins/structure/representation.mjs` | 部分接入；用同一坐标比二级结构、缺失残基与构象变形 |
+| 密度表面 / 功能表示 | `src/repr/illustration.js`、`src/repr/simplified.js`、`src/derived/partition.js` | `plugins/structure/density-surface.mjs`、`plugins/structure/functional-preview.mjs`、AdK `structure.mjs` | 已移植密度方法和部分功能规则；整套视觉/剖切与通用域划分未等价 |
+| 渲染和生命周期 | `src/view/renderer.js`、`src/view/frame-loop.js`、`src/repr/rebuild.js` | `packages/render-three/viewport.mjs`、`packages/core/lifecycle.mjs` | 两套视口仍独立；当前通过适配层迁移，不再新增会话状态源 |
+| 选择与选择语言 | `src/derived/selection.js`、`src/derived/selection-language.js` | `plugins/structure/representation.mjs`、`apps/viewer-web/viewer-commands.mjs` | 不等价；新版基础查询/首个高亮已接入，完整集合、表达式及淡化待迁移 |
+| 配体、域运动与相互作用 | `src/ui/ligand-focus.js`、`src/repr/molecules.js` | `plugins/structure/representation.mjs`、`plugins/adenylate-kinase/structure.mjs` | 部分接入；基础接触和 AdK 特定域测量，不替代 CCD/键级/口袋/通用分析 |
+| ATP 合酶 | `src/sim/processes/atp-synthase.js` | `plugins/atp-synthase/index.mjs` | 主要教学机制接入；计量、坐标和确定性有实测，完整经典参数/事件/交互对照仍待补 |
+| KcsA 模型、孔道与显示 | `src/sim/processes/kcsa.js`、`src/derived/tunnel.js` | `plugins/kcsa/{index,kinetics,structure}.mjs` | 不完全等价；速率移植，但新版粒子插值不阻塞时钟；补经典数值表、区室、水合与曲线 |
+| AdK 两态开合与域角度 | `src/core/load-scene.js`、`src/view/frame-loop.js`、`src/ui/ligand-focus.js`、`src/data/presets.js` | `plugins/adenylate-kinase/{index,playback,structure}.mjs` | 部分接入；CORE 对齐、三域表示和两态控制已做；纯数据催化反应与通用分析未迁移 |
+| 纯数据动画、区室动力学 | `src/sim/data-anim.js`、`src/sim/cell-kinetics.js` | 尚无等价通用插件 | 待迁移；复用共享时钟/场景/资源接口，避免给每个包再写独立播放器 |
+| 场景包与状态持久化 | `src/pack/`、`src/api/run.js` | `packages/legacy-compat/`、`packages/schema/`、`packages/core/` | 格式及状态模型不同；v1 保留＋v2 ZIP 校验已实现，完整行为及状态恢复逐项对照 |
+| 命令和嵌入桥 | `src/api/` | `apps/viewer-web/command-api.mjs`、`apps/viewer-web/viewer-commands.mjs` | 部分兼容；回包/参数及权限不完整，敏感导出需先整改，开发者工作台适配待做 |
+
+后续新增迁移必须补本表与 [功能对照清单](feature-parity.json)。仅规划的新位置要写“待迁移”，不能列成已存在实现；“是否等价”必须能链接到对照证据后再改为通过。
