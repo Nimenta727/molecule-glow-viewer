@@ -92,9 +92,11 @@
   "verification": {
     "github_asset_sizes_and_digests_match": true,
     "public_skill_download_and_independent_zip_verification": true,
-    "public_exe_download_sha256": "pending",
+    "public_exe_download_sha256": "064d997f293531c6219e4b6272dd11558fe7e7f1c13687a66c168df51242900b",
     "tag_target_verified": "20cf0790c680ff3ddd54d928f086cde5881e6363",
-    "notes": "Release tag identifies the clean build source. Subsequent main commits only record publication evidence and documentation corrections; they do not change the released binary."
+    "notes": "Release tag identifies the clean build source. Subsequent main commits only record publication evidence and documentation corrections; they do not change the released binary.",
+    "all_six_public_download_hashes_match": true,
+    "public_SHA256SUMS_verified": true
   },
   "documentation": {
     "index": "docs/README.md",
