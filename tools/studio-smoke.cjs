@@ -1316,15 +1316,16 @@ async function run() {
       const bridge = await run(`new Promise(resolve=>{
         const listener=e=>{if(e.data?.glow==='reply'&&e.data.id==='smoke'){removeEventListener('message',listener);resolve(e.data)}};
         addEventListener('message',listener);postMessage({glow:'cmd',id:'smoke',cmd:'info'},location.origin);
+        setTimeout(()=>{removeEventListener('message',listener);resolve(null)},150);
       })`);
-      assert.equal(bridge.ok, true); assert.equal(bridge.result.sceneId, reopened.sceneId);
+      assert.equal(bridge, null); // self-posting is not an authorized parent/opener
       await run("glow.animate({time:0,step:0.1,steps:2})");
       assert.equal((await run('glow.info()')).paused, true);
       assert((await viewportPixels(viewer)).colored > 100);
       await captureWindow(viewer, directory, 'command-workflow', '#structure-tools');
       assert.deepEqual(errors, []);
       assert.deepEqual(networkRequests, []);
-      console.log(JSON.stringify({ ok: true, commands: true, embed: true, exportRoundTrip: true }));
+      console.log(JSON.stringify({ ok: true, commands: true, selfBridgeRejected: true, exportRoundTrip: true }));
       return;
     }
 

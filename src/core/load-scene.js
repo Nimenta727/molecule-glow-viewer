@@ -5,6 +5,7 @@ function leadOf(cap) { const t = String(cap || '').replace(/<[^>]*>/g, ''); cons
    annotations): the scene on screen keeps running, and if a download fails it stays. Phase 2 starts with loads.commit():
    the old scene is disposed and the new one is built. ?lowmem=1 commits before the downloads (the old behaviour). */
 async function loadScene(cfg) {
+  window.dispatchEvent(new Event('glow:scene-changing'));
   const S = loads.begin(cfg), live = () => S.assertLive();   // a newer loadScene makes this one stale
   $('load').disabled = true;
   if (!cfg._orig0) cfg._orig0 = { ...cfg };   /* what was asked for, before the load changes cfg (back navigation) */

@@ -150,7 +150,7 @@ async function focusLigand(L, idx = 0, n = 1) {
   flyTo(c, r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9, 800);
   /* info card */
   const fmt = (i) => `${i.rr ? nameOf(i.rr) : i.b.comp} ${i.b.an}…${i.a.comp === L.comp ? '' : i.a.comp + ' '}${i.a.an} ${i.d.toFixed(1)} Å`;
-  const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(fmt).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
+  const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(i => esc(fmt(i))).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
   const hostG = (() => { const cnt = new Map(); for (const rr of res.values()) { const g = partOf(rr.asym); if (g) cnt.set(g, (cnt.get(g) || 0) + rr.atoms.length); } return [...cnt].sort((a, b) => b[1] - a[1]).map(x => x[0]); })();
   let conf = '';
   for (const g of hostG.slice(0, 2)) {   // conformational change of the host part(s), computed from the two coordinate sets
@@ -159,23 +159,23 @@ async function focusLigand(L, idx = 0, n = 1) {
     const names = Array.isArray(current?.domains) ? current.domains : null;
     if (at.some(a => a.p2)) {
       const t = domainTurns(g, at, (a) => a.p, (a) => a.p2 || a.p, names);
-      if (t.length) conf += `<div class="sec"><b>构象变化</b>（${(current.states || []).join(' → ')}，由两套坐标计算，相对 ${t[0].ref} 刚体叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、质心移动 ${x.shift.toFixed(1)} Å`).join('；')}。</div>`;
+      if (t.length) conf += `<div class="sec"><b>构象变化</b>（${esc((current.states || []).join(' → '))}，由两套坐标计算，相对 ${esc(t[0].ref)} 刚体叠合）：${t.map(x => `${esc(x.name)} 转动约 ${x.ang.toFixed(0)}°、质心移动 ${x.shift.toFixed(1)} Å`).join('；')}。</div>`;
     } else if (at.some(a => a.alts) && proc?.role) {
       const keys = Object.keys(at.find(a => a.alts).alts), open = keys.find(k => proc.role[k] === 'open'), tight = keys.find(k => proc.role[k] === 'tight');
       if (open && tight) {
         const t = domainTurns(g, at, (a) => a.alts[open] || a.p, (a) => a.alts[tight] || a.p, null);
-        if (t.length) conf += `<div class="sec"><b>构象变化</b>（${g.name.includes('beta') ? 'β' : g.name}：开放 βE → 紧密 βTP，由 6ZPO 三条链的坐标计算，按空间聚类分区，相对 ${t[0].ref} 叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、移动 ${x.shift.toFixed(1)} Å`).join('；')}。这就是 γ 转动时“推开 / 合拢”催化位点的运动。</div>`;
+        if (t.length) conf += `<div class="sec"><b>构象变化</b>（${esc(g.name.includes('beta') ? 'β' : g.name)}：开放 βE → 紧密 βTP，由 6ZPO 三条链的坐标计算，按空间聚类分区，相对 ${esc(t[0].ref)} 叠合）：${t.map(x => `${esc(x.name)} 转动约 ${x.ang.toFixed(0)}°、移动 ${x.shift.toFixed(1)} Å`).join('；')}。这就是 γ 转动时“推开 / 合拢”催化位点的运动。</div>`;
       }
     }
   }
   const note = current?.siteNotes && current.siteNotes[L.comp];
   const hostName = hostG[0] ? (findKey(current?.notes, hostG[0].name) != null ? current.notes[findKey(current.notes, hostG[0].name)][0] : hostG[0].name) : '';
   $('infoT').textContent = `${L.fullName || L.comp} 结合位点${n > 1 ? `（${idx + 1}/${n}）` : ''}`;
-  $('infoB').innerHTML = `<div>位于 <b>${hostName}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${L.src.toUpperCase()}）。虚线由坐标计算：</div>`
+  $('infoB').innerHTML = `<div>位于 <b>${esc(hostName)}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${esc(L.src.toUpperCase())}）。虚线由坐标计算：</div>`
     + sec('hbond') + sec('salt') + sec('metal')
-    + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(nameOf).join('、')}</div>` : '')
+    + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(rr => esc(nameOf(rr))).join('、')}</div>` : '')
     + (clash ? `<div class="sec" style="color:var(--dim)">另有 ${clash} 对 N/O 原子距离 < 2.4 Å（沉积模型里的交替构象或几何冲突，不是真实接触），未计入。</div>` : '')
-    + conf + (note ? `<div class="sec"><b>机制</b>：${note}</div>` : '')
+    + conf + (note ? `<div class="sec"><b>机制</b>：${esc(note)}</div>` : '')
     + `<div class="sec"><button class="fbtn wide" id="pocketBtn" disabled>口袋表面计算中…</button> 半透明表面＝结合口袋的形状（位点残基的分子表面，不含小分子），颜色＝残基化学性质：红 酸性、蓝 碱性、青绿 极性、紫 芳香、黄 含硫、沙色 疏水。</div>`
     + `<div class="sec">画法：<button class="fbtn wide" data-st="ball">球棍</button> <button class="fbtn wide" data-st="valence">价键</button> <button class="fbtn wide" data-st="space">空间填充</button>　价键模型：一根＝单键，两根＝双键，三根＝三键，实线加内侧虚线＝芳香环（键级来自 RCSB 化学组分字典）。</div>`
     + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 或按 Esc 退出聚焦。</div>`;

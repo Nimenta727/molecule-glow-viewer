@@ -52,6 +52,8 @@ jobs:
           "GLOW_STAGE=$stagePath" >> $env:GITHUB_ENV
       - name: Stage-root three-entry and mechanism round trips
         run: node tools/platform-release-smoke.cjs --stage "$env:GLOW_STAGE" --fixtures desktop/dist/smoke-structures --output desktop/dist/gate-stage
+      - name: Stage security UI and live Electron cache regression
+        run: node tools/security-smoke.cjs --stage "$env:GLOW_STAGE" --live --output desktop/dist/gate-security-stage
       - name: Studio M3 authoring regression
         shell: pwsh
         run: |
@@ -71,6 +73,13 @@ jobs:
           if (-not (Test-Path -LiteralPath $candidatePath)) { throw 'No portable EXE' }
           & node tools/platform-release-smoke.cjs --exe $candidatePath --fixtures desktop/dist/smoke-structures --output desktop/dist/gate-exe
           exit $LASTEXITCODE
+      - name: Actual portable EXE security regression
+        shell: pwsh
+        run: |
+          $candidate = Get-Content -LiteralPath desktop/dist/release/candidate.json | ConvertFrom-Json
+          $candidatePath = Join-Path $pwd ('desktop/dist/release/' + $candidate.file)
+          & node tools/security-smoke.cjs --exe $candidatePath --live --output desktop/dist/gate-security-exe
+          exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -81,5 +90,7 @@ jobs:
             desktop/dist/gate-stage/**
             desktop/dist/gate-exe/**
             desktop/dist/gate-m3/**
+            desktop/dist/gate-security-stage/**
+            desktop/dist/gate-security-exe/**
             !desktop/dist/**/profile/**
             !desktop/dist/**/extracted-check-*/**

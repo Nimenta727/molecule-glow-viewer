@@ -28,6 +28,10 @@
     "files": [
       "main.js",
       "preload.js",
+      "platform-shell.cjs",
+      "response-cache.cjs",
+      "network-policy.cjs",
+      "smoke-runner.cjs",
       "app/**",
       "vendor/**",
       "LICENSE",

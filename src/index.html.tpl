@@ -87,6 +87,7 @@
 <!-- @include api/commands.js -->
 <!-- @include api/measure.js -->
 <!-- @include api/run.js -->
+<!-- @include api/embed-permissions.js -->
 <!-- @include api/bridge.js -->
 <!-- @include core/open-ws.js -->
 </script>

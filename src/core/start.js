@@ -104,11 +104,13 @@ window.__viewer.failKeepTest = async function (badId = '0000') {
 };
 /* A1: a page that is not on the list gets nothing back before consent, and never the unsafe commands */
 window.__viewer.bridgeTest = async function () {
-  const got = [], ev = (cmd, origin) => ({ origin, data: { glow: 'cmd', id: cmd, cmd, args: {} }, source: { postMessage: (m) => got.push(m) } });
-  const o = 'https://example.org';
-  await handleBridge(ev('snapshot', o)); await handleBridge(ev('exportPack', o));
-  const unsafe = got.filter(m => m.ok).map(m => m.id);
-  return { trustedOfficial: bridgeTrusted('https://nimenta727.github.io'), trustedOther: bridgeTrusted(o), trustedNull: bridgeTrusted('null'), unsafeAnswered: unsafe, replies: got.length };
+  const got = [], parent = { postMessage: m => { if (m.glow === 'reply') got.push(m); } }; let listener;
+  const target = { parent, location: { search: '?embed=1', origin: location.origin },
+    addEventListener(k, fn) { if (k === 'message') listener = fn; }, removeEventListener() {} };
+  const close = attachScopedCommandBridge(target, glow, { commands: Object.keys(GLOW_CMDS), requestConsent: async () => false });
+  for (const cmd of ['snapshot', 'exportPack']) await listener({ origin: 'https://nimenta727.github.io', source: parent, data: { glow:'cmd', id:cmd, cmd } });
+  close();
+  return { trustedOfficial:trustedBridgeOrigin('https://nimenta727.github.io', target.location), trustedOther:trustedBridgeOrigin('https://example.org', target.location), trustedNull:trustedBridgeOrigin('null', target.location), unsafeAnswered:got.filter(m=>m.ok).map(m=>m.id), replies:got.length };
 };
 /* regression "rapid switch": start several loads without waiting (each cancels the previous), then measure the last one */
 window.__viewer.rapid = async function (list, settle = 2, sec = 3) {

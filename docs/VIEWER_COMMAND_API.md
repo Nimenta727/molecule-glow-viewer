@@ -46,7 +46,18 @@ AdK 官方两态场景支持 `glow.animate({morph:0.5})`、`glow.animate({morph:
 
 ## 嵌入
 
-在 URL 显式使用 `?embed=1` 或 `?dev=1` 开启消息桥。允许 `https://nimenta727.github.io`；`dev=1` 另外允许同源调用。`null` 来源、非许可来源和伪造子域不被接受，URL 的 `origin=` 不会扩大权限。其他站点的用户授权流程尚待迁移。
+在 URL 显式使用 `?embed=1` 或 `?dev=1` 仅开启消息桥，不授予权限。候选来源是 `https://nimenta727.github.io`，`dev=1` 另外允许同源父窗口；请求必须来自当前父窗口或 opener。`null`、非许可来源、伪造子域、自身发消息及其他同源窗口均被忽略，URL 的 `origin=` 不会扩大权限。
+
+| 权限 | 命令与回包 |
+|---|---|
+| 公开状态 | `ready` / `help` 只含接口版本与静态说明，不含场景身份或文件名 |
+| 场景控制 | `load`、`select`、`represent`、`camera`、`animate`、`validatePack` 需要用户点击允许；回包统一为 `{accepted:true}`，不会转发适配器返回的完整场景信息 |
+| 敏感读取 | `info`、`snapshot`、`exportPack`、`log` 需要另一项明确允许，界面告知可能读取未公开结构数据；远程日志只含时间、命令和成功状态，参数省略，避免跨场景泄露历史文件 |
+| 日志重放 | `replay` 同时需要控制和敏感读取权限，逐命令检查授权 |
+
+两类授权都绑定 origin、请求窗口和当前场景；拒绝会记住到撤销/换场景，授权后可点击“撤销全部嵌入权限”。换场景尝试、页面关闭会撤销；排队的未执行命令被拒绝，执行中的敏感结果也不能在撤销后返回。已开始的场景操作不能自动回滚，`load` 完成只回确认，新场景须重新授权。直接在页面内调用 `window.glow` 不变。
+
+经典与新版共用 `src/api/embed-permissions.js`；经典另保留其他 HTTPS 父窗口经用户允许后的控制能力，但不向这些来源开放敏感读取。同源开发者工作台仍可直接使用本地 API；同源父页面本来就有浏览器 DOM 访问权限，消息桥的提示不构成同源页面之间的安全隔离。
 
 ```js
 frame.contentWindow.postMessage({
@@ -62,4 +73,4 @@ frame.contentWindow.postMessage({
 
 保留命令名称、`run`、日志重放及消息信封；尚未完整兼容经典参数和回包。复杂选择语言、`color`、`style`、`sequence`、`measure`、工坊/预设别名，以及其他机制命令仍待迁移。未支持的命令明确报错。导出返回 v2 ZIP 包装，与经典 v1 对象不同。
 
-单元测试覆盖命令串行、失败恢复、参数快照、日志脱敏/重放、关闭和精确来源检查。`GLOW_COMMAND_SMOKE=<目录>` 用 Electron 运行 `tools/studio-smoke.cjs`，验证本地结构的插入码选择、表示、错误恢复、导出重开、镜头、截图及同源消息桥。`GLOW_ATP_SMOKE` 额外验证实际 6ZPO 的命令定步、跳转、种子和播放暂停。截图已检查宽屏、560 px 窄屏及独立导出的 PNG。
+单元测试覆盖命令串行、失败恢复、参数快照、日志脱敏/重放、关闭、精确来源、请求窗口、分级授权、拒绝/撤销和排队结果失效。`GLOW_COMMAND_SMOKE=<目录>` 用 Electron 运行 `tools/studio-smoke.cjs`，验证本地结构的插入码选择、表示、错误恢复、导出重开、镜头、截图及自发消息被拒绝。真实父 iframe 的分级授权由 `node tools/security-smoke.cjs --stage <目录> --live` 验证，经典和新版均覆盖；同样可传 `--exe <候选>`。`GLOW_ATP_SMOKE` 额外验证实际 6ZPO 的命令定步、跳转、种子和播放暂停。截图已检查宽屏、560 px 窄屏及独立导出的 PNG。

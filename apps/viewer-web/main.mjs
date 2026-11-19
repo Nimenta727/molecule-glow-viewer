@@ -752,6 +752,7 @@ function boot() {
   }
 
   async function openScene(input = {}, { propagate = false } = {}) {
+    window.dispatchEvent(new Event('glow:scene-changing'));
     setStatus('正在打开场景…');
     try {
       const committed = await scenes.load(input);
@@ -1165,7 +1166,7 @@ function boot() {
     },
   }));
   window.glow = commands.api;
-  const detachBridge = attachCommandBridge(window, commands.api);
+  const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;
     stopFrame();

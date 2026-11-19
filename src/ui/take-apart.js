@@ -171,7 +171,7 @@ function kitInfo() {
   const pc = kit.sel, box = $('kitInfo'); if (!pc) { box.innerHTML = ''; return; }
   const parts = kitPartnersOf(pc), nIf = pc.near.filter(Boolean).length;
   let h = `<div class="t"><span class="sw" style="background:#${pc.col.getHexString()}"></span>${esc(pc.label)}</div>`
-    + `<div class="s">${esc(pc.ent)}${pc.partLabel ? ' · ' + esc(pc.partLabel) : ''}<br>链 ${esc(pc.asym)} · ${pc.atoms.length} 个${pc.na ? '核苷酸' : '残基'}${pc.nCopies > 1 ? ` · 同种亚基共 ${pc.nCopies} 份（第 ${pc.copy + 1} 份）` : ''}${pc.ligs ? ` · 带着 ${[...new Set(pc.ligs.map(l => l.comp))].join('、')}` : ''}</div>`
+    + `<div class="s">${esc(pc.ent)}${pc.partLabel ? ' · ' + esc(pc.partLabel) : ''}<br>链 ${esc(pc.asym)} · ${pc.atoms.length} 个${pc.na ? '核苷酸' : '残基'}${pc.nCopies > 1 ? ` · 同种亚基共 ${pc.nCopies} 份（第 ${pc.copy + 1} 份）` : ''}${pc.ligs ? ` · 带着 ${[...new Set(pc.ligs.map(l => esc(l.comp)))].join('、')}` : ''}</div>`
     + `<div class="ctl"><button id="kitPull">${pc.pullT ? '↩ 装回去' : '⇱ 取下来'}</button><button id="kitFull" ${pc.full || pc.loading ? 'disabled' : ''}>${pc.full ? '全原子界面 ✓' : pc.loading ? '下载中…' : '⚛ 计算全原子界面'}</button></div>`;
   if (!parts.length) h += `<div class="s" style="margin-top:6px">和其他链没有接触（单独存在的亚基）。</div>`;
   else {
@@ -182,7 +182,7 @@ function kitInfo() {
       if (f) {
         const seg = Object.keys(KTYPE).filter(t => t !== 'contact' && f[t].length).map(t => `<span class="ty" style="background:${KTYPE[t][1]}"></span>${KTYPE[t][0]} ${f[t].length}`).join('　');
         h += `<div class="ex">${seg || '只有范德华接触'}${f.clash.size ? `　<span title="N/O 原子距离 < 2.5 Å：沉积模型的几何误差，不是真实化学键">（另 ${f.clash.size} 对过近，未计）</span>` : ''}</div>`;
-        const ex = [...f.ss, ...f.salt, ...f.hbond].slice(0, 4).map(x => `${kitRes(pc, x.ra)}–${kitRes(q, x.rb)} ${x.d.toFixed(1)} Å`).join('；'); if (ex) h += `<div class="ex">${ex}</div>`;
+        const ex = [...f.ss, ...f.salt, ...f.hbond].slice(0, 4).map(x => `${kitRes(pc, x.ra)}–${kitRes(q, x.rb)} ${x.d.toFixed(1)} Å`).join('；'); if (ex) h += `<div class="ex">${esc(ex)}</div>`;
       }
     }
     if (parts.length > 12) h += `<div class="s">… 另 ${parts.length - 12} 条</div>`;

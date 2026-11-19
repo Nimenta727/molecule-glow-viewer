@@ -1,3 +1,4 @@
+import { attachScopedCommandBridge } from '../../src/api/embed-permissions.js';
 // Host commands use explicit adapters. Scene packages never supply executable commands.
 const READ_ONLY = new Set(['help', 'info', 'snapshot', 'exportPack', 'validatePack']);
 export const COMMANDS = {
@@ -20,7 +21,7 @@ export function createCommandApi(adapter) {
   const api = {
     version: '2.0.0',
     get log() { return copy(log); },
-    run(cmd, args) {
+    run(cmd, args, authorize) {
       if (disposed) return Promise.reject(new Error('命令接口已关闭。'));
       if (!Object.hasOwn(COMMANDS, cmd)) return Promise.reject(new Error(`此入口尚不支持命令 ${String(cmd)}。请调用 glow.help()。`));
       if (pending >= 32) return Promise.reject(new Error('命令队列已满。'));
@@ -30,6 +31,7 @@ export function createCommandApi(adapter) {
       pending++;
       const job = queue.then(async () => {
         if (disposed) throw new Error('命令接口已关闭。');
+        authorize?.();
         let ok = false;
         try {
           const result = cmd === 'help' ? {
@@ -37,6 +39,7 @@ export function createCommandApi(adapter) {
             limitations: ['选择语法目前支持链、残基和 none；复杂选择、上色、测量、序列及其他机制仍待迁移。',
               'exportPack 返回 v2 ZIP 的 base64 包装；不返回经典 v1 对象。'],
           } : await adapter[cmd](input);
+          authorize?.('result');
           ok = true;
           return copy(result);
         } finally {
@@ -51,15 +54,16 @@ export function createCommandApi(adapter) {
       queue = job.catch(() => {}).finally(() => { pending--; });
       return job;
     },
-    async replay(entries) {
+    async replay(entries, authorize) {
       if (typeof entries === 'string') entries = JSON.parse(entries);
       if (!Array.isArray(entries) || entries.length > 200) throw new Error('replay 需要最多 200 条日志。');
       const result = [];
       for (const entry of copy(entries)) {
+        authorize?.();
         if (!entry?.ok || READ_ONLY.has(entry.cmd) || entry.args?.omitted) {
           result.push({ cmd: entry?.cmd ?? null, skipped: true }); continue;
         }
-        try { await api.run(entry.cmd, entry.args); result.push({ cmd: entry.cmd, ok: true }); }
+        try { await api.run(entry.cmd, entry.args, authorize); result.push({ cmd: entry.cmd, ok: true }); }
         catch (error) { result.push({ cmd: entry.cmd, ok: false, error: error.message }); }
       }
       return result;
@@ -69,31 +73,6 @@ export function createCommandApi(adapter) {
   return { api, dispose() { disposed = true; } };
 }
 
-export function attachCommandBridge(target, api) {
-  let disposed = false;
-  const params = new URLSearchParams(target.location.search);
-  if (params.get('embed') !== '1' && params.get('dev') !== '1') return () => {};
-  const trusted = (origin) => origin !== 'null' &&
-    (origin === 'https://nimenta727.github.io' ||
-      params.get('dev') === '1' && origin === target.location.origin);
-  const listener = async (event) => {
-    const message = event.data;
-    if (!event.source || !trusted(event.origin) || message?.glow !== 'cmd') return;
-    const id = typeof message.id === 'string' ? message.id.slice(0, 128)
-      : Number.isSafeInteger(message.id) ? message.id : null;
-    let reply;
-    try {
-      if (JSON.stringify(message).length > 256 * 1024) throw new Error('嵌入命令超过 256 KiB；大文件请使用本地接口。');
-      const result = message.cmd === 'log' ? api.log
-        : message.cmd === 'replay' ? await api.replay(message.args)
-          : await api.run(message.cmd, message.args);
-      reply = { ok: true, result };
-    } catch (error) { reply = { ok: false, error: error.message }; }
-    if (!disposed) {
-      try { event.source.postMessage({ glow: 'reply', id, ...reply }, event.origin); } catch { /* Sender closed. */ }
-    }
-  };
-  target.addEventListener('message', listener);
-  if (target.parent !== target) target.parent.postMessage({ glow: 'ready', api: api.version }, '*');
-  return () => { disposed = true; target.removeEventListener('message', listener); };
+export function attachCommandBridge(target, api, options) {
+  return attachScopedCommandBridge(target, api, { commands: Object.keys(COMMANDS), ...options });
 }

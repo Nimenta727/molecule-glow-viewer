@@ -5,7 +5,9 @@
 //   coordinate files are cache-first (an entry's coordinates don't change), metadata is network-first with
 //   the cache as offline fallback.
 const { app, BrowserWindow, protocol, net, session, shell, ipcMain } = require('electron');
-const path = require('path'), fs = require('fs'), crypto = require('crypto');
+const path = require('path'), fs = require('fs');
+const { createResponseCache, CacheLimitError } = require('./response-cache.cjs');
+const { installNavigationPolicy } = require('./network-policy.cjs');
 const { configureWorkspaces, resolveEntry, readBuildInfo } = require('./platform-shell.cjs');
 if (process.env.GLOW_SMOKE && process.env.GLOW_SMOKE_PROFILE) app.setPath('userData', path.resolve(process.env.GLOW_SMOKE_PROFILE));
 
@@ -22,7 +24,7 @@ const CACHE_FIRST = new Set(['files.rcsb.org', 'models.rcsb.org']);
 const NETWORK_FIRST = new Set(['data.rcsb.org', 'rest.uniprot.org', 'search.rcsb.org', 'raw.githubusercontent.com']);   // + workshop indexes / packs / covers
 const MIME = { '.mjs': 'text/javascript; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 
-let cacheDir;
+let cacheDir, responseCache;
 const stats = { hit: 0, miss: 0, offline: 0 };
 
 function fileResponse(file) {
@@ -33,33 +35,7 @@ function fileResponse(file) {
 }
 function inside(base, rel) { const f = path.resolve(base, rel); return f.startsWith(base + path.sep) ? f : null; }
 
-const keyOf = (url) => crypto.createHash('sha1').update(url).digest('hex');
-function readCache(url) {
-  const f = path.join(cacheDir, keyOf(url));
-  if (!fs.existsSync(f + '.bin')) return null;
-  let meta = {}; try { meta = JSON.parse(fs.readFileSync(f + '.json', 'utf8')); } catch {}
-  return new Response(fs.readFileSync(f + '.bin'), {
-    status: 200,
-    headers: { 'content-type': meta.type || 'application/octet-stream', 'access-control-allow-origin': '*', 'x-glow-cache': 'hit' },
-  });
-}
-async function writeCache(url, res) {
-  const buf = Buffer.from(await res.arrayBuffer()), f = path.join(cacheDir, keyOf(url));
-  fs.writeFileSync(f + '.bin', buf);
-  fs.writeFileSync(f + '.json', JSON.stringify({ url, type: res.headers.get('content-type'), at: new Date().toISOString(), size: buf.length }));
-  if (++writes % 40 === 0) setImmediate(pruneCache);
-  return new Response(buf, { status: res.status, headers: { 'content-type': res.headers.get('content-type') || 'application/octet-stream', 'access-control-allow-origin': '*' } });
-}
-/* L6: the page's AbortController (a newer scene cancels old downloads) reaches the real request */
-const passThrough = (req) => net.fetch(req, { bypassCustomProtocolHandlers: true, signal: req.signal });
-/* the disk cache keeps at most 2 GB: oldest files (by last write) go first; checked at start and every 40 new files */
-const CACHE_MAX = 2 * 1024 ** 3; let writes = 0;
-function pruneCache() {
-  try { const F = fs.readdirSync(cacheDir).filter(f => f.endsWith('.bin')).map(f => { const st = fs.statSync(path.join(cacheDir, f)); return { f, size: st.size, t: st.mtimeMs }; });
-    let total = F.reduce((n, x) => n + x.size, 0); if (total <= CACHE_MAX) return;
-    for (const x of F.sort((a, b) => a.t - b.t)) { if (total <= CACHE_MAX * 0.9) break; const b = path.join(cacheDir, x.f); fs.rmSync(b, { force: true }); fs.rmSync(b.replace(/\.bin$/, '.json'), { force: true }); total -= x.size; }
-  } catch (e) { console.warn('cache prune', e); }
-}
+const passThrough = (req, signal = req.signal) => net.fetch(req, { bypassCustomProtocolHandlers: true, signal });
 
 async function handleHttps(req) {
   const u = new URL(req.url);
@@ -69,18 +45,18 @@ async function handleHttps(req) {
   }
   const cacheable = req.method === 'GET' && (CACHE_FIRST.has(u.host) || NETWORK_FIRST.has(u.host));
   if (!cacheable) return passThrough(req);
-  if (CACHE_FIRST.has(u.host)) { const c = readCache(req.url); if (c) { stats.hit++; return c; } }
+  if (CACHE_FIRST.has(u.host)) { const c = responseCache.read(req.url); if (c) { stats.hit++; return c; } }
   if (process.env.GLOW_SMOKE && process.env.GLOW_SMOKE_OFFLINE === '1') {
-    const cached = readCache(req.url);
+    const cached = responseCache.read(req.url);
     return cached || new Response('Offline smoke fixture is missing', { status: 503 });
   }
   try {
-    const res = await passThrough(req);
-    if (!res.ok) return res;
-    stats.miss++;
-    return await writeCache(req.url, res);
+    const res = await responseCache.download(req.url, signal => passThrough(req, signal), { signal: req.signal });
+    if (res.ok) stats.miss++;
+    return res;
   } catch (e) {
-    const c = readCache(req.url);
+    if (req.signal.aborted || e instanceof CacheLimitError || e?.name === 'AbortError') throw e;
+    const c = responseCache.read(req.url);
     if (c) { stats.offline++; return c; }
     throw e;
   }
@@ -88,7 +64,9 @@ async function handleHttps(req) {
 
 function cacheInfo() {
   let files = 0, bytes = 0;
-  for (const f of fs.readdirSync(cacheDir)) if (f.endsWith('.bin')) { files++; bytes += fs.statSync(path.join(cacheDir, f)).size; }
+  for (const f of fs.readdirSync(cacheDir)) if (f.endsWith('.bin')) {
+    try { const size = fs.statSync(path.join(cacheDir, f)).size; files++; bytes += size; } catch { /* Concurrent eviction. */ }
+  }
   return { dir: cacheDir, files, bytes, ...stats };
 }
 
@@ -99,13 +77,8 @@ function createWindow() {
     webPreferences: { preload: path.join(ROOT, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: !(process.env.GLOW_REGRESS || process.env.GLOW_SMOKE) },
   });
   // Links (DOI, UniProt pages) open in the user's browser, not inside the app.
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) shell.openExternal(url);
-    else if (['app://glow/web/', 'app://glow/web/index.html'].includes(url)) setImmediate(() => win.loadURL('app://glow/index.html'));
-    return { action: 'deny' };
-  });
+  installNavigationPolicy(win.webContents, { openExternal: url => shell.openExternal(url), loadURL: url => win.loadURL(url) });
   configureWorkspaces(win, ROOT, buildInfo);
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); shell.openExternal(url); } });
   // GLOW_PAGE=dev.html opens another page of app/ (tests of the developer workbench)
   const page = resolveEntry(process.env.GLOW_PAGE);
   win.loadURL('app://glow/' + page + (process.env.GLOW_QUERY || (process.env.GLOW_REGRESS ? '?noauto=1' : '')));   // regression: no automatic quality changes
@@ -155,16 +128,19 @@ function createWindow() {
 app.whenReady().then(() => {
   // not 'cache': on Windows that is the same folder as Chromium's own HTTP cache (userData/Cache), which it wipes
   cacheDir = path.join(app.getPath('userData'), 'structure-cache');
-  fs.mkdirSync(cacheDir, { recursive: true }); setTimeout(pruneCache, 5000);
+  responseCache = createResponseCache(cacheDir);
+  responseCache.prune().catch(error => console.warn('cache prune', error));
   protocol.handle('app', (req) => {
-    const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
+    const url = new URL(req.url);
+    if (url.host !== 'glow' || url.username || url.password) return new Response('bad host', { status: 403 });
+    const rel = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'index.html';
     const f = inside(APP_DIR, rel.endsWith('/') ? rel + 'index.html' : rel);
     return f ? fileResponse(f) : new Response('bad path', { status: 400 });
   });
   session.defaultSession.protocol.handle('https', handleHttps);
   ipcMain.handle('glow:cache-info', () => cacheInfo());
   ipcMain.handle('glow:build-info', () => ({ ...buildInfo, packaged: app.isPackaged }));
-  ipcMain.handle('glow:cache-clear', () => { for (const f of fs.readdirSync(cacheDir)) fs.rmSync(path.join(cacheDir, f)); return cacheInfo(); });
+  ipcMain.handle('glow:cache-clear', async () => { await responseCache.clear(); return cacheInfo(); });
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

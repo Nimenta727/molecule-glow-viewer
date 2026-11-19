@@ -24,6 +24,8 @@ copy('desktop/vendor/three', 'vendor/three');
 copy('desktop/node_modules/three/LICENSE', 'vendor/three/LICENSE');
 copy('desktop/preload.js', 'preload.js');
 copy('desktop/platform-shell.cjs', 'platform-shell.cjs');
+copy('desktop/response-cache.cjs', 'response-cache.cjs');
+copy('desktop/network-policy.cjs', 'network-policy.cjs');
 copy('desktop/smoke-runner.cjs', 'smoke-runner.cjs');
 copy('desktop/scripts/regress-scenes.json', 'scripts/regress-scenes.json');
 copy('LICENSE', 'LICENSE');
@@ -33,7 +35,7 @@ copy('web/index.html', 'app/web/index.html');
 copy('web/dev.html', 'app/web/dev.html');
 // Copy official plugin source as a unit. Execution remains restricted to the application-owned catalog.
 for (const name of ['apps/studio-web', 'apps/viewer-web', 'packages/core', 'packages/legacy-compat', 'packages/plugin-host', 'packages/render-three', 'packages/schema', 'packages/studio-editor', 'plugins']) copy(name, 'app/' + name);
-for (const name of ['src/styles/startup.css', 'src/ui/startup.js', 'src/pack/rules.js', 'src/data/presets.js']) copy(name, 'app/' + name);
+for (const name of ['src/styles/startup.css', 'src/ui/startup.js', 'src/api/embed-permissions.js', 'src/pack/rules.js', 'src/data/presets.js']) copy(name, 'app/' + name);
 copy('node_modules/@cfworker/json-schema/dist/esm', 'app/vendor/json-schema');
 for (const name of ['LICENSE', 'NOTICES']) {
   put('app/vendor/json-schema/' + name + '.md', fs.readFileSync(path.join(root, 'desktop/licenses/cfworker-' + name + '.md')));
@@ -59,7 +61,7 @@ put('builder.json', JSON.stringify({
   electronDist: path.join(root, 'desktop/node_modules/electron/dist'),
   npmRebuild: false,
   directories: { output: path.join(root, 'desktop/dist/release') },
-  files: ['main.js', 'preload.js', 'platform-shell.cjs', 'smoke-runner.cjs', 'build-info.json', 'scripts/regress-scenes.json', 'app/**', 'vendor/**', 'LICENSE', 'package.json'],
+  files: ['main.js', 'preload.js', 'platform-shell.cjs', 'response-cache.cjs', 'network-policy.cjs', 'smoke-runner.cjs', 'build-info.json', 'scripts/regress-scenes.json', 'app/**', 'vendor/**', 'LICENSE', 'package.json'],
 }, null, 2));
 execFileSync(process.execPath, ['--experimental-vm-modules', 'tools/check-platform-stage.cjs', stage], { cwd: root, stdio: 'inherit' });
 

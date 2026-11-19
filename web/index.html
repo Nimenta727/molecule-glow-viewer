@@ -5553,6 +5553,7 @@ function leadOf(cap) { const t = String(cap || '').replace(/<[^>]*>/g, ''); cons
    annotations): the scene on screen keeps running, and if a download fails it stays. Phase 2 starts with loads.commit():
    the old scene is disposed and the new one is built. ?lowmem=1 commits before the downloads (the old behaviour). */
 async function loadScene(cfg) {
+  window.dispatchEvent(new Event('glow:scene-changing'));
   const S = loads.begin(cfg), live = () => S.assertLive();   // a newer loadScene makes this one stale
   $('load').disabled = true;
   if (!cfg._orig0) cfg._orig0 = { ...cfg };   /* what was asked for, before the load changes cfg (back navigation) */
@@ -6080,7 +6081,7 @@ function kitInfo() {
   const pc = kit.sel, box = $('kitInfo'); if (!pc) { box.innerHTML = ''; return; }
   const parts = kitPartnersOf(pc), nIf = pc.near.filter(Boolean).length;
   let h = `<div class="t"><span class="sw" style="background:#${pc.col.getHexString()}"></span>${esc(pc.label)}</div>`
-    + `<div class="s">${esc(pc.ent)}${pc.partLabel ? ' · ' + esc(pc.partLabel) : ''}<br>链 ${esc(pc.asym)} · ${pc.atoms.length} 个${pc.na ? '核苷酸' : '残基'}${pc.nCopies > 1 ? ` · 同种亚基共 ${pc.nCopies} 份（第 ${pc.copy + 1} 份）` : ''}${pc.ligs ? ` · 带着 ${[...new Set(pc.ligs.map(l => l.comp))].join('、')}` : ''}</div>`
+    + `<div class="s">${esc(pc.ent)}${pc.partLabel ? ' · ' + esc(pc.partLabel) : ''}<br>链 ${esc(pc.asym)} · ${pc.atoms.length} 个${pc.na ? '核苷酸' : '残基'}${pc.nCopies > 1 ? ` · 同种亚基共 ${pc.nCopies} 份（第 ${pc.copy + 1} 份）` : ''}${pc.ligs ? ` · 带着 ${[...new Set(pc.ligs.map(l => esc(l.comp)))].join('、')}` : ''}</div>`
     + `<div class="ctl"><button id="kitPull">${pc.pullT ? '↩ 装回去' : '⇱ 取下来'}</button><button id="kitFull" ${pc.full || pc.loading ? 'disabled' : ''}>${pc.full ? '全原子界面 ✓' : pc.loading ? '下载中…' : '⚛ 计算全原子界面'}</button></div>`;
   if (!parts.length) h += `<div class="s" style="margin-top:6px">和其他链没有接触（单独存在的亚基）。</div>`;
   else {
@@ -6091,7 +6092,7 @@ function kitInfo() {
       if (f) {
         const seg = Object.keys(KTYPE).filter(t => t !== 'contact' && f[t].length).map(t => `<span class="ty" style="background:${KTYPE[t][1]}"></span>${KTYPE[t][0]} ${f[t].length}`).join('　');
         h += `<div class="ex">${seg || '只有范德华接触'}${f.clash.size ? `　<span title="N/O 原子距离 < 2.5 Å：沉积模型的几何误差，不是真实化学键">（另 ${f.clash.size} 对过近，未计）</span>` : ''}</div>`;
-        const ex = [...f.ss, ...f.salt, ...f.hbond].slice(0, 4).map(x => `${kitRes(pc, x.ra)}–${kitRes(q, x.rb)} ${x.d.toFixed(1)} Å`).join('；'); if (ex) h += `<div class="ex">${ex}</div>`;
+        const ex = [...f.ss, ...f.salt, ...f.hbond].slice(0, 4).map(x => `${kitRes(pc, x.ra)}–${kitRes(q, x.rb)} ${x.d.toFixed(1)} Å`).join('；'); if (ex) h += `<div class="ex">${esc(ex)}</div>`;
       }
     }
     if (parts.length > 12) h += `<div class="s">… 另 ${parts.length - 12} 条</div>`;
@@ -6541,8 +6542,12 @@ function renderLegend() {
   groups.forEach((g) => {
     const d = document.createElement('div'); d.className = 'ent';
     const gsid = (g.atoms[0]?.src || '').toUpperCase(), gst = !current?.local && standIn(gsid);
-    d.innerHTML = `<span class="sw" style="background:${g.color};color:${g.color}"></span><span class="nm" title="${esc(g.name)}${gst ? ' · ' + esc(gst) : ''}">${esc(g.name)} <span class="sub">(${g.atoms.length.toLocaleString()})${gst ? ' · 代用：' + esc(ORG_ZH[Object.keys(ORG_ZH).find(k => orgOf(gsid)?.startsWith(k))] || orgOf(gsid)) : ''}</span></span>
-      <input type="checkbox" ${g.visible ? 'checked' : ''} data-k="vis"><input type="checkbox" ${g.spin ? 'checked' : ''} data-k="spin"><input type="checkbox" ${g.ghost ? 'checked' : ''} data-k="ghost"><input type="checkbox" ${g.simple ? 'checked' : ''} data-k="simple">`;
+    d.innerHTML = '<span class="sw"></span><span class="nm"></span><input type="checkbox" data-k="vis"><input type="checkbox" data-k="spin"><input type="checkbox" data-k="ghost"><input type="checkbox" data-k="simple">';
+    const sw = d.querySelector('.sw'), nm = d.querySelector('.nm'), sub = document.createElement('span');
+    sw.style.background = g.color; sw.style.color = g.color;
+    nm.title = g.name + (gst ? ' · ' + gst : ''); nm.append(g.name + ' ');
+    sub.className = 'sub'; sub.textContent = `(${g.atoms.length.toLocaleString()})${gst ? ' · 代用：' + (ORG_ZH[Object.keys(ORG_ZH).find(k => orgOf(gsid)?.startsWith(k))] || orgOf(gsid)) : ''}`; nm.append(sub);
+    for (const [key, value] of Object.entries({vis:g.visible, spin:g.spin, ghost:g.ghost, simple:g.simple})) d.querySelector(`[data-k=${key}]`).checked = value;
     d.querySelector('[data-k=vis]').onchange = (ev) => { g.visible = ev.target.checked; g.mesh.visible = g.visible; };
     d.querySelector('[data-k=spin]').onchange = (ev) => { g.spin = ev.target.checked; spinPose(g); };
     d.querySelector('[data-k=ghost]').onchange = (ev) => { g.ghost = ev.target.checked; if (g.ghost) aimCut(); rebuildMeshes(); applyCut(); };
@@ -6553,7 +6558,12 @@ function renderLegend() {
   for (const lg of ligGroups) {
     const st = elStyle(lg.comp.length <= 2 ? lg.comp : 'P');
     const d = document.createElement('div'); d.className = 'ent';
-    d.innerHTML = `<span class="sw" style="background:${st[0]};color:${st[0]};border-radius:3px"></span><span class="nm" title="${lg.name}">◆ ${lg.comp}${lg.state ? '（构象 2）' : ''} <span class="sub">${lg.name.toLowerCase()} ×${lg.n}</span></span><input type="checkbox" ${lg.visible ? 'checked' : ''}><span></span><span></span><span></span>`;
+    d.innerHTML = '<span class="sw"></span><span class="nm"></span><input type="checkbox"><span></span><span></span><span></span>';
+    const sw = d.querySelector('.sw'), nm = d.querySelector('.nm'), sub = document.createElement('span');
+    sw.style.background = st[0]; sw.style.color = st[0]; sw.style.borderRadius = '3px';
+    nm.title = String(lg.name ?? ''); nm.append(`◆ ${lg.comp}${lg.state ? '（构象 2）' : ''} `);
+    sub.className = 'sub'; sub.textContent = `${String(lg.name ?? '').toLowerCase()} ×${lg.n}`; nm.append(sub);
+    d.querySelector('input').checked = lg.visible;
     d.querySelector('input').onchange = (ev) => { lg.visible = ev.target.checked; lg.obj.visible = lg.visible && $('ligOn').checked; };
     const fb = document.createElement('button'); fb.className = 'fbtn'; fb.textContent = '⌖'; fb.title = '聚焦：结合位点、相互作用、构象变化（再点切换到下一个）';
     fb.onclick = () => { const list = model.ligands.filter(l => l.comp === lg.comp && (l.state || 0) === lg.state); if (!list.length) return;
@@ -6566,7 +6576,7 @@ function renderLegend() {
   const hiddenBy = new Map(); for (const l of model?.ligands || []) if (l.hidden && !shownKeys.has(l.comp + '|' + (l.state || 0))) { const k = l.comp + '|' + (l.state || 0); if (!hiddenBy.has(k)) hiddenBy.set(k, []); hiddenBy.get(k).push(l); }
   for (const [k, list] of hiddenBy) {
     const d = document.createElement('div'); d.className = 'ent';
-    d.innerHTML = `<span class="sw" style="background:transparent;border:1px dashed var(--dim);border-radius:3px"></span><span class="nm" title="晶体结构中的位置（动画中用移动的副本表示）">◇ ${list[0].comp} <span class="sub">晶体结构位点 ×${list.length}（动画中另行显示）</span></span><span></span><span></span><span></span><span></span>`;
+    d.innerHTML = `<span class="sw" style="background:transparent;border:1px dashed var(--dim);border-radius:3px"></span><span class="nm" title="晶体结构中的位置（动画中用移动的副本表示）">◇ ${esc(list[0].comp)} <span class="sub">晶体结构位点 ×${list.length}（动画中另行显示）</span></span><span></span><span></span><span></span><span></span>`;
     const fb = document.createElement('button'); fb.className = 'fbtn'; fb.textContent = '⌖'; fb.title = '聚焦晶体结构中的结合位点';
     let fi = -1; fb.onclick = () => { fi = (fi + 1) % list.length; focusLigand(list[fi], fi, list.length); };
     d.children[3].replaceWith(fb); L.appendChild(d);
@@ -6725,7 +6735,7 @@ async function focusLigand(L, idx = 0, n = 1) {
   flyTo(c, r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.9, 800);
   /* info card */
   const fmt = (i) => `${i.rr ? nameOf(i.rr) : i.b.comp} ${i.b.an}…${i.a.comp === L.comp ? '' : i.a.comp + ' '}${i.a.an} ${i.d.toFixed(1)} Å`;
-  const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(fmt).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
+  const sec = (t) => { const l = inter.filter(i => i.type === t); return l.length ? `<div class="sec"><span class="k" style="background:${ITYPE[t][1]}"></span><b>${ITYPE[t][0]}（${l.length}）</b>：${l.slice(0, 10).map(i => esc(fmt(i))).join('；')}${l.length > 10 ? ' …' : ''}</div>` : ''; };
   const hostG = (() => { const cnt = new Map(); for (const rr of res.values()) { const g = partOf(rr.asym); if (g) cnt.set(g, (cnt.get(g) || 0) + rr.atoms.length); } return [...cnt].sort((a, b) => b[1] - a[1]).map(x => x[0]); })();
   let conf = '';
   for (const g of hostG.slice(0, 2)) {   // conformational change of the host part(s), computed from the two coordinate sets
@@ -6734,23 +6744,23 @@ async function focusLigand(L, idx = 0, n = 1) {
     const names = Array.isArray(current?.domains) ? current.domains : null;
     if (at.some(a => a.p2)) {
       const t = domainTurns(g, at, (a) => a.p, (a) => a.p2 || a.p, names);
-      if (t.length) conf += `<div class="sec"><b>构象变化</b>（${(current.states || []).join(' → ')}，由两套坐标计算，相对 ${t[0].ref} 刚体叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、质心移动 ${x.shift.toFixed(1)} Å`).join('；')}。</div>`;
+      if (t.length) conf += `<div class="sec"><b>构象变化</b>（${esc((current.states || []).join(' → '))}，由两套坐标计算，相对 ${esc(t[0].ref)} 刚体叠合）：${t.map(x => `${esc(x.name)} 转动约 ${x.ang.toFixed(0)}°、质心移动 ${x.shift.toFixed(1)} Å`).join('；')}。</div>`;
     } else if (at.some(a => a.alts) && proc?.role) {
       const keys = Object.keys(at.find(a => a.alts).alts), open = keys.find(k => proc.role[k] === 'open'), tight = keys.find(k => proc.role[k] === 'tight');
       if (open && tight) {
         const t = domainTurns(g, at, (a) => a.alts[open] || a.p, (a) => a.alts[tight] || a.p, null);
-        if (t.length) conf += `<div class="sec"><b>构象变化</b>（${g.name.includes('beta') ? 'β' : g.name}：开放 βE → 紧密 βTP，由 6ZPO 三条链的坐标计算，按空间聚类分区，相对 ${t[0].ref} 叠合）：${t.map(x => `${x.name} 转动约 ${x.ang.toFixed(0)}°、移动 ${x.shift.toFixed(1)} Å`).join('；')}。这就是 γ 转动时“推开 / 合拢”催化位点的运动。</div>`;
+        if (t.length) conf += `<div class="sec"><b>构象变化</b>（${esc(g.name.includes('beta') ? 'β' : g.name)}：开放 βE → 紧密 βTP，由 6ZPO 三条链的坐标计算，按空间聚类分区，相对 ${esc(t[0].ref)} 叠合）：${t.map(x => `${esc(x.name)} 转动约 ${x.ang.toFixed(0)}°、移动 ${x.shift.toFixed(1)} Å`).join('；')}。这就是 γ 转动时“推开 / 合拢”催化位点的运动。</div>`;
       }
     }
   }
   const note = current?.siteNotes && current.siteNotes[L.comp];
   const hostName = hostG[0] ? (findKey(current?.notes, hostG[0].name) != null ? current.notes[findKey(current.notes, hostG[0].name)][0] : hostG[0].name) : '';
   $('infoT').textContent = `${L.fullName || L.comp} 结合位点${n > 1 ? `（${idx + 1}/${n}）` : ''}`;
-  $('infoB').innerHTML = `<div>位于 <b>${hostName}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${L.src.toUpperCase()}）。虚线由坐标计算：</div>`
+  $('infoB').innerHTML = `<div>位于 <b>${esc(hostName)}</b>；5 Å 内 ${res.size} 个残基，其中 ${shown.length} 个与它直接接触（画成棍棒；全原子坐标来自 ${esc(L.src.toUpperCase())}）。虚线由坐标计算：</div>`
     + sec('hbond') + sec('salt') + sec('metal')
-    + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(nameOf).join('、')}</div>` : '')
+    + (hydro.size ? `<div class="sec"><b>疏水接触</b>：${[...hydro].slice(0, 10).map(rr => esc(nameOf(rr))).join('、')}</div>` : '')
     + (clash ? `<div class="sec" style="color:var(--dim)">另有 ${clash} 对 N/O 原子距离 < 2.4 Å（沉积模型里的交替构象或几何冲突，不是真实接触），未计入。</div>` : '')
-    + conf + (note ? `<div class="sec"><b>机制</b>：${note}</div>` : '')
+    + conf + (note ? `<div class="sec"><b>机制</b>：${esc(note)}</div>` : '')
     + `<div class="sec"><button class="fbtn wide" id="pocketBtn" disabled>口袋表面计算中…</button> 半透明表面＝结合口袋的形状（位点残基的分子表面，不含小分子），颜色＝残基化学性质：红 酸性、蓝 碱性、青绿 极性、紫 芳香、黄 含硫、沙色 疏水。</div>`
     + `<div class="sec">画法：<button class="fbtn wide" data-st="ball">球棍</button> <button class="fbtn wide" data-st="valence">价键</button> <button class="fbtn wide" data-st="space">空间填充</button>　价键模型：一根＝单键，两根＝双键，三根＝三键，实线加内侧虚线＝芳香环（键级来自 RCSB 化学组分字典）。</div>`
     + `<div class="sec" style="color:var(--dim)">金色碳＝小分子（真实大小）；灰色碳＝蛋白残基。点 × 或按 Esc 退出聚焦。</div>`;
@@ -7550,11 +7560,13 @@ window.__viewer.failKeepTest = async function (badId = '0000') {
 };
 /* A1: a page that is not on the list gets nothing back before consent, and never the unsafe commands */
 window.__viewer.bridgeTest = async function () {
-  const got = [], ev = (cmd, origin) => ({ origin, data: { glow: 'cmd', id: cmd, cmd, args: {} }, source: { postMessage: (m) => got.push(m) } });
-  const o = 'https://example.org';
-  await handleBridge(ev('snapshot', o)); await handleBridge(ev('exportPack', o));
-  const unsafe = got.filter(m => m.ok).map(m => m.id);
-  return { trustedOfficial: bridgeTrusted('https://nimenta727.github.io'), trustedOther: bridgeTrusted(o), trustedNull: bridgeTrusted('null'), unsafeAnswered: unsafe, replies: got.length };
+  const got = [], parent = { postMessage: m => { if (m.glow === 'reply') got.push(m); } }; let listener;
+  const target = { parent, location: { search: '?embed=1', origin: location.origin },
+    addEventListener(k, fn) { if (k === 'message') listener = fn; }, removeEventListener() {} };
+  const close = attachScopedCommandBridge(target, glow, { commands: Object.keys(GLOW_CMDS), requestConsent: async () => false });
+  for (const cmd of ['snapshot', 'exportPack']) await listener({ origin: 'https://nimenta727.github.io', source: parent, data: { glow:'cmd', id:cmd, cmd } });
+  close();
+  return { trustedOfficial:trustedBridgeOrigin('https://nimenta727.github.io', target.location), trustedOther:trustedBridgeOrigin('https://example.org', target.location), trustedNull:trustedBridgeOrigin('null', target.location), unsafeAnswered:got.filter(m=>m.ok).map(m=>m.id), replies:got.length };
 };
 /* regression "rapid switch": start several loads without waiting (each cancels the previous), then measure the last one */
 window.__viewer.rapid = async function (list, settle = 2, sec = 3) {
@@ -7970,13 +7982,14 @@ function glowArgs(def, args) {
   return args && typeof args === 'object' ? args : { [ps[0].name]: args };
 }
 function logArgs(args) { try { const s = JSON.stringify(args ?? null); return s.length > 200000 ? { truncated: true, bytes: s.length } : JSON.parse(s); } catch (e) { return { unserialisable: true }; } }
-function glowRun(cmd, args) {
+function glowRun(cmd, args, authorize) {
   const job = glowQueue.then(async () => {
     if (typeof cmd !== 'string' || !Object.hasOwn(GLOW_CMDS, cmd)) throw new CmdError(`没有这个命令：${cmd}（glow.help() 列出全部命令）`);
+    authorize?.();
     let ok = false;
     /* X5: one hung command must not block the queue: 180 s, then the next command runs (the late result is dropped) */
     let to; const limit = new Promise((_, no) => { to = setTimeout(() => no(new CmdError(`${cmd} 超过 180 秒没有完成，已跳过`)), GLOW_TIMEOUT_MS); });
-    try { const r = await Promise.race([GLOW_CMDS[cmd].fn(glowArgs(GLOW_CMDS[cmd], args)), limit]); ok = true; return r === undefined ? null : JSON.parse(JSON.stringify(r)); }
+    try { const r = await Promise.race([GLOW_CMDS[cmd].fn(glowArgs(GLOW_CMDS[cmd], args)), limit]); authorize?.('result'); ok = true; return r === undefined ? null : JSON.parse(JSON.stringify(r)); }
     finally { clearTimeout(to); glowLog.push({ t: new Date().toISOString(), cmd, args: logArgs(args), ok, seed: randSeed }); if (glowLog.length > 200) glowLog.splice(0, glowLog.length - 200); }
   });
   glowQueue = job.catch(() => {});
@@ -7984,61 +7997,135 @@ function glowRun(cmd, args) {
 }
 const glow = window.glow = {
   version: GLOW_API, log: glowLog, run: glowRun,
-  async replay(log) {
+  async replay(log, authorize) {
     if (typeof log === 'string') log = JSON.parse(log);
-    if (!Array.isArray(log)) throw new CmdError('replay 需要日志数组（glow.log 的格式）');
+    if (!Array.isArray(log) || log.length > 200) throw new CmdError('replay 需要日志数组（glow.log 的格式）');
     const out = [];
     for (const e of log.slice()) {
+      authorize?.();
       if (!e || typeof e.cmd !== 'string' || e.ok === false || GLOW_READONLY.has(e.cmd) || e.args?.truncated) { out.push({ cmd: e?.cmd, skipped: true }); continue; }
-      try { await glowRun(e.cmd, e.args); out.push({ cmd: e.cmd, ok: true }); } catch (err) { out.push({ cmd: e.cmd, ok: false, error: String(err?.message || err) }); }
+      try { await glowRun(e.cmd, e.args, authorize); out.push({ cmd: e.cmd, ok: true }); } catch (err) { out.push({ cmd: e.cmd, ok: false, error: String(err?.message || err) }); }
     }
     return out;
   },
 };
 for (const [cmd, d] of Object.entries(GLOW_CMDS)) glow[cmd] = (...a) => glowRun(cmd, d.params.length > 1 && a.length > 1 ? a : a[0]);
-/* postMessage bridge (X1): only with ?embed=1 or ?dev=1; the sender must be same-origin or listed in ?origin=https://a,https://b
-   (exact https origins); origin "null" (file://, sandboxed frames) is never accepted; replies go only to the sender's origin */
-const BRIDGE_ON = params.get('embed') === '1' || params.get('dev') === '1';
-/* A1: who may drive the viewer. The list is in the code, never in the URL (the embedder would write itself in).
-   Trusted = the official site, or the same origin with ?dev=1 (the workbench). Any other https page gets only the
-   SAFE commands, and only after the person looking at the viewer clicks "允许"; it never gets data back
-   (no snapshot, export, log, or info while a local file is open). */
-const EMBED_ORIGINS = new Set(['https://nimenta727.github.io']);
-const BRIDGE_SAFE = new Set(['help', 'load', 'select', 'color', 'represent', 'style', 'camera', 'animate', 'sequence', 'measure', 'validatePack', 'info']);
-const bridgeTrusted = (o) => typeof o === 'string' && o !== 'null' && (EMBED_ORIGINS.has(o) || (params.get('dev') === '1' && o === location.origin && location.origin !== 'null'));
-const bridgeConsent = new Map();   /* origin -> 'yes' | 'no' | [pending messages] */
-function askBridgeConsent(origin) {
-  if (document.getElementById('bridgeAsk')) return;
-  const d = document.createElement('div'); d.id = 'bridgeAsk';
-  d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:50;background:#fff;color:#1c2233;border:1px solid rgba(0,0,0,.2);border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);font-size:13px;max-width:min(520px,92vw)';
-  d.innerHTML = `<div>网页 <b></b> 想控制这个查看器（只能换场景、选择、上色、改镜头和动画；不能截图、导出或读取你打开的文件）。</div>
-    <div style="margin-top:8px;text-align:right"><button data-a="no">拒绝</button> <button data-a="yes">允许此网页控制查看器</button></div>`;
-  d.querySelector('b').textContent = origin; document.body.appendChild(d);
-  d.onclick = (ev) => { const a = ev.target.dataset?.a; if (!a) return; const pend = bridgeConsent.get(origin); bridgeConsent.set(origin, a); d.remove();
-    if (a === 'yes' && Array.isArray(pend)) for (const m of pend) handleBridge(m); };
+// Consent belongs to a specific parent/opener window and the current scene, never a URL flag.
+function consentPanel(target, revoke) {
+  let panel, pending;
+  const remove = () => { pending?.(false); pending = null; panel?.remove(); panel = null; };
+  return {
+    request(origin, scope, signal) {
+      if (!target.document || pending) return Promise.resolve(false);
+      panel ??= target.document.createElement('section'); panel.id = 'glow-bridge-permissions';
+      panel.setAttribute('aria-label', '嵌入网页权限');
+      panel.style.cssText = 'position:fixed;top:12px;left:12px;right:12px;z-index:10000;background:white;color:#172033;border:1px solid #677;padding:14px;max-width:650px;box-shadow:0 2px 16px #0004';
+      panel.replaceChildren();
+      const text = target.document.createElement('p');
+      text.textContent = `网页 ${origin} 请求${scope === 'sensitive' ? '读取当前场景的详细信息、截图、原始结构文件和命令日志。文件可能含有未公开数据。' : '控制当前场景（加载、选择、表示、镜头和动画）。此权限不包含读取结构文件或截图。'}`;
+      panel.append(text);
+      return new Promise(resolve => {
+        const finish = allowed => {
+          signal.removeEventListener('abort', abort); pending = null;
+          panel.replaceChildren();
+          const label = target.document.createElement('span'); label.textContent = allowed ? '嵌入权限已允许，仅对当前窗口和场景有效。 ' : '已拒绝此项嵌入权限。 ';
+          const button = target.document.createElement('button'); button.textContent = '撤销全部嵌入权限'; button.dataset.action = 'revoke'; button.onclick = revoke;
+          panel.append(label, button); resolve(allowed);
+        };
+        const abort = () => finish(false); pending = finish;
+        for (const [value, label] of [[false, '拒绝'], [true, scope === 'sensitive' ? '允许读取当前场景数据' : '允许控制当前场景']]) {
+          const button = target.document.createElement('button'); button.textContent = label; button.dataset.action = value ? 'allow' : 'deny';
+          button.onclick = () => finish(value); panel.append(button);
+        }
+        target.document.body.append(panel);
+        signal.addEventListener('abort', abort, { once: true }); if (signal.aborted) abort();
+      });
+    }, reset: remove,
+  };
 }
-async function handleBridge(e) {
-  const d = e.data, trusted = bridgeTrusted(e.origin);
-  const reply = (m) => { try { e.source.postMessage({ glow: 'reply', id: d.id ?? null, ...m }, e.origin); } catch (err) { console.warn('glow reply', err); } };
-  if (!trusted) {
-    const cmd = d.cmd;
-    if (!BRIDGE_SAFE.has(cmd) || (cmd === 'info' && current?.local) || (cmd === 'load' && (d.args?.pack != null || d.args?.packText != null))) { reply({ ok: false, error: `这个网页不能使用 ${cmd}` }); return; }
-  }
-  try { reply({ ok: true, result: d.cmd === 'replay' ? await glow.replay(d.args) : d.cmd === 'log' ? glowLog.slice() : await glowRun(d.cmd, d.args) }); }
-  catch (err) { reply({ ok: false, error: String(err?.message || err) }); }
-}
-if (BRIDGE_ON) addEventListener('message', (e) => {
-  const d = e.data; if (!d || typeof d !== 'object' || d.glow !== 'cmd' || !e.source) return;
-  if (bridgeTrusted(e.origin)) { handleBridge(e); return; }
-  if (typeof e.origin !== 'string' || !/^https:\/\//.test(e.origin)) return;   /* file:// (null) and http pages: never */
-  const st = bridgeConsent.get(e.origin);
-  if (st === 'yes') { handleBridge(e); return; }
-  if (st === 'no') return;
-  const pend = Array.isArray(st) ? st : []; if (pend.length < 20) pend.push(e); bridgeConsent.set(e.origin, pend); askBridgeConsent(e.origin);   /* no reply before the click */
-});
-if (params.get('embed') === '1') { document.body.classList.add('embed'); $('panel').classList.add('hidden'); }
-if (BRIDGE_ON && window.parent !== window) try { window.parent.postMessage({ glow: 'ready', api: GLOW_API }, '*'); } catch (e) {}   /* no data in it */
 
+function trustedBridgeOrigin(origin, location) {
+  return origin !== 'null' && (origin === 'https://nimenta727.github.io' ||
+    new URLSearchParams(location.search).get('dev') === '1' && origin === location.origin);
+}
+function attachScopedCommandBridge(target, api, { getSceneToken = () => null, requestConsent, commands = [], allowControlFromOtherHttps = false } = {}) {
+  let disposed = false, epoch = 0, pending = 0, scene = getSceneToken();
+  const params = new URLSearchParams(target.location.search);
+  if (params.get('embed') !== '1' && params.get('dev') !== '1') return () => {};
+  const trusted = origin => trustedBridgeOrigin(origin, target.location);
+  let grants = new Map(), consentAbort = new AbortController();
+  const revoke = () => {
+    epoch++; grants.clear(); consentAbort.abort(); consentAbort = new AbortController(); panel.reset(); scene = getSceneToken();
+  };
+  const panel = consentPanel(target, revoke);
+  const ask = requestConsent ?? ((origin, scope, signal) => panel.request(origin, scope, signal));
+  const sourceAllowed = source => source && source !== target &&
+    (target.parent !== target && source === target.parent || source === target.opener);
+  const checkScene = () => { if (scene !== getSceneToken()) revoke(); };
+  const listener = async (event) => {
+    const message = event.data;
+    if (!sourceAllowed(event.source) || !(trusted(event.origin) || allowControlFromOtherHttps && /^https:\/\//.test(event.origin)) || message?.glow !== 'cmd' || disposed) return;
+    checkScene();
+    const id = typeof message.id === 'string' ? message.id.slice(0, 128)
+      : Number.isSafeInteger(message.id) ? message.id : null;
+    let reply;
+    const send = () => {
+      if (!disposed && sourceAllowed(event.source)) {
+        try { event.source.postMessage({ glow: 'reply', id, ...reply }, event.origin); } catch { /* Sender closed. */ }
+      }
+    };
+    if (pending >= 16) { reply = { ok: false, error: '嵌入请求过多。' }; send(); return; }
+    pending++;
+    try {
+      if (JSON.stringify(message).length > 256 * 1024) throw new Error('嵌入请求超限。');
+      if (!commands.includes(message.cmd) && !['log', 'replay'].includes(message.cmd)) throw new Error('不支持的嵌入命令。');
+      // No scene identifiers, filenames, camera or logs are public status.
+      const scopes = message.cmd === 'help' ? [] : message.cmd === 'replay' ? ['scene', 'sensitive']
+        : [new Set(['info', 'snapshot', 'exportPack', 'log']).has(message.cmd) ? 'sensitive' : 'scene'];
+      if (!trusted(event.origin) && scopes.includes('sensitive')) throw new Error('此来源不能读取场景数据。');
+      const capturedEpoch = epoch, capturedScene = scene;
+      let grant = grants.get(event.source);
+      if (!grant || grant.origin !== event.origin) { grant = { origin: event.origin, scopes: new Map() }; grants.set(event.source, grant); }
+      const valid = phase => {
+        if (disposed || !sourceAllowed(event.source)) throw new Error('嵌入权限已失效。');
+        // A started load revokes grants itself; its only permitted reply is an acknowledgement.
+        if (phase === 'result' && message.cmd === 'load') return;
+        checkScene();
+        if (disposed || epoch !== capturedEpoch || capturedScene !== getSceneToken() || !sourceAllowed(event.source) || grants.get(event.source) !== grant) throw new Error('嵌入权限已失效。');
+      };
+      for (const scope of scopes) {
+        valid();
+        if (!grant.scopes.has(scope)) {
+          // Memoize the pending decision as well as refusal; floods cannot open many prompts.
+          grant.scopes.set(scope, Promise.resolve(ask(event.origin, scope, consentAbort.signal)).then(value => value === true));
+        }
+        if (!await grant.scopes.get(scope)) throw new Error('未获此项嵌入权限。');
+      }
+      valid();
+      const result = message.cmd === 'log' ? api.log.map(({ t, cmd, ok }) => ({ t, cmd, ok, args: { omitted: true } }))
+        : message.cmd === 'replay' ? await api.replay(message.args, valid)
+          : await api.run(message.cmd, message.args, valid);
+      valid('result');
+      // Mutation adapters may return info() internally. Never leak that through control-only consent.
+      reply = { ok: true, result: scopes.includes('scene') && !scopes.includes('sensitive') ? { accepted: true } : result };
+    } catch { reply = { ok: false, error: '命令未完成：未授权、权限已失效或参数无效。' }; }
+    finally { pending--; }
+    send();
+  };
+  target.addEventListener('message', listener);
+  target.addEventListener('glow:scene-changing', revoke);
+  if (target.parent !== target) target.parent.postMessage({ glow: 'ready', api: api.version }, '*');
+  return () => {
+    disposed = true; revoke(); target.removeEventListener('message', listener); target.removeEventListener('glow:scene-changing', revoke);
+  };
+}
+/* Shared scoped postMessage policy. Local window.glow stays available to the workbench. */
+const BRIDGE_ON = params.get('embed') === '1' || params.get('dev') === '1';
+const detachClassicBridge = attachScopedCommandBridge(window, glow, {
+  commands: Object.keys(GLOW_CMDS), getSceneToken: () => current, allowControlFromOtherHttps: true,
+});
+addEventListener('pagehide', event => { if (!event.persisted) detachClassicBridge(); });
+if (params.get('embed') === '1') { document.body.classList.add('embed'); $('panel').classList.add('hidden'); }
 const startWs = params.get('ws');   /* ?ws=official/<id> or community/<id>: open a workshop scene directly */
 if (startWs && /^(official|community)\/[a-z0-9._-]+$/.test(startWs)) {
   const [src, id] = startWs.split('/');
