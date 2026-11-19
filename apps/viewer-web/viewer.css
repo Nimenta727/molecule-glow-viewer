@@ -81,6 +81,7 @@ body.panel-collapsed .info-panel { display: none; }
 .info-panel > #scene-navigation { order: 1; }
 .info-panel > .mechanism-controls { order: 2; }
 .info-panel > #presentation { order: 3; }
+.info-panel > #resources { order: 3; }
 .info-panel > #structure-tools { order: 4; }
 /* the canvas stops at the panel so the model is centred in the free area */
 @media (min-width: 761px) {
@@ -115,7 +116,8 @@ body:has(#close:not(:disabled)) .empty-hint { display: none; }
 .info-panel ul { margin: 0.5rem 0 0; padding-left: 1.2rem; overflow-wrap: anywhere; }
 .info-panel li + li { margin-top: 0.3rem; }
 .info-panel label { display: block; margin-top: 0.4rem; }
-.info-panel > #presentation[hidden] { display: none; }
+.info-panel > #presentation[hidden], .info-panel > #resources[hidden] { display: none; }
+#resource-list { font-size: 0.82rem; color: var(--dim); }
 
 /* ---- title and evidence badges (top right, under the file buttons) ---- */
 .hud { position: absolute; z-index: 3; top: 4.1rem; right: var(--gap); max-width: min(26rem, 45%); text-align: right; pointer-events: none; }

@@ -32,7 +32,7 @@ export function createViewerCommands(host) {
     const snapshot = current?.player?.snapshot();
     return {
       title: current?.name ?? null, sceneId: current?.scene.id ?? null,
-      plugins: host.plugins(), camera: host.camera(),
+      plugins: host.plugins(), resources: host.resources?.() ?? [], camera: host.camera(),
       sources: current?.scene.assets.filter((asset) => asset.provenance?.parserVersion).map(({ id, provenance }) => ({ id, source: provenance.source })) ?? [],
       parts: current?.scene.nodes.filter((node) => node.extensions?.['org.glow.structure']).map(({ id, name, visible }) => ({ id, name, visible })) ?? [],
       selection: host.selection(), representation: current?.representationSource?.provenance?.viewerStyle ?? 'blob',
