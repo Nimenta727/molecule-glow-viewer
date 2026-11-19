@@ -37,7 +37,7 @@ test('navigation edits are undoable and referenced node deletion is rejected ato
   assert.throws(() => session.dispatch({
     type: 'setNavigation',
     navigation: { ...navigation, entryId: 'missing-view' },
-  }), /requires unique view IDs and a cell entry/);
+  }), /requires unique view IDs and a cell, system or protein entry/);
   assert.equal(session.getScene(), snapshot);
   assert.equal(session.undo(), true);
   assert.equal(session.getScene().presentation.navigation, undefined);

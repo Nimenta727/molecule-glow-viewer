@@ -84,7 +84,12 @@ export function createModePanel(panel, { onObject, onStep, onRotate }) {
       if (regions.size) panel.append(objectList(regions.values(), false, byParent));
       return;
     }
-    if (objects.length) panel.append(objectList(objects, view.mode === 'protein', byParent));
+    if (objects.length) {
+      const composition = document.createElement('details');
+      composition.append(element('summary', `组成（${objects.length} 个部件）`),
+        objectList(objects, view.mode === 'protein', byParent));
+      panel.append(composition);
+    }
     if (view.mode === 'protein') {
       panel.append(element('p', '拖动视口可旋转。选择部件可聚焦。'));
       for (const [label, direction] of [['向左旋转', -1], ['向右旋转', 1]]) {
@@ -104,11 +109,11 @@ export function createModePanel(panel, { onObject, onStep, onRotate }) {
     }
   }
 
-  function syncStep(time) {
+  function syncStep(time, overrideIndex) {
     if (view?.mode !== 'mechanism') return undefined;
-    const next = view.steps[0].time === undefined
+    const next = overrideIndex ?? (view.steps[0].time === undefined
       ? manualStep
-      : view.steps.findLastIndex((step) => step.time <= time);
+      : view.steps.findLastIndex((step) => step.time <= time));
     if (next !== currentStep) {
       currentStep = next;
       buttons.forEach((button, index) => {

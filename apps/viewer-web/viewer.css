@@ -75,6 +75,13 @@ footer { border-top: 1px solid var(--line); background: #fbfdf9; }
 #status, #diagnostic { margin: 0.5rem 0 0; color: #40594d; font-size: 0.875rem; overflow-wrap: anywhere; }
 #diagnostic summary { width: fit-content; cursor: pointer; }
 #diagnostic p { max-height: 8rem; margin: 0.35rem 0 0; overflow-y: auto; }
+.mechanism-controls { padding: 0.85rem 1rem; border-bottom: 1px solid var(--line); }
+.mechanism-controls h2 { margin: 0 0 0.6rem; font-size: 1.1rem; }
+.mechanism-controls label { display: block; margin: 0.5rem 0; }
+.mechanism-controls input { max-width: 7rem; margin-left: 0.5rem; }
+.mechanism-controls button { margin: 0.2rem 0; }
+#mechanism-steps button[aria-current="step"] { border-color: #286951; background: #e3f0e8; }
+#mechanism-counters { display: block; font-variant-numeric: tabular-nums; }
 .structure-tools { font-size: 0.9rem; }
 .structure-form:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.65rem; }
 .structure-form input { width: 5rem; padding: 0.25rem; font: inherit; }

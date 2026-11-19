@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPresentationOverlay } from './presentation-overlay.mjs';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 function applyTransform(object, transform) {
   object.position.set(...transform.position);
@@ -22,13 +23,14 @@ function* renderables(asset, layers) {
     return;
   }
   if (!layers) throw new Error(`Missing geometry: ${asset.id}`);
-  for (const { mode, positions, color, pointSize, pointTargets, radius, radii } of layers) {
+  for (const { mode, positions, color, pointSize, pointTargets, radius, radii, ink, conformations, role, faded } of layers) {
     if (mode === 'spheres') {
       const geometry = new THREE.SphereGeometry(1, 12, 8);
       const surface = new THREE.InstancedMesh(geometry,
-        new THREE.MeshStandardMaterial({ color, roughness: 0.84 }), positions.length / 3);
+        new THREE.MeshStandardMaterial({ color, roughness: 0.84, depthTest: role !== 'functional-core' }), positions.length / 3);
       const ink = new THREE.InstancedMesh(geometry.clone(),
-        new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide }), positions.length / 3);
+        new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide, depthTest: role !== 'functional-core' }), positions.length / 3);
+      if (role === 'functional-core') { surface.renderOrder = 10; ink.renderOrder = 9; }
       const transform = new THREE.Matrix4();
       const strokeScale = new THREE.Vector3(1.05, 1.05, 1.05);
       for (let i = 0; i < positions.length; i += 3) {
@@ -40,19 +42,63 @@ function* renderables(asset, layers) {
       }
       yield surface;
       yield ink;
+      if (conformations) {
+        for (const mesh of [surface, ink]) mesh.userData.conformation = {
+          positions, states: conformations, radius, radii, outline: mesh === ink,
+        };
+      }
       continue;
     }
-    const geometry = new THREE.BufferGeometry();
+    let geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     if (mode === 'lines') {
-      yield new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color }));
+      const lines = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color }));
+      if (conformations) lines.userData.conformation = { states: conformations };
+      yield lines;
     } else if (mode === 'points') {
       const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: pointSize ?? 0.08 }));
       points.userData.pointTargets = pointTargets;
+      if (conformations) points.userData.conformation = { states: conformations };
       yield points;
     } else {
+      let morphStates = conformations;
+      if (ink) {
+        const joined = mergeVertices(geometry);
+        if (conformations) {
+          const sourceIndices = new Map();
+          const raw = geometry.getAttribute('position');
+          for (let i = 0; i < raw.count; i++) sourceIndices.set(
+            [raw.getX(i), raw.getY(i), raw.getZ(i)].map((value) => Math.round(value * 1e4)).join(','), i);
+          const target = joined.getAttribute('position');
+          morphStates = conformations.map((state) => {
+            const coordinates = [];
+            for (let i = 0; i < target.count; i++) {
+              const key = [target.getX(i), target.getY(i), target.getZ(i)].map((value) => Math.round(value * 1e4)).join(',');
+              const source = sourceIndices.get(key) * 3;
+              coordinates.push(state[source], state[source + 1], state[source + 2]);
+            }
+            return coordinates;
+          });
+        }
+        geometry.dispose();
+        geometry = joined;
+      }
       geometry.computeVertexNormals();
-      yield new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }));
+      const surface = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }));
+      if (faded) surface.material.color.lerp(new THREE.Color('#d6d9e0'), 0.7);
+      if (morphStates) surface.userData.conformation = { states: morphStates, normals: true };
+      yield surface;
+      if (ink) {
+        const hull = geometry.clone();
+        const position = hull.getAttribute('position'), normal = hull.getAttribute('normal');
+        for (let i = 0; i < position.count; i++) {
+          position.setXYZ(i, position.getX(i) + normal.getX(i) * 0.012,
+            position.getY(i) + normal.getY(i) * 0.012, position.getZ(i) + normal.getZ(i) * 0.012);
+        }
+        const outline = new THREE.Mesh(hull, new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide }));
+        if (morphStates) outline.userData.conformation = { states: morphStates, normals: true, outline: true };
+        yield outline;
+      }
     }
   }
 }
@@ -235,17 +281,24 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     }
     for (const geometry of geometries) geometry.dispose();
     for (const material of materials) material.dispose();
+    handle.particleGeometry?.dispose();
+    handle.moleculeGeometry?.dispose();
+    for (const mesh of handle.moleculeMeshes ?? []) { mesh.dispose(); mesh.material.dispose(); }
+    for (const geometry of handle.bondGeometries ?? []) geometry.dispose();
+    for (const geometry of handle.membraneGeometries ?? []) geometry.dispose();
+    for (const material of handle.particleMaterials ?? []) material.dispose();
+    for (const texture of handle.particleTextures ?? []) texture.dispose();
     invalidate();
   }
 
-  function prepare(document, geometryLayers = new Map(), { overlayCapacity = 0 } = {}) {
+  function prepare(document, geometryLayers = new Map(), { overlayCapacity = 0, particles = [], particleParentId, membrane } = {}) {
     if (disposed) throw new Error('Viewport is disposed');
     const root = new THREE.Group();
     const assets = new Map(document.assets.map((asset) => [asset.id, asset]));
     const templates = new Map();
     const groups = new Map();
     const meshes = [];
-    const handle = { root, meshes, disposed: false, dispose: () => disposeHandle(handle) };
+    const handle = { root, meshes, particleTextures: [], particleMaterials: [], disposed: false, dispose: () => disposeHandle(handle) };
     try {
       for (const node of document.nodes) {
         const group = new THREE.Group();
@@ -288,6 +341,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         handle.radius = 2;
       }
       handle.groups = groups;
+      if (particles.length) prepareParticles(handle, particles, particleParentId, membrane);
       if (overlayCapacity) {
         handle.overlay = createPresentationOverlay(overlayCapacity);
         handle.root.add(handle.overlay.object);
@@ -332,6 +386,156 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     }
     updatePresentationOverlay();
     invalidate();
+  }
+
+  function setMechanism(snapshot) {
+    if (!active) return;
+    applyPose(snapshot?.transforms);
+    const highlighted = new Set(snapshot?.highlightedIds);
+    for (const mesh of active.meshes) if (mesh.material.emissive) {
+      mesh.material.emissive.set(highlighted.has(mesh.userData.nodeId) ? '#5a3d0d' : '#000000');
+      mesh.material.emissiveIntensity = 0.35;
+    }
+    const phase = snapshot?.conformation;
+    for (const mesh of active.meshes) {
+      const morph = mesh.userData.conformation;
+      if (!morph || !phase) continue;
+      const a = morph.states[phase.from], b = morph.states[(phase.from + 1) % 3];
+      if (mesh.isInstancedMesh) {
+        const matrix = new THREE.Matrix4();
+        for (let i = 0; i < a.length; i += 3) {
+          const radius = (morph.radii?.[i / 3] ?? morph.radius) * (morph.outline ? 1.05 : 1);
+          matrix.makeScale(radius, radius, radius).setPosition(
+            a[i] + (b[i] - a[i]) * phase.fraction,
+            a[i + 1] + (b[i + 1] - a[i + 1]) * phase.fraction,
+            a[i + 2] + (b[i + 2] - a[i + 2]) * phase.fraction);
+          mesh.setMatrixAt(i / 3, matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+      } else {
+        const position = mesh.geometry.getAttribute('position');
+        for (let i = 0; i < a.length; i++) position.array[i] = a[i] + (b[i] - a[i]) * phase.fraction;
+        position.needsUpdate = true;
+        if (morph.normals) mesh.geometry.computeVertexNormals();
+        if (morph.outline) {
+          const normal = mesh.geometry.getAttribute('normal');
+          for (let i = 0; i < position.count; i++) position.setXYZ(i,
+            position.getX(i) + normal.getX(i) * 0.012, position.getY(i) + normal.getY(i) * 0.012,
+            position.getZ(i) + normal.getZ(i) * 0.012);
+        }
+      }
+      mesh.frustumCulled = false;
+    }
+    if (active.particles) {
+      for (const [index, marker] of active.particles.entries()) {
+        const particle = snapshot?.particles[index];
+        marker.visible = Boolean(particle) && particle.visible !== false;
+        if (particle) {
+          marker.position.fromArray(particle.position);
+          if (marker.userData.name !== particle.name) {
+            marker.userData.name = particle.name;
+            marker.material.color.set(particle.color);
+            const { canvas, texture } = marker.userData;
+            drawParticleLabel(canvas, particle.name, particle.color);
+            texture.needsUpdate = true;
+            updateParticleMolecule(marker, particle);
+          }
+        }
+      }
+    }
+    invalidate();
+  }
+
+  function drawParticleLabel(canvas, name, color) {
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, 128, 48);
+    context.fillStyle = '#ffffffdd'; context.fillRect(0, 0, 128, 48);
+    context.fillStyle = color; context.font = 'bold 28px sans-serif'; context.textAlign = 'center';
+    context.fillText(name, 64, 34);
+  }
+
+  function updateParticleMolecule(marker, particle) {
+    const atoms = particle.molecule ?? [];
+    const { body, bonds } = marker.userData;
+    body.count = Math.min(atoms.length, 64);
+    marker.material.visible = !atoms.length;
+    const matrix = new THREE.Matrix4(), color = new THREE.Color();
+    const elementColors = { O: '#dc5663', N: '#5c78c3', P: '#d49b38', S: '#b5a73b' };
+    for (let i = 0; i < body.count; i++) {
+      matrix.makeScale(0.04, 0.04, 0.04).setPosition(...atoms[i].position);
+      body.setMatrixAt(i, matrix);
+      body.setColorAt(i, color.set(elementColors[atoms[i].element] ?? particle.color));
+    }
+    body.instanceMatrix.needsUpdate = true;
+    if (body.instanceColor) body.instanceColor.needsUpdate = true;
+    const positions = bonds.geometry.getAttribute('position');
+    let offset = 0;
+    for (let i = 0; i < body.count; i++) for (let j = i + 1; j < body.count; j++) {
+      const a = atoms[i].position, b = atoms[j].position;
+      const distance = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      if (distance < 0.02 || distance > 0.095 || offset + 6 > positions.array.length) continue;
+      positions.array.set(a, offset); positions.array.set(b, offset + 3); offset += 6;
+    }
+    positions.needsUpdate = true;
+    bonds.geometry.setDrawRange(0, offset / 3);
+  }
+
+  function prepareParticles(handle, particles, parentId, membrane) {
+    const parent = handle.groups.get(parentId) ?? handle.root;
+    const geometry = new THREE.SphereGeometry(0.07, 12, 8);
+    handle.moleculeGeometry = new THREE.SphereGeometry(1, 8, 6);
+    handle.moleculeMeshes = [];
+    handle.bondGeometries = [];
+    handle.particles = particles.map((particle) => {
+      const { name, position, color } = particle;
+      const material = new THREE.MeshBasicMaterial({ color, depthTest: false });
+      const marker = new THREE.Mesh(geometry, material);
+      marker.renderOrder = 20;
+      marker.position.fromArray(position);
+      parent.add(marker);
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 48;
+      drawParticleLabel(canvas, name, color);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+      label.renderOrder = 21;
+      label.scale.set(0.42, 0.16, 1); label.position.y = 0.16;
+      marker.add(label);
+      marker.userData = { name, canvas, texture };
+      const body = new THREE.InstancedMesh(handle.moleculeGeometry,
+        new THREE.MeshBasicMaterial({ depthTest: false }), 64);
+      body.renderOrder = 20; body.frustumCulled = false;
+      const bondGeometry = new THREE.BufferGeometry();
+      bondGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(1536), 3));
+      const bondMaterial = new THREE.LineBasicMaterial({ color: '#67727f', depthTest: false });
+      const bonds = new THREE.LineSegments(bondGeometry, bondMaterial);
+      bonds.renderOrder = 19; bonds.frustumCulled = false;
+      marker.add(body, bonds);
+      Object.assign(marker.userData, { body, bonds });
+      handle.moleculeMeshes.push(body); handle.bondGeometries.push(bondGeometry);
+      handle.particleMaterials.push(bondMaterial);
+      updateParticleMolecule(marker, particle);
+      handle.particleTextures.push(texture);
+      handle.particleMaterials.push(material, label.material);
+      return marker;
+    });
+    handle.particleGeometry = geometry;
+    if (membrane) {
+      const normal = new THREE.Vector3(...membrane.axis).normalize();
+      for (const side of [-1, 1]) {
+        const geometry = new THREE.RingGeometry(membrane.radius * 0.47, membrane.radius, 64);
+        const material = new THREE.MeshBasicMaterial({ color: '#c7d9cf', transparent: true, opacity: 0.35,
+          side: THREE.DoubleSide, depthWrite: false });
+        const sheet = new THREE.Mesh(geometry, material);
+        sheet.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+        sheet.position.fromArray(membrane.center).addScaledVector(normal, side * 0.65);
+        parent.add(sheet);
+        handle.particleMaterials.push(material);
+        handle.membraneGeometries ??= [];
+        handle.membraneGeometries.push(geometry);
+      }
+    }
   }
 
   function updatePresentationOverlay() {
@@ -476,6 +680,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     renderer.domElement.remove();
   }
 
-  return { prepare, commit, applyPose, setPresentation, resetCamera, getCamera, setCamera, focusNode,
+  return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode,
     orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose };
 }

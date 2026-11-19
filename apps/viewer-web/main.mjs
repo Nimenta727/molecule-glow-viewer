@@ -20,13 +20,14 @@ const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
-const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional']);
+const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
+const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
 const functionalDescription = (scene) => Array.isArray(scene?.legacy?.scene?.core) && scene.legacy.scene.core.length
-  ? '橙色标记显示配体邻域及场景指定的核心残基。其余体积由坐标分组估算。'
-  : '橙色标记显示配体重原子 8 Å 内的残基代表点。其余体积由坐标分组估算。';
+  ? '橙色标记显示配体邻域及场景指定的核心残基。其余形状由残基坐标生成低分辨率密度表面。'
+  : '橙色标记显示配体重原子 8 Å 内的残基代表点。其余形状由残基坐标生成低分辨率密度表面。';
 const host = createPluginHost({
   getScene: () => active?.store.getSnapshot() ?? null,
   dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
@@ -37,7 +38,8 @@ function setStatus(message) {
 }
 
 function syncControls() {
-  const timeline = active?.timeline;
+  const playback = active?.player?.snapshot();
+  const timeline = playback ? { ...playback, duration: active.player.duration } : active?.timeline;
   const duration = timeline?.duration ?? 0;
   const time = timeline?.time ?? 0;
   elements.save.disabled = !active || saving;
@@ -53,6 +55,8 @@ function syncControls() {
   elements.accession.disabled = !structureEnabled;
   elements['rcsb-load'].disabled = !structureEnabled;
   elements['structure-assembly'].disabled = !structureEnabled;
+  elements['atp-enabled'].disabled = !structureEnabled;
+  elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? 'cartoon';
@@ -63,6 +67,9 @@ function syncControls() {
 function showDiagnostics() {
   const scene = active?.scene;
   const diagnostics = new Set(active?.warnings);
+  if (active?.player) for (const diagnostic of diagnostics) {
+    if (diagnostic.includes('已保留过程“atpSynthase”的声明') || diagnostic.startsWith('已生成旧包的静态结构预览')) diagnostics.delete(diagnostic);
+  }
   const installed = new Map(host.listActive().map(({ id, version }) => [id, version]));
   const missing = scene?.dependencies.filter(({ id, version }) => installed.get(id) !== version) ?? [];
   if (missing.length) {
@@ -81,7 +88,7 @@ function showDiagnostics() {
   }
   elements.warning.textContent = [...diagnostics].join(' ');
   elements.diagnostic.hidden = diagnostics.size === 0;
-  elements['diagnostic-summary'].textContent = `${scene?.legacy ? '旧包静态预览' : '加载说明'} · ${diagnostics.size} 条说明`;
+  elements['diagnostic-summary'].textContent = `${scene?.legacy && !active?.player ? '旧包静态预览' : '加载说明'} · ${diagnostics.size} 条说明`;
   elements['legacy-viewer'].hidden = !scene?.legacy || diagnostics.size === 0;
 }
 
@@ -90,10 +97,10 @@ function stopFrame() {
   frame = undefined;
 }
 
-function structureObjectId(kind, atom) {
+function structureObjectId(kind, atom, sourceAssetId) {
   return JSON.stringify([kind, atom.modelId, atom.authChainId, atom.labelChainId,
     atom.authSeqId, atom.labelSeqId, atom.insertionCode, atom.residueName,
-    ...(atom.assemblyCopy ? [atom.assemblyCopy] : [])]);
+    ...(atom.assemblyCopy ? [atom.assemblyCopy] : []), ...(sourceAssetId ? [sourceAssetId] : [])]);
 }
 
 function isViewCamera(camera) {
@@ -154,6 +161,11 @@ function boot() {
       viewport.focusNode(id, { duration: cameraDuration() });
     },
     onStep(step) {
+      if (active?.player) {
+        const index = active.player.steps.findIndex(({ title }) => title === step.title);
+        if (index >= 0) seekMechanismStep(index);
+        return;
+      }
       if (step.time !== undefined) {
         active.timeline.pause();
         stopFrame();
@@ -198,6 +210,15 @@ function boot() {
       }
       if (signal.aborted) return;
       const layers = structureLayers(loaded);
+      const player = createPlayer(loaded);
+      const handles = { player, current: undefined };
+      scope.add(() => handles.player?.dispose());
+      scope.add(() => handles.current?.dispose());
+      if (player) player.decorate(layers);
+      if (player && !loaded.scene.presentation?.navigation) {
+        loaded.scene.presentation ??= { notes: [], bookmarks: [] };
+        loaded.scene.presentation.navigation = player.navigation;
+      }
       const store = createDocumentStore(toCoreDocument(loaded.scene, new Set(layers.keys())));
       const document = store.getSnapshot();
       const timeline = createTimeline(document.timeline);
@@ -206,13 +227,12 @@ function boot() {
         const highlights = (steps ?? []).reduce((max, { nodeIds }) => Math.max(max, nodeIds.length), 1);
         return Math.max(capacity, (connections?.length ?? 0) * 6 + highlights * 24);
       }, 0);
-      const prepared = viewport.prepare(document, layers, { overlayCapacity });
-      const handles = { current: prepared };
-      scope.add(() => handles.current.dispose());
+      const prepared = viewport.prepare(document, layers, { overlayCapacity, ...playerViewportOptions(player) });
+      handles.current = prepared;
       const navigation = createSceneNavigation(loaded.scene.presentation?.navigation, document.nodes);
       const nodes = new Map(loaded.scene.nodes.map((node) => [node.id, node]));
       const name = input.file?.name ?? input.accession ?? (input.demo ? '四模式示例' : '基础几何示例');
-      return { ...loaded, store, nodes, timeline, prepared, handles, overlayCapacity, navigation, name };
+      return { ...loaded, store, nodes, timeline, prepared, handles, overlayCapacity, navigation, name, player };
     },
     commit(scene) {
       const restoreFocus = elements['scene-navigation'].contains(document.activeElement);
@@ -231,8 +251,72 @@ function boot() {
       if (restoreFocus) (scene.navigation ? elements['navigation-heading'] : elements.open).focus();
       setStatus(scene.name);
       showStructureSummary();
+      showMechanism();
     },
   });
+
+  function playerViewportOptions(player) {
+    return player ? { particles: player.snapshot().particles, particleParentId: player.particleParentId, membrane: player.membrane } : {};
+  }
+
+  function createPlayer(loaded, state) {
+    if (loaded.scene.legacy?.scene?.process !== 'atpSynthase' || !loaded.model) return;
+    const factory = host.getPlayer(ATP_PLAYER);
+    if (!factory) return;
+    try {
+      const source = loaded.scene.assets.find((asset) => asset.provenance?.parserVersion);
+      return factory.create({ model: loaded.model, scene: loaded.scene, state: state ?? source?.provenance?.playback });
+    } catch (error) {
+      loaded.warnings = [...loaded.warnings, `ATP 合酶播放器无法启动。 ${error.message}`];
+    }
+  }
+
+  function showMechanism() {
+    const player = active?.player;
+    elements['mechanism-controls'].hidden = !player;
+    if (!player) return;
+    const snapshot = player.snapshot();
+    elements['mechanism-steps'].hidden = active.navigation?.current().mode === 'mechanism';
+    if (active.mechanismUiPlayer !== player) {
+      active.mechanismUiPlayer = player;
+      const panel = host.getPanel(ATP_PLAYER);
+      elements['mechanism-title'].textContent = panel?.title ?? '机制';
+      elements['mechanism-evidence'].textContent = panel?.evidence ?? '';
+      for (const key of ['speed', 'seed']) {
+        const parameter = panel?.[key];
+        elements[`mechanism-${key}-label`].textContent = parameter?.label ?? key;
+        for (const attribute of ['min', 'max', 'step']) if (Number.isFinite(parameter?.[attribute])) {
+          elements[`mechanism-${key}`].setAttribute(attribute, String(parameter[attribute]));
+        }
+      }
+      elements['mechanism-speed'].value = String(snapshot.speed);
+      elements['mechanism-seed'].value = String(snapshot.seed);
+      elements['mechanism-rate'].value = String(snapshot.playbackRate);
+      elements['mechanism-back'].disabled = true;
+      elements['mechanism-steps'].replaceChildren(...player.steps.map(({ title }, index) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.textContent = title;
+        button.dataset.mechanismStep = String(index);
+        li.append(button);
+        return li;
+      }));
+    }
+    for (const button of elements['mechanism-steps'].querySelectorAll('button')) {
+      if (Number(button.dataset.mechanismStep) === snapshot.stage) button.setAttribute('aria-current', 'step');
+      else button.removeAttribute('aria-current');
+    }
+    elements['mechanism-caption'].textContent = player.steps[snapshot.stage].caption;
+    elements['mechanism-counters'].textContent = `ATP ${snapshot.counters.ATP} · H⁺ ${snapshot.counters['H⁺']} · ${snapshot.time.toFixed(2)} 示意秒`;
+    if (active.mechanismEventCount !== snapshot.counters.ATP) {
+      active.mechanismEventCount = snapshot.counters.ATP;
+      elements['mechanism-events'].replaceChildren(...snapshot.events.map(({ time, label, ATP }) => {
+        const li = document.createElement('li');
+        li.textContent = `${time.toFixed(2)} s · ${label} · ATP ${ATP}`;
+        return li;
+      }));
+    }
+  }
 
   function showStructurePick(selection) {
     if (active) active.structureSelection = selection;
@@ -253,7 +337,7 @@ function boot() {
     const ligand = active?.structureSelection;
     if (!event.currentTarget.open || ligand?.kind !== 'ligand') return;
     const service = host.getService(MODEL_SERVICE, '1.0.0');
-    const contacts = service.contacts(active.model, ligand.atom);
+    const contacts = service.contacts(active.models?.get(ligand.sourceAssetId) ?? active.model, ligand.atom);
     const rows = contacts.slice(0, 12).map(({ atom, distance }) =>
       `${atom.residueName} ${atom.authChainId || atom.labelChainId}:${atom.authSeqId || atom.labelSeqId}${atom.insertionCode} · ${distance.toFixed(2)} Å`);
     elements['structure-contact-list'].textContent = rows.length
@@ -281,14 +365,18 @@ function boot() {
   function restoreStructureModel(loaded) {
     const service = host.getService(MODEL_SERVICE, '1.0.0');
     if (!service || !loaded.scene.dependencies.some(({ id, version }) => id === STRUCTURE && version === '1.0.0')) return;
-    const source = loaded.scene.assets.find((asset) => asset.kind === 'file' &&
+    const sources = loaded.scene.assets.filter((asset) => asset.kind === 'file' &&
       ['chemical/x-mmcif', 'chemical/x-pdb'].includes(asset.mediaType));
-    if (!source) return;
-    try {
-      loaded.model = service.parse({ bytes: loaded.resources.get(source.path), name: source.path, mediaType: source.mediaType },
-        { assemblyId: source.provenance?.assemblyId, chains: source.provenance?.chains });
-    } catch (error) {
-      loaded.warnings = [...loaded.warnings, `无法载入结构语义。 ${error.message}`];
+    loaded.models = new Map();
+    for (const source of sources) {
+      try {
+        const model = service.parse({ bytes: loaded.resources.get(source.path), name: source.path, mediaType: source.mediaType },
+          { assemblyId: source.provenance?.assemblyId, chains: source.provenance?.chains });
+        loaded.models.set(source.id, model);
+        if (source === sources[0]) loaded.model = model;
+      } catch (error) {
+        loaded.warnings = [...loaded.warnings, `无法载入结构语义 ${source.id}。 ${error.message}`];
+      }
     }
   }
 
@@ -298,40 +386,47 @@ function boot() {
     loaded.structureTargets = new Map();
     const representation = host.getRepresentation(REPRESENTATION);
     if (!representation || !loaded.model) return layers;
-    const source = loaded.scene.assets.find(({ kind, mediaType }) =>
+    const sources = loaded.scene.assets.filter(({ kind, mediaType }) =>
       kind === 'file' && ['chemical/x-mmcif', 'chemical/x-pdb'].includes(mediaType));
-    if (!source) return layers;
-    const previews = loaded.scene.assets.filter(({ id, provenance }) =>
-      layers.has(id) && provenance?.sourceAssetId === source.id && provenance.style === 'cartoon');
-    if (!previews.length) return layers;
-    loaded.representationSource = source;
-    const storedStyle = source.provenance?.viewerStyle;
-    const style = requestedStyle ?? (STYLES.has(storedStyle) ? storedStyle : 'cartoon');
-    const builds = new Map();
-    const build = (mode) => {
-      if (!builds.has(mode)) {
-        const groups = representation.build(loaded.model, { style: mode, functionalRules: loaded.scene.legacy?.scene });
-        builds.set(mode, { groups, byKey: new Map(groups.map((group) => [group.key, group])) });
-      }
-      return builds.get(mode);
-    };
-    const nodesByAsset = new Map(loaded.scene.nodes.map((node) => [node.assetId, node]));
-    for (const [index, asset] of previews.entries()) {
-      const metadata = nodesByAsset.get(asset.id)?.extensions?.[STRUCTURE];
-      const effective = STYLES.has(asset.provenance.legacyStyle) ? asset.provenance.legacyStyle : style;
-      const { byKey, groups } = build(effective);
-      const group = metadata?.chainKey ? byKey.get(metadata.chainKey) : groups[index];
-      if (group && metadata?.sourceAssetId === source.id && metadata.chainId === group.chainId) {
-        for (const targets of group.pointTargets) {
-          for (const target of targets ?? []) {
-            loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
-          }
+    if (!sources.length) return layers;
+    loaded.models ??= new Map([[sources[0].id, loaded.model]]);
+    for (const source of sources) {
+      const model = loaded.models.get(source.id);
+      if (!model) continue;
+      const previews = loaded.scene.assets.filter(({ id, provenance }) =>
+        layers.has(id) && provenance?.sourceAssetId === source.id && provenance.style === 'cartoon');
+      if (!previews.length) continue;
+      loaded.representationSource ??= source;
+      const storedStyle = source.provenance?.viewerStyle;
+      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : 'cartoon');
+      const builds = new Map();
+      const build = (mode) => {
+        if (!builds.has(mode)) {
+          const groups = representation.build(model, { style: mode, functionalRules: loaded.scene.legacy?.scene });
+          builds.set(mode, { groups, byKey: new Map(groups.map((group) => [group.key, group])) });
         }
-        layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
-          ...layer, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
-            ? { color: asset.provenance.legacyColor } : {}),
-          pointTargets: group.pointTargets[layerIndex],
-        })));
+        return builds.get(mode);
+      };
+      const nodesByAsset = new Map(loaded.scene.nodes.map((node) => [node.assetId, node]));
+      for (const [index, asset] of previews.entries()) {
+        const metadata = nodesByAsset.get(asset.id)?.extensions?.[STRUCTURE];
+        const effective = STYLES.has(asset.provenance.legacyStyle) ? asset.provenance.legacyStyle : style;
+        const { byKey, groups } = build(effective);
+        const group = metadata?.chainKey ? byKey.get(metadata.chainKey) : groups[index];
+        if (group && metadata?.sourceAssetId === source.id && metadata.chainId === group.chainId) {
+          for (const targets of group.pointTargets) {
+            for (const target of targets ?? []) {
+              target.sourceAssetId = source.id;
+              loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
+              if (source === sources[0]) loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
+            }
+          }
+          layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
+            ...layer, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
+              ? { color: asset.provenance.legacyColor } : {}),
+            pointTargets: group.pointTargets[layerIndex],
+          })));
+        }
       }
     }
     return layers;
@@ -342,7 +437,9 @@ function boot() {
     const camera = viewport.getCamera({ destination: true });
     const next = { ...active };
     const layers = structureLayers(next, style);
-    const prepared = viewport.prepare(active.store.getSnapshot(), layers, { overlayCapacity: active.overlayCapacity });
+    active.player?.decorate(layers);
+    const prepared = viewport.prepare(active.store.getSnapshot(), layers,
+      { overlayCapacity: active.overlayCapacity, ...playerViewportOptions(active.player) });
     viewport.commit(prepared);
     active.handles.current = prepared;
     active.representationSource = next.representationSource;
@@ -353,7 +450,7 @@ function boot() {
     showPose();
     if (active.structureSelection) {
       const { kind, atom } = active.structureSelection;
-      showStructurePick(active.structureTargets.get(structureObjectId(kind, atom)));
+      showStructurePick(active.structureTargets.get(structureObjectId(kind, atom, active.structureSelection.sourceAssetId)));
     }
   }
 
@@ -414,12 +511,44 @@ function boot() {
       input.indeterminate = !input.checked && nodes.some(({ visible }) => visible);
       label.append(input, ` ${nodes[0].name}`);
       item.append(label);
+      if (active.models?.has(nodes[0].extensions[STRUCTURE].sourceAssetId)) {
+        const select = document.createElement('select');
+        select.dataset.structurePartStyle = key;
+        select.setAttribute('aria-label', `${nodes[0].name} 的表示`);
+        for (const [value, text] of [['', '跟随结构'], ['cartoon', '结构示意'], ['blob', '团块'],
+          ['functional', '功能分区'], ['surface', '低分辨率表面'], ['backbone', '主链']]) {
+          select.add(new Option(text, value));
+        }
+        const asset = active.scene.assets.find(({ id }) => id === nodes[0].assetId);
+        select.value = asset?.provenance?.legacyStyle ?? '';
+        item.append(select);
+      }
       list.append(item);
     }
   }
 
   elements['structure-part-list'].addEventListener('change', (event) => {
     const input = event.target;
+    const selectedPart = active?.structureParts?.get(input.dataset.structurePartStyle);
+    if (selectedPart?.length && (input.value === '' || STYLES.has(input.value))) {
+      const ids = new Set(selectedPart.map(({ assetId }) => assetId));
+      const assets = active.scene.assets.filter(({ id }) => ids.has(id));
+      const previous = assets.map((asset) => asset.provenance.legacyStyle);
+      for (const asset of assets) {
+        if (input.value) asset.provenance.legacyStyle = input.value;
+        else delete asset.provenance.legacyStyle;
+      }
+      try { refreshStructureView(); }
+      catch (error) {
+        assets.forEach((asset, index) => {
+          if (previous[index]) asset.provenance.legacyStyle = previous[index];
+          else delete asset.provenance.legacyStyle;
+        });
+        setStatus(`无法切换部件表示。 ${error.message}`);
+        showStructureParts();
+      }
+      return;
+    }
     const nodes = active?.structureParts?.get(input.dataset.structurePart);
     if (!nodes?.length) return;
     const visible = input.checked;
@@ -436,7 +565,11 @@ function boot() {
   });
 
   function showPose() {
-    if (active) viewport.applyPose(active.timeline.sample());
+    if (active?.player) {
+      const snapshot = active.player.snapshot();
+      viewport.setMechanism({ ...snapshot, highlightedIds: active.player.steps[snapshot.stage].nodeIds });
+      showMechanism();
+    } else if (active) viewport.applyPose(active.timeline.sample());
     syncMode();
     syncControls();
   }
@@ -446,14 +579,14 @@ function boot() {
     if (!navigation) return;
     const view = navigation.current();
     const selected = navigation.selection();
-    const step = modePanel.syncStep(active.timeline.time);
+    const step = modePanel.syncStep(active.timeline.time, active.player?.snapshot().stage);
     const previous = active.modeState;
     if (previous?.view === view && previous.selected === selected && previous.step === step) return;
     active.modeState = { view, selected, step };
     const hotspot = navigation.hotspotFor(selected);
     const highlightedIds = view.mode === 'mechanism' ? (step?.nodeIds ?? [])
       : selected !== view.nodeId ? [hotspot?.hotspotNodeId ?? selected] : [];
-    viewport.setPresentation({ rootId: view.nodeId, highlightedIds, connections: view.connections });
+    viewport.setPresentation({ rootId: view.nodeId, highlightedIds: active.player ? [] : highlightedIds, connections: view.connections });
   }
 
   function focusCurrentView(duration) {
@@ -531,6 +664,11 @@ function boot() {
     if (!camera) return false;
     viewport.setCamera(camera, { duration: cameraDuration(), responsive: true });
     finishNavigation();
+    if (active?.mechanismReturn) {
+      showStructurePick(active.mechanismReturn.selection);
+      active.mechanismReturn = undefined;
+      elements['mechanism-back'].disabled = true;
+    }
     return true;
   }
 
@@ -620,15 +758,27 @@ function boot() {
       if (checkbox.checked) {
         const { structurePlugin } = await import('../../plugins/structure/index.mjs');
         await host.activate(structurePlugin);
+        const { atpSynthasePlugin } = await import('../../plugins/atp-synthase/index.mjs');
+        await host.activate(atpSynthasePlugin);
+        elements['atp-enabled'].checked = true;
         structureLifetime = new AbortController();
-        if (active) restoreStructureModel(active);
+        if (active) {
+          restoreStructureModel(active);
+          active.player = createPlayer(active);
+          active.handles.player = active.player;
+        }
         setStatus('结构插件已启用。可打开本地 PDB 或 mmCIF 文件。');
       } else {
         structureLifetime?.abort();
         structureLifetime = undefined;
+        active?.player?.dispose();
+        if (active) { active.player = undefined; active.handles.player = undefined; }
+        await host.deactivate(ATP_PLAYER);
+        elements['atp-enabled'].checked = false;
         await host.deactivate(STRUCTURE);
         if (active) {
           active.model = undefined;
+          active.models = undefined;
           showStructurePick();
         }
         setStatus('结构插件已关闭。');
@@ -643,6 +793,35 @@ function boot() {
       syncControls();
       showDiagnostics();
       showStructureSummary();
+      showMechanism();
+    }
+  });
+
+  elements['atp-enabled'].addEventListener('change', async (event) => {
+    stopFrame();
+    const checkbox = event.currentTarget;
+    checkbox.disabled = true;
+    try {
+      if (checkbox.checked) {
+        const { atpSynthasePlugin } = await import('../../plugins/atp-synthase/index.mjs');
+        await host.activate(atpSynthasePlugin);
+        if (active) active.player = createPlayer(active);
+      } else {
+        if (active?.player) {
+          const source = active.scene.assets.find((asset) => asset.provenance?.parserVersion);
+          if (source) source.provenance.playback = active.player.save();
+          active.player.dispose();
+          active.player = undefined;
+        }
+        await host.deactivate(ATP_PLAYER);
+      }
+      if (active) active.handles.player = active.player;
+      refreshStructureView();
+    } catch (error) {
+      setStatus(`无法切换机制播放器。 ${error.message}`);
+    } finally {
+      checkbox.checked = Boolean(host.getPlayer(ATP_PLAYER));
+      syncControls(); showDiagnostics(); showMechanism();
     }
   });
   elements['representation-style'].addEventListener('change', (event) => {
@@ -695,12 +874,20 @@ function boot() {
     if (!active || saving) return;
     const { resources, representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
+    if (active.player) {
+      const source = scene.assets.find((asset) => asset.provenance?.parserVersion);
+      if (source) source.provenance.playback = active.player.save();
+      if (!scene.evidence.some(({ citation }) => citation === 'ATP 合酶教学播放器')) {
+        scene.evidence.push({ type: 'modelled', citation: 'ATP 合酶教学播放器',
+          details: '牛 c8 环每圈 8 H⁺、3 ATP。β 形状在 6ZPO 三个位点实测坐标之间插值。粒子、路径、膜和时间为示意。' });
+      }
+    }
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });
       source.provenance = { ...source.provenance, viewerState: {
         camera,
-        selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom) : null,
+        selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {
         const citation = `功能分区为示意。${functionalDescription(scene)}`;
@@ -745,10 +932,28 @@ function boot() {
   });
 
   elements.playhead.addEventListener('input', () => {
-    active.timeline.seek(Number(elements.playhead.value));
+    if (active?.player) active.player.seek(Number(elements.playhead.value));
+    else active.timeline.seek(Number(elements.playhead.value));
     showPose();
   });
   elements.play.addEventListener('click', () => {
+    if (active?.player) {
+      const player = active.player;
+      if (player.snapshot().playing) { player.pause(); stopFrame(); showPose(); return; }
+      if (player.snapshot().time === player.duration) player.seek(0);
+      player.play();
+      let previous = performance.now();
+      function tick(now) {
+        if (active?.player !== player) return;
+        player.advance(Math.min(0.1, Math.max(0, (now - previous) / 1000)));
+        previous = now;
+        showPose();
+        frame = player.snapshot().playing ? requestAnimationFrame(tick) : undefined;
+      }
+      frame = requestAnimationFrame(tick);
+      syncControls();
+      return;
+    }
     const { timeline } = active;
     if (timeline.playing) {
       timeline.pause();
@@ -767,6 +972,68 @@ function boot() {
     }
     frame = requestAnimationFrame(tick);
     syncControls();
+  });
+
+  elements['mechanism-step'].addEventListener('click', () => {
+    if (!active?.player) return;
+    stopFrame(); active.player.pause();
+    active.player.seek(active.player.snapshot().time + 1 / 30);
+    showPose();
+  });
+  elements['mechanism-speed'].addEventListener('change', (event) => {
+    if (!active?.player) return;
+    try { active.player.setSpeed(Number(event.target.value)); showPose(); }
+    catch (error) { setStatus(error.message); showMechanism(); }
+  });
+  elements['mechanism-rate'].addEventListener('change', (event) => {
+    active?.player?.setPlaybackRate(Number(event.target.value));
+  });
+  elements['mechanism-reset'].addEventListener('click', () => {
+    const seed = Number(elements['mechanism-seed'].value);
+    if (!active?.player || !Number.isSafeInteger(seed) || seed < 0 || seed > 4294967295) {
+      setStatus('种子应为 0–4294967295 的整数。'); return;
+    }
+    stopFrame();
+    const { speed, playbackRate } = active.player.snapshot();
+    active.player.dispose();
+    active.player = createPlayer(active, { time: 0, speed, seed, playbackRate });
+    active.handles.player = active.player;
+    refreshStructureView(); showPose();
+  });
+  elements['mechanism-steps'].addEventListener('click', (event) => {
+    const step = Number(event.target.closest('[data-mechanism-step]')?.dataset.mechanismStep);
+    if (!active?.player || !Number.isInteger(step)) return;
+    seekMechanismStep(step);
+  });
+  function seekMechanismStep(step) {
+    stopFrame(); active.player.pause();
+    active.player.seek(active.player.stepTime(step));
+    showPose();
+    const participants = active.player.steps[step].nodeIds;
+    if (participants.length) viewport.focusNode(participants[0],
+      { duration: cameraDuration(), includeIds: participants.slice(1) });
+  }
+  elements['mechanism-enter'].addEventListener('click', () => {
+    if (!active?.player) return;
+    if (active.navigation?.current().mode === 'mechanism') return;
+    active.mechanismReturn = { camera: viewport.getCamera({ destination: true }), selection: active.structureSelection };
+    if (active.navigation?.enter('atp-mechanism', viewport.getCamera({ destination: true }))) finishNavigation();
+    const step = active.player.steps[active.player.snapshot().stage];
+    if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration() });
+    elements['mechanism-back'].disabled = false;
+  });
+  elements['mechanism-protein'].addEventListener('click', () => {
+    if (!active?.player) return;
+    if (active.navigation?.enter('atp-protein', viewport.getCamera({ destination: true }))) finishNavigation();
+    resetPreviewCamera();
+  });
+  elements['mechanism-back'].addEventListener('click', () => {
+    if (!active?.mechanismReturn) return;
+    if (returnToParent()) return;
+    viewport.setCamera(active.mechanismReturn.camera, { duration: cameraDuration() });
+    showStructurePick(active.mechanismReturn.selection);
+    active.mechanismReturn = undefined;
+    elements['mechanism-back'].disabled = true;
   });
 
   window.addEventListener('pagehide', (event) => {

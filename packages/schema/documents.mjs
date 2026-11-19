@@ -272,8 +272,8 @@ function checkNavigation({ navigation, notes, bookmarks }, nodeIds, timeline) {
   const noteIds = new Set(notes.map(({ id }) => id));
   const bookmarkIds = new Set(bookmarks.map(({ id }) => id));
   const parents = { cell: [], system: ['cell'], protein: ['system'], mechanism: ['system', 'protein'] };
-  if (byId.size !== views.length || byId.get(entryId)?.mode !== 'cell') {
-    throw new SchemaValidationError('presentation navigation requires unique view IDs and a cell entry');
+  if (byId.size !== views.length || !['cell', 'system', 'protein'].includes(byId.get(entryId)?.mode)) {
+    throw new SchemaValidationError('presentation navigation requires unique view IDs and a cell, system or protein entry');
   }
   for (const view of views) {
     const fail = (reason) => { throw new SchemaValidationError(`presentation view "${view.id}": ${reason}`); };

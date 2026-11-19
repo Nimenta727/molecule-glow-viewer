@@ -58,6 +58,7 @@
           <details id="structure-tools" class="structure-tools">
             <summary>结构插件</summary>
             <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
+            <label><input id="atp-enabled" type="checkbox" disabled> 启用 ATP 合酶播放器</label>
             <form id="rcsb-form" class="structure-form">
               <label for="accession">RCSB 编号</label>
               <input id="accession" name="accession" type="text" maxlength="4" required disabled>
@@ -71,6 +72,7 @@
                 <option value="backbone">主链</option>
                 <option value="blob">团块（墨线）</option>
                 <option value="functional">功能分区（示意）</option>
+                <option value="surface">低分辨率表面</option>
               </select>
             </div>
             <p id="functional-evidence" class="structure-summary" hidden>橙色标记显示配体 8 Å 内的残基代表点。其余体积由坐标分组估算。</p>
@@ -96,6 +98,22 @@
               <p id="structure-contact-list" class="structure-summary" aria-live="polite"></p>
             </details>
           </details>
+          <section id="mechanism-controls" class="mechanism-controls" hidden aria-label="机制播放">
+            <h2 id="mechanism-title"></h2>
+            <label><span id="mechanism-speed-label"></span><input id="mechanism-speed" type="number" min="0.05" max="3" step="0.05" value="0.25"></label>
+            <label><span id="mechanism-seed-label"></span><input id="mechanism-seed" type="number" min="0" max="4294967295" step="1" value="1"></label>
+            <label>播放倍率<select id="mechanism-rate"><option value="0.25">0.25×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select></label>
+            <button id="mechanism-reset" type="button">按种子重置</button>
+            <button id="mechanism-step" type="button">单步 1/30 秒</button>
+            <button id="mechanism-protein" type="button">蛋白质</button>
+            <button id="mechanism-enter" type="button">查看机理</button>
+            <button id="mechanism-back" type="button" disabled>返回结构</button>
+            <ol id="mechanism-steps"></ol>
+            <p id="mechanism-caption" aria-live="polite"></p>
+            <output id="mechanism-counters" aria-live="polite"></output>
+            <p id="mechanism-evidence"></p>
+            <details><summary>事件记录</summary><ol id="mechanism-events"></ol></details>
+          </section>
         </aside>
       </div>
       <footer aria-label="播放与状态">

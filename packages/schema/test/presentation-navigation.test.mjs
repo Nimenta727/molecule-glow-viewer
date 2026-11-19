@@ -62,3 +62,13 @@ test('a scene can omit custom cameras and use untimed mechanism steps', () => {
   }
   assert.deepEqual(validateScene(scene), scene);
 });
+
+test('a molecular scene can enter through its system without an invented cell view', () => {
+  const scene = structuredClone(fourModesDemo);
+  const navigation = scene.presentation.navigation;
+  navigation.views = navigation.views.filter(({ mode }) => mode !== 'cell');
+  navigation.entryId = navigation.views[0].id;
+  navigation.views[0].parentIds = [];
+  delete navigation.views[0].hotspotNodeId;
+  assert.deepEqual(validateScene(scene), scene);
+});

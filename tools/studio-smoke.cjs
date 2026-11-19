@@ -10,6 +10,12 @@ const { app, BrowserWindow, session } = require('electron');
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  if (pathname === '/test/atp.cif' && process.env.GLOW_ATP_CIF) {
+    console.log('[atp] serving cached coordinates');
+    res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' });
+    fs.createReadStream(process.env.GLOW_ATP_CIF).pipe(res);
+    return;
+  }
   if (pathname === '/test/structure.cif' && process.env.GLOW_STRUCTURE_SCREENSHOTS) {
     res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' }).end(structureCif);
     return;
@@ -637,7 +643,7 @@ async function verifyStructureWorkflow(viewer, directory, scenePath, readScenePa
   assert.ok(Math.abs(first[1] - second[1]) < 1e-9);
   assert.ok(Math.hypot(first[0] - second[0], first[2] - second[2]) > 1);
   assert.ok(composite.scene.assets.some((asset) => asset.provenance?.legacyColor === '#8844bb'));
-  assert.ok(composite.scene.assets.some((asset) => asset.provenance?.legacyStyle === 'backbone'));
+  assert.ok(composite.scene.assets.some((asset) => asset.provenance?.legacyStyle === 'functional'));
   assert.ok(composite.scene.nodes.some((node) => node.name === 'Chain A' && !node.visible));
   await run("document.querySelector('#close').click()");
   await inject('legacy-composite.glow', compositeBytes);
@@ -650,6 +656,12 @@ async function verifyStructureWorkflow(viewer, directory, scenePath, readScenePa
     .find((label) => label.textContent.trim() === 'Ring').querySelector('input').click()`);
   const hiddenComposite = await readScenePackage(await saveScene());
   assert.ok(hiddenComposite.scene.nodes.filter((node) => node.name === 'Ring' && node.assetId).every((node) => !node.visible));
+  await run(`(() => {
+    const select = [...document.querySelectorAll('#structure-part-list li')].find((li) =>
+      li.querySelector('label').textContent.trim() === 'Ring').querySelector('select');
+    select.value = 'surface'; select.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  assert.ok((await readScenePackage(await saveScene())).scene.assets.some((asset) => asset.provenance?.legacyStyle === 'surface'));
   await inject('legacy-accession.glow', legacy({
     id: '4HHB', process: 'atpSynthase', core: [{ part: 'Chain A', seqs: [[7, 8]] }],
   }));
@@ -681,10 +693,11 @@ async function verifyStructureWorkflow(viewer, directory, scenePath, readScenePa
         status: document.querySelector('#status').textContent,
         structure: document.querySelector('#structure-summary').textContent,
         components: [...document.querySelectorAll('#legacy-component-list li')].map((li) => li.textContent),
+        mechanismPlayback: !document.querySelector('#mechanism-controls').hidden,
         diagnostics: document.querySelector('#warning').textContent
       })`);
       const pixels = await viewportPixels(viewer);
-      report.push({ name, ...result, expectedComponents, coloredPixels: pixels.colored, mechanismPlayback: false });
+      report.push({ name, ...result, expectedComponents, coloredPixels: pixels.colored });
       if (['official.respiratory-chain.glow', 'official.flagellar-motor.glow', 'official.chloroplast-light.glow'].includes(name)) {
         await run("document.querySelector('#legacy-components').open = true");
         await captureWindow(viewer, directory, name.replace(/^official\.|\.glow$/g, ''));
@@ -698,6 +711,116 @@ async function verifyStructureWorkflow(viewer, directory, scenePath, readScenePa
       assert.equal(entry.components.length, entry.expectedComponents, `Missing components: ${entry.name}`);
     }
   }
+}
+
+async function verifyAtpPlayer(viewer, directory, scenePath, readScenePackage) {
+  console.log('[atp] starting');
+  const run = (code) => new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`ATP browser call timed out: ${code.slice(0, 120)}`)), 30000);
+    viewer.webContents.executeJavaScript(code).then(resolve, reject).finally(() => clearTimeout(timeout));
+  });
+  const click = (selector) => run(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const status = async (name) => {
+    await waitFor(viewer, `document.querySelector('#status').textContent === ${JSON.stringify(name)} ||
+      document.querySelector('#status').textContent.startsWith('无法打开场景')`, name, 90000)
+      .catch(async (error) => { throw new Error(`${error.message} · ${await run("document.querySelector('#status').textContent")}`); });
+    assert.equal(await run("document.querySelector('#status').textContent"), name);
+  };
+  const counters = () => run("document.querySelector('#mechanism-counters').textContent");
+  const seek = (time) => run(`(() => {
+    const slider = document.querySelector('#playhead'); slider.value = ${time};
+    slider.dispatchEvent(new Event('input'));
+  })()`);
+  async function download() {
+    const completed = new Promise((resolve, reject) => {
+      session.defaultSession.once('will-download', (_event, item) => {
+        item.once('done', (_finished, state) => state === 'completed' ? resolve() : reject(new Error(state)));
+      });
+    });
+    await click('#save');
+    await Promise.race([completed, new Promise((_, reject) => setTimeout(() => reject(new Error('ATP save timeout')), 15000))]);
+    return fs.readFileSync(scenePath);
+  }
+  await click('#structure-enabled');
+  console.log('[atp] enable requested');
+  await waitFor(viewer, "!document.querySelector('#rcsb-load').disabled", 'structure plugin enabled');
+  console.log('[atp] enabled');
+  const pack = fs.readFileSync(path.join(repo, 'workshop/official/packs/official.atp-synthase.glow'));
+  await injectFile(viewer, { name: 'atp.glow', data: pack, input: '#file' });
+  await status('atp.glow');
+  console.log('[atp] loaded');
+  const diagnostics = await run("document.querySelector('#warning').textContent");
+  assert.ok(await run("!document.querySelector('#mechanism-controls').hidden"), diagnostics);
+  assert.equal(await run("document.querySelectorAll('#mechanism-steps button').length"), 5);
+  await run(`document.querySelector('#representation-style').value = 'surface';
+    document.querySelector('#representation-style').dispatchEvent(new Event('change'))`);
+  console.log('[atp] surface built');
+  assert.equal(await run("document.querySelector('#representation-style').value"), 'surface');
+  await captureWindow(viewer, directory, 'atp-surface');
+  console.log('[atp] surface captured');
+  await run(`document.querySelector('#representation-style').value = 'functional';
+    document.querySelector('#representation-style').dispatchEvent(new Event('change'))`);
+  console.log('[atp] functional built');
+  await click('#mechanism-step');
+  assert.match(await counters(), /0.03/);
+  await seek(4);
+  assert.match(await counters(), /ATP 3 · H⁺ 8/);
+  await viewportPixels(viewer);
+  const viewRect = await run(`(() => {
+    const { x, y, width, height } = document.querySelector('#viewport').getBoundingClientRect();
+    return { x: Math.ceil(x), y: Math.ceil(y), width: Math.floor(width), height: Math.floor(height) };
+  })()`);
+  const imageA = (await viewer.capturePage(viewRect)).toPNG();
+  await seek(5);
+  await viewportPixels(viewer);
+  const imageB = (await viewer.capturePage(viewRect)).toPNG();
+  assert.notDeepEqual(imageA, imageB, 'playing pose changes rendered pixels');
+  await seek(4);
+  await click('#mechanism-enter');
+  assert.ok(await run("!document.querySelector('#mechanism-back').disabled"));
+  await click('#mechanism-back');
+  assert.ok(await run("document.querySelector('#mechanism-back').disabled"));
+  await click('#play');
+  await waitFor(viewer, "document.querySelector('#play').textContent === '暂停'", 'ATP starts playing');
+  await waitFor(viewer, "Number(document.querySelector('#playhead').value) > 4.1", 'ATP clock advances');
+  await click('#play');
+  assert.equal(await run("document.querySelector('#play').textContent"), '播放');
+  await seek(4);
+  const bytes = await download();
+  const saved = await readScenePackage(bytes);
+  const source = saved.scene.assets.find((asset) => asset.provenance?.playback);
+  assert.deepEqual(source.provenance.playback, { time: 4, speed: 0.25, seed: 1 });
+  await click('#close');
+  await injectFile(viewer, { name: 'atp-reopened.glow', data: bytes, input: '#file' });
+  await status('atp-reopened.glow');
+  assert.match(await counters(), /ATP 3 · H⁺ 8/);
+  await run("document.querySelector('#mechanism-seed').value = '7'");
+  await click('#mechanism-reset');
+  assert.match(await counters(), /ATP 0 · H⁺ 0/);
+  await seek(4);
+  const replayA = await counters();
+  await click('#mechanism-reset');
+  await seek(4);
+  assert.equal(await counters(), replayA);
+  await run("document.querySelector('#mechanism-speed').value = '0.5'; document.querySelector('#mechanism-speed').dispatchEvent(new Event('change'))");
+  assert.match(await counters(), /ATP 3 · H⁺ 8/);
+  await seek(6);
+  assert.match(await counters(), /ATP 6 · H⁺ 16/);
+  await click('#mechanism-enter');
+  assert.equal(await run("document.querySelector('#navigation-heading').dataset.mode"), 'mechanism');
+  await run(`document.querySelector('#mode-panel [data-step="3"]').click()`);
+  assert.equal(await run(`document.querySelector('#mode-panel [aria-current="step"]').dataset.step`), '3');
+  await captureWindow(viewer, directory, 'atp-mechanism', '#mechanism-controls');
+  await click('#mechanism-back');
+  await seek(6);
+  await click('#atp-enabled');
+  await waitFor(viewer, "document.querySelector('#mechanism-controls').hidden", 'ATP plugin disabled');
+  assert.match(await run("document.querySelector('#warning').textContent"), /org.glow.legacy-process.atp-synthase/);
+  await click('#atp-enabled');
+  await waitFor(viewer, "!document.querySelector('#mechanism-controls').hidden", 'ATP plugin enabled');
+  assert.match(await counters(), /ATP 6 · H⁺ 16/);
+  await click('#close');
+  assert.ok(await run("document.querySelector('#mechanism-controls').hidden"));
 }
 
 async function verifyNavigationAuthoring(studio, viewer, directory, { projectPath, scenePath, selectDownload, decodeProject, readScenePackage }) {
@@ -855,6 +978,10 @@ async function run() {
   const networkRequests = [];
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
+    if (process.env.GLOW_ATP_CIF && url.href === 'https://files.rcsb.org/download/6ZPO.cif') {
+      callback({ redirectURL: `http://127.0.0.1:${port}/test/atp.cif` });
+      return;
+    }
     if (process.env.GLOW_STRUCTURE_SCREENSHOTS && url.href === 'https://files.rcsb.org/download/4HHB.cif') {
       callback(process.env.GLOW_LIVE_STRUCTURE_SMOKE ? {} : { redirectURL: `http://127.0.0.1:${port}/test/structure.cif` });
       return;
@@ -863,7 +990,7 @@ async function run() {
       callback({ redirectURL: `http://127.0.0.1:${port}/test/unavailable.cif` });
       return;
     }
-    if (process.env.GLOW_LIVE_STRUCTURE_SMOKE && url.origin === 'https://files.rcsb.org' &&
+    if ((process.env.GLOW_LIVE_STRUCTURE_SMOKE || process.env.GLOW_ATP_SMOKE) && url.origin === 'https://files.rcsb.org' &&
         /^\/(download|header)\/[0-9][A-Z0-9]{3}\.cif$/.test(url.pathname)) {
       callback({});
       return;
@@ -909,6 +1036,24 @@ async function run() {
     const { decodeProject } = await import(pathToFileURL(path.join(repo, 'packages/studio-editor/project-io.mjs')));
     const { readScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
+
+    if (process.env.GLOW_ATP_SMOKE) {
+      stage = 'atp-player';
+      const directory = process.env.GLOW_ATP_SMOKE;
+      fs.mkdirSync(directory, { recursive: true });
+      viewer = new BrowserWindow({ width: 1440, height: 900, useContentSize: true, show: false,
+        webPreferences: { backgroundThrottling: false } });
+      const errors = [];
+      viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message); });
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'Viewer startup');
+      viewer.show();
+      nextDownload = 'scene';
+      await verifyAtpPlayer(viewer, directory, scenePath, readScenePackage);
+      assert.deepEqual(errors, []);
+      console.log(JSON.stringify({ ok: true, atpPlayer: true, surface: true, playbackRoundTrip: true }));
+      return;
+    }
 
     const structureOutput = process.env.GLOW_STRUCTURE_SCREENSHOTS;
     if (structureOutput) {

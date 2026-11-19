@@ -92,10 +92,10 @@ test('functional mode keeps representative residues near ligand heavy atoms and 
   ligand.position = [9, 0, 0];
   const [group] = buildRepresentations(model, { style: 'functional' });
   const core = group.layers.find(({ role }) => role === 'functional-core');
-  const coarse = group.layers.find(({ role }) => role === 'functional-scaffold');
+  const coarse = group.layers.find(({ role }) => role === 'density-surface');
   assert.equal(core.positions.length, 6);
-  assert.equal(coarse.radii.length, 2);
-  assert.ok(coarse.radii.every((value) => Number.isFinite(value) && value > 0));
+  assert.ok(coarse.positions.length > 0 && coarse.positions.length % 9 === 0);
+  assert.ok(coarse.positions.every(Number.isFinite));
   assert.equal(group.pointTargets.find(Boolean).length, 4);
 });
 
@@ -108,7 +108,7 @@ test('functional mode applies imported preset ranges and named residue neighborh
     ],
   } });
   assert.equal(group.layers.find(({ role }) => role === 'functional-core').positions.length, 9);
-  assert.equal(group.layers.find(({ role }) => role === 'functional-scaffold').radii.length, 1);
+  assert.ok(group.layers.some(({ role }) => role === 'density-surface'));
 });
 
 test('nucleic-acid style chains use phosphate P atoms when CA is absent', () => {

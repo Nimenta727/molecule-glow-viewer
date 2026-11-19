@@ -53,9 +53,10 @@ export function createNavigationEditor(container, { getSelection, getTime, save 
     const views = navigation?.views ?? [];
     if (selectedId !== NEW_VIEW && !views.some(({ id }) => id === selectedId)) selectedId = views[0]?.id ?? NEW_VIEW;
     const view = views.find(({ id }) => id === selectedId);
-    const allowed = Object.keys(MODES).filter((mode) => mode === 'cell' ? !navigation :
-      views.some((candidate) => PARENTS[mode].includes(candidate.mode)));
+    const allowed = Object.keys(MODES).filter((mode) => !navigation ? mode !== 'mechanism' :
+      mode !== 'cell' && views.some((candidate) => PARENTS[mode].includes(candidate.mode)));
     const mode = view?.mode ?? (allowed.includes(draftMode) ? draftMode : allowed[0]);
+    const rootView = !navigation || view?.id === navigation.entryId;
     const picker = field(container, '展示视图', select([
       ...views.map(({ id, mode, title }) => [id, `${MODES[mode]} · ${title}`]), [NEW_VIEW, '新增视图'],
     ], selectedId));
@@ -119,12 +120,12 @@ export function createNavigationEditor(container, { getSelection, getTime, save 
     }));
     const parentOptions = views.filter((candidate) => PARENTS[mode].includes(candidate.mode))
       .map(({ id, mode, title }) => [id, `${MODES[mode]} · ${title}`]);
-    const parents = mode === 'cell' ? null : field(form, mode === 'mechanism' ? '进入来源（可多选）' : '进入来源',
+    const parents = rootView ? null : field(form, mode === 'mechanism' ? '进入来源（可多选）' : '进入来源',
       mode === 'mechanism'
         ? select(parentOptions, view?.parentIds ?? [], { multiple: true })
         : select([['', '请选择进入来源'], ...parentOptions], view?.parentIds[0] ?? ''));
     if (parents) parents.id = 'view-parents';
-    const hotspot = mode === 'cell' ? null : field(form, '热点对象', liveSelect(() => [['', '仅通过按钮进入'], ...nodeOptions()], view?.hotspotNodeId ?? ''));
+    const hotspot = rootView ? null : field(form, '热点对象', liveSelect(() => [['', '仅通过按钮进入'], ...nodeOptions()], view?.hotspotNodeId ?? ''));
     if (hotspot) hotspot.id = 'view-hotspot';
     const camera = field(form, '默认镜头', liveSelect(bookmarkOptions, view?.bookmarkId ?? ''));
     camera.id = 'view-camera';

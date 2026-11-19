@@ -67,19 +67,23 @@ export async function loadLegacyStructures(loaded, { importer, representation, l
 
   function describe(entry, component) {
     const overrides = config.reps ?? {};
-    // Keep an offline-compatible trace for v1's functional simplification.
-    const backbone = new Set(Object.values(overrides)).has('simplified') && representation
-      ? new Map(representation.build(entry.model, { style: 'backbone' }).map(({ key, layers }) => [key, layers]))
-      : null;
+    const builds = new Map();
+    function overrideLayers(style) {
+      if (!builds.has(style)) builds.set(style, new Map(representation.build(entry.model, {
+        style, functionalRules: config,
+      }).map(({ key, layers }) => [key, layers])));
+      return builds.get(style);
+    }
     return entry.scene.assets.slice(1).map((asset, index) => {
       const node = entry.scene.nodes[index];
       const { partName: name, chainKey } = node.extensions[structure];
       const part = displayPart(name, component);
       const bytes = entry.resources.get(asset.path);
       const override = Object.hasOwn(overrides, part) ? overrides[part] : undefined;
-      const trace = override === 'simplified' ? backbone?.get(chainKey) : undefined;
+      const style = override === 'simplified' ? 'functional' : override;
+      const trace = representation && ['surface', 'functional'].includes(style) ? overrideLayers(style).get(chainKey) : undefined;
       const layers = trace ?? decodeGeometry(bytes);
-      return { name, part, bytes, layers, node, asset, override, trace: Boolean(trace) };
+      return { name, part, bytes, layers, node, asset, override, style, trace: Boolean(trace) };
     });
   }
 
@@ -98,14 +102,16 @@ export async function loadLegacyStructures(loaded, { importer, representation, l
       const path = `assets/${id}.json`;
       const color = legacyColor(config.colors, group.name, group.part);
       const altered = Boolean(color || group.trace);
-      const bytes = altered ? encodeGeometry(group.layers.map((layer) =>
-        color && layer.mode !== 'points' ? { ...layer, color } : layer)) : group.bytes;
+      const bytes = altered ? encodeGeometry(group.layers.map((layer) => {
+        if (layer.mode === 'spheres') return { mode: 'points', positions: layer.positions, color: layer.color, pointSize: 0.1 };
+        return color && layer.mode !== 'points' ? { ...layer, color } : layer;
+      })) : group.bytes;
       const sha256 = altered ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)),
         (value) => value.toString(16).padStart(2, '0')).join('') : group.asset.sha256;
       children.push({ group, bytes, asset: {
         ...group.asset, id, path, sha256,
         provenance: { ...group.asset.provenance, sourceAssetId: sourceId, ...(color ? { legacyColor: color } : {}),
-          ...(group.trace ? { legacyStyle: 'backbone' } : group.override === 'cartoon' ? { legacyStyle: 'cartoon' } : {}) },
+          ...(['functional', 'surface', 'blob', 'cartoon'].includes(group.style) ? { legacyStyle: group.style } : {}) },
       } });
     }
     signal.throwIfAborted();
@@ -114,6 +120,8 @@ export async function loadLegacyStructures(loaded, { importer, representation, l
       throw new RangeError('预览超过场景包容量。');
     }
     resourceBytes += added;
+    loaded.models ??= new Map();
+    loaded.models.set(sourceId, entry.model);
     if (existingSource) existingSource.provenance = coordinates.provenance;
     else {
       scene.assets.push({ ...coordinates, id: sourceId, path: sourcePath });
@@ -169,9 +177,6 @@ export async function loadLegacyStructures(loaded, { importer, representation, l
   }
   const source = embedded ?? scene.assets.find(({ id }) => id === 'legacy-primary-source');
   source.provenance.legacyCamera = layout.camera();
-  const requestedReps = Object.values(config.reps ?? {});
-  if (requestedReps.includes('simplified')) loaded.warnings.push('旧包的简化部件使用主链预览。');
-  if (requestedReps.some((mode) => mode === 'surface' || mode === 'blob')) loaded.warnings.push('旧包的部件表面或团块覆盖仍按基础预览显示。');
   loaded.warnings.push('已生成旧包的静态结构预览。构象切换和机制由相应迁移能力提供。');
   scene.legacy.warnings = loaded.warnings.slice();
   loaded.model = imported.model;

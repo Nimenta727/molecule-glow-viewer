@@ -22,10 +22,14 @@ await host.deactivate('example.import');
 
 ## Contract
 
-Manifests use an exact `x.y.z` version, `apiVersion: 1`, dependency entries `{ id, version, optional }`, and capabilities drawn from `importers`, `representations`, and `services`. A required dependency must already be active at the exact version. An active plugin with a required dependent cannot be deactivated until that dependent is deactivated.
+Manifests use an exact `x.y.z` version, `apiVersion: 1`, dependency entries `{ id, version, optional }`, and capabilities drawn from `importers`, `representations`, `services`, `players`, and `panels`. A required dependency must already be active at the exact version. An active plugin with a required dependent cannot be deactivated until that dependent is deactivated.
 
 `activate(plugin)` returns the plugin ID. Registrations are staged until activation completes; collisions are global within each capability registry and fail activation. Plugin activation and deactivation are serialized. `deactivate(id)` returns `false` for an inactive plugin and `true` after successful deactivation.
 
 The frozen context exposes `scene.getSnapshot()`, `commands.dispatch(command)`, `signal`, `lifecycle.add(disposer)`, `registerImporter(name, value)`, `registerRepresentation(name, value)`, `registerService(name, version, value)`, and `getService(name, version)`. Register capabilities during activation. The plugin can dispatch scene edits after activation succeeds. The context expires and its signal aborts when activation fails or deactivation begins. On deactivation the host removes registrations, calls the optional `deactivate(context)` hook, then runs lifecycle disposers in reverse order. The hook can read the aborted signal and close over plugin-owned resources.
 
 Invalid manifests, unsupported API versions, missing or mismatched required dependencies, duplicate IDs, capability violations, and registration collisions reject activation. Activation failures run all registered cleanup handlers and reject with the original error; if cleanup also fails, an `AggregateError` includes the activation and cleanup errors. Deactivation still attempts all cleanup and removes the plugin; cleanup failures reject with an `AggregateError` after cleanup. Context calls after deactivation throw. Getters return `undefined` when no matching registration exists. Service lookup uses both name and exact version.
+
+Official mechanism modules can use `registerPlayer(id, factory)` and `registerPanel(id, definition)`. Applications consume them through `getPlayer(id)` and `getPanel(id)`. Panel definitions contain titles, numeric parameter bounds and evidence text. The application renders these through its own controls.
+
+The ATP factory accepts `{ model, scene, state }`. Its instance supports `play()`, `pause()`, `seek(seconds)`, `advance(seconds)`, `snapshot()`, `save()` and `dispose()`, together with its speed, playback-rate and step controls. Snapshots provide structure transforms, conformation phase, named particles, counters and events. Scene scopes release instances on replacement. The official plugin also disposes its instances when deactivated.

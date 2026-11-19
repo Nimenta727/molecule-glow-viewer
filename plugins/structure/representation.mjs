@@ -1,4 +1,5 @@
-import { createLigandNeighborhood, createPresetCore, functionalLayers } from './functional-preview.mjs';
+import { createLigandNeighborhood, createPresetCore, functionalLayers, matchesPart } from './functional-preview.mjs';
+import { densitySurface } from './density-surface.mjs';
 
 export const PRESENTATION_METERS_PER_ANGSTROM = 0.05;
 const WATER_NAMES = new Set(['HOH', 'WAT', 'DOD', 'H2O']);
@@ -6,6 +7,7 @@ const BACKBONE_COLORS = { default: '#607f91', helix: '#d47770', sheet: '#d6a94f'
 const BLOB_COLORS = ['#7697c6', '#cf8589', '#79aaa3', '#c8a367', '#9b8ab4'];
 const CARTOON_WIDTH = 0.45;
 const MODIFIED_RESIDUES = new Set(['MSE', 'SEP', 'TPO', 'PTR']);
+const surfaceCache = new WeakMap();
 
 function text(value) {
   return value == null ? '' : String(value).trim();
@@ -59,6 +61,11 @@ function chooseAlternatives(atoms) {
     if (!previous || compareAlternative(atom, previous) < 0) chosen.set(key, { atom, pos, name, key });
   }
   return [...chosen.values()];
+}
+
+export function selectCoordinateAtoms(model) {
+  const atoms = firstModel(Array.isArray(model?.atoms) ? model.atoms : []);
+  return chooseAlternatives(atoms.filter((atom) => !isWater(atom)));
 }
 
 function sequenceNumber(value) {
@@ -198,9 +205,8 @@ function cartoonLayers(markers, ranges, centered) {
  * Cartoon colors are only visual hints for deposited helix and sheet ranges (red and gold); they are not calculated predictions.
  */
 export function buildRepresentations(model, { style = 'backbone', functionalRules } = {}) {
-  if (!['backbone', 'cartoon', 'blob', 'functional'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
-  const atoms = firstModel(Array.isArray(model?.atoms) ? model.atoms : []);
-  const chosen = chooseAlternatives(atoms.filter((atom) => !isWater(atom)));
+  if (!['backbone', 'cartoon', 'blob', 'functional', 'surface'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
+  const chosen = selectCoordinateAtoms(model);
   const centered = centerAndScale(chosen);
   const coreLigands = Array.isArray(functionalRules?.coreLigands) ? new Set(functionalRules.coreLigands) : null;
   const nearLigand = style === 'functional' ? createLigandNeighborhood(chosen
@@ -246,8 +252,30 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
       layers.push({ mode: 'spheres', positions: flat(markers.map(({ raw }) => centered.point(raw))),
         color: BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius: 2.1 * PRESENTATION_METERS_PER_ANGSTROM });
     }
-    if (nearLigand) layers.push(...functionalLayers(markers, (raw, atom) => nearLigand(raw) || presetCore?.(raw, atom), centered.point,
-      PRESENTATION_METERS_PER_ANGSTROM, BLOB_COLORS[groupIndex % BLOB_COLORS.length]));
+    if ((nearLigand || style === 'surface') && markers.length >= 3) {
+      let surfaces = surfaceCache.get(model);
+      if (!surfaces) { surfaces = new Map(); surfaceCache.set(model, surfaces); }
+      if (!surfaces.has(group.key)) {
+        const positions = densitySurface(markers.map(({ raw }) => raw), markers.map(({ nucleotide }) => nucleotide ? 2.4 : 1));
+        const scaled = [];
+        for (let i = 0; i < positions.length; i += 3) scaled.push(...centered.point(positions.slice(i, i + 3)));
+        surfaces.set(group.key, scaled);
+      }
+      const positions = surfaces.get(group.key);
+      if (positions.length) layers.push({ mode: 'triangles', positions,
+        color: BLOB_COLORS[groupIndex % BLOB_COLORS.length], ink: true, role: 'density-surface' });
+    }
+    if (nearLigand) {
+      const functional = functionalLayers(markers, (raw, atom) => nearLigand(raw) || presetCore?.(raw, atom), centered.point,
+        PRESENTATION_METERS_PER_ANGSTROM, BLOB_COLORS[groupIndex % BLOB_COLORS.length]);
+      layers.push(...functional.filter(({ role }) => markers.length < 3 || role === 'functional-core'));
+      const partName = model.chainNames?.[group.labelChainId] ?? group.chainId;
+      const moving = [...(Array.isArray(functionalRules?.spin) ? functionalRules.spin : []),
+        ...(Array.isArray(functionalRules?.solid) ? functionalRules.solid : [])].some((key) => matchesPart(partName, key));
+      if (groups.size > 2 && !moving && !functional.some(({ role }) => role === 'functional-core')) {
+        for (const layer of layers) if (layer.role === 'density-surface') layer.faded = true;
+      }
+    }
     if (markers.length) layers.push({ mode: 'points', positions: flat(markers.map(({ raw }) => centered.point(raw))), color: '#395968', pointSize: 0.05 });
     const pointTargets = layers.map((layer) =>
       layer.mode === 'points' ? markers.map(({ residue }) => ({ kind: 'residue', atom: residue.atom })) : null);

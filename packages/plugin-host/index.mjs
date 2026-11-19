@@ -1,4 +1,4 @@
-const CAPABILITIES = new Set(['importers', 'representations', 'services']);
+const CAPABILITIES = new Set(['importers', 'representations', 'services', 'players', 'panels']);
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const isVersion = (value) => typeof value === 'string' && SEMVER.test(value);
@@ -29,7 +29,7 @@ function registryKey(capability, name) { return `${capability}:${name}`; }
 export function createPluginHost({ getScene, dispatch }) {
   if (typeof getScene !== 'function' || typeof dispatch !== 'function') throw new TypeError('getScene and dispatch are required');
   const active = new Map();
-  const registries = { importers: new Map(), representations: new Map(), services: new Map() };
+  const registries = { importers: new Map(), representations: new Map(), services: new Map(), players: new Map(), panels: new Map() };
   let queue = Promise.resolve();
   const exclusive = (task) => {
     const result = queue.then(task);
@@ -86,6 +86,8 @@ export function createPluginHost({ getScene, dispatch }) {
         lifecycle,
         registerImporter(name, importer) { register('importers', name, importer); },
         registerRepresentation(name, representation) { register('representations', name, representation); },
+        registerPlayer(name, player) { register('players', name, player); },
+        registerPanel(name, definition) { register('panels', name, definition); },
         registerService(name, version, service) { register('services', name, service, version); },
         getService(name, version) {
           ensureUsable();
@@ -142,6 +144,8 @@ export function createPluginHost({ getScene, dispatch }) {
     deactivate,
     getImporter(id) { return lookup(registries.importers, registryKey('importers', id)); },
     getRepresentation(id) { return lookup(registries.representations, registryKey('representations', id)); },
+    getPlayer(id) { return lookup(registries.players, registryKey('players', id)); },
+    getPanel(id) { return lookup(registries.panels, registryKey('panels', id)); },
     getService(id, version) { return lookup(registries.services, registryKey('services', `${id}@${version}`)); },
     listActive() { return [...active.values()].map(record => Object.freeze({ id: record.manifest.id, version: record.manifest.version })); },
   });
