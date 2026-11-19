@@ -130,5 +130,12 @@
       },
       "sha256": "fcb29a4bf748c4c6dfbc0994357c84e53afd6ba2695da945c2fb740df1390ae4"
     }
-  ]
+  ],
+  "verification_followup": {
+    "source_commit": "4903d21e19be5e8c7059540e8dfabcc8705ebad6",
+    "ci_url": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44533334875",
+    "source": "success",
+    "windows_artifact": "success",
+    "scope": "Comparison-tool error calculation and evidence follow-up; all live-coordinate/stage/EXE/security/Studio CI gates rerun successfully. Local candidate hashes above continue to identify the 4b8de25 build."
+  }
 }

@@ -44,6 +44,6 @@
 
 已人工查看实际 EXE 的 [ATP](images/p42-atp-normal.png)、[KcsA](images/p42-kcsa-normal.png)、[AdK](images/p42-adk-normal.png)及 [560 px](images/p42-adk-narrow.png)截图。保留现有交互与布局，不声称最终视觉等价。
 
-[4b8de25 的 CI](https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44532152740)源码与 Windows 作业均已通过。工作流还会重新运行真实坐标比较、暂存/EXE 功能与安全回归、Studio M3，并上传证据。
+[4b8de25 的 CI](https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44532152740)源码与 Windows 作业均已通过。工作流重新运行真实坐标比较、暂存/EXE 功能与安全回归、Studio M3，并上传证据。比较器与报告收尾提交 `4903d21` 的 [独立 CI](https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44533334875)也已全部通过；本页本地 EXE 哈希仍标识 `4b8de25` 的构建，不混用不同构建的身份。
 
 下一项为 **4.3.1 通用 data-animation 插件及 AdK/KcsA 数据包**。后续使用这些契约验收动态事件、计量、干预和持久化，不能把当前结构预览或两态展示算作反应迁移。
