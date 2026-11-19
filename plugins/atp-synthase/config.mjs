@@ -4,29 +4,10 @@
  * The algorithm in index.mjs only knows geometry: axis from ring and head, rotation, three catalytic sites, counting.
  * See docs/CONTRACT_4.3.0.md §4 and §7. ATP_6ZPO_TEMPLATE reproduces the previous built-in behaviour exactly.
  */
-const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
-const text = (value, label, max = 500) => {
-  if (typeof value !== 'string' || !value.length || value.length > max) throw new TypeError(`ATP 作品配置：${label} 必须是 1–${max} 字符的文本。`);
-  return value;
-};
-const list = (value, label, { min = 1, max = 16 } = {}) => {
-  if (!Array.isArray(value) || value.length < min || value.length > max) throw new TypeError(`ATP 作品配置：${label} 必须是 ${min}–${max} 项的列表。`);
-  return value.map((item, i) => text(item, `${label}[${i}]`, 120));
-};
-const color = (value, label) => {
-  if (typeof value !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(value)) throw new TypeError(`ATP 作品配置：${label} 必须是 #rrggbb 颜色。`);
-  return value;
-};
-const particle = (value, label) => ({ name: text(value?.name, `${label}.name`, 40), color: color(value?.color, `${label}.color`) });
-const section = (input, base, name) => {
-  if (input[name] !== undefined && !isObject(input[name])) throw new TypeError(`ATP 作品配置：${name} 必须是对象。`);
-  return { ...base[name], ...(input[name] ?? {}) };
-};
+import { createValidators, deepFreeze, isObject } from '../shared/work-config.mjs';
 
-function deepFreeze(value) {
-  if (value && typeof value === 'object') for (const item of Object.values(value)) deepFreeze(item);
-  return Object.freeze(value);
-}
+const { text, list, color, section } = createValidators('ATP 作品配置');
+const particle = (value, label) => ({ name: text(value?.name, `${label}.name`, 40), color: color(value?.color, `${label}.color`) });
 
 export const ATP_6ZPO_TEMPLATE = deepFreeze({
   id: 'atp-synthase-6ZPO',

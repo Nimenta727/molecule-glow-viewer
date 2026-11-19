@@ -13,6 +13,7 @@ import { createViewerCommands } from './viewer-commands.mjs';
 import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
+import { defaultStyleFor } from './default-style.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 
@@ -28,7 +29,6 @@ const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
-const DEFAULT_STYLE = 'blob';   // classic default: flat colour domains with ink outlines
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
@@ -67,7 +67,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
-  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? DEFAULT_STYLE;
+  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
   if (!elements['functional-evidence'].hidden) elements['functional-evidence'].textContent = functionalDescription(active?.scene, active?.player);
 }
@@ -415,7 +415,7 @@ function boot() {
       if (!previews.length) continue;
       loaded.representationSource ??= source;
       const storedStyle = source.provenance?.viewerStyle;
-      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : DEFAULT_STYLE);
+      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : defaultStyleFor(loaded.scene));
       const builds = new Map();
       const build = (mode) => {
         if (!builds.has(mode)) {

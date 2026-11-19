@@ -216,3 +216,5 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 
 - **ATP 样板第 1 步（2026-11-19，已完成）**：`plugins/atp-synthase/config.mjs` 把部件名选择器、环亚基数、核苷酸残基名、步骤/导航/粒子/计数标签文案、证据文字抽为带校验的作品配置，内置 `ATP_6ZPO_TEMPLATE` 复现原行为；`index.mjs` 只保留几何与计数算法。H⁺ 数量由检测到的环亚基数得出（不再写死 8）。用同一算法验证了 c10 环与另一套命名，只改配置。这是过渡形态：配置仍在插件目录内、由 `createAtpPlayer({config})` 传入；落入 `scene.tools[]`、合并进 `plugins/motion` 随 4.3.2–4.3.3 完成。
 - 等价性证据：改动前代码生成的黄金输出（9 个时间点的全部快照、步骤、导航、保存状态）与默认配置逐位一致；用真实 6ZPO 重新生成的数值基线只有源码哈希变化。
+- **AdK 样板（2026-11-19，已完成同样的一步）**：`plugins/adenylate-kinase/config.mjs`（`ADK_4AKE_TEMPLATE` + 校验）承接域名称/残基范围/颜色、拟合域与 RMSD 上限、链与残基数、两端结构编号、参考配体、四步文案、导航与证据文字；`structure.mjs`/`index.mjs` 只保留拟合、插值与测量。用与 AdK 无关的合成铰链蛋白（BODY/ARM、B 链、配体 LIG）只改配置就跑通，输出中不含任何 AdK 字样。
+- **共享校验**：`plugins/shared/work-config.mjs` 由 ATP 与 AdK 配置共用。ATP 的“环旋转 + 位点构象插值”与 AdK 的“域拟合 + 两态插值”现在都以“配置 + 几何算法”形态存在，二者共有的“叠合/对应/插值”可在下一步合并为 `plugins/motion` 中的同一工具；合并前先对 KcsA 做同样的抽取。
