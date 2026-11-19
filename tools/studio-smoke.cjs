@@ -16,7 +16,7 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(process.env.GLOW_ATP_CIF).pipe(res);
     return;
   }
-  if (pathname === '/test/structure.cif' && process.env.GLOW_STRUCTURE_SCREENSHOTS) {
+  if (pathname === '/test/structure.cif' && (process.env.GLOW_STRUCTURE_SCREENSHOTS || process.env.GLOW_COMMAND_SMOKE)) {
     res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' }).end(structureCif);
     return;
   }
@@ -818,6 +818,17 @@ async function verifyAtpPlayer(viewer, directory, scenePath, readScenePackage) {
   assert.match(await run("document.querySelector('#warning').textContent"), /org.glow.legacy-process.atp-synthase/);
   await click('#atp-enabled');
   await waitFor(viewer, "!document.querySelector('#mechanism-controls').hidden", 'ATP plugin enabled');
+  const apiStepped = await run('glow.animate({seed:19,time:0,step:1/30,steps:180})');
+  const apiSeeked = await run('glow.animate({time:6})');
+  assert.deepEqual(apiStepped.counters, apiSeeked.counters);
+  assert.equal(apiSeeked.seed, 19);
+  assert.equal(apiSeeked.paused, true);
+  await assert.rejects(run('glow.animate({speed:0.4,steps:-1})'), /steps/);
+  assert.deepEqual((await run('glow.info()')).counters, apiSeeked.counters);
+  await run('glow.animate({pause:false})');
+  await waitFor(viewer, "Number(document.querySelector('#playhead').value) > 6.05", 'command starts mechanism');
+  await run('glow.animate({pause:true})');
+  assert.equal((await run('glow.info()')).paused, true);
   assert.match(await counters(), /ATP 6 · H⁺ 16/);
   await click('#close');
   assert.ok(await run("document.querySelector('#mechanism-controls').hidden"));
@@ -982,7 +993,7 @@ async function run() {
       callback({ redirectURL: `http://127.0.0.1:${port}/test/atp.cif` });
       return;
     }
-    if (process.env.GLOW_STRUCTURE_SCREENSHOTS && url.href === 'https://files.rcsb.org/download/4HHB.cif') {
+    if ((process.env.GLOW_STRUCTURE_SCREENSHOTS || process.env.GLOW_COMMAND_SMOKE) && url.href === 'https://files.rcsb.org/download/4HHB.cif') {
       callback(process.env.GLOW_LIVE_STRUCTURE_SMOKE ? {} : { redirectURL: `http://127.0.0.1:${port}/test/structure.cif` });
       return;
     }
@@ -1036,6 +1047,66 @@ async function run() {
     const { decodeProject } = await import(pathToFileURL(path.join(repo, 'packages/studio-editor/project-io.mjs')));
     const { readScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
+
+    if (process.env.GLOW_COMMAND_SMOKE) {
+      stage = 'command-api';
+      const directory = process.env.GLOW_COMMAND_SMOKE;
+      fs.mkdirSync(directory, { recursive: true });
+      viewer = new BrowserWindow({ width: 1440, height: 900, useContentSize: true, show: false,
+        webPreferences: { backgroundThrottling: false } });
+      const errors = [];
+      viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message); });
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip&dev=1`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例' && Boolean(window.glow)", 'command startup');
+      viewer.show();
+      const run = (source) => viewer.webContents.executeJavaScript(source);
+      const accession = await run("glow.load({pdb:'4HHB'})");
+      assert(accession.plugins.some(({ id }) => id === 'org.glow.structure'));
+      assert.equal(accession.sources[0].source.accession, '4HHB');
+      const pack = { format: 'glow-scene', version: 1, id: 'api-structure', title: 'API structure',
+        scene: { structure: { name: 'structure.cif', text: structureCif.toString() } } };
+      // Reuse the schema-valid v1 wrapper from the structure workflow.
+      const legacy = JSON.parse(fs.readFileSync(path.join(repo, 'workshop/official/packs/official.atp-synthase.glow'), 'utf8'));
+      legacy.id = 'api-structure'; legacy.title = 'API structure';
+      legacy.scene = { ...legacy.scene, id: '4HHB', process: undefined, components: undefined,
+        structure: pack.scene.structure };
+      await run(`glow.load({packText:${JSON.stringify(JSON.stringify(legacy))}})`);
+      const picked = await run("glow.select({chainId:'X',residueId:{authSeqId:'8',insertionCode:'B'}})");
+      assert(picked.atoms > 0); assert.equal(picked.highlighted.insertionCode, 'B');
+      await run("glow.represent('blob')");
+      await assert.rejects(run("glow.represent('unknown')"), /表示应为/);
+      await assert.rejects(run("glow.load({pdb:'INVALID'})"), /PDB 编号/);
+      await assert.rejects(run("glow.load({url:'https://evil.example/model.cif'})"), /只允许/);
+      const before = await run('glow.info()');
+      const exported = await run('glow.exportPack()');
+      const bytes = Buffer.from(exported.data, 'base64');
+      const decoded = await readScenePackage(bytes);
+      assert(decoded.scene.assets.some((asset) => asset.provenance?.parserVersion));
+      const validation = await run(`glow.validatePack(${JSON.stringify(exported)})`);
+      assert.equal(validation.ok, true);
+      await run("glow.select('none')");
+      await run(`glow.load(${JSON.stringify(exported)})`);
+      const reopened = await run('glow.info()');
+      assert.deepEqual(reopened.selection, before.selection);
+      assert.equal(reopened.representation, 'blob');
+      assert.deepEqual(reopened.camera, before.camera);
+      const screenshot = await run('glow.snapshot({width:800})');
+      assert(screenshot.startsWith('data:image/png;base64,'));
+      fs.writeFileSync(path.join(directory, 'api-snapshot.png'), Buffer.from(screenshot.split(',')[1], 'base64'));
+      const bridge = await run(`new Promise(resolve=>{
+        const listener=e=>{if(e.data?.glow==='reply'&&e.data.id==='smoke'){removeEventListener('message',listener);resolve(e.data)}};
+        addEventListener('message',listener);postMessage({glow:'cmd',id:'smoke',cmd:'info'},location.origin);
+      })`);
+      assert.equal(bridge.ok, true); assert.equal(bridge.result.sceneId, reopened.sceneId);
+      await run("glow.animate({time:0,step:0.1,steps:2})");
+      assert.equal((await run('glow.info()')).paused, true);
+      assert((await viewportPixels(viewer)).colored > 100);
+      await captureWindow(viewer, directory, 'command-workflow', '#structure-tools');
+      assert.deepEqual(errors, []);
+      assert.deepEqual(networkRequests, []);
+      console.log(JSON.stringify({ ok: true, commands: true, embed: true, exportRoundTrip: true }));
+      return;
+    }
 
     if (process.env.GLOW_ATP_SMOKE) {
       stage = 'atp-player';

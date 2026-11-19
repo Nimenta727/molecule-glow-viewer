@@ -680,6 +680,18 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     renderer.domElement.remove();
   }
 
-  return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode,
+  function snapshot(width) {
+    if (disposed) throw new Error('视口已关闭。');
+    renderer.render(scene, camera);
+    const source = renderer.domElement;
+    if (width == null || width === source.width) return source.toDataURL('image/png');
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = Math.max(1, Math.round(width * source.height / source.width));
+    canvas.getContext('2d').drawImage(source, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png');
+  }
+
+  return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
     orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose };
 }

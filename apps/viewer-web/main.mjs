@@ -8,6 +8,8 @@ import { fromPrototype, geometryLayers, isStructureFile, loadLegacyStructures, o
 import { createSceneNavigation } from './scene-navigation.mjs';
 import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
+import { createCommandApi, attachCommandBridge } from './command-api.mjs';
+import { createViewerCommands } from './viewer-commands.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -716,12 +718,14 @@ function boot() {
     });
   }
 
-  async function openScene(input = {}) {
+  async function openScene(input = {}, { propagate = false } = {}) {
     setStatus('正在打开场景…');
     try {
-      await scenes.load(input);
+      const committed = await scenes.load(input);
+      if (!committed && propagate) throw new Error('加载已被后续操作取消。');
     } catch (error) {
       setStatus(`无法打开场景。 ${error.message}`);
+      if (propagate) throw error;
     }
   }
 
@@ -751,8 +755,10 @@ function boot() {
       event.preventDefault();
     } else if (returnToParent()) event.preventDefault();
   });
-  elements['structure-enabled'].addEventListener('change', async (event) => {
-    const checkbox = event.currentTarget;
+  async function setStructureEnabled(enabled, { propagate = false } = {}) {
+    if (Boolean(host.getImporter(IMPORTER)) === enabled) return;
+    const checkbox = elements['structure-enabled'];
+    checkbox.checked = enabled;
     checkbox.disabled = true;
     try {
       if (checkbox.checked) {
@@ -786,6 +792,7 @@ function boot() {
     } catch (error) {
       checkbox.checked = Boolean(host.getImporter(IMPORTER));
       setStatus(`无法切换结构插件。 ${error.message}`);
+      if (propagate) throw error;
     } finally {
       checkbox.disabled = false;
       try { refreshStructureView(); }
@@ -795,7 +802,8 @@ function boot() {
       showStructureSummary();
       showMechanism();
     }
-  });
+  }
+  elements['structure-enabled'].addEventListener('change', (event) => setStructureEnabled(event.currentTarget.checked));
 
   elements['atp-enabled'].addEventListener('change', async (event) => {
     stopFrame();
@@ -870,9 +878,8 @@ function boot() {
     elements.file.value = '';
     if (file) openScene({ file, assembly: elements['structure-assembly'].checked });
   });
-  elements.save.addEventListener('click', async () => {
-    if (!active || saving) return;
-    const { resources, representationSource, structureSelection } = active;
+  function sceneForExport() {
+    const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
     if (active.player) {
       const source = scene.assets.find((asset) => asset.provenance?.parserVersion);
@@ -896,10 +903,15 @@ function boot() {
         }
       }
     }
+    return scene;
+  }
+  elements.save.addEventListener('click', async () => {
+    if (!active || saving) return;
+    const scene = sceneForExport();
     saving = true;
     syncControls();
     try {
-      const bytes = await writeScenePackage(scene, resources);
+      const bytes = await writeScenePackage(scene, active.resources);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
       const link = document.createElement('a');
       link.href = url;
@@ -1036,9 +1048,65 @@ function boot() {
     elements['mechanism-back'].disabled = true;
   });
 
+  const commandLifetime = new AbortController();
+  const commands = createCommandApi(createViewerCommands({
+    signal: commandLifetime.signal,
+    current: () => active,
+    plugins: () => host.listActive(),
+    camera: () => viewport.getCamera({ destination: true }),
+    setCamera: (camera) => viewport.setCamera(camera),
+    resetCamera: () => {
+      if (active?.navigation) focusCurrentView(0);
+      else if (active?.model) resetPreviewCamera();
+      else viewport.resetCamera();
+    },
+    selection: () => {
+      const target = active?.structureSelection;
+      if (!target) return null;
+      const { atom, kind, sourceAssetId } = target;
+      return { kind, sourceAssetId, chainId: atom.authChainId, labelChainId: atom.labelChainId,
+        residueId: atom.authSeqId, labelSeqId: atom.labelSeqId, insertionCode: atom.insertionCode,
+        residueName: atom.residueName, assemblyCopy: atom.assemblyCopy ?? null };
+    },
+    select: showStructurePick,
+    selectAtoms: (model, spec) => host.getService(MODEL_SERVICE, '1.0.0').select(model, spec),
+    represent: (style) => { refreshStructureView(style); syncControls(); showStructureParts(); },
+    enableStructure: () => setStructureEnabled(true, { propagate: true }),
+    open: (input) => openScene(input, { propagate: true }),
+    snapshot: (width) => viewport.snapshot(width),
+    exportPack: () => writeScenePackage(sceneForExport(), active.resources),
+    animate(value) {
+      const playing = active.player ? active.player.snapshot().playing : active.timeline.playing;
+      const changesTime = value.time != null || value.seed != null || value.step != null || value.steps != null;
+      const paused = changesTime || (value.pause ?? !playing);
+      if (playing) elements.play.click();
+      if (value.seed != null) {
+        const state = { ...active.player.save(), time: 0, seed: value.seed };
+        active.player.dispose();
+        active.player = createPlayer(active, state);
+        active.handles.player = active.player;
+        refreshStructureView();
+      }
+      const player = active.player ?? active.timeline;
+      if (value.time != null) player.seek(value.time);
+      if (value.speed != null) active.player.setSpeed(value.speed);
+      if (value.step != null || value.steps != null) {
+        const time = active.player?.snapshot().time ?? active.timeline.time;
+        // seek uses the player's deterministic event schedule and preserves intervention history.
+        player.seek(time + (value.step ?? 1 / 60) * (value.steps ?? 1));
+      }
+      showPose();
+      if (!paused) elements.play.click();
+    },
+  }));
+  window.glow = commands.api;
+  const detachBridge = attachCommandBridge(window, commands.api);
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;
     stopFrame();
+    detachBridge();
+    commandLifetime.abort();
+    commands.dispose();
     structureLifetime?.abort();
     scenes.close();
     viewport.dispose();
