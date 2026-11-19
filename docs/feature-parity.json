@@ -3,6 +3,16 @@
   "updated": "2026-11-19",
   "implementation_baseline": "b8850db3ad24194806fb0ff0dcff2c174c64ea62",
   "plan": "docs/ROADMAP.md",
+  "product_boundary": {
+    "source": "maintainer clarification: plugins implement functions; resources and works are workshop content",
+    "next_work_package": "4.3.0",
+    "contract_document": "docs/ARCHITECTURE.md",
+    "resource": "Source structures with provenance, exact hashes and reuse rights; workshop resource section.",
+    "plugin": "Reusable authoring, simulation or scientific analysis capability; never a biological showcase as the product boundary.",
+    "work": "Resource instances plus capability configuration, timeline, narrative and results; workshop works section.",
+    "existing_specialized_modules": "Transitional content/capability coupling; preserve regression evidence while extracting reusable tools and work data.",
+    "implementation_status": "planned; documentation correction does not implement runtime/schema/workshop split"
+  },
   "classic_cases": "desktop/scripts/regress-scenes.json",
   "recorded_source_evidence": "docs/history/BASELINE_AND_STRUCTURE_WORKFLOW.md",
   "interpretation": "Scoped implementation, classic behavior, scientific validation and artifact evidence are independent. CI validates contracts and recorded model-source hashes; planned cases never count as passed.",

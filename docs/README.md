@@ -7,7 +7,7 @@
 | [CURRENT_FEATURES](CURRENT_FEATURES.md) | 经典、新 Viewer、Studio 当前能力与未迁范围 |
 | [ARCHITECTURE](ARCHITECTURE.md) | 主体＋插件、双入口、数据/生命周期、制作链 |
 | [AUDIT](AUDIT.md) | 已修风险、证据、剩余差异 |
-| [ROADMAP](ROADMAP.md) | 唯一当前执行计划，下一项 4.3.1 |
+| [ROADMAP](ROADMAP.md) | 唯一当前执行计划，下一项 4.3.0：资源/功能插件/作品契约 |
 | [CODEX_MIGRATION_HANDOFF](CODEX_MIGRATION_HANDOFF.md) | Claude 交接意图、当前回应、分工及完成门槛 |
 | [VIEWER_COMMAND_API](VIEWER_COMMAND_API.md) | 新版 API 与嵌入权限 |
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |

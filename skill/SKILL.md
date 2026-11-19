@@ -7,6 +7,10 @@ description: Create and edit molecular teaching scenes and trusted plugins in Mo
 
 为现有 Molecule Glow Viewer 制作结构场景、机制、教学讲解和可分享的纯数据包。经典 Viewer 与新主体＋插件并存；先选择实际入口，不把经典能力当作已迁入新版。
 
+## 资源、功能插件和作品
+
+插件提供可复用动画、模拟与科研分析功能；蛋白结构是资源，线粒体/呼吸链等演示是作品。工坊目标为资源区＋作品区，制作流程为导入结构→配置工具→预览→保存/分享作品。现有 ATP/KcsA/AdK 专用模块是待拆分的过渡实现，不能照此为每个作品新增插件。优先把内容存为数据；仅在缺少可复用算法时新增有适用输入/参数/输出契约的功能工具。科研结果保留方法、单位、限制及来源。
+
 ## 选择工作路径
 
 - **独立演示/经典场景**：使用 [assets/index.html](assets/index.html)（viewer.html 是同一构建别名）和 [assets/dev.html](assets/dev.html)。配套文件保持相邻。打开后可输入 PDB、导入本地 PDB/mmCIF、使用已有经典机制；需要 http 时在该目录启动本地服务器。
