@@ -1,5 +1,7 @@
 import { DEFAULTS, PARAMETERS, validateParameters, createKinetics, singleChannelCurrent, reversalPotential, conducting } from './kinetics.mjs';
 import { buildKcsaStructure } from './structure.mjs';
+import { lerp } from '../motion/vectors.mjs';
+import { walkPath } from '../motion/path.mjs';
 import { KCSA_1K4C_TEMPLATE, normalizeKcsaConfig, numeral } from './config.mjs';
 export const KCSA_PLAYER = 'org.glow.legacy-process.kcsa';
 export const kcsaPlugin = {
@@ -101,13 +103,7 @@ export function createKcsaPlayer({ model, scene, state = {}, states, config }) {
     CD: [['S2', 'S2'], ['S4', 'S4'], ['S0', 'outside']], DC: [['S2', 'S2'], ['S4', 'S4'], ['outside', 'S0']],
     DA: [['S2', 'S1'], ['S4', 'S3']], AD: [['S1', 'S2'], ['S3', 'S4']],
   };
-  const lerp = (a, b, f) => a.map((v, i) => v + (b[i] - v) * f);
-  function walk(path, fraction) {
-    const lengths = path.slice(1).map((p, i) => Math.hypot(...p.map((v, k) => v - path[i][k])));
-    let wanted = lengths.reduce((s, l) => s + l, 0) * fraction;
-    for (let i = 0; i < lengths.length; i++) { if (wanted <= lengths[i]) return lerp(path[i], path[i + 1], wanted / (lengths[i] || 1)); wanted -= lengths[i]; }
-    return path.at(-1);
-  }
+  const walk = walkPath;
   function snapshot() {
     if (disposed) throw new Error('KcsA 播放器已释放。');
     const s = kinetics.at(time), f = Math.min(1, Math.max(0, (time - s.permTime) / 0.2));

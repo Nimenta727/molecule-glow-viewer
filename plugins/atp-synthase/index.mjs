@@ -2,6 +2,8 @@ import { centroid, rotateVector, superpose } from '../structure/alignment.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM as scale, selectCoordinateAtoms } from '../structure/representation.mjs';
 import { matchesPart } from '../structure/functional-preview.mjs';
 import { ATP_6ZPO_TEMPLATE, normalizeAtpConfig } from './config.mjs';
+import { sub as subtract, normalize, cross } from '../motion/vectors.mjs';
+import { displaceVertices } from '../motion/conformation.mjs';
 
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
@@ -30,9 +32,6 @@ export const atpSynthasePlugin = {
 
 export const ATP_STEPS = ATP_6ZPO_TEMPLATE.steps;   // kept for callers; the data lives in config.mjs
 const TAU = 2 * Math.PI;
-const subtract = (a, b) => a.map((value, i) => value - b[i]);
-const normalize = (a) => a.map((value) => value / Math.hypot(...a));
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const smooth = (value) => { const f = Math.max(0, Math.min(1, value)); return f * f * (3 - 2 * f); };
 const chainKey = (atom) => JSON.stringify([atom.authChainId, atom.labelChainId, atom.assemblyCopy]);
 const residueKey = (atom) => String(atom.labelSeqId || atom.authSeqId);
@@ -232,32 +231,9 @@ export function createAtpPlayer({ model, scene, state = {}, config }) {
       const conformations = [0, 1, 2].map((offset) => alternatives[(ownIndex + offset) % 3]);
       const vertices = layers.get(node.assetId);
       if (!vertices) continue;
-      const representatives = chain.map((atom) => ({ atom, position: point(atom.position) }));
-      for (const layer of vertices) {
-        layer.conformations = conformations.map(() => []);
-        for (let i = 0; i < layer.positions.length; i += 3) {
-          const vertex = layer.positions.slice(i, i + 3);
-          const nearest = [];
-          for (const item of representatives) {
-            const [x, y, z] = item.position;
-            const squared = (x - vertex[0]) ** 2 + (y - vertex[1]) ** 2 + (z - vertex[2]) ** 2;
-            const index = nearest.findIndex((entry) => squared < entry.squared);
-            if (index >= 0) nearest.splice(index, 0, { atom: item.atom, squared });
-            else if (nearest.length < 4) nearest.push({ atom: item.atom, squared });
-            if (nearest.length > 4) nearest.length = 4;
-          }
-          const weights = nearest.map(({ squared }) => 1 / Math.max(1e-12, squared));
-          const total = weights.reduce((sum, value) => sum + value, 0);
-          for (const [index, state] of conformations.entries()) {
-            const delta = [0, 0, 0];
-            nearest.forEach(({ atom }, n) => {
-              const target = state.get(residueKey(atom));
-              for (let j = 0; j < 3; j++) delta[j] += (target[j] - atom.position[j]) * scale * weights[n] / total;
-            });
-            layer.conformations[index].push(...vertex.map((value, j) => value + delta[j]));
-          }
-        }
-      }
+      const anchors = chain.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position }));
+      const resolvers = conformations.map((state) => (anchor) => state.get(residueKey(anchor.ref)));
+      for (const layer of vertices) layer.conformations = displaceVertices(layer.positions, anchors, resolvers, { scale });
     }
     return layers;
   }

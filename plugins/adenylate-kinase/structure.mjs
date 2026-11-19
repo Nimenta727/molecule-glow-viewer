@@ -2,19 +2,14 @@ import { centroid, superpose } from '../structure/alignment.mjs';
 import { selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM as SCALE } from '../structure/representation.mjs';
 import { densitySurface } from '../structure/density-surface.mjs';
 import { ADK_4AKE_TEMPLATE, normalizeAdkConfig } from './config.mjs';
+import { sub, distance, lerp } from '../motion/vectors.mjs';
+import { displaceVertices, nearestAnchors, hypotSquared, rotationAngle } from '../motion/conformation.mjs';
 
 export const DOMAINS = ADK_4AKE_TEMPLATE.domains;   // kept for callers; the data lives in config.mjs
 const number = (a) => Number(a.authSeqId || a.labelSeqId);
 const inDomain = (a, domain) => domain.ranges.some(([lo, hi]) => number(a) >= lo && number(a) <= hi);
-const sub = (a, b) => a.map((v, i) => v - b[i]);
-const distance = (a, b) => Math.hypot(...sub(a, b));
-const lerp = (a, b, f) => a.map((v, i) => v + (b[i] - v) * f);
 const key = (a) => JSON.stringify([a.authSeqId, a.labelSeqId, a.insertionCode]);
-export function rotationAngle(fit) {
-  const zero = fit([0, 0, 0]);
-  const trace = [0, 1, 2].reduce((sum, i) => { const basis = [0, 0, 0]; basis[i] = 1; return sum + fit(basis)[i] - zero[i]; }, 0);
-  return Math.acos(Math.max(-1, Math.min(1, (trace - 1) / 2))) * 180 / Math.PI;
-}
+export { rotationAngle };   // kept for callers; the function now lives in the shared motion module
 /** `config` is the work configuration (see config.mjs); omitted = the built-in 4AKE/1AKE template. */
 export function buildAdkStructure(model, closedModel, config) {
   const cfg = normalizeAdkConfig(config), { protein, domains: DOMAINS } = cfg;
@@ -72,23 +67,22 @@ export function buildAdkStructure(model, closedModel, config) {
     }
     return [...density.values()].map((layer) => ({ ...layer }));
   }
-  function nearest(vertex, refs = open) {
-    const closest = [];
-    for (const atom of refs) {
-      const d = distance(vertex, point(atom.position)) ** 2;
-      const index = closest.findIndex((item) => d < item.d);
-      if (index >= 0) closest.splice(index, 0, { atom, d }); else if (closest.length < 4) closest.push({ atom, d });
-      closest.length = Math.min(closest.length, 4);
+  const anchorCache = new Map();
+  const anchorsFor = (name) => {
+    if (!anchorCache.has(name)) {
+      const refs = name ? open.filter((a) => inDomain(a, DOMAINS.find((d) => d.name === name))) : open;
+      anchorCache.set(name, refs.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position })));
     }
-    return closest;
-  }
+    return anchorCache.get(name);
+  };
+  const nearest = (vertex, name) => nearestAnchors(vertex, anchorsFor(name), 4, hypotSquared);
   function split(layer) {
     if (layer.adkDomain || layer.role === 'functional-core') return [layer];
     const stride = layer.mode === 'triangles' ? 9 : layer.mode === 'lines' ? 6 : 3;
     const result = new Map();
     for (let i = 0; i < layer.positions.length; i += stride) {
       const vertices = Array.from({ length: stride / 3 }, (_, j) => layer.positions.slice(i + j * 3, i + j * 3 + 3));
-      const atom = nearest(centroid(vertices))[0].atom, domain = DOMAINS.find((d) => inDomain(atom, d));
+      const atom = nearest(centroid(vertices))[0].anchor.ref, domain = DOMAINS.find((d) => inDomain(atom, d));
       if (!result.has(domain.name)) result.set(domain.name, { ...layer, color: domain.color, positions: [], adkDomain: domain.name,
         ...(layer.radii ? { radii: [] } : {}), ...(layer.pointTargets ? { pointTargets: [] } : {}) });
       const group = result.get(domain.name); group.positions.push(...vertices.flat());
@@ -104,14 +98,8 @@ export function buildAdkStructure(model, closedModel, config) {
       const base = functional ? [...domainSurfaces(), ...original.filter((layer) => layer.mode === 'points' || layer.role === 'functional-core')] : original;
       const output = base.flatMap(split);
       for (const layer of output) {
-        const refs = layer.adkDomain ? open.filter((a) => inDomain(a, DOMAINS.find((d) => d.name === layer.adkDomain))) : open;
-        const end = [];
-        for (let i = 0; i < layer.positions.length; i += 3) {
-          const vertex = layer.positions.slice(i, i + 3), near = nearest(vertex, refs);
-          const weights = near.map(({ d }) => 1 / Math.max(1e-12, d)), sum = weights.reduce((s, w) => s + w, 0), delta = [0, 0, 0];
-          near.forEach(({ atom }, j) => { const target = targets.get(key(atom)); for (let k = 0; k < 3; k++) delta[k] += (target[k] - atom.position[k]) * SCALE * weights[j] / sum; });
-          end.push(...vertex.map((v, k) => v + delta[k]));
-        }
+        const [end] = displaceVertices(layer.positions, anchorsFor(layer.adkDomain), [(anchor) => targets.get(key(anchor.ref))],
+          { scale: SCALE, squaredDistance: hypotSquared });
         layer.conformations = [layer.positions, end];
       }
       layers.set(node.assetId, output);

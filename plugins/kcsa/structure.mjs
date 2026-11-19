@@ -1,12 +1,10 @@
 import { centroid, superpose } from '../structure/alignment.mjs';
 import { selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM as SCALE } from '../structure/representation.mjs';
 import { normalizeKcsaConfig, numeral } from './config.mjs';
+import { sub, dot, normalize, distance } from '../motion/vectors.mjs';
+import { displaceVertices, hypotSquared } from '../motion/conformation.mjs';
 export const key = (atom) => JSON.stringify([atom.authChainId, atom.labelChainId, atom.assemblyCopy]);
 const residue = (atom) => String(atom.authSeqId || atom.labelSeqId);
-const sub = (a, b) => a.map((v, i) => v - b[i]);
-const distance = (a, b) => Math.hypot(...sub(a, b));
-const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
-const normalize = (a) => a.map((v) => v / Math.hypot(...a));
 const permutations = (list) => list.length <= 1 ? [list] : list.flatMap((value, i) => permutations(list.filter((_, j) => i !== j)).map((rest) => [value, ...rest]));
 function chains(model, cfg) {
   const result = new Map(), pattern = new RegExp(cfg.protein.namePattern, 'i');
@@ -123,18 +121,10 @@ export function buildKcsaStructure(model, states, config) {
       });
       if (!refs) continue;
       const alternatives = [new Map(refs.map((a) => [residue(a), a.position])), fits[roles.open].coordinates.get(key(refs[0])), fits[roles.inactivated].coordinates.get(key(refs[0]))];
+      const anchors = refs.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position }));
+      const resolvers = alternatives.map((map) => (anchor) => map.get(residue(anchor.ref)) ?? anchor.from);
       for (const layer of layers.get(node.assetId) ?? []) {
-        layer.conformations = [[], [], []];
-        for (let i = 0; i < layer.positions.length; i += 3) {
-          const vertex = layer.positions.slice(i, i + 3);
-          const nearest = refs.map((atom) => ({ atom, d: distance(vertex, point(atom.position)) ** 2 })).sort((a, b) => a.d - b.d).slice(0, 4);
-          const weights = nearest.map(({ d }) => 1 / Math.max(1e-12, d)), sum = weights.reduce((s, w) => s + w, 0);
-          alternatives.forEach((map, index) => {
-            const delta = [0, 0, 0];
-            nearest.forEach(({ atom }, j) => { const target = map.get(residue(atom)) ?? atom.position; for (let k = 0; k < 3; k++) delta[k] += (target[k] - atom.position[k]) * SCALE * weights[j] / sum; });
-            layer.conformations[index].push(...vertex.map((v, k) => v + delta[k]));
-          });
-        }
+        layer.conformations = displaceVertices(layer.positions, anchors, resolvers, { scale: SCALE, squaredDistance: hypotSquared });
       }
     }
     return layers;
