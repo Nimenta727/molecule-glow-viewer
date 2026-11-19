@@ -218,3 +218,5 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 - 等价性证据：改动前代码生成的黄金输出（9 个时间点的全部快照、步骤、导航、保存状态）与默认配置逐位一致；用真实 6ZPO 重新生成的数值基线只有源码哈希变化。
 - **AdK 样板（2026-11-19，已完成同样的一步）**：`plugins/adenylate-kinase/config.mjs`（`ADK_4AKE_TEMPLATE` + 校验）承接域名称/残基范围/颜色、拟合域与 RMSD 上限、链与残基数、两端结构编号、参考配体、四步文案、导航与证据文字；`structure.mjs`/`index.mjs` 只保留拟合、插值与测量。用与 AdK 无关的合成铰链蛋白（BODY/ARM、B 链、配体 LIG）只改配置就跑通，输出中不含任何 AdK 字样。
 - **共享校验**：`plugins/shared/work-config.mjs` 由 ATP 与 AdK 配置共用。ATP 的“环旋转 + 位点构象插值”与 AdK 的“域拟合 + 两态插值”现在都以“配置 + 几何算法”形态存在，二者共有的“叠合/对应/插值”可在下一步合并为 `plugins/motion` 中的同一工具；合并前先对 KcsA 做同样的抽取。
+- **KcsA 样板（2026-11-19，已完成同样的一步）**：`plugins/kcsa/config.mjs`（`KCSA_1K4C_TEMPLATE` + 校验）承接五个结构态的角色与编号（主结构/开放/失活/TBA/Ba）、通道链识别（名称模式、链数）、孔区叠合与轴线残基、过滤器离子、阻断剂残基名、粒子与计数标签、步骤/导航/证据文字、膜半径和**初始实验条件**（pH、电位、离子浓度等，由动力学模型的参数校验把关）。`structure.mjs`/`index.mjs` 只保留叠合、孔道搜索、位点推导和敲击循环；**门控动力学（`kinetics.mjs`）按契约保持为算法，不进配置**。缺少某个构象结构时给出明确报错。
+- **三个样板的共同结论**：ATP（环旋转 + 位点构象插值）、AdK（域拟合 + 两态插值）、KcsA（多态叠合 + 孔道/位点）都已是“配置 + 几何算法”。三者共有的“结构对应 → 叠合 → 按残基位移插值构象”下一步合并为 `plugins/motion` 的同一工具；KcsA 的门控/渗透计时与阻断留给 `plugins/simulation`。

@@ -1,7 +1,7 @@
 import { DEFAULTS, PARAMETERS, validateParameters, createKinetics, singleChannelCurrent, reversalPotential, conducting } from './kinetics.mjs';
 import { buildKcsaStructure } from './structure.mjs';
+import { KCSA_1K4C_TEMPLATE, normalizeKcsaConfig, numeral } from './config.mjs';
 export const KCSA_PLAYER = 'org.glow.legacy-process.kcsa';
-const STATE_IDS = ['1K4C', '5VK6', '5VKE', '2HVK', '2ITD'];
 export const kcsaPlugin = {
   manifest: { id: KCSA_PLAYER, version: '1.0.0', apiVersion: 1,
     dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels'] },
@@ -21,22 +21,25 @@ export const kcsaPlugin = {
         instances.add(player); return player;
       },
     });
+    const { panel } = KCSA_1K4C_TEMPLATE;
     context.registerPanel(KCSA_PLAYER, {
-      title: 'KcsA 钾通道', parametersTitle: '环境与阻断剂参数', speed: { label: '模拟时钟倍率', min: 0.05, max: 3, step: 0.05 },
-      seed: { label: '随机种子', min: 0, max: 4294967295, step: 1 }, parameters: PARAMETERS,
-      evidence: '结构：1K4C / 5VK6 / 5VKE / 2HVK / 2ITD。构象按孔区叠合，粒子和膜为教学显示。门控秒与渗透纳秒分别计时；速率模型用于教学，不是分子动力学。开放结构为 E71A；野生型选项只改变动力学。',
+      title: panel.title, parametersTitle: panel.parametersTitle, speed: { label: panel.speedLabel, min: 0.05, max: 3, step: 0.05 },
+      seed: { label: panel.seedLabel, min: 0, max: 4294967295, step: 1 }, parameters: PARAMETERS,
+      evidence: panel.evidence,
     });
   },
 };
 
-export async function prepareKcsa({ loaded, parse, loadAccession, signal }) {
+/** `config` is the work configuration (see config.mjs); omitted = the built-in KcsA/1K4C template. */
+export async function prepareKcsa({ loaded, parse, loadAccession, signal, config }) {
+  const cfg = normalizeKcsaConfig(config), stateIds = [cfg.states.primary, cfg.states.open, cfg.states.inactivated, cfg.states.tba, cfg.states.barium];
   if (loaded.kcsaModels) return;
   const states = new Map(), additions = [];
   const primary = loaded.scene.assets.find((asset) => asset.provenance?.parserVersion);
-  if (!primary || loaded.scene.legacy?.scene?.id !== '1K4C') throw new Error('KcsA 播放器需要 1K4C 主结构。');
-  for (const id of STATE_IDS) {
+  if (!primary || loaded.scene.legacy?.scene?.id !== cfg.states.primary) throw new Error(`KcsA 播放器需要 ${cfg.states.primary} 主结构。`);
+  for (const id of stateIds) {
     signal.throwIfAborted();
-    const stored = id === '1K4C' ? primary : loaded.scene.assets.find((asset) => asset.provenance?.mechanismState?.player === KCSA_PLAYER && asset.provenance.mechanismState.accession === id);
+    const stored = id === cfg.states.primary ? primary : loaded.scene.assets.find((asset) => asset.provenance?.mechanismState?.player === KCSA_PLAYER && asset.provenance.mechanismState.accession === id);
     const input = stored ? { bytes: loaded.resources.get(stored.path), name: stored.path, mediaType: stored.mediaType }
       : await loadAccession(id, signal);
     const model = parse(input, { assemblyId: '1' });
@@ -54,34 +57,31 @@ export async function prepareKcsa({ loaded, parse, loadAccession, signal }) {
   for (const { asset, bytes } of additions) { loaded.scene.assets.push(asset); loaded.resources.set(asset.path, bytes); }
   loaded.kcsaModels = states;
 }
-export const STEPS = [
-  ['pH 门控', '胞内酸化提高开门速率；中性 pH 时门大多关闭。'],
-  ['K⁺ 进入中央腔', '水合 K⁺ 从胞内沿开放结构算出的孔道进入中央腔。'],
-  ['选择性过滤器', 'S1–S4 位点来自 1K4C 中的 K⁺ 坐标，Na⁺ 进腔后被排斥。'],
-  ['敲击与反向通量', '离子在四状态敲击循环中重排，电位与浓度决定净通量方向。'],
-  ['离子释放', 'K⁺ 向胞外释放或反向进入；计数来自离散状态转移。'],
-  ['C 型失活', '野生型动力学允许过滤器失活；TBA 和 Ba²⁺ 分别阻断中央腔及过滤器。'],
-];
-export function createKcsaPlayer({ model, scene, state = {}, states }) {
-  const structure = buildKcsaStructure(model, states);
+/** `config` must be the same configuration that was given to prepareKcsa. */
+export function createKcsaPlayer({ model, scene, state = {}, states, config }) {
+  const cfg = normalizeKcsaConfig(config);
+  const structure = buildKcsaStructure(model, states, cfg);
   const sourceId = scene.assets.find((asset) => asset.provenance?.parserVersion)?.id;
-  const nodes = scene.nodes.filter((node) => node.extensions?.['org.glow.structure']?.sourceAssetId === sourceId && /potassium channel|kcsa/i.test(node.extensions['org.glow.structure'].partName));
-  if (nodes.length !== 4) throw new Error('KcsA 预览需要四个通道链节点。');
-  const steps = STEPS.map(([title, caption]) => ({ title, caption, nodeIds: nodes.map(({ id }) => id) }));
+  const namePattern = new RegExp(cfg.protein.namePattern, 'i');
+  const nodes = scene.nodes.filter((node) => node.extensions?.['org.glow.structure']?.sourceAssetId === sourceId && namePattern.test(node.extensions['org.glow.structure'].partName));
+  if (nodes.length !== cfg.protein.chains) throw new Error(`KcsA 预览需要${numeral(cfg.protein.chains)}个通道链节点。`);
+  const steps = cfg.steps.map(({ title, caption }) => ({ title, caption, nodeIds: nodes.map(({ id }) => id) }));
   const base = { nodeId: nodes[0].parentId ?? nodes[0].id, bookmarkId: null, labelIds: [] };
-  const navigation = { version: 1, entryId: 'kcsa-system', views: [
-    { ...base, id: 'kcsa-system', mode: 'system', title: 'KcsA 膜系统', parentIds: [] },
-    { ...base, id: 'kcsa-protein', mode: 'protein', title: 'KcsA 四聚体', parentIds: ['kcsa-system'] },
-    { ...base, id: 'kcsa-mechanism', mode: 'mechanism', title: '门控与离子渗透', parentIds: ['kcsa-system', 'kcsa-protein'],
-      steps: steps.map(({ title, nodeIds }, i) => ({ id: `kcsa-step-${i}`, title, nodeIds })) },
+  const prefix = cfg.navigation.idPrefix;
+  const navigation = { version: 1, entryId: `${prefix}-system`, views: [
+    { ...base, id: `${prefix}-system`, mode: 'system', title: cfg.navigation.systemTitle, parentIds: [] },
+    { ...base, id: `${prefix}-protein`, mode: 'protein', title: cfg.navigation.proteinTitle, parentIds: [`${prefix}-system`] },
+    { ...base, id: `${prefix}-mechanism`, mode: 'mechanism', title: cfg.navigation.mechanismTitle, parentIds: [`${prefix}-system`, `${prefix}-protein`],
+      steps: steps.map(({ title, nodeIds }, i) => ({ id: `${prefix}-step-${i}`, title, nodeIds })) },
   ] };
   const seed = Number.isSafeInteger(state.seed) && state.seed >= 0 && state.seed <= 4294967295 ? state.seed : 1;
-  const initial = { ...DEFAULTS, speed: 1, time: 0 };
+  const start = { ...DEFAULTS, ...cfg.conditions };   // initial experimental conditions of this work
+  const initial = { ...start, speed: 1, time: 0 };
   function validateEntry(entry) {
     const { time, speed, ...parameters } = entry;
     validateParameters(parameters);
     if (!Number.isFinite(time) || time < 0 || time > 120 || !Number.isFinite(speed) || speed < 0.05 || speed > 3) throw new Error('KcsA 播放记录无效。');
-    return { ...DEFAULTS, ...parameters, time, speed };
+    return { ...start, ...parameters, time, speed };
   }
   let schedule = [initial];
   if (state.schedule != null) {
@@ -122,17 +122,17 @@ export function createKcsaPlayer({ model, scene, state = {}, states }) {
             : a === 'S0' && b === 'outside' ? walk(structure.paths.outside, f)
               : a === 'outside' && b === 'S0' ? walk(structure.paths.outside, 1 - f) : lerp(positions[a], positions[b], f);
       }
-      return { name: 'K⁺', color: '#9361ce', position: structure.point(position), visible: Boolean(move) };
+      return { name: cfg.particles.potassium.name, color: cfg.particles.potassium.color, position: structure.point(position), visible: Boolean(move) };
     });
     const nf = Math.min(1, Math.max(0, (time - s.naTime) / 0.4));
-    particles.push({ name: 'Na⁺（被排斥）', color: '#2f9fce', position: structure.point(walk(structure.paths.inside, nf < 0.5 ? nf * 2 : 2 - nf * 2)), visible: s.naTime >= 0 && nf < 1 });
-    particles.push({ name: 'TBA', color: '#ed8b31', ...structure.blockers.TBA, visible: s.tba });
-    particles.push({ name: 'Ba²⁺', color: '#36aa70', ...structure.blockers.Ba, visible: s.ba });
+    particles.push({ name: cfg.particles.sodium.name, color: cfg.particles.sodium.color, position: structure.point(walk(structure.paths.inside, nf < 0.5 ? nf * 2 : 2 - nf * 2)), visible: s.naTime >= 0 && nf < 1 });
+    particles.push({ name: cfg.blockers.tba.name, color: cfg.blockers.tba.color, ...structure.blockers.TBA, visible: s.tba });
+    particles.push({ name: cfg.blockers.barium.name, color: cfg.blockers.barium.color, ...structure.blockers.Ba, visible: s.ba });
     const pA = singleChannelCurrent(s.parameters), ek = reversalPotential(s.parameters);
     return { time, seed, speed: s.parameters.speed, playbackRate, playing, stage: s.stage,
       parameters: Object.fromEntries(Object.keys(PARAMETERS).map((key) => [key, s.parameters[key]])),
-      counters: { 'K⁺ 外流': s.out, 'K⁺ 内流': s.inn, 'Na⁺ 排斥': s.na },
-      metrics: `门${s.gate === 'C' ? '关闭' : s.gate === 'I' ? '失活' : '开放'}${s.tba ? ' · TBA 阻断' : ''}${s.ba ? ' · Ba²⁺ 阻断' : ''} · 瞬时导电电流 ${(conducting(s) ? pA : 0).toFixed(2)} pA · 开放未阻断模型电流 ${pA.toFixed(2)} pA · E_K ${ek.toFixed(1)} mV · 门控 ${s.gateSeconds.toFixed(2)} s · 渗透 ${s.ns.toFixed(2)} ns`,
+      counters: { [cfg.counterLabels.out]: s.out, [cfg.counterLabels.in]: s.inn, [cfg.counterLabels.sodium]: s.na },
+      metrics: `门${s.gate === 'C' ? '关闭' : s.gate === 'I' ? '失活' : '开放'}${s.tba ? ` · ${cfg.blockers.tba.name} 阻断` : ''}${s.ba ? ` · ${cfg.blockers.barium.name} 阻断` : ''} · 瞬时导电电流 ${(conducting(s) ? pA : 0).toFixed(2)} pA · 开放未阻断模型电流 ${pA.toFixed(2)} pA · E_K ${ek.toFixed(1)} mV · 门控 ${s.gateSeconds.toFixed(2)} s · 渗透 ${s.ns.toFixed(2)} ns`,
       gate: s.gate, conducting: conducting(s), current: conducting(s) ? pA : 0, openCurrent: pA, reversalPotential: ek,
       gateSeconds: s.gateSeconds, permeationNs: s.ns, openProbability: s.gateSeconds ? s.openSeconds / s.gateSeconds : 0,
       particles, transforms: new Map(), conformation: { weights: s.weights }, events: s.events };
@@ -152,8 +152,8 @@ export function createKcsaPlayer({ model, scene, state = {}, states }) {
     duration: 120, steps, navigation, snapshot, setParameters, validateParameters,
     decorate: (layers) => { ensureLive(); return structure.decorate(layers, nodes); },
     particleParentId: nodes[0].parentId,
-    membrane: { center: structure.center, axis: structure.axis, radius: 2.8 },
-    evidence: { type: 'modelled', citation: 'KcsA 教学播放器', details: `孔区 60–80 四链叠合 RMSD（Å）：${Object.entries(structure.fits).map(([id, fit]) => `${id} ${fit.rmsd.toFixed(3)}`).join('；')}。门控与四态敲击速率沿用经典模型；渗透和门控默认分别为 10 ns/示意秒、0.05 s/示意秒，可分别调节，均乘模拟时钟倍率。粒子插值不阻塞模拟时钟。` },
+    membrane: { center: structure.center, axis: structure.axis, radius: cfg.membrane.radius },
+    evidence: { type: 'modelled', citation: cfg.evidence.citation, details: `孔区 ${cfg.pore.fitRange[0]}–${cfg.pore.fitRange[1]} ${numeral(cfg.protein.chains)}链叠合 RMSD（Å）：${Object.entries(structure.fits).map(([id, fit]) => `${id} ${fit.rmsd.toFixed(3)}`).join('；')}。${cfg.evidence.note}` },
     seek(value) { ensureLive(); if (!Number.isFinite(value)) throw new Error('时间必须有限。'); time = Math.min(120, Math.max(0, value)); if (time === 120) playing = false; return snapshot(); },
     advance(dt) { ensureLive(); if (!Number.isFinite(dt) || dt < 0) throw new Error('时间增量无效。'); if (playing) time = Math.min(120, Math.round((time + dt * playbackRate) * 1e9) / 1e9); if (time === 120) playing = false; return snapshot(); },
     play() { ensureLive(); if (time < 120) playing = true; }, pause() { ensureLive(); playing = false; },
