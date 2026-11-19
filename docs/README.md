@@ -8,6 +8,7 @@
 | [ARCHITECTURE](ARCHITECTURE.md) | 当前代码结构/现状、制作基底、经典功能拆分矩阵与兼容方案（主文档） |
 | [AUDIT](AUDIT.md) | 已修风险、证据、剩余差异 |
 | [ROADMAP](ROADMAP.md) | 唯一当前顺序：4.3 制作基底 → 4.4 经典功能插件 → 4.5 作者/工坊 → 4.6 新增科研 → 4.7 验收；下一项 4.3.0 |
+| [CONTRACT_4.3.0](CONTRACT_4.3.0.md) | 4.3.0 资源/功能插件/作品契约设计稿（待维护者确认，未实现） |
 | [CODEX_MIGRATION_HANDOFF](CODEX_MIGRATION_HANDOFF.md) | Claude 交接意图、当前回应、分工及完成门槛 |
 | [VIEWER_COMMAND_API](VIEWER_COMMAND_API.md) | 新版 API 与嵌入权限 |
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |
