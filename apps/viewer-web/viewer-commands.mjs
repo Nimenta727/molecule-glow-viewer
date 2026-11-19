@@ -39,6 +39,10 @@ export function createViewerCommands(host) {
       paused: snapshot ? !snapshot.playing : !current?.timeline.playing,
       time: snapshot?.time ?? current?.timeline.time ?? 0,
       counters: snapshot?.counters ?? {}, seed: snapshot?.seed ?? null,
+      parameters: snapshot?.parameters ?? {}, metrics: snapshot?.metrics ?? null,
+      ...(snapshot?.parameters ? { gate: snapshot.gate, current: snapshot.current, openCurrent: snapshot.openCurrent,
+        reversalPotential: snapshot.reversalPotential, gateSeconds: snapshot.gateSeconds,
+        permeationNs: snapshot.permeationNs, openProbability: snapshot.openProbability } : {}),
       evidence: current?.scene.evidence ?? [], warnings: current?.warnings ?? [],
     };
   };
@@ -119,7 +123,11 @@ export function createViewerCommands(host) {
     },
     animate(value = {}) {
       const current = needScene(); const player = current.player;
-      if (!object(value) || Object.keys(value).some((key) => !['pause', 'time', 'speed', 'seed', 'step', 'steps'].includes(key))) throw new Error('动画参数无效或尚未迁移。');
+      if (!object(value) || Object.keys(value).some((key) => !['pause', 'time', 'speed', 'seed', 'step', 'steps', 'parameters'].includes(key))) throw new Error('动画参数无效或尚未迁移。');
+      if (value.parameters != null) {
+        if (!player?.validateParameters) throw new Error('当前机制不支持领域参数。');
+        player.validateParameters(value.parameters);
+      }
       if (value.pause != null && typeof value.pause !== 'boolean') throw new Error('pause 应为布尔值。');
       if (value.time != null) finite(value.time, 0, player?.duration ?? current.timeline.duration, 'time');
       if (value.speed != null) { if (!player) throw new Error('当前场景没有机制播放器。'); finite(value.speed, 0.05, 3, 'speed'); }

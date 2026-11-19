@@ -400,21 +400,24 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     for (const mesh of active.meshes) {
       const morph = mesh.userData.conformation;
       if (!morph || !phase) continue;
-      const a = morph.states[phase.from], b = morph.states[(phase.from + 1) % 3];
+      const a = phase.weights ? Float32Array.from(morph.states[0], (_, i) =>
+        phase.weights.reduce((sum, weight, state) => sum + weight * morph.states[state][i], 0)) : morph.states[phase.from];
+      const b = phase.weights ? a : morph.states[phase.to ?? (phase.from + 1) % 3];
+      const fraction = phase.weights ? 0 : phase.fraction;
       if (mesh.isInstancedMesh) {
         const matrix = new THREE.Matrix4();
         for (let i = 0; i < a.length; i += 3) {
           const radius = (morph.radii?.[i / 3] ?? morph.radius) * (morph.outline ? 1.05 : 1);
           matrix.makeScale(radius, radius, radius).setPosition(
-            a[i] + (b[i] - a[i]) * phase.fraction,
-            a[i + 1] + (b[i + 1] - a[i + 1]) * phase.fraction,
-            a[i + 2] + (b[i + 2] - a[i + 2]) * phase.fraction);
+            a[i] + (b[i] - a[i]) * fraction,
+            a[i + 1] + (b[i + 1] - a[i + 1]) * fraction,
+            a[i + 2] + (b[i + 2] - a[i + 2]) * fraction);
           mesh.setMatrixAt(i / 3, matrix);
         }
         mesh.instanceMatrix.needsUpdate = true;
       } else {
         const position = mesh.geometry.getAttribute('position');
-        for (let i = 0; i < a.length; i++) position.array[i] = a[i] + (b[i] - a[i]) * phase.fraction;
+        for (let i = 0; i < a.length; i++) position.array[i] = a[i] + (b[i] - a[i]) * fraction;
         position.needsUpdate = true;
         if (morph.normals) mesh.geometry.computeVertexNormals();
         if (morph.outline) {

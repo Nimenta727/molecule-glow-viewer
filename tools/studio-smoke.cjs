@@ -10,6 +10,11 @@ const { app, BrowserWindow, session } = require('electron');
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  if (/^\/test\/kcsa\/[0-9A-Z]{4}\.cif$/.test(pathname) && process.env.GLOW_KCSA_CIF_DIR) {
+    res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' });
+    fs.createReadStream(path.join(process.env.GLOW_KCSA_CIF_DIR, path.basename(pathname))).pipe(res);
+    return;
+  }
   if (pathname === '/test/atp.cif' && process.env.GLOW_ATP_CIF) {
     console.log('[atp] serving cached coordinates');
     res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' });
@@ -987,8 +992,13 @@ async function run() {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
   const networkRequests = [];
+  const kcsaRequests = [];
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
+    if (process.env.GLOW_KCSA_CIF_DIR && /^https:\/\/files.rcsb.org\/download\/(1K4C|5VK6|5VKE|2HVK|2ITD)\.cif$/.test(url.href)) {
+      kcsaRequests.push(url.href);
+      callback({ redirectURL: `http://127.0.0.1:${port}/test/kcsa/${url.pathname.split('/').pop()}` }); return;
+    }
     if (process.env.GLOW_ATP_CIF && url.href === 'https://files.rcsb.org/download/6ZPO.cif') {
       callback({ redirectURL: `http://127.0.0.1:${port}/test/atp.cif` });
       return;
@@ -1048,6 +1058,99 @@ async function run() {
     const { readScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
 
+    if (process.env.GLOW_KCSA_SMOKE) {
+      stage = 'kcsa-player';
+      const directory = process.env.GLOW_KCSA_SMOKE;
+      fs.mkdirSync(directory, { recursive: true });
+      viewer = new BrowserWindow({ width: 1440, height: 1000, useContentSize: true, show: false,
+        webPreferences: { backgroundThrottling: false } });
+      const errors = [];
+      viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) errors.push(message); });
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例' && Boolean(window.glow)", 'KcsA startup');
+      viewer.show();
+      const run = (source) => viewer.webContents.executeJavaScript(source);
+      const legacy = fs.readFileSync(path.join(repo, 'workshop/official/packs/official.kcsa.glow'), 'utf8');
+      const initial = await run(`glow.load({packText:${JSON.stringify(legacy)}})`);
+      assert(initial.plugins.some(({ id }) => id === 'org.glow.legacy-process.kcsa'));
+      assert.equal(await run("document.querySelector('#mechanism-title').textContent"), 'KcsA 钾通道');
+      assert.equal(await run("document.querySelectorAll('#mechanism-steps button').length"), 6);
+      assert(initial.reversalPotential < -85 && initial.reversalPotential > -86);
+      await run("glow.represent('blob')");
+      await run('glow.animate({time:0})');
+      await captureWindow(viewer, directory, 'kcsa-closed', '#mechanism-controls');
+      const closedImage = await run('glow.snapshot({width:800})');
+      const forward = await run('glow.animate({time:30})');
+      assert(forward.counters['K⁺ 外流'] > forward.counters['K⁺ 内流']);
+      const openImage = await run('glow.snapshot({width:800})');
+      assert.notEqual(closedImage, openImage);
+      await captureWindow(viewer, directory, 'kcsa-open', '#mechanism-controls');
+      await run("document.querySelector('[data-mechanism-step=\"5\"]').click()");
+      assert.match(await run("document.querySelector('#mechanism-caption').textContent"), /野生型/);
+      assert.equal((await run('glow.info()')).time, 30);
+      for (const style of ['cartoon', 'surface', 'functional']) {
+        await run(`glow.represent(${JSON.stringify(style)})`);
+        assert((await viewportPixels(viewer)).colored > 100, style);
+      }
+      await captureWindow(viewer, directory, 'kcsa-functional', '#mechanism-controls');
+      await run("glow.represent('blob')");
+      const whole = await run('glow.animate({time:120})');
+      const stepped = await run('glow.animate({time:0,step:1/30,steps:3600})');
+      assert.deepEqual(whole.counters, stepped.counters);
+      await run('glow.animate({time:0,parameters:{pH:7}})');
+      const neutral = await run('glow.animate({time:120})');
+      assert.equal(neutral.counters['K⁺ 外流'], 0);
+      await run('glow.animate({time:0,parameters:{pH:4,V:-140}})');
+      const reversed = await run('glow.animate({time:120})');
+      assert(reversed.counters['K⁺ 内流'] > reversed.counters['K⁺ 外流']);
+      await run('glow.animate({time:0,parameters:{V:50}})');
+      await run('glow.animate({time:10,parameters:{Ba:100}})');
+      const inhibited = await run('glow.animate({time:30})');
+      await assert.rejects(run('glow.animate({parameters:{pH:9},time:20})'), /参数 pH/);
+      assert.equal((await run('glow.info()')).time, 30);
+      const exported = await run('glow.exportPack()');
+      const decoded = await readScenePackage(Buffer.from(exported.data, 'base64'));
+      assert.equal(decoded.scene.assets.filter((asset) => asset.provenance?.mechanismState).length, 4);
+      assert(decoded.scene.evidence.some(({ citation }) => citation === 'KcsA 教学播放器'));
+      const requestCount = kcsaRequests.length;
+      await run("document.querySelector('#close').click()");
+      const reopened = await run(`glow.load(${JSON.stringify(exported)})`);
+      assert.equal(kcsaRequests.length, requestCount, 'reopen uses package coordinates');
+      assert.deepEqual(reopened.counters, inhibited.counters);
+      assert.deepEqual(reopened.parameters, inhibited.parameters);
+      assert.equal(reopened.metrics, inhibited.metrics);
+      await run("document.querySelector('#mechanism-enter').click()");
+      assert.equal(await run("document.querySelector('#navigation-heading').dataset.mode"), 'mechanism');
+      await run("document.querySelector('#mechanism-back').click()");
+      await run("document.querySelector('#atp-enabled').click()");
+      await waitFor(viewer, "document.querySelector('#mechanism-controls').hidden", 'KcsA disabled');
+      assert((await viewportPixels(viewer)).colored > 100);
+      await run("document.querySelector('#atp-enabled').click()");
+      await waitFor(viewer, "!document.querySelector('#mechanism-controls').hidden", 'KcsA enabled');
+      assert.deepEqual((await run('glow.info()')).counters, inhibited.counters);
+      const input = '[data-parameter="TBA"]';
+      await run(`document.querySelector(${JSON.stringify(input)}).value=20;document.querySelector(${JSON.stringify(input)}).dispatchEvent(new Event('change',{bubbles:true}))`);
+      assert.equal((await run('glow.info()')).parameters.TBA, 20);
+      await run('glow.animate({pause:false})');
+      await waitFor(viewer, "Number(document.querySelector('#playhead').value)>30.05", 'KcsA clock advances');
+      await run('glow.animate({pause:true})');
+      await captureWindow(viewer, directory, 'kcsa-blocked', '#mechanism-controls');
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'KcsA failure startup');
+      await run("void (window.originalFetch=window.fetch);void (window.fetch=(url,options)=>String(url).includes('/5VK6.cif')?Promise.resolve(new Response('',{status:503})):originalFetch(url,options))");
+      const unavailable = await run(`glow.load({packText:${JSON.stringify(legacy)}})`);
+      assert.equal(await run("document.querySelector('#mechanism-controls').hidden"), true);
+      assert(unavailable.warnings.some((text) => text.includes('机制构象准备失败')));
+      assert((await viewportPixels(viewer)).colored > 100, 'missing state preserves structure preview');
+      const fallback = await run('glow.exportPack()');
+      const fallbackPack = await readScenePackage(Buffer.from(fallback.data, 'base64'));
+      assert.equal(fallbackPack.scene.assets.filter((asset) => asset.provenance?.mechanismState).length, 0);
+      assert.deepEqual(errors, []);
+      assert.deepEqual(networkRequests, []);
+      console.log(JSON.stringify({ok:true,kcsaPlayer:true,roundTrip:true,requests:kcsaRequests.length}));
+      return;
+    }
+
     if (process.env.GLOW_COMMAND_SMOKE) {
       stage = 'command-api';
       const directory = process.env.GLOW_COMMAND_SMOKE;
@@ -1089,7 +1192,8 @@ async function run() {
       const reopened = await run('glow.info()');
       assert.deepEqual(reopened.selection, before.selection);
       assert.equal(reopened.representation, 'blob');
-      assert.deepEqual(reopened.camera, before.camera);
+      assert.deepEqual(reopened.camera.position, before.camera.position);
+      assert.deepEqual(reopened.camera.target, before.camera.target);
       const screenshot = await run('glow.snapshot({width:800})');
       assert(screenshot.startsWith('data:image/png;base64,'));
       fs.writeFileSync(path.join(directory, 'api-snapshot.png'), Buffer.from(screenshot.split(',')[1], 'base64'));

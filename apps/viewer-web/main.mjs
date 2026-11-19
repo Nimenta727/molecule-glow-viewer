@@ -10,6 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
+import { mechanismPlugins, mechanismPlayers } from '../../plugins/mechanism-catalog.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -22,7 +23,6 @@ const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
-const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
@@ -70,7 +70,7 @@ function showDiagnostics() {
   const scene = active?.scene;
   const diagnostics = new Set(active?.warnings);
   if (active?.player) for (const diagnostic of diagnostics) {
-    if (diagnostic.includes('已保留过程“atpSynthase”的声明') || diagnostic.startsWith('已生成旧包的静态结构预览')) diagnostics.delete(diagnostic);
+    if (diagnostic.includes(`已保留过程“${scene.legacy?.scene?.process}”的声明`) || diagnostic.startsWith('已生成旧包的静态结构预览')) diagnostics.delete(diagnostic);
   }
   const installed = new Map(host.listActive().map(({ id, version }) => [id, version]));
   const missing = scene?.dependencies.filter(({ id, version }) => installed.get(id) !== version) ?? [];
@@ -211,6 +211,8 @@ function boot() {
         if (!loaded.model) restoreStructureModel(loaded);
       }
       if (signal.aborted) return;
+      await preparePlayer(loaded, signal);
+      signal.throwIfAborted();
       const layers = structureLayers(loaded);
       const player = createPlayer(loaded);
       const handles = { player, current: undefined };
@@ -262,14 +264,29 @@ function boot() {
   }
 
   function createPlayer(loaded, state) {
-    if (loaded.scene.legacy?.scene?.process !== 'atpSynthase' || !loaded.model) return;
-    const factory = host.getPlayer(ATP_PLAYER);
+    if (!loaded.model) return;
+    loaded.playerId = mechanismPlayers[loaded.scene.legacy?.scene?.process];
+    const factory = host.getPlayer(loaded.playerId);
     if (!factory) return;
     try {
       const source = loaded.scene.assets.find((asset) => asset.provenance?.parserVersion);
-      return factory.create({ model: loaded.model, scene: loaded.scene, state: state ?? source?.provenance?.playback });
+      return factory.create({ model: loaded.model, scene: loaded.scene, states: loaded.kcsaModels, state: state ?? source?.provenance?.playback });
     } catch (error) {
-      loaded.warnings = [...loaded.warnings, `ATP 合酶播放器无法启动。 ${error.message}`];
+      loaded.warnings = [...loaded.warnings, `机制播放器无法启动。 ${error.message}`];
+    }
+  }
+
+  async function preparePlayer(loaded, signal) {
+    const id = mechanismPlayers[loaded.scene.legacy?.scene?.process];
+    const factory = host.getPlayer(id);
+    if (!loaded.model || !factory?.prepare) return;
+    try {
+      setStatus('正在准备机制构象坐标…');
+      await factory.prepare({ loaded, signal, loadAccession,
+        parse: host.getService(MODEL_SERVICE, '1.0.0').parse });
+    } catch (error) {
+      signal.throwIfAborted();
+      loaded.warnings = [...loaded.warnings, `机制构象准备失败。 ${error.message}`];
     }
   }
 
@@ -278,10 +295,11 @@ function boot() {
     elements['mechanism-controls'].hidden = !player;
     if (!player) return;
     const snapshot = player.snapshot();
+    const stage = active.inspectionStep ?? snapshot.stage;
     elements['mechanism-steps'].hidden = active.navigation?.current().mode === 'mechanism';
     if (active.mechanismUiPlayer !== player) {
       active.mechanismUiPlayer = player;
-      const panel = host.getPanel(ATP_PLAYER);
+      const panel = host.getPanel(active.playerId);
       elements['mechanism-title'].textContent = panel?.title ?? '机制';
       elements['mechanism-evidence'].textContent = panel?.evidence ?? '';
       for (const key of ['speed', 'seed']) {
@@ -294,6 +312,14 @@ function boot() {
       elements['mechanism-speed'].value = String(snapshot.speed);
       elements['mechanism-seed'].value = String(snapshot.seed);
       elements['mechanism-rate'].value = String(snapshot.playbackRate);
+      elements['mechanism-parameters'].replaceChildren(...Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => {
+        const label = document.createElement('label'), input = document.createElement('input');
+        label.append(document.createTextNode(parameter.label));
+        input.type = 'number'; input.dataset.parameter = key;
+        for (const attribute of ['min', 'max', 'step']) input.setAttribute(attribute, parameter[attribute]);
+        input.value = snapshot.parameters[key]; label.append(input); return label;
+      }));
+      elements['mechanism-parameter-panel'].hidden = !panel?.parameters;
       elements['mechanism-back'].disabled = true;
       elements['mechanism-steps'].replaceChildren(...player.steps.map(({ title }, index) => {
         const li = document.createElement('li');
@@ -305,16 +331,19 @@ function boot() {
       }));
     }
     for (const button of elements['mechanism-steps'].querySelectorAll('button')) {
-      if (Number(button.dataset.mechanismStep) === snapshot.stage) button.setAttribute('aria-current', 'step');
+      if (Number(button.dataset.mechanismStep) === stage) button.setAttribute('aria-current', 'step');
       else button.removeAttribute('aria-current');
     }
-    elements['mechanism-caption'].textContent = player.steps[snapshot.stage].caption;
-    elements['mechanism-counters'].textContent = `ATP ${snapshot.counters.ATP} · H⁺ ${snapshot.counters['H⁺']} · ${snapshot.time.toFixed(2)} 示意秒`;
-    if (active.mechanismEventCount !== snapshot.counters.ATP) {
-      active.mechanismEventCount = snapshot.counters.ATP;
+    elements['mechanism-caption'].textContent = player.steps[stage].caption;
+    for (const input of elements['mechanism-parameters'].querySelectorAll('input')) if (input !== document.activeElement) input.value = snapshot.parameters?.[input.dataset.parameter];
+    elements['mechanism-metrics'].textContent = snapshot.metrics ?? '';
+    elements['mechanism-counters'].textContent = `${Object.entries(snapshot.counters).map(([name, value]) => `${name} ${value}`).join(' · ')} · ${snapshot.time.toFixed(2)} 示意秒`;
+    const eventKey = JSON.stringify(snapshot.events);
+    if (active.mechanismEventCount !== eventKey) {
+      active.mechanismEventCount = eventKey;
       elements['mechanism-events'].replaceChildren(...snapshot.events.map(({ time, label, ATP }) => {
         const li = document.createElement('li');
-        li.textContent = `${time.toFixed(2)} s · ${label} · ATP ${ATP}`;
+        li.textContent = `${time.toFixed(2)} s · ${label}${ATP == null ? '' : ` · ATP ${ATP}`}`;
         return li;
       }));
     }
@@ -569,7 +598,7 @@ function boot() {
   function showPose() {
     if (active?.player) {
       const snapshot = active.player.snapshot();
-      viewport.setMechanism({ ...snapshot, highlightedIds: active.player.steps[snapshot.stage].nodeIds });
+      viewport.setMechanism({ ...snapshot, highlightedIds: active.player.steps[active.inspectionStep ?? snapshot.stage].nodeIds });
       showMechanism();
     } else if (active) viewport.applyPose(active.timeline.sample());
     syncMode();
@@ -581,7 +610,7 @@ function boot() {
     if (!navigation) return;
     const view = navigation.current();
     const selected = navigation.selection();
-    const step = modePanel.syncStep(active.timeline.time, active.player?.snapshot().stage);
+    const step = modePanel.syncStep(active.timeline.time, active.inspectionStep ?? active.player?.snapshot().stage);
     const previous = active.modeState;
     if (previous?.view === view && previous.selected === selected && previous.step === step) return;
     active.modeState = { view, selected, step };
@@ -764,14 +793,17 @@ function boot() {
       if (checkbox.checked) {
         const { structurePlugin } = await import('../../plugins/structure/index.mjs');
         await host.activate(structurePlugin);
-        const { atpSynthasePlugin } = await import('../../plugins/atp-synthase/index.mjs');
-        await host.activate(atpSynthasePlugin);
+        for (const plugin of mechanismPlugins) await host.activate(plugin);
         elements['atp-enabled'].checked = true;
         structureLifetime = new AbortController();
         if (active) {
-          restoreStructureModel(active);
-          active.player = createPlayer(active);
-          active.handles.player = active.player;
+          const target = active;
+          restoreStructureModel(target);
+          await preparePlayer(target, structureLifetime.signal);
+          if (active === target) {
+            target.player = createPlayer(target);
+            target.handles.player = target.player;
+          }
         }
         setStatus('结构插件已启用。可打开本地 PDB 或 mmCIF 文件。');
       } else {
@@ -779,7 +811,7 @@ function boot() {
         structureLifetime = undefined;
         active?.player?.dispose();
         if (active) { active.player = undefined; active.handles.player = undefined; }
-        await host.deactivate(ATP_PLAYER);
+        for (const plugin of mechanismPlugins) await host.deactivate(plugin.manifest.id);
         elements['atp-enabled'].checked = false;
         await host.deactivate(STRUCTURE);
         if (active) {
@@ -811,9 +843,12 @@ function boot() {
     checkbox.disabled = true;
     try {
       if (checkbox.checked) {
-        const { atpSynthasePlugin } = await import('../../plugins/atp-synthase/index.mjs');
-        await host.activate(atpSynthasePlugin);
-        if (active) active.player = createPlayer(active);
+        for (const plugin of mechanismPlugins) await host.activate(plugin);
+        if (active) {
+          const target = active;
+          await preparePlayer(target, structureLifetime.signal);
+          if (active === target) target.player = createPlayer(target);
+        }
       } else {
         if (active?.player) {
           const source = active.scene.assets.find((asset) => asset.provenance?.parserVersion);
@@ -821,14 +856,14 @@ function boot() {
           active.player.dispose();
           active.player = undefined;
         }
-        await host.deactivate(ATP_PLAYER);
+        for (const plugin of mechanismPlugins) await host.deactivate(plugin.manifest.id);
       }
       if (active) active.handles.player = active.player;
       refreshStructureView();
     } catch (error) {
       setStatus(`无法切换机制播放器。 ${error.message}`);
     } finally {
-      checkbox.checked = Boolean(host.getPlayer(ATP_PLAYER));
+      checkbox.checked = mechanismPlugins.every((plugin) => Boolean(host.getPlayer(plugin.manifest.id)));
       syncControls(); showDiagnostics(); showMechanism();
     }
   });
@@ -884,7 +919,9 @@ function boot() {
     if (active.player) {
       const source = scene.assets.find((asset) => asset.provenance?.parserVersion);
       if (source) source.provenance.playback = active.player.save();
-      if (!scene.evidence.some(({ citation }) => citation === 'ATP 合酶教学播放器')) {
+      if (active.player.evidence) {
+        if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
+      } else if (!scene.evidence.some(({ citation }) => citation === 'ATP 合酶教学播放器')) {
         scene.evidence.push({ type: 'modelled', citation: 'ATP 合酶教学播放器',
           details: '牛 c8 环每圈 8 H⁺、3 ATP。β 形状在 6ZPO 三个位点实测坐标之间插值。粒子、路径、膜和时间为示意。' });
       }
@@ -944,11 +981,13 @@ function boot() {
   });
 
   elements.playhead.addEventListener('input', () => {
+    active.inspectionStep = undefined;
     if (active?.player) active.player.seek(Number(elements.playhead.value));
     else active.timeline.seek(Number(elements.playhead.value));
     showPose();
   });
   elements.play.addEventListener('click', () => {
+    active.inspectionStep = undefined;
     if (active?.player) {
       const player = active.player;
       if (player.snapshot().playing) { player.pause(); stopFrame(); showPose(); return; }
@@ -988,6 +1027,7 @@ function boot() {
 
   elements['mechanism-step'].addEventListener('click', () => {
     if (!active?.player) return;
+    active.inspectionStep = undefined;
     stopFrame(); active.player.pause();
     active.player.seek(active.player.snapshot().time + 1 / 30);
     showPose();
@@ -1000,15 +1040,25 @@ function boot() {
   elements['mechanism-rate'].addEventListener('change', (event) => {
     active?.player?.setPlaybackRate(Number(event.target.value));
   });
+  elements['mechanism-parameters'].addEventListener('change', (event) => {
+    const key = event.target.dataset.parameter;
+    if (!key || !active?.player?.setParameters) return;
+    try { active.player.setParameters({ [key]: Number(event.target.value) }); showPose(); }
+    catch (error) { setStatus(error.message); }
+    const value = active.player.snapshot().parameters[key];
+    event.target.value = value;
+  });
   elements['mechanism-reset'].addEventListener('click', () => {
     const seed = Number(elements['mechanism-seed'].value);
     if (!active?.player || !Number.isSafeInteger(seed) || seed < 0 || seed > 4294967295) {
       setStatus('种子应为 0–4294967295 的整数。'); return;
     }
     stopFrame();
+    active.inspectionStep = undefined;
     const { speed, playbackRate } = active.player.snapshot();
+    const saved = active.player.setParameters ? active.player.save() : {};
     active.player.dispose();
-    active.player = createPlayer(active, { time: 0, speed, seed, playbackRate });
+    active.player = createPlayer(active, { ...saved, time: 0, speed, seed, playbackRate });
     active.handles.player = active.player;
     refreshStructureView(); showPose();
   });
@@ -1019,7 +1069,9 @@ function boot() {
   });
   function seekMechanismStep(step) {
     stopFrame(); active.player.pause();
-    active.player.seek(active.player.stepTime(step));
+    const time = active.player.stepTime(step);
+    active.inspectionStep = time === undefined ? step : undefined;
+    if (time !== undefined) active.player.seek(time);
     showPose();
     const participants = active.player.steps[step].nodeIds;
     if (participants.length) viewport.focusNode(participants[0],
@@ -1029,14 +1081,16 @@ function boot() {
     if (!active?.player) return;
     if (active.navigation?.current().mode === 'mechanism') return;
     active.mechanismReturn = { camera: viewport.getCamera({ destination: true }), selection: active.structureSelection };
-    if (active.navigation?.enter('atp-mechanism', viewport.getCamera({ destination: true }))) finishNavigation();
+    const view = active.player.navigation.views.find((view) => view.mode === 'mechanism');
+    if (active.navigation?.enter(view.id, viewport.getCamera({ destination: true }))) finishNavigation();
     const step = active.player.steps[active.player.snapshot().stage];
     if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration() });
     elements['mechanism-back'].disabled = false;
   });
   elements['mechanism-protein'].addEventListener('click', () => {
     if (!active?.player) return;
-    if (active.navigation?.enter('atp-protein', viewport.getCamera({ destination: true }))) finishNavigation();
+    const view = active.player.navigation.views.find((view) => view.mode === 'protein');
+    if (active.navigation?.enter(view.id, viewport.getCamera({ destination: true }))) finishNavigation();
     resetPreviewCamera();
   });
   elements['mechanism-back'].addEventListener('click', () => {
@@ -1076,6 +1130,7 @@ function boot() {
     snapshot: (width) => viewport.snapshot(width),
     exportPack: () => writeScenePackage(sceneForExport(), active.resources),
     animate(value) {
+      active.inspectionStep = undefined;
       const playing = active.player ? active.player.snapshot().playing : active.timeline.playing;
       const changesTime = value.time != null || value.seed != null || value.step != null || value.steps != null;
       const paused = changesTime || (value.pause ?? !playing);
@@ -1090,6 +1145,7 @@ function boot() {
       const player = active.player ?? active.timeline;
       if (value.time != null) player.seek(value.time);
       if (value.speed != null) active.player.setSpeed(value.speed);
+      if (value.parameters != null) active.player.setParameters(value.parameters);
       if (value.step != null || value.steps != null) {
         const time = active.player?.snapshot().time ?? active.timeline.time;
         // seek uses the player's deterministic event schedule and preserves intervention history.

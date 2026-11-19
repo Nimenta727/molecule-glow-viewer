@@ -58,7 +58,7 @@
           <details id="structure-tools" class="structure-tools">
             <summary>结构插件</summary>
             <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
-            <label><input id="atp-enabled" type="checkbox" disabled> 启用 ATP 合酶播放器</label>
+            <label><input id="atp-enabled" type="checkbox" disabled> 启用官方机制插件</label>
             <form id="rcsb-form" class="structure-form">
               <label for="accession">RCSB 编号</label>
               <input id="accession" name="accession" type="text" maxlength="4" required disabled>
@@ -108,9 +108,11 @@
             <button id="mechanism-protein" type="button">蛋白质</button>
             <button id="mechanism-enter" type="button">查看机理</button>
             <button id="mechanism-back" type="button" disabled>返回结构</button>
+            <output id="mechanism-counters" aria-live="polite"></output>
+            <p id="mechanism-metrics"></p>
+            <details id="mechanism-parameter-panel" hidden open><summary>环境与阻断剂参数</summary><div id="mechanism-parameters"></div></details>
             <ol id="mechanism-steps"></ol>
             <p id="mechanism-caption" aria-live="polite"></p>
-            <output id="mechanism-counters" aria-live="polite"></output>
             <p id="mechanism-evidence"></p>
             <details><summary>事件记录</summary><ol id="mechanism-events"></ol></details>
           </section>

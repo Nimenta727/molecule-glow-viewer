@@ -21,7 +21,7 @@ await glow.load(pack);
 | `select(spec)` | `{chainId?,residueId?,sourceAssetId?}`；残基可写 `{authSeqId,labelSeqId,insertionCode}`；简写 `chain A`、`resid 8`、`none` |
 | `represent(mode)` | `cartoon`、`backbone`、`blob`、`functional`、`surface`，作用于主结构；分部件设置沿用当前场景规则 |
 | `camera(pose)` | 省略读取，`reset` 重置，或 `{position:[x,y,z],target:[x,y,z]}`，使用场景米制坐标 |
-| `animate(opts)` | `{pause?,time?,speed?,seed?,step?,steps?}`；speed、seed 需要机制插件；跳转或定步后暂停 |
+| `animate(opts)` | `{pause?,time?,speed?,seed?,step?,steps?,parameters?}`；speed、seed 需要机制插件；领域参数由当前插件校验；跳转或定步后暂停 |
 | `snapshot({width?})` | 当前视口 PNG data URL，宽度 64–4096；不包含控制面板 |
 | `exportPack()` | `{format:'glow-v2',encoding:'base64',data}`；v2 ZIP 包含原坐标、预览及当前保存状态 |
 | `validatePack(pack)` | 检查 v1 JSON 文本或上述 v2 包，返回 `{ok,errors?}` |
@@ -39,6 +39,8 @@ await glow.animate({ pause: true });
 ```
 
 `speed` 是机制参数，`step` 是示意时间增量。种子变更把时间归零并保留已有转速干预记录。该接口没有增加新的定量科学模型。
+
+KcsA 插件支持 `glow.animate({parameters:{pH:4,V:50,Ki:140,Ko:5,Nai:10,TBA:0,Ba:0,wt:0,ionSpeed:10,gateSpeed:0.05}})`；单位和范围见机制面板。`info()` 另外返回门状态、电流、平衡电位、两种模拟时间和开放概率。参数变更记录在共享播放器中，导出后保留。讲解步骤只检查参与部件与说明，不强制随机通道进入某个状态。
 
 ## 嵌入
 
