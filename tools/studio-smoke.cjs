@@ -10,6 +10,14 @@ const { app, BrowserWindow, session } = require('electron');
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 const server = http.createServer((req, res) => {
   const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  if (pathname === '/test/structure.cif' && process.env.GLOW_STRUCTURE_SCREENSHOTS) {
+    res.writeHead(200, { 'content-type': 'chemical/x-mmcif', 'access-control-allow-origin': '*' }).end(structureCif);
+    return;
+  }
+  if (pathname === '/test/unavailable.cif' && process.env.GLOW_STRUCTURE_SCREENSHOTS) {
+    res.writeHead(503, { 'access-control-allow-origin': '*' }).end();
+    return;
+  }
   const file = path.resolve(repo, `.${pathname}`);
   const allowed = /^\/(apps|packages|plugins|src|desktop\/vendor|node_modules)\//.test(pathname);
   if (!allowed || !file.startsWith(repo + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
@@ -53,7 +61,7 @@ async function viewportPixels(win) {
     if (g > 175 && r < 175 && b < 155) green++;
     if (b > 180 && r < 165 && g < 190) blue++;
   }
-  return { colored, axes: { red, green, blue } };
+  return { colored, height, axes: { red, green, blue } };
 }
 
 function injectFile(win, { name, data, type = 'application/octet-stream', input = '#structure-file' }) {
@@ -382,6 +390,316 @@ function syntheticPdb() {
   return Buffer.from([pdbAtom(1, 1, 0), pdbAtom(2, 2, 3.8), pdbAtom(3, 3, 7.6, 1), pdbAtom(4, 4, 11.4, 1), 'END', ''].join('\n'));
 }
 
+const structureCif = Buffer.from(`data_viewer_smoke
+loop_
+_atom_site.group_PDB
+_atom_site.id
+_atom_site.type_symbol
+_atom_site.label_atom_id
+_atom_site.label_comp_id
+_atom_site.label_asym_id
+_atom_site.auth_asym_id
+_atom_site.label_seq_id
+_atom_site.auth_seq_id
+_atom_site.pdbx_PDB_ins_code
+_atom_site.Cartn_x
+_atom_site.Cartn_y
+_atom_site.Cartn_z
+ATOM 1 C CA GLY X A 1 7 . -10 0 0
+ATOM 2 C CA HIS X A 2 8 B 0 0 0
+HETATM 3 FE FE HEM Y A . 101 . 10 0 0
+ATOM 4 N ND1 HIS X A 2 8 B 7 0 0
+#
+`);
+
+const assemblyCif = Buffer.concat([structureCif, Buffer.from(`
+loop_
+_pdbx_struct_assembly_gen.assembly_id
+_pdbx_struct_assembly_gen.oper_expression
+_pdbx_struct_assembly_gen.asym_id_list
+1 '1,2' X,Y
+loop_
+_pdbx_struct_oper_list.id
+_pdbx_struct_oper_list.matrix[1][1]
+_pdbx_struct_oper_list.matrix[1][2]
+_pdbx_struct_oper_list.matrix[1][3]
+_pdbx_struct_oper_list.vector[1]
+_pdbx_struct_oper_list.matrix[2][1]
+_pdbx_struct_oper_list.matrix[2][2]
+_pdbx_struct_oper_list.matrix[2][3]
+_pdbx_struct_oper_list.vector[2]
+_pdbx_struct_oper_list.matrix[3][1]
+_pdbx_struct_oper_list.matrix[3][2]
+_pdbx_struct_oper_list.matrix[3][3]
+_pdbx_struct_oper_list.vector[3]
+1 1 0 0 0 0 1 0 0 0 0 1 0
+2 1 0 0 32 0 1 0 0 0 0 1 0
+`)]);
+
+async function verifyStructureWorkflow(viewer, directory, scenePath, readScenePackage) {
+  const run = (code) => viewer.webContents.executeJavaScript(code);
+  const status = (message) => waitFor(viewer, `document.querySelector('#status').textContent === ${JSON.stringify(message)}`, message);
+  const inject = (name, data) => injectFile(viewer, { name, data, input: '#file' });
+  const toggle = () => run("document.querySelector('#structure-enabled').click()");
+  async function saveScene() {
+    const completed = new Promise((resolve, reject) => {
+      session.defaultSession.once('will-download', (_event, item) => {
+        item.once('done', (_finished, state) => state === 'completed' ? resolve() : reject(new Error(state)));
+      });
+    });
+    await run("document.querySelector('#save').click()");
+    await Promise.race([completed, new Promise((_, reject) => setTimeout(() => reject(new Error('Structure save timeout')), 10000))]);
+    return fs.readFileSync(scenePath);
+  }
+  await toggle();
+  await waitFor(viewer, "!document.querySelector('#rcsb-load').disabled", 'structure plugin enabled');
+  await run("document.querySelector('#structure-assembly').checked = true");
+  await inject('assembly.cif', assemblyCif);
+  await status('assembly.cif');
+  const assemblySummary = () => run("document.querySelector('#structure-summary').textContent");
+  assert.match(await assemblySummary(), /生物组装体 1 · 8 个原子 · 2 条链/);
+  const useStyle = (value) => run(`(() => {
+    const style = document.querySelector('#representation-style');
+    style.value = ${JSON.stringify(value)}; style.dispatchEvent(new Event('change'));
+  })()`);
+  await useStyle('functional');
+  assert.ok(await run("!document.querySelector('#functional-evidence').hidden"));
+  const assemblyBytes = await saveScene();
+  const assembled = await readScenePackage(assemblyBytes);
+  assert.equal(assembled.scene.assets[0].provenance.assemblyId, '1');
+  assert.equal(assembled.scene.assets[0].provenance.viewerStyle, 'functional');
+  assert.ok(assembled.scene.evidence.some(({ type, citation }) => type === 'illustrative' && citation?.includes('功能分区')));
+  assert.deepEqual(Buffer.from(assembled.resources.get(assembled.scene.assets[0].path)), assemblyCif);
+  await inject('assembly.glow', assemblyBytes);
+  await status('assembly.glow');
+  assert.match(await assemblySummary(), /生物组装体 1 · 8 个原子 · 2 条链/);
+  assert.equal(await run("document.querySelector('#representation-style').value"), 'functional');
+  assert.ok((await viewportPixels(viewer)).colored > 0);
+  await toggle();
+  await waitFor(viewer, "document.querySelector('#rcsb-load').disabled", 'assembly plugin disabled');
+  await inject('assembly-offline.glow', assemblyBytes);
+  await status('assembly-offline.glow');
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'assembly preview without the plugin');
+  await toggle();
+  await waitFor(viewer, "!document.querySelector('#rcsb-load').disabled", 'assembly plugin re-enabled');
+  assert.match(await assemblySummary(), /生物组装体 1/);
+  await inject('missing-assembly.cif', structureCif);
+  await status('missing-assembly.cif');
+  assert.match(await run("document.querySelector('#warning').textContent"), /没有所选的生物组装体.*显示原始坐标/);
+  await inject('assembly.pdb', Buffer.concat([Buffer.from([
+    'REMARK 350 BIOMOLECULE: 1',
+    'REMARK 350 APPLY THE FOLLOWING TO CHAINS: A',
+    'REMARK 350   BIOMT1   1  1  0  0  0',
+    'REMARK 350   BIOMT2   1  0  1  0  0',
+    'REMARK 350   BIOMT3   1  0  0  1  0',
+    'REMARK 350   BIOMT1   2  1  0  0  12',
+    'REMARK 350   BIOMT2   2  0  1  0  0',
+    'REMARK 350   BIOMT3   2  0  0  1  0',
+    '',
+  ].join('\n')), syntheticPdb()]));
+  await status('assembly.pdb');
+  assert.match(await assemblySummary(), /PDB · 生物组装体 1 · 8 个原子 · 2 条链/);
+  if (process.env.GLOW_LIVE_STRUCTURE_SMOKE) {
+    await run(`document.querySelector('#accession').value = '1K4C'; document.querySelector('#rcsb-form').requestSubmit()`);
+    await status('1K4C');
+    assert.match(await assemblySummary(), /RCSB PDB 1K4C · MMCIF · 生物组装体 1/);
+    await useStyle('blob');
+    await run("document.querySelector('#structure-tools').open = true");
+    await captureWindow(viewer, directory, 'viewer-1k4c-assembly');
+  }
+  await run("document.querySelector('#structure-assembly').checked = false");
+  await run(`document.querySelector('#accession').value = '4HHB'; document.querySelector('#rcsb-form').requestSubmit()`);
+  await status('4HHB');
+  assert.match(await run("document.querySelector('#structure-summary').textContent"), /RCSB PDB 4HHB/);
+  await useStyle('blob');
+  assert.equal(await run("document.querySelector('#representation-style').value"), 'blob');
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'blob representation renders');
+  if (process.env.GLOW_LIVE_STRUCTURE_SMOKE) await captureWindow(viewer, directory, 'viewer-4hhb-blob');
+  await useStyle('functional');
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'functional preview renders');
+  if (process.env.GLOW_LIVE_STRUCTURE_SMOKE) await captureWindow(viewer, directory, 'viewer-4hhb-functional');
+  await inject('structure.pdb', syntheticPdb());
+  await status('structure.pdb');
+  await inject('structure.cif', structureCif);
+  await status('structure.cif');
+  await run(`(() => {
+    const transfer = new DataTransfer();
+    const stale = new File(['invalid'], 'superseded.pdb');
+    transfer.items.add(stale);
+    const file = document.querySelector('#file');
+    file.files = transfer.files;
+    const original = File.prototype.arrayBuffer;
+    File.prototype.arrayBuffer = function () {
+      File.prototype.arrayBuffer = original;
+      return new Promise(resolve => { window.finishTestStructureRead = () => original.call(this).then(resolve); });
+    };
+    file.dispatchEvent(new Event('change'));
+  })()`);
+  await inject('structure.cif', structureCif);
+  await status('structure.cif');
+  await run('window.finishTestStructureRead()');
+  await viewportPixels(viewer);
+  await status('structure.cif');
+  await run(`(() => {
+    const style = document.querySelector('#representation-style');
+    style.value = 'backbone'; style.dispatchEvent(new Event('change'));
+  })()`);
+  await inject('invalid.cif', Buffer.from('invalid data'));
+  await waitFor(viewer, "document.querySelector('#status').textContent.startsWith('无法打开场景')", 'invalid coordinate error');
+  assert.match(await run("document.querySelector('#structure-summary').textContent"), /structure\.cif/);
+  const rect = await run(`(() => {
+    const {x,y,width,height} = document.querySelector('#viewport canvas').getBoundingClientRect();
+    return {x,y,width,height,iw:innerWidth,ih:innerHeight};
+  })()`);
+  const click = (x, y) => {
+    for (const type of ['mouseMove', 'mouseDown', 'mouseUp']) {
+      viewer.webContents.sendInputEvent({ type, x: Math.round(x), y: Math.round(y), button: 'left', clickCount: 1 });
+    }
+  };
+  const picked = (text) => waitFor(viewer, `(() => {
+    const card = document.querySelector('#structure-pick');
+    return !card.hidden && card.textContent.includes(${JSON.stringify(text)});
+  })()`, text);
+  click(rect.x + rect.width / 2, rect.y + rect.height / 2);
+  await picked('残基 HIS · 作者编号 A:8B · 标签编号 X:2');
+  await run("document.body.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape',bubbles:true}))");
+  assert.ok(await run("document.querySelector('#structure-pick').hidden"));
+  await run("document.querySelector('#reset-camera').click()");
+  await viewportPixels(viewer);
+  const image = await viewer.webContents.capturePage();
+  const { width, height } = image.getSize();
+  const bitmap = image.toBitmap();
+  let count = 0, sumX = 0, sumY = 0;
+  for (let y = Math.ceil(rect.y / rect.ih * height); y < Math.floor((rect.y + rect.height) / rect.ih * height); y++) {
+    for (let x = Math.ceil(rect.x / rect.iw * width); x < Math.floor((rect.x + rect.width) / rect.iw * width); x++) {
+      const i = (y * width + x) * 4;
+      const b = bitmap[i], g = bitmap[i + 1], r = bitmap[i + 2];
+      if (r > 190 && g > 90 && g < 180 && b < 100) { count++; sumX += x; sumY += y; }
+    }
+  }
+  assert.ok(count > 0, 'ligand marker is visible');
+  click(sumX / count / width * rect.iw, sumY / count / height * rect.ih);
+  await picked('配体 HEM · 作者编号 A:101');
+  await run("document.querySelector('#structure-contacts summary').click()");
+  await waitFor(viewer, "document.querySelector('#structure-contact-list').textContent.includes('HIS A:8B · 3.00 Å')", 'nearest heavy-atom contact');
+  const bytes = await saveScene();
+  const { scene, resources } = await readScenePackage(bytes);
+  const asset = scene.assets.find(({ mediaType }) => mediaType === 'chemical/x-mmcif');
+  assert.deepEqual(Buffer.from(resources.get(asset.path)), structureCif);
+  assert.equal(asset.sha256, crypto.createHash('sha256').update(structureCif).digest('hex'));
+  assert.deepEqual(asset.provenance.source, { provider: 'local file', name: 'structure.cif' });
+  assert.equal(asset.provenance.viewerStyle, 'backbone');
+  assert.match(asset.provenance.viewerState.selection, /HEM/);
+  assert.notDeepEqual(asset.provenance.viewerState.camera.position, asset.provenance.viewerState.camera.target);
+  await run("document.querySelector('#close').click()");
+  await inject('structure.glow', bytes);
+  await status('structure.glow');
+  await picked('配体 HEM · 作者编号 A:101');
+  assert.equal(await run("document.querySelector('#representation-style').value"), 'backbone');
+  const reopened = await readScenePackage(await saveScene());
+  const savedView = asset.provenance.viewerState;
+  const reopenedView = reopened.scene.assets.find(({ id }) => id === asset.id).provenance.viewerState;
+  assert.equal(reopenedView.selection, savedView.selection);
+  for (const key of ['position', 'target']) {
+    assert.ok(reopenedView.camera[key].every((value, index) => Math.abs(value - savedView.camera[key][index]) < 1e-9));
+  }
+  await captureWindow(viewer, directory, 'viewer-structure');
+  await toggle();
+  await waitFor(viewer, "document.querySelector('#rcsb-load').disabled", 'structure plugin disabled');
+  await inject('offline-preview.glow', bytes);
+  await status('offline-preview.glow');
+  assert.ok(await run("document.querySelector('#warning').textContent.includes('org.glow.structure')"));
+  assert.ok(await run("document.querySelector('#structure-pick').hidden"));
+  const preview = await viewportPixels(viewer);
+  assert.ok(preview.colored > 0, 'embedded preview still renders');
+
+  await toggle();
+  await waitFor(viewer, "!document.querySelector('#rcsb-load').disabled", 'structure plugin re-enabled');
+  const legacy = (scene) => Buffer.from(JSON.stringify({
+    format: 'glow-scene', version: 1, id: 'test.structure', title: 'Legacy structure smoke', scene,
+  }));
+  await inject('legacy-embedded.glow', legacy({
+    structure: { name: 'structure.cif', text: structureCif.toString() },
+    caption: 'Legacy caption', evidence: { illustrative: ['test'] },
+    axis: 'native', colors: { Ring: '#8844bb' }, reps: { Ring: 'simplified', 'Chain A': 'hidden' },
+    components: [{ id: '4HHB', label: 'Ring', axis: 'native', dy: 8, arrange: { kind: 'ring', n: 3, radius: 30 } }],
+  }));
+  await status('legacy-embedded.glow');
+  assert.match(await run("document.querySelector('#structure-summary').textContent"), /structure\.cif/);
+  assert.match(await run("document.querySelector('#viewer-notes').textContent"), /Legacy caption/);
+  assert.match(await run("document.querySelector('#viewer-evidence').textContent"), /示意 · test/);
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'v1 embedded coordinates render');
+  const compositeBytes = await saveScene();
+  const composite = await readScenePackage(compositeBytes);
+  const placements = composite.scene.nodes.filter(({ id }) => id.startsWith('legacy-component-1-placement-'));
+  assert.equal(placements.length, 3);
+  const [first, second] = placements.map(({ transform }) => transform.position);
+  assert.ok(Math.abs(first[1] - second[1]) < 1e-9);
+  assert.ok(Math.hypot(first[0] - second[0], first[2] - second[2]) > 1);
+  assert.ok(composite.scene.assets.some((asset) => asset.provenance?.legacyColor === '#8844bb'));
+  assert.ok(composite.scene.assets.some((asset) => asset.provenance?.legacyStyle === 'backbone'));
+  assert.ok(composite.scene.nodes.some((node) => node.name === 'Chain A' && !node.visible));
+  await run("document.querySelector('#close').click()");
+  await inject('legacy-composite.glow', compositeBytes);
+  await status('legacy-composite.glow');
+  assert.deepEqual((await readScenePackage(await saveScene())).scene.nodes, composite.scene.nodes);
+  assert.match(await run("document.querySelector('#diagnostic-summary').textContent"), /旧包静态预览/);
+  assert.ok(await run("!document.querySelector('#diagnostic').open"));
+  await captureWindow(viewer, directory, 'viewer-legacy-composite');
+  await run(`[...document.querySelectorAll('#structure-part-list label')]
+    .find((label) => label.textContent.trim() === 'Ring').querySelector('input').click()`);
+  const hiddenComposite = await readScenePackage(await saveScene());
+  assert.ok(hiddenComposite.scene.nodes.filter((node) => node.name === 'Ring' && node.assetId).every((node) => !node.visible));
+  await inject('legacy-accession.glow', legacy({
+    id: '4HHB', process: 'atpSynthase', core: [{ part: 'Chain A', seqs: [[7, 8]] }],
+  }));
+  await status('legacy-accession.glow');
+  assert.match(await run("document.querySelector('#structure-summary').textContent"), /RCSB PDB 4HHB/);
+  assert.match(await run("document.querySelector('#warning').textContent"), /atpSynthase/);
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'v1 accession restores the main structure');
+  await useStyle('functional');
+  assert.match(await run("document.querySelector('#functional-evidence').textContent"), /场景指定的核心残基/);
+  assert.ok((await viewportPixels(viewer)).colored > 0, 'v1 functional preview renders');
+  await inject('legacy-offline.glow', legacy({ id: '9ZZZ' }));
+  await status('legacy-offline.glow');
+  assert.match(await run("document.querySelector('#warning').textContent"), /无法恢复旧包主结构.*503/);
+  assert.ok(await run("!document.querySelector('#legacy-viewer').hidden"));
+
+  if (process.env.GLOW_LIVE_STRUCTURE_SMOKE) {
+    const packDir = path.join(repo, 'workshop', 'official', 'packs');
+    const names = fs.readdirSync(packDir).filter((name) => name.endsWith('.glow')).sort();
+    assert.equal(names.length, 15);
+    const report = [];
+    for (const name of names) {
+      const bytes = fs.readFileSync(path.join(packDir, name));
+      const expectedComponents = JSON.parse(bytes).scene.components?.length ?? 0;
+      await inject(name, bytes);
+      await waitFor(viewer, `document.querySelector('#status').textContent === ${JSON.stringify(name)} ||
+        document.querySelector('#status').textContent.startsWith('无法打开场景')`, name, 120000)
+        .catch(async (error) => { throw new Error(`${error.message} · ${await run("document.querySelector('#status').textContent")}`); });
+      const result = await run(`({
+        status: document.querySelector('#status').textContent,
+        structure: document.querySelector('#structure-summary').textContent,
+        components: [...document.querySelectorAll('#legacy-component-list li')].map((li) => li.textContent),
+        diagnostics: document.querySelector('#warning').textContent
+      })`);
+      const pixels = await viewportPixels(viewer);
+      report.push({ name, ...result, expectedComponents, coloredPixels: pixels.colored, mechanismPlayback: false });
+      if (['official.respiratory-chain.glow', 'official.flagellar-motor.glow', 'official.chloroplast-light.glow'].includes(name)) {
+        await run("document.querySelector('#legacy-components').open = true");
+        await captureWindow(viewer, directory, name.replace(/^official\.|\.glow$/g, ''));
+      }
+    }
+    fs.writeFileSync(path.join(directory, 'official-v1-report.json'), JSON.stringify(report, null, 2));
+    for (const entry of report) {
+      assert.equal(entry.status, entry.name);
+      assert.match(entry.structure, /RCSB PDB/);
+      assert.ok(entry.coloredPixels > 500, `No visible molecular preview: ${entry.name}`);
+      assert.equal(entry.components.length, entry.expectedComponents, `Missing components: ${entry.name}`);
+    }
+  }
+}
+
 async function verifyNavigationAuthoring(studio, viewer, directory, { projectPath, scenePath, selectDownload, decodeProject, readScenePackage }) {
   const evaluate = (code) => studio.webContents.executeJavaScript(code);
   const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
@@ -537,6 +855,25 @@ async function run() {
   const networkRequests = [];
   session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
     const url = new URL(details.url);
+    if (process.env.GLOW_STRUCTURE_SCREENSHOTS && url.href === 'https://files.rcsb.org/download/4HHB.cif') {
+      callback(process.env.GLOW_LIVE_STRUCTURE_SMOKE ? {} : { redirectURL: `http://127.0.0.1:${port}/test/structure.cif` });
+      return;
+    }
+    if (process.env.GLOW_STRUCTURE_SCREENSHOTS && url.href === 'https://files.rcsb.org/download/9ZZZ.cif') {
+      callback({ redirectURL: `http://127.0.0.1:${port}/test/unavailable.cif` });
+      return;
+    }
+    if (process.env.GLOW_LIVE_STRUCTURE_SMOKE && url.origin === 'https://files.rcsb.org' &&
+        /^\/(download|header)\/[0-9][A-Z0-9]{3}\.cif$/.test(url.pathname)) {
+      callback({});
+      return;
+    }
+    if (process.env.GLOW_LIVE_STRUCTURE_SMOKE && url.origin === 'https://models.rcsb.org' &&
+        /^\/v1\/[0-9][a-z0-9]{3}\/atoms$/.test(url.pathname) &&
+        ['CA', 'P'].includes(url.searchParams.get('label_atom_id'))) {
+      callback({});
+      return;
+    }
     if (url.hostname === 'cdn.jsdelivr.net' && url.pathname.includes('/three@0.160.0/')) {
       callback({ redirectURL: `http://127.0.0.1:${port}/desktop/vendor/three/${url.pathname.split('/three@0.160.0/')[1]}` });
       return;
@@ -572,6 +909,26 @@ async function run() {
     const { decodeProject } = await import(pathToFileURL(path.join(repo, 'packages/studio-editor/project-io.mjs')));
     const { readScenePackage } = await import(pathToFileURL(path.join(repo, 'packages/schema/archive.mjs')));
     const { GEOMETRY_MEDIA_TYPE } = await import(pathToFileURL(path.join(repo, 'packages/schema/geometry.mjs')));
+
+    const structureOutput = process.env.GLOW_STRUCTURE_SCREENSHOTS;
+    if (structureOutput) {
+      stage = 'structure-workflow';
+      fs.mkdirSync(structureOutput, { recursive: true });
+      viewer = new BrowserWindow({ width: 1440, height: 900, useContentSize: true, show: false,
+        webPreferences: { backgroundThrottling: false } });
+      const viewerErrors = [];
+      viewer.webContents.on('console-message', (_event, level, message) => { if (level >= 3) viewerErrors.push(message); });
+      await viewer.loadURL(`http://127.0.0.1:${port}/apps/viewer-web/index.html?startup=skip`);
+      await waitFor(viewer, "document.querySelector('#status').textContent === '基础几何示例'", 'Viewer startup');
+      viewer.show();
+      nextDownload = 'scene';
+      await verifyStructureWorkflow(viewer, structureOutput, scenePath, readScenePackage);
+      assert.deepEqual(viewerErrors.filter((message) => !message.includes('503 (Service Unavailable)')), []);
+      assert.deepEqual(networkRequests, []);
+      console.log(JSON.stringify({ ok: true, structureWorkflow: true,
+        rcsbFixture: !process.env.GLOW_LIVE_STRUCTURE_SMOKE, legacyPrimaryStructure: true, legacyComposite: true }));
+      return;
+    }
 
     stage = 'studio-start';
     await studio.loadURL(`http://127.0.0.1:${port}/apps/studio-web/index.html?startup=skip`);
@@ -702,7 +1059,10 @@ async function run() {
     await waitFor(viewer, `document.querySelector('#close').disabled === false`, 'Viewer has active scene');
     await waitFor(viewer, `document.querySelector('#time').value.startsWith('0.00')`, 'Viewer timeline ready');
     const viewportImage = await viewportPixels(viewer);
-    assert.ok(viewportImage.colored > 1000, `Viewer did not display exported geometry (${viewportImage.colored} colored pixels)`);
+    // The OS can cap the client height below the requested 780 px, reducing projected area.
+    const minColored = 1000 * Math.min(1, viewportImage.height / 780) ** 2;
+    assert.ok(viewportImage.colored > minColored,
+      `Viewer did not display exported geometry (${viewportImage.colored} colored pixels at height ${viewportImage.height})`);
     await viewer.webContents.executeJavaScript(`document.querySelector('#play').click()`);
     await waitFor(viewer, `document.querySelector('#play').textContent === '暂停'`, 'Viewer playback starts');
     await waitFor(viewer, `Number(document.querySelector('#time').value.split(' / ')[0]) > 0.2`, 'Viewer timeline advances');

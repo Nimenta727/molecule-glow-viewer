@@ -47,6 +47,53 @@ function parsePdbSecondaryStructure(lines) {
   return ranges.filter((range) => range.chainId && range.from && range.to);
 }
 
+function parsePdbAssemblies(lines, model) {
+  const assemblies = new Map(), operators = [];
+  let biomolecules = [], block, blockNumber = 0;
+  function finishBlock() {
+    if (!block?.chains.length) return;
+    const ids = [];
+    for (const [serial, rows] of block.matrices) {
+      if (rows.filter(Boolean).length !== 3) continue;
+      const id = `${block.number}.${serial}`;
+      operators.push({ id, rows });
+      ids.push(id);
+    }
+    if (!ids.length) return;
+    for (const id of biomolecules) {
+      if (!assemblies.has(id)) assemblies.set(id, { id, generators: [] });
+      assemblies.get(id).generators.push({ expression: ids.join(','), chains: block.chains });
+    }
+  }
+  const chainNames = (text) => text.split(',').map((chain) => chain.trim()).filter(Boolean)
+    .map((chain) => chain === 'NULL' ? '' : chain);
+  for (const line of lines) {
+    if (!line.startsWith('REMARK 350')) continue;
+    const record = line.slice(10).trim();
+    if (record.startsWith('BIOMOLECULE:')) {
+      finishBlock();
+      block = undefined;
+      biomolecules = record.slice('BIOMOLECULE:'.length).split(',').map((id) => id.trim()).filter(Boolean);
+    } else if (record.startsWith('APPLY THE FOLLOWING TO CHAINS:')) {
+      finishBlock();
+      block = { number: ++blockNumber, chains: chainNames(record.split(':')[1]), matrices: new Map() };
+    } else if (block && record.startsWith('AND CHAINS:')) {
+      block.chains.push(...chainNames(record.split(':')[1]));
+    } else if (block && /^BIOMT[123]\s/.test(record)) {
+      const [tag, serial, ...fields] = record.split(/\s+/);
+      const row = fields.map(Number);
+      if (row.length !== 4 || !row.every(Number.isFinite) || !/^\d+$/.test(serial)) continue;
+      if (!block.matrices.has(serial)) block.matrices.set(serial, []);
+      block.matrices.get(serial)[Number(tag[5]) - 1] = row;
+    }
+  }
+  finishBlock();
+  if (assemblies.size) {
+    model.assemblies = [...assemblies.values()];
+    model.assemblyOperators = operators;
+  }
+}
+
 export function parsePdb(text) {
   if (typeof text !== 'string' || !text.trim()) throw new CoordinateParseError('PDB input must be a non-empty string');
   const lines = text.split(/\r?\n/);
@@ -95,7 +142,9 @@ export function parsePdb(text) {
       modelId: sawModelRecord ? modelId : '',
     });
   }
-  return emptyResult('pdb', atoms, parsePdbSecondaryStructure(lines));
+  const model = emptyResult('pdb', atoms, parsePdbSecondaryStructure(lines));
+  parsePdbAssemblies(lines, model);
+  return model;
 }
 
 function cifTokens(text) {
@@ -148,8 +197,25 @@ function isControl(token) {
 
 function parseCifLoops(tokens) {
   const loops = [];
+  const assemblyScalars = new Map();
+  function collectAssemblyScalars() {
+    for (const fields of assemblyScalars.values()) loops.push({ headers: [...fields.keys()], rows: [[...fields.values()]] });
+    assemblyScalars.clear();
+  }
   for (let i = 0; i < tokens.length; i += 1) {
-    if (tokens[i].quoted || tokens[i].value.toLowerCase() !== 'loop_') continue;
+    if (tokens[i].quoted) continue;
+    const key = tokens[i].value.toLowerCase();
+    if (key.startsWith('data_')) collectAssemblyScalars();
+    if (key !== 'loop_') {
+      const category = key.split('.')[0];
+      const next = tokens[i + 1];
+      if (['_pdbx_struct_assembly_gen', '_pdbx_struct_oper_list'].includes(category) && next && !isControl(next)) {
+        if (!assemblyScalars.has(category)) assemblyScalars.set(category, new Map());
+        assemblyScalars.get(category).set(key, next.value);
+        i++;
+      }
+      continue;
+    }
     i += 1;
     const headers = [];
     while (i < tokens.length && !tokens[i].quoted && tokens[i].value.startsWith('_')) headers.push(tokens[i++].value.toLowerCase());
@@ -165,6 +231,7 @@ function parseCifLoops(tokens) {
     loops.push({ headers, rows });
     i -= 1;
   }
+  collectAssemblyScalars();
   return loops;
 }
 
@@ -247,8 +314,53 @@ function parseCifSecondaryStructure(loops) {
   return ranges;
 }
 
+function parseCifAssemblies(loops, model) {
+  const assemblies = new Map(), operators = new Map();
+  for (const { headers, rows } of loops) {
+    const category = headers[0]?.split('.')[0];
+    if (category === '_pdbx_struct_oper_list') {
+      for (const row of rows) {
+        const id = firstCell(row, headers, `${category}.id`);
+        const matrix = [1, 2, 3].map((i) => [1, 2, 3, 4].map((j) => {
+          const key = j === 4 ? `vector[${i}]` : `matrix[${i}][${j}]`;
+          const value = firstCell(row, headers, `${category}.${key}`);
+          return value ? Number(value) : NaN;
+        }));
+        if (id && matrix.flat().every(Number.isFinite)) operators.set(id, { id, rows: matrix });
+      }
+    } else if (category === '_pdbx_struct_assembly_gen') {
+      for (const row of rows) {
+        const id = firstCell(row, headers, `${category}.assembly_id`);
+        const expression = firstCell(row, headers, `${category}.oper_expression`);
+        const chains = firstCell(row, headers, `${category}.asym_id_list`).split(',').map((name) => name.trim()).filter(Boolean);
+        if (!id || !expression || !chains.length) continue;
+        if (!assemblies.has(id)) assemblies.set(id, { id, generators: [] });
+        assemblies.get(id).generators.push({ expression, chains });
+      }
+    }
+  }
+  if (assemblies.size) {
+    model.assemblies = [...assemblies.values()];
+    model.assemblyOperators = [...operators.values()];
+  }
+}
+
 export function parseMmcif(text) {
   if (typeof text !== 'string' || !text.trim()) throw new CoordinateParseError('mmCIF input must be a non-empty string');
   const loops = parseCifLoops(cifTokens(text));
-  return emptyResult('mmcif', atomSiteRows(loops), parseCifSecondaryStructure(loops));
+  const model = emptyResult('mmcif', atomSiteRows(loops), parseCifSecondaryStructure(loops));
+  parseCifAssemblies(loops, model);
+  const entities = new Map(), asymmetries = new Map();
+  for (const { headers, rows } of loops) {
+    const entityId = colIndex(headers, '_entity.id');
+    const description = colIndex(headers, '_entity.pdbx_description');
+    const asymId = colIndex(headers, '_struct_asym.id');
+    const asymEntity = colIndex(headers, '_struct_asym.entity_id');
+    if (entityId >= 0 && description >= 0) for (const row of rows) entities.set(cell(row, entityId), cell(row, description));
+    if (asymId >= 0 && asymEntity >= 0) for (const row of rows) asymmetries.set(cell(row, asymId), cell(row, asymEntity));
+  }
+  const descriptions = [...asymmetries].filter(([, entity]) => entities.get(entity))
+    .map(([chain, entity]) => [chain, entities.get(entity)]);
+  if (descriptions.length) model.chainNames = Object.fromEntries(descriptions);
+  return model;
 }

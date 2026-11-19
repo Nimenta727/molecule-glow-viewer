@@ -76,3 +76,21 @@ test('rejects an already aborted signal before fetch or cache read', async () =>
   await assert.rejects(source.load('1ABC', { signal: controller.signal }), { name: 'AbortError' });
   assert.equal(calls, 0);
 });
+
+test('reduced RCSB previews preserve both coordinate blocks and use a separate cache entry', async () => {
+  const calls = [];
+  const source = createRcsbSource({ fetchImpl: async (url) => {
+    calls.push(url);
+    const text = url.includes('label_atom_id=CA') ? 'data_ca' : url.includes('label_atom_id=P') ? 'data_p' : 'data_header';
+    return response(new TextEncoder().encode(text));
+  } });
+  const preview = await source.loadBackbone('4hhb');
+  assert.equal(new TextDecoder().decode(preview.bytes), 'data_ca\ndata_p\ndata_header\n');
+  assert.equal(preview.source.coordinateSet, 'backbone');
+  assert.deepEqual(preview.source.queries, calls);
+  preview.bytes[0] = 0;
+  assert.equal(new TextDecoder().decode((await source.loadBackbone('4HHB')).bytes), 'data_ca\ndata_p\ndata_header\n');
+  await source.load('4HHB');
+  assert.equal(calls.length, 4);
+  assert.match(calls[3], /files\.rcsb\.org\/download/);
+});

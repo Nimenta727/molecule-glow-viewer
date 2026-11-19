@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildRepresentations, selectStructure } from '../representation.mjs';
+import { buildRepresentations, findLigandContacts, selectStructure } from '../representation.mjs';
 
 function atom({
   record = 'ATOM', serial = 1, element = 'C', position, name = 'CA', residueName = 'ALA',
@@ -77,6 +77,40 @@ test('cartoon builds valid ribbon triangles and conveys deposited helix and shee
   validateLayers(representations);
 });
 
+test('blob uses one runtime sphere per representative residue and retains the pick targets', () => {
+  const [representation] = buildRepresentations(fixture(), { style: 'blob' });
+  const spheres = representation.layers.find(({ mode }) => mode === 'spheres');
+  const markers = representation.layers.findIndex(({ mode }) => mode === 'points');
+  assert.ok(Math.abs(spheres.radius - 0.105) < 1e-12);
+  assert.deepEqual(spheres.positions, representation.layers[markers].positions);
+  assert.equal(representation.pointTargets[markers].length, 4);
+});
+
+test('functional mode keeps representative residues near ligand heavy atoms and coarsens the rest', () => {
+  const model = fixture();
+  const ligand = model.atoms.find(({ residueName }) => residueName === 'LIG');
+  ligand.position = [9, 0, 0];
+  const [group] = buildRepresentations(model, { style: 'functional' });
+  const core = group.layers.find(({ role }) => role === 'functional-core');
+  const coarse = group.layers.find(({ role }) => role === 'functional-scaffold');
+  assert.equal(core.positions.length, 6);
+  assert.equal(coarse.radii.length, 2);
+  assert.ok(coarse.radii.every((value) => Number.isFinite(value) && value > 0));
+  assert.equal(group.pointTargets.find(Boolean).length, 4);
+});
+
+test('functional mode applies imported preset ranges and named residue neighborhoods', () => {
+  const [group] = buildRepresentations(fixture(), { style: 'functional', functionalRules: {
+    coreLigands: [],
+    core: [
+      { part: 'Chain A', seqs: [[14, 14]] },
+      { near: { part: '/^Chain A$/', seq: 11 }, r: 4.1 },
+    ],
+  } });
+  assert.equal(group.layers.find(({ role }) => role === 'functional-core').positions.length, 9);
+  assert.equal(group.layers.find(({ role }) => role === 'functional-scaffold').radii.length, 1);
+});
+
 test('nucleic-acid style chains use phosphate P atoms when CA is absent', () => {
   const model = { atoms: [
     atom({ name: 'P', residueName: 'A', position: [0, 0, 0], authChainId: 'N', labelChainId: 'L', authSeqId: '1', labelSeqId: '1' }),
@@ -102,6 +136,21 @@ test('selectStructure supports auth and label identifiers and combines filters',
   const allFirstModelAtoms = selectStructure(model);
   assert.equal(allFirstModelAtoms.length, model.atoms.length - 1);
   assert.equal(allFirstModelAtoms[0], model.atoms[0], 'returns original atom records in a detached result array');
+});
+
+test('ligand contacts group residues and report minimum heavy-atom distances in Å', () => {
+  const ligand = atom({ record: 'HETATM', name: 'FE', element: 'FE', residueName: 'HEM',
+    authSeqId: '101', labelSeqId: '', position: [0, 0, 0] });
+  const nearest = atom({ name: 'N', element: 'N', insertionCode: 'B', position: [-2, 0, 0] });
+  const model = { format: 'mmcif', atoms: [
+    ligand, nearest, atom({ insertionCode: 'B', position: [-3, 0, 0] }),
+    atom({ name: 'H', element: 'H', insertionCode: 'B', position: [-1, 0, 0] }),
+    atom({ authSeqId: '2', position: [4, 0, 0] }),
+    atom({ authSeqId: '3', position: [4.1, 0, 0] }),
+    atom({ authSeqId: '4', position: [1, 0, 0], modelId: '2' }),
+  ] };
+  assert.deepEqual(findLigandContacts(model, ligand).map(({ atom: contact, distance }) =>
+    [contact.authSeqId, contact.insertionCode, distance]), [['1', 'B', 2], ['2', '', 4]]);
 });
 
 test('empty inputs produce no representations and unsupported styles fail explicitly', () => {

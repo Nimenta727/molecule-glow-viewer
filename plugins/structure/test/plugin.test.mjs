@@ -4,7 +4,7 @@ import { createPluginHost } from '../../../packages/plugin-host/index.mjs';
 import { readScenePackage, writeScenePackage } from '../../../packages/schema/archive.mjs';
 import { toCoreDocument } from '../../../packages/schema/documents.mjs';
 import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../../packages/schema/geometry.mjs';
-import { structurePlugin, STRUCTURE_IMPORTER_ID, STRUCTURE_PLUGIN_ID, STRUCTURE_SERVICE_ID } from '../index.mjs';
+import { importStructureScene, structurePlugin, STRUCTURE_IMPORTER_ID, STRUCTURE_PLUGIN_ID, STRUCTURE_SERVICE_ID } from '../index.mjs';
 
 const pdb = [
   'ATOM      1  CA  ALA A   1       1.250   2.000   3.000  1.00 10.00           C',
@@ -30,4 +30,13 @@ test('official structure importer exports preserved source and a plugin-free geo
   const core = toCoreDocument(reopened.scene, new Set([preview.id]));
   assert.deepEqual(core.assets, [{ id: preview.id, kind: 'geometry' }]);
   assert.equal(core.nodes[0].assetId, preview.id);
+});
+
+test('layout keeps coordinates for parts omitted from the geometry preview budget', async () => {
+  const secondChain = pdb.split('\n').slice(0, 3)
+    .map((row, i) => row.slice(0, 6) + String(i + 4).padStart(5) + row.slice(11, 21) + 'B' + row.slice(22)).join('\n');
+  const result = await importStructureScene({ bytes: new TextEncoder().encode(pdb + secondChain), name: 'parts.pdb' },
+    { previewGroupLimit: 1, includeLayout: true });
+  assert.equal(result.scene.nodes.length, 1);
+  assert.deepEqual(result.layout.map(({ name, points }) => [name, points.length]), [['Chain A', 3], ['Chain B', 3]]);
 });

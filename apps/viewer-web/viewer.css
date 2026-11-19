@@ -73,9 +73,12 @@ footer { border-top: 1px solid var(--line); background: #fbfdf9; }
 #playhead { flex: 1; min-width: 4rem; accent-color: #1b7358; }
 #time { font-size: 0.875rem; font-variant-numeric: tabular-nums; }
 #status, #diagnostic { margin: 0.5rem 0 0; color: #40594d; font-size: 0.875rem; overflow-wrap: anywhere; }
+#diagnostic summary { width: fit-content; cursor: pointer; }
+#diagnostic p { max-height: 8rem; margin: 0.35rem 0 0; overflow-y: auto; }
 .structure-tools { font-size: 0.9rem; }
 .structure-form:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.65rem; }
 .structure-form input { width: 5rem; padding: 0.25rem; font: inherit; }
+.structure-summary { margin: 0.65rem 0 0; color: #40594d; font-size: 0.82rem; line-height: 1.45; overflow-wrap: anywhere; }
 
 @media (max-width: 760px) {
   main { height: auto; min-height: 100svh; grid-template-rows: auto auto auto; }

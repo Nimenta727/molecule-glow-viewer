@@ -14,6 +14,14 @@ function pdbAtom({ record = 'ATOM', serial = '1', name = ' CA ', alt = '', resid
 
 function cifFixture() {
   return `data_synthetic
+loop_
+_entity.id
+_entity.pdbx_description
+1 'Primary subunit'
+loop_
+_struct_asym.id
+_struct_asym.entity_id
+X 1
 # A quoted and multiline non-coordinate value must not shift atom columns.
 loop_
 _struct_conf.conf_type_id
@@ -103,6 +111,7 @@ test('mmCIF tokenization handles quoted and semicolon multiline values, auth/lab
   const parsed = parseMmcif(cifFixture());
   assert.equal(parsed.format, 'mmcif');
   assert.equal(parsed.atoms.length, 3);
+  assert.deepEqual(parsed.chainNames, { X: 'Primary subunit' });
   assert.deepEqual(parsed.secondaryStructure, [{ type: 'helix', chainId: 'chain A', from: '10', to: '12', numbering: 'auth' }]);
   const [first, second, third] = parsed.atoms;
   assert.equal(first.record, 'ATOM');

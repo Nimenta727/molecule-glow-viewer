@@ -55,7 +55,7 @@
             <ul id="viewer-evidence" aria-label="证据"></ul>
             <ul id="viewer-bookmarks" aria-label="视角书签"></ul>
           </details>
-          <details class="structure-tools">
+          <details id="structure-tools" class="structure-tools">
             <summary>结构插件</summary>
             <label><input id="structure-enabled" type="checkbox"> 启用官方结构插件</label>
             <form id="rcsb-form" class="structure-form">
@@ -63,6 +63,17 @@
               <input id="accession" name="accession" type="text" maxlength="4" required disabled>
               <button id="rcsb-load" type="submit" disabled>打开结构</button>
             </form>
+            <label><input id="structure-assembly" type="checkbox" disabled> 导入时使用生物组装体</label>
+            <div id="representation-controls" class="structure-form" hidden>
+              <label id="representation-label" for="representation-style">结构表示</label>
+              <select id="representation-style">
+                <option value="cartoon">结构示意</option>
+                <option value="backbone">主链</option>
+                <option value="blob">团块（墨线）</option>
+                <option value="functional">功能分区（示意）</option>
+              </select>
+            </div>
+            <p id="functional-evidence" class="structure-summary" hidden>橙色标记显示配体 8 Å 内的残基代表点。其余体积由坐标分组估算。</p>
             <form id="selection-form" class="structure-form" hidden>
               <label for="chain-id">链</label>
               <input id="chain-id" name="chain" type="text" maxlength="32">
@@ -70,6 +81,20 @@
               <input id="residue-id" name="residue" type="text" maxlength="32">
               <button type="submit">选取</button>
             </form>
+            <p id="structure-summary" class="structure-summary" aria-live="polite" hidden></p>
+            <details id="legacy-components" hidden>
+              <summary>场景组件</summary>
+              <ul id="legacy-component-list"></ul>
+            </details>
+            <details id="structure-parts" hidden>
+              <summary>部件显隐</summary>
+              <ul id="structure-part-list"></ul>
+            </details>
+            <p id="structure-pick" class="structure-summary" aria-live="polite" hidden></p>
+            <details id="structure-contacts" hidden>
+              <summary>邻近残基（4 Å）</summary>
+              <p id="structure-contact-list" class="structure-summary" aria-live="polite"></p>
+            </details>
           </details>
         </aside>
       </div>
@@ -80,10 +105,13 @@
           <output id="time">0.00 / 0.00 s</output>
         </div>
         <p id="status" role="status">启动中…</p>
-        <p id="diagnostic" hidden>
-          <span id="warning"></span>
-          <a id="legacy-viewer" href="../../web/" target="_blank" rel="noopener" hidden>打开旧版 Viewer</a>
-        </p>
+        <details id="diagnostic" hidden>
+          <summary id="diagnostic-summary">加载说明</summary>
+          <p>
+            <span id="warning"></span>
+            <a id="legacy-viewer" href="../../web/" target="_blank" rel="noopener" hidden>打开旧版 Viewer</a>
+          </p>
+        </details>
       </footer>
     </main>
     <script type="module">

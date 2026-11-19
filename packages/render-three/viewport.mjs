@@ -22,13 +22,34 @@ function* renderables(asset, layers) {
     return;
   }
   if (!layers) throw new Error(`Missing geometry: ${asset.id}`);
-  for (const { mode, positions, color, pointSize } of layers) {
+  for (const { mode, positions, color, pointSize, pointTargets, radius, radii } of layers) {
+    if (mode === 'spheres') {
+      const geometry = new THREE.SphereGeometry(1, 12, 8);
+      const surface = new THREE.InstancedMesh(geometry,
+        new THREE.MeshStandardMaterial({ color, roughness: 0.84 }), positions.length / 3);
+      const ink = new THREE.InstancedMesh(geometry.clone(),
+        new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide }), positions.length / 3);
+      const transform = new THREE.Matrix4();
+      const strokeScale = new THREE.Vector3(1.05, 1.05, 1.05);
+      for (let i = 0; i < positions.length; i += 3) {
+        const size = radii?.[i / 3] ?? radius;
+        transform.makeScale(size, size, size).setPosition(positions[i], positions[i + 1], positions[i + 2]);
+        surface.setMatrixAt(i / 3, transform);
+        transform.scale(strokeScale);
+        ink.setMatrixAt(i / 3, transform);
+      }
+      yield surface;
+      yield ink;
+      continue;
+    }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     if (mode === 'lines') {
       yield new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color }));
     } else if (mode === 'points') {
-      yield new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: pointSize ?? 0.08 }));
+      const points = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: pointSize ?? 0.08 }));
+      points.userData.pointTargets = pointTargets;
+      yield points;
     } else {
       geometry.computeVertexNormals();
       yield new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }));
@@ -36,9 +57,9 @@ function* renderables(asset, layers) {
   }
 }
 
-export function createViewport(container, { onSelect, selectOnTap = false, TransformControls, onTransform } = {}) {
+export function createViewport(container, { onSelect, selectOnTap = false, TransformControls, onTransform, background = '#f5f7f8' } = {}) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#f5f7f8');
+  scene.background = new THREE.Color(background);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
   camera.position.set(4, 3, 5);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -76,6 +97,35 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   let frameId;
   let transition;
   let responsiveFraming = false;
+  let pointSelection;
+
+  function setPointSelection(target) {
+    pointSelection?.removeFromParent();
+    if (target && active) {
+      for (const mesh of active.meshes) {
+        const index = mesh.userData.pointTargets?.indexOf(target) ?? -1;
+        if (index < 0 || !isVisible(mesh)) continue;
+        pointSelection ??= new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8),
+          new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }));
+        pointSelection.renderOrder = 10;
+        pointSelection.scale.setScalar(Math.max(mesh.material.size * 0.7, 0.04));
+        pointSelection.position.fromBufferAttribute(mesh.geometry.getAttribute('position'), index);
+        mesh.add(pointSelection);
+        break;
+      }
+    }
+    invalidate();
+    return Boolean(pointSelection?.parent);
+  }
+
+  function setNodeVisibility(ids, visible) {
+    for (const id of ids) {
+      const group = active?.groups.get(id);
+      if (group) group.visible = visible;
+    }
+    updatePresentationOverlay();
+    invalidate();
+  }
 
   function invalidate() {
     if (disposed || frameId !== undefined) return;
@@ -135,8 +185,13 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.updateMatrixWorld();
     raycaster.setFromCamera(pointer, camera);
     active.root.updateMatrixWorld(true);
-    const hit = raycaster.intersectObjects(active.meshes, false).find(({ object }) => isVisible(object));
-    onSelect?.(hit?.object.userData.nodeId ?? null);
+    const hits = raycaster.intersectObjects(active.meshes, false).filter(({ object }) => isVisible(object));
+    const hit = hits.find(({ object, index }) => object.userData.pointTargets?.[index]) ?? hits[0];
+    const target = hit?.object.userData.pointTargets?.[hit.index];
+    const point = target && new THREE.Vector3()
+      .fromBufferAttribute(hit.object.geometry.getAttribute('position'), hit.index)
+      .applyMatrix4(hit.object.matrixWorld).toArray();
+    onSelect?.(hit?.object.userData.nodeId ?? null, target, point);
   }
   let pressed;
   function pointerDown(event) {
@@ -168,13 +223,18 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   function disposeHandle(handle) {
     if (handle.disposed) return;
     handle.disposed = true;
+    if (handle.meshes.includes(pointSelection?.parent)) pointSelection.removeFromParent();
     handle.root.removeFromParent();
     handle.overlay?.dispose();
     if (active === handle) active = null;
+    const geometries = new Set(), materials = new Set();
     for (const mesh of handle.meshes) {
-      mesh.geometry.dispose();
-      mesh.material.dispose();
+      if (mesh.isInstancedMesh) mesh.dispose();
+      geometries.add(mesh.geometry);
+      materials.add(mesh.material);
     }
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
     invalidate();
   }
 
@@ -182,6 +242,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     if (disposed) throw new Error('Viewport is disposed');
     const root = new THREE.Group();
     const assets = new Map(document.assets.map((asset) => [asset.id, asset]));
+    const templates = new Map();
     const groups = new Map();
     const meshes = [];
     const handle = { root, meshes, disposed: false, dispose: () => disposeHandle(handle) };
@@ -196,7 +257,14 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         if (node.assetId) {
           const asset = assets.get(node.assetId);
           if (!asset) throw new Error(`Missing asset: ${node.assetId}`);
-          for (const mesh of renderables(asset, geometryLayers.get(asset.id))) {
+          const shared = templates.get(asset.id);
+          const objects = shared ? shared.map((mesh) => {
+            const copy = mesh.clone(false);
+            copy.userData.pointTargets = mesh.userData.pointTargets;
+            return copy;
+          }) : [...renderables(asset, geometryLayers.get(asset.id))];
+          if (!shared) templates.set(asset.id, objects);
+          for (const mesh of objects) {
             mesh.userData.nodeId = node.id;
             group.add(mesh);
             meshes.push(mesh);
@@ -247,10 +315,13 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function fitCamera(handle = active) {
+  function fitCamera(handle = active, { direction = [1, 0.72, 1], distanceScale = 1 } = {}) {
     if (!handle) return;
-    const distance = Math.max(handle.radius / Math.sin(fitAngle()), 1);
-    const position = handle.center.clone().add(new THREE.Vector3(1, 0.72, 1).normalize().multiplyScalar(distance));
+    const axis = new THREE.Vector3(...direction).normalize();
+    if (!axis.lengthSq()) axis.set(1, 0.72, 1).normalize();
+    const multiplier = Number.isFinite(distanceScale) && distanceScale > 0 ? distanceScale : 1;
+    const distance = Math.max(multiplier * handle.radius / Math.sin(fitAngle()), 1);
+    const position = handle.center.clone().addScaledVector(axis, distance);
     setCamera({ position: position.toArray(), target: handle.center.toArray() });
   }
 
@@ -297,7 +368,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function resetCamera() { fitCamera(); }
+  function resetCamera(options) { fitCamera(active, options); }
   function getCamera({ destination = false } = {}) {
     const pose = (destination && transition?.to) || { position: camera.position, target: controls.target };
     return {
@@ -398,10 +469,13 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     controls.removeEventListener('change', invalidate);
     controls.removeEventListener('start', cancelCameraTransition);
     gizmo?.dispose();
+    pointSelection?.geometry.dispose();
+    pointSelection?.material.dispose();
     controls.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
 
-  return { prepare, commit, applyPose, setPresentation, resetCamera, getCamera, setCamera, focusNode, orbitBy, setSelection, setGizmoMode, clear, dispose };
+  return { prepare, commit, applyPose, setPresentation, resetCamera, getCamera, setCamera, focusNode,
+    orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose };
 }

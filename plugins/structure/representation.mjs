@@ -1,6 +1,9 @@
+import { createLigandNeighborhood, createPresetCore, functionalLayers } from './functional-preview.mjs';
+
 export const PRESENTATION_METERS_PER_ANGSTROM = 0.05;
 const WATER_NAMES = new Set(['HOH', 'WAT', 'DOD', 'H2O']);
 const BACKBONE_COLORS = { default: '#607f91', helix: '#d47770', sheet: '#d6a94f' };
+const BLOB_COLORS = ['#7697c6', '#cf8589', '#79aaa3', '#c8a367', '#9b8ab4'];
 const CARTOON_WIDTH = 0.45;
 const MODIFIED_RESIDUES = new Set(['MSE', 'SEP', 'TPO', 'PTR']);
 
@@ -22,7 +25,8 @@ function firstModel(atoms) {
 }
 
 function chainKey(atom) {
-  return `${text(atom.authChainId)}\u0000${text(atom.labelChainId)}`;
+  const key = `${text(atom.authChainId)}\u0000${text(atom.labelChainId)}`;
+  return atom.assemblyCopy ? `${key}\u0000${atom.assemblyCopy}` : key;
 }
 
 function residueKey(atom) {
@@ -94,6 +98,7 @@ function chainFor(atom, key) {
     chainId: text(atom.authChainId) || text(atom.labelChainId),
     authChainId: text(atom.authChainId),
     labelChainId: text(atom.labelChainId),
+    assemblyCopy: atom.assemblyCopy,
     atoms: [],
   };
 }
@@ -192,11 +197,19 @@ function cartoonLayers(markers, ranges, centered) {
  * Blank alternate locations win; otherwise altLoc A wins, then the alphabetically first ID. No occupancy-based science is inferred.
  * Cartoon colors are only visual hints for deposited helix and sheet ranges (red and gold); they are not calculated predictions.
  */
-export function buildRepresentations(model, { style = 'backbone' } = {}) {
-  if (style !== 'backbone' && style !== 'cartoon') throw new TypeError(`Unsupported representation style: ${style}`);
+export function buildRepresentations(model, { style = 'backbone', functionalRules } = {}) {
+  if (!['backbone', 'cartoon', 'blob', 'functional'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
   const atoms = firstModel(Array.isArray(model?.atoms) ? model.atoms : []);
   const chosen = chooseAlternatives(atoms.filter((atom) => !isWater(atom)));
   const centered = centerAndScale(chosen);
+  const coreLigands = Array.isArray(functionalRules?.coreLigands) ? new Set(functionalRules.coreLigands) : null;
+  const nearLigand = style === 'functional' ? createLigandNeighborhood(chosen
+    .filter(({ atom }) => atom.record === 'HETATM' && !isPolymer(atom, model.format) && !['H', 'D'].includes(atom.element) &&
+      (!coreLigands || coreLigands.has(atom.residueName)))
+    .map(({ pos }) => pos)) : null;
+  const presetCore = style === 'functional' && Array.isArray(functionalRules?.core) && functionalRules.core.length
+    ? createPresetCore(chosen.filter(({ name, atom }) => (name === 'CA' || name === 'P') && isPolymer(atom, model.format)), model, functionalRules)
+    : null;
   const groups = new Map();
   for (const item of chosen) {
     const key = chainKey(item.atom);
@@ -206,7 +219,7 @@ export function buildRepresentations(model, { style = 'backbone' } = {}) {
   }
 
   const ranges = Array.isArray(model?.secondaryStructure) ? model.secondaryStructure : [];
-  return [...groups.values()].map((group) => {
+  return [...groups.values()].map((group, groupIndex) => {
     const residues = new Map();
     for (let order = 0; order < group.atoms.length; order++) {
       const item = group.atoms[order];
@@ -220,16 +233,24 @@ export function buildRepresentations(model, { style = 'backbone' } = {}) {
       const polymer = residue.atoms.filter(({ atom }) => isPolymer(atom, model.format));
       const atom = polymer.find((item) => item.name === 'CA' && item.atom.element !== 'CA') ??
         polymer.find((item) => item.name === 'P');
-      if (atom) markers.push({ raw: atom.pos, residue });
+      if (atom) markers.push({ raw: atom.pos, residue, nucleotide: atom.name === 'P' });
     }
     const layers = [];
     if (style === 'cartoon') {
       layers.push(...cartoonLayers(markers, ranges, centered));
-    } else {
+    } else if (style === 'backbone') {
       const positions = linePositions(markers, centered);
       if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default });
     }
+    if (style === 'blob' && markers.length) {
+      layers.push({ mode: 'spheres', positions: flat(markers.map(({ raw }) => centered.point(raw))),
+        color: BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius: 2.1 * PRESENTATION_METERS_PER_ANGSTROM });
+    }
+    if (nearLigand) layers.push(...functionalLayers(markers, (raw, atom) => nearLigand(raw) || presetCore?.(raw, atom), centered.point,
+      PRESENTATION_METERS_PER_ANGSTROM, BLOB_COLORS[groupIndex % BLOB_COLORS.length]));
     if (markers.length) layers.push({ mode: 'points', positions: flat(markers.map(({ raw }) => centered.point(raw))), color: '#395968', pointSize: 0.05 });
+    const pointTargets = layers.map((layer) =>
+      layer.mode === 'points' ? markers.map(({ residue }) => ({ kind: 'residue', atom: residue.atom })) : null);
 
     const ligands = new Map();
     for (const item of group.atoms) {
@@ -237,20 +258,62 @@ export function buildRepresentations(model, { style = 'backbone' } = {}) {
       const element = text(item.atom.element).toUpperCase();
       if (element === 'H' || element === 'D') continue;
       const key = residueKey(item.atom);
-      if (!ligands.has(key)) ligands.set(key, []);
-      ligands.get(key).push(item.pos);
+      if (!ligands.has(key)) ligands.set(key, { atom: item.atom, positions: [] });
+      ligands.get(key).positions.push(item.pos);
     }
-    const ligandCenters = [...ligands.values()].map((positions) => positions[0].map((_, axis) => positions.reduce((sum, point) => sum + point[axis], 0) / positions.length));
-    if (ligandCenters.length) layers.push({ mode: 'points', positions: flat(ligandCenters.map(centered.point)), color: '#e58a3a', pointSize: 0.14 });
+    const ligandCenters = [...ligands.values()].map(({ positions }) => positions[0].map((_, axis) => positions.reduce((sum, point) => sum + point[axis], 0) / positions.length));
+    if (ligandCenters.length) {
+      layers.push({ mode: 'points', positions: flat(ligandCenters.map(centered.point)), color: '#e58a3a', pointSize: 0.14 });
+      pointTargets.push([...ligands.values()].map(({ atom }) => ({ kind: 'ligand', atom })));
+    }
 
     const chainId = group.authChainId || group.labelChainId;
     return {
       key: group.key,
-      label: chainId ? `Chain ${chainId}` : 'Unassigned chain',
+      label: (chainId ? `Chain ${chainId}` : 'Unassigned chain') + (group.assemblyCopy ? ` · ${group.assemblyCopy}` : ''),
       chainId,
+      labelChainId: group.labelChainId,
       layers,
+      pointTargets,
     };
   }).filter(({ layers }) => layers.length);
+}
+
+export function findLigandContacts(model, ligand) {
+  const key = residueKey(ligand);
+  const heavy = chooseAlternatives(firstModel(model.atoms).filter((atom) =>
+    !isWater(atom) && !['H', 'D'].includes(text(atom.element).toUpperCase())));
+  const radius = 4;
+  const cell = (xyz) => xyz.map((value) => Math.floor(value / radius));
+  const cells = new Map();
+  for (const { atom, pos } of heavy) {
+    if (isPolymer(atom, model.format) || residueKey(atom) !== key) continue;
+    const address = cell(pos).join(',');
+    if (!cells.has(address)) cells.set(address, []);
+    cells.get(address).push(pos);
+  }
+  const contacts = new Map();
+  for (const { atom, pos } of heavy) {
+    if (!isPolymer(atom, model.format)) continue;
+    const [x, y, z] = cell(pos);
+    let closest = Infinity;
+    for (let i = x - 1; i <= x + 1; i++) {
+      for (let j = y - 1; j <= y + 1; j++) {
+        for (let k = z - 1; k <= z + 1; k++) {
+          for (const neighbor of cells.get(`${i},${j},${k}`) ?? []) {
+            const [nx, ny, nz] = neighbor;
+            closest = Math.min(closest, Math.hypot(pos[0] - nx, pos[1] - ny, pos[2] - nz));
+          }
+        }
+      }
+    }
+    if (closest > radius) continue;
+    const residue = residueKey(atom);
+    if (closest < (contacts.get(residue)?.distance ?? Infinity)) {
+      contacts.set(residue, { atom, distance: closest });
+    }
+  }
+  return [...contacts.values()].sort((a, b) => a.distance - b.distance);
 }
 
 /**
