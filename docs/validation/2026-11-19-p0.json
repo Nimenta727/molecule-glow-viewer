@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "source_commit": "384cdcfa5029a87b46979ad9f4929aad5a751ea6",
+  "source_dirty": false,
+  "environment": {
+    "os": "win32",
+    "os_release": "10.0.26300",
+    "arch": "x64",
+    "node": "v26.13.1",
+    "electron": "33.4.11",
+    "rendering": "SwiftShader, sandbox enabled"
+  },
+  "candidate": {
+    "file": "MoleculeGlow-0.4.0-384cdcfa-win-x64.exe",
+    "bytes": 78924302,
+    "sha256": "53fa4858be86735881e6abc438f4ce1c87ba82f4c1e9f8b45c4a48ac457eb12d",
+    "sourceCommit": "384cdcfa5029a87b46979ad9f4929aad5a751ea6",
+    "sourceDirty": false,
+    "contentSha256": "946d21b78185e9f8db64bc29a94124015298fb9d39473d39f48330bd75f139a4"
+  },
+  "asar_sha256": "2dbe28dee92a6e09a3687207ede778960455ed117fed9e7818997a3c7b522f50",
+  "fixtures": [
+    {
+      "id": "6ZPO",
+      "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec"
+    },
+    {
+      "id": "1K4C",
+      "sha256": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763"
+    },
+    {
+      "id": "5VK6",
+      "sha256": "2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b"
+    },
+    {
+      "id": "5VKE",
+      "sha256": "d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65"
+    },
+    {
+      "id": "2HVK",
+      "sha256": "2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df"
+    },
+    {
+      "id": "2ITD",
+      "sha256": "30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828"
+    },
+    {
+      "id": "4AKE",
+      "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9"
+    },
+    {
+      "id": "1AKE",
+      "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948"
+    }
+  ],
+  "cases": [
+    {
+      "id": "classic",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [],
+      "runtime_ms": 5218,
+      "viewport_colored_pixels": 5921,
+      "cache_hits": 0,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-classic-normal.png",
+        "docs/images/p0-exe-classic-narrow.png"
+      ]
+    },
+    {
+      "id": "studio",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [
+        {
+          "extension": ".glow-project",
+          "state": "completed"
+        },
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ],
+      "runtime_ms": 1317,
+      "cache_hits": 0,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-studio-normal.png",
+        "docs/images/p0-exe-studio-narrow.png"
+      ]
+    },
+    {
+      "id": "local",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ],
+      "runtime_ms": 1461,
+      "viewport_colored_pixels": 4214,
+      "cache_hits": 0,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-local-normal.png",
+        "docs/images/p0-exe-local-narrow.png"
+      ]
+    },
+    {
+      "id": "atp",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ],
+      "runtime_ms": 6485,
+      "viewport_colored_pixels": 5210,
+      "cache_hits": 1,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-atp-normal.png",
+        "docs/images/p0-exe-atp-narrow.png"
+      ]
+    },
+    {
+      "id": "kcsa",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ],
+      "runtime_ms": 3322,
+      "viewport_colored_pixels": 1831,
+      "cache_hits": 5,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-kcsa-normal.png",
+        "docs/images/p0-exe-kcsa-narrow.png"
+      ]
+    },
+    {
+      "id": "adk",
+      "stage_pass": true,
+      "exe_pass": true,
+      "actual_packaged_runtime": true,
+      "asar_matches": true,
+      "preferences": {
+        "contextIsolation": true,
+        "nodeIntegration": false,
+        "sandbox": true
+      },
+      "actual_downloads": [
+        {
+          "extension": ".glow",
+          "state": "completed"
+        }
+      ],
+      "runtime_ms": 2057,
+      "viewport_colored_pixels": 3426,
+      "cache_hits": 2,
+      "errors": [],
+      "screenshots": [
+        "docs/images/p0-exe-adk-normal.png",
+        "docs/images/p0-exe-adk-narrow.png"
+      ]
+    }
+  ],
+  "source_checks": {
+    "node_tests": 116,
+    "classic_build": true,
+    "copies": true,
+    "official_pack_data_validation": 15,
+    "studio_m3_source_roundtrip": true
+  },
+  "ci": {
+    "run_url": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44493471035",
+    "status": "success",
+    "required_branch_protection": "maintainer_configuration_not_verified",
+    "jobs": {
+      "source": "success",
+      "windows-artifact": "success"
+    }
+  },
+  "scope": "P0 packaging and artifact smoke only. Not full feature/scientific parity, P1 security fixes, formal release or code signing."
+}

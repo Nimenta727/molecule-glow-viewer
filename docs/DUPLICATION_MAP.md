@@ -24,3 +24,7 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 | 命令和嵌入桥 | `src/api/` | `apps/viewer-web/command-api.mjs`、`apps/viewer-web/viewer-commands.mjs` | 部分兼容；回包/参数及权限不完整，敏感导出需先整改，开发者工作台适配待做 |
 
 后续新增迁移必须补本表与 [功能对照清单](feature-parity.json)。仅规划的新位置要写“待迁移”，不能列成已存在实现；“是否等价”必须能链接到对照证据后再改为通过。
+
+## P0 模块调整（384cdcf）
+
+桌面开发入口与打包入口共用 `desktop/platform-shell.cjs` 的路由、默认经典入口、菜单和版本信息；打包脚本不再通过字符串替换制造第二份 Shell 业务逻辑。可选验收逻辑拆到 `desktop/smoke-runner.cjs`，普通运行不启用测试注入。科学与渲染双实现仍按上表待对照。[P0 实测记录](RELEASE_VALIDATION_2026-11-19.md)记录真实产物结果。
