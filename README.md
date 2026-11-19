@@ -2,7 +2,7 @@
 
 **Windows 最新版 · 0.4.0**　[下载便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.4.0/MoleculeGlow-0.4.0-win-x64.exe) · [发布说明](https://github.com/Nimenta727/molecule-glow-viewer/releases/latest) · [历史桌面版 0.3.2](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.3.2)
 
-`0.4.0` 默认打开新版 Viewer。从窗口的「工作区」菜单可切换到 Studio 制作台、经典 Viewer 或开发者工作台。新版源码入口见 [Viewer](apps/viewer-web/) 与 [Studio](apps/studio-web/)。
+上方已发行的 `0.4.0` 默认打开新版 Viewer，不包含其后 `main` 新增的全部插件功能。当前源码的迁移候选临时恢复经典默认入口，菜单保留新版 Viewer、Studio 和开发者工作台；候选文件名包含源码提交，帮助菜单可查看构建信息，不等于新的正式发行版。[发布验证流程](docs/RELEASE_VALIDATION.md)区分源码、暂存目录与真正 EXE 验收。新版源码入口见 [Viewer](apps/viewer-web/) 与 [Studio](apps/studio-web/)。
 
 实时、可从任意角度旋转的蛋白质 / 分子机器 3D 查看器：白底墨线的插画风格，剖开的脂双层膜、转动的转子、从溶液里扩散过来的小分子和离子，从单个蛋白一直到整个细胞。任何 PDB 编号都直接从 [RCSB PDB](https://www.rcsb.org) 实时下载。
 

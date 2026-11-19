@@ -2,6 +2,9 @@
   "name": "molecule-glow-platform",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "test": "node tools/run-node-tests.cjs"
+  },
   "engines": {
     "node": ">=20"
   },

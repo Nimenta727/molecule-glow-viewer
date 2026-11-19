@@ -13,8 +13,10 @@
 
 第一次打开某个结构仍需要联网。
 
+以上描述的是已发行版本。当前源码候选临时默认经典 Viewer，工作区菜单保留新版和 Studio；文件名附带源码提交，`-worktree` 表示包含未提交改动。帮助菜单“版本与构建”可查看提交、内容哈希和候选性质。候选不会自动发布或覆盖旧版 EXE，验收流程见 [发布验证](../docs/RELEASE_VALIDATION.md)。
+
 ## 自己构建
-需要 Node.js 18 或更高版本。
+需要 Node.js 20 或更高版本。
 ```bash
 cd desktop
 npm install
@@ -40,6 +42,10 @@ npm ci
 npm ci --prefix desktop
 npm run dist --prefix desktop
 ```
+
+打包会先整体复制官方插件目录，检查入口与静态/字面量动态模块依赖、CommonJS 辅助模块及资源哈希；随后生成实际 portable EXE 和 `candidate.json`。测试代码与类型声明不打入应用。插件是否执行仍由受信 catalog 决定，不从 `.glow` 执行代码。
+
+实际产物验收不能只运行源码服务器。流程依次为 `npm test`、下载固定哈希真实结构、暂存目录回归、EXE 内部 ASAR 检查、实际 EXE 回归；详见 [发布验证命令](../docs/RELEASE_VALIDATION.md)。
 
 ## 结构
 | 文件 | 作用 |

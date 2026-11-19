@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld('glowDesktop', {
   version: '0.4.0',
   startupSkip: Boolean(process.env.GLOW_SMOKE || process.env.GLOW_REGRESS),
   cacheInfo: () => ipcRenderer.invoke('glow:cache-info'),
+  buildInfo: () => ipcRenderer.invoke('glow:build-info'),
   clearCache: () => ipcRenderer.invoke('glow:cache-clear'),
 });

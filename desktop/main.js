@@ -6,18 +6,21 @@
 //   the cache as offline fallback.
 const { app, BrowserWindow, protocol, net, session, shell, ipcMain } = require('electron');
 const path = require('path'), fs = require('fs'), crypto = require('crypto');
+const { configureWorkspaces, resolveEntry, readBuildInfo } = require('./platform-shell.cjs');
+if (process.env.GLOW_SMOKE && process.env.GLOW_SMOKE_PROFILE) app.setPath('userData', path.resolve(process.env.GLOW_SMOKE_PROFILE));
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } },
 ]);
 
 const ROOT = __dirname;
+const buildInfo = readBuildInfo(ROOT);
 const APP_DIR = path.join(ROOT, 'app');
 const THREE_DIR = path.join(ROOT, 'vendor', 'three');   // filled by scripts/sync.js
 const THREE_CDN = 'https://cdn.jsdelivr.net/npm/three@0.160.0/';
 const CACHE_FIRST = new Set(['files.rcsb.org', 'models.rcsb.org']);
 const NETWORK_FIRST = new Set(['data.rcsb.org', 'rest.uniprot.org', 'search.rcsb.org', 'raw.githubusercontent.com']);   // + workshop indexes / packs / covers
-const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
+const MIME = { '.mjs': 'text/javascript; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm' };
 
 let cacheDir;
 const stats = { hit: 0, miss: 0, offline: 0 };
@@ -67,6 +70,10 @@ async function handleHttps(req) {
   const cacheable = req.method === 'GET' && (CACHE_FIRST.has(u.host) || NETWORK_FIRST.has(u.host));
   if (!cacheable) return passThrough(req);
   if (CACHE_FIRST.has(u.host)) { const c = readCache(req.url); if (c) { stats.hit++; return c; } }
+  if (process.env.GLOW_SMOKE && process.env.GLOW_SMOKE_OFFLINE === '1') {
+    const cached = readCache(req.url);
+    return cached || new Response('Offline smoke fixture is missing', { status: 503 });
+  }
   try {
     const res = await passThrough(req);
     if (!res.ok) return res;
@@ -88,14 +95,19 @@ function cacheInfo() {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 900, backgroundColor: '#ffffff', title: '分子光影',
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     webPreferences: { preload: path.join(ROOT, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: !(process.env.GLOW_REGRESS || process.env.GLOW_SMOKE) },
   });
   // Links (DOI, UniProt pages) open in the user's browser, not inside the app.
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/.test(url)) shell.openExternal(url);
+    else if (['app://glow/web/', 'app://glow/web/index.html'].includes(url)) setImmediate(() => win.loadURL('app://glow/index.html'));
+    return { action: 'deny' };
+  });
+  configureWorkspaces(win, ROOT, buildInfo);
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('app://')) { e.preventDefault(); shell.openExternal(url); } });
   // GLOW_PAGE=dev.html opens another page of app/ (tests of the developer workbench)
-  const page = /^[\w.-]+\.html$/.test(process.env.GLOW_PAGE || '') ? process.env.GLOW_PAGE : 'index.html';
+  const page = resolveEntry(process.env.GLOW_PAGE);
   win.loadURL('app://glow/' + page + (process.env.GLOW_QUERY || (process.env.GLOW_REGRESS ? '?noauto=1' : '')));   // regression: no automatic quality changes
   if (process.env.GLOW_DEVTOOLS) win.webContents.openDevTools({ mode: 'detach' });
   // GLOW_REGRESS=<dir>: regression baseline (scripts/regress.mjs). Loads every scene in scripts/regress-scenes.json one after the
@@ -137,25 +149,7 @@ function createWindow() {
       fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 1)); app.quit();
     }, 3000));
   }
-  // GLOW_SMOKE=<seconds>: self-test for CI / builds — print console errors and cache stats, save a screenshot, quit.
-  if (process.env.GLOW_SMOKE) {
-    win.webContents.on('console-message', (e) => { const lv = e.level ?? e.params?.level; if (lv === 'error' || lv === 3) console.log('[page error]', e.message ?? e.params?.message); });
-    // GLOW_SMOKE_JS=<file>: a script run in the page 3 s after load (tests: open a .glow, switch modes ...); its result is printed
-    if (process.env.GLOW_SMOKE_JS) win.webContents.once('did-finish-load', () => setTimeout(async () => {
-      try { console.log('[smoke-js]', JSON.stringify(await win.webContents.executeJavaScript(fs.readFileSync(process.env.GLOW_SMOKE_JS, 'utf8')))); }
-      catch (e) { console.log('[smoke-js error]', e.message); }
-    }, 3000));
-    setTimeout(async () => {
-      const img = await win.webContents.capturePage();
-      fs.writeFileSync(path.join(app.getPath('temp'), 'glow-smoke.png'), img.toPNG());
-      if (process.env.GLOW_SHOT) {   // a 16:9 640x360 JPEG (workshop covers)
-        const { width: w, height: h } = img.getSize(), ch = Math.min(h, Math.round(w * 9 / 16)), cw = Math.round(ch * 16 / 9);
-        fs.writeFileSync(process.env.GLOW_SHOT, img.crop({ x: Math.round((w - cw) / 2), y: Math.round((h - ch) / 2), width: cw, height: ch }).resize({ width: 640, height: 360, quality: 'best' }).toJPEG(82));
-      }
-      console.log('[smoke]', JSON.stringify({ status: await win.webContents.executeJavaScript("document.getElementById('status')?.textContent || ''"), result: await win.webContents.executeJavaScript('window.__smoke ?? null'), ...cacheInfo() }));
-      app.quit();
-    }, +process.env.GLOW_SMOKE * 1000);
-  }
+  if (process.env.GLOW_SMOKE) require('./smoke-runner.cjs').runSmoke({ win, app, cacheInfo, buildInfo });
 }
 
 app.whenReady().then(() => {
@@ -164,11 +158,12 @@ app.whenReady().then(() => {
   fs.mkdirSync(cacheDir, { recursive: true }); setTimeout(pruneCache, 5000);
   protocol.handle('app', (req) => {
     const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
-    const f = inside(APP_DIR, rel);
+    const f = inside(APP_DIR, rel.endsWith('/') ? rel + 'index.html' : rel);
     return f ? fileResponse(f) : new Response('bad path', { status: 400 });
   });
   session.defaultSession.protocol.handle('https', handleHttps);
   ipcMain.handle('glow:cache-info', () => cacheInfo());
+  ipcMain.handle('glow:build-info', () => ({ ...buildInfo, packaged: app.isPackaged }));
   ipcMain.handle('glow:cache-clear', () => { for (const f of fs.readdirSync(cacheDir)) fs.rmSync(path.join(cacheDir, f)); return cacheInfo(); });
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
