@@ -352,6 +352,25 @@
       "scope": "Runner compares the pure logic with the classic code on real structures; the Viewer panel (add pools and a flow, play, pause, switch scale, save, close, reopen: same picture pixel for pixel at step 0, no page errors) was checked in a software-rendered browser session, not by this runner; authoring the tool in Studio (add, fill the blank slots, export) and opening that export in the Viewer, and the hover name card, were checked the same way; a Studio particle preview and event tag rendering are not built."
     },
     {
+      "id": "classic.stochastic.markov-gating",
+      "kind": "manual-contract",
+      "source": "src/sim/processes/kcsa.js",
+      "steps": [
+        "Run the KcsA chain from data and from the plugin with the same seeds and parameter schedules; sample counters, clocks and the estimated current."
+      ],
+      "expected": "Same events at the same times and the same state, bit for bit; counted current within sampling error of the analytic steady-state current; deterministic replay for any partition of the times asked."
+    },
+    {
+      "id": "new.stochastic.markov-gating",
+      "kind": "partial-automation",
+      "runner": "plugins/simulation/test/markov-model.test.mjs",
+      "steps": [
+        "Run the KcsA chain from data and from the plugin with the same seeds and parameter schedules; sample counters, clocks and the estimated current."
+      ],
+      "expected": "Same events at the same times and the same state, bit for bit; counted current within sampling error of the analytic steady-state current; deterministic replay for any partition of the times asked.",
+      "scope": "Node tests compare the data-defined chain with the extracted KcsA kinetics (not the classic engine, whose clocks block on animation by design) and the observer with the analytic current; a tool, a Viewer chart panel and the KcsA player using the data model are not built; full parity remains pending."
+    },
+    {
       "id": "classic.animation.data-v1-adk-kcsa",
       "kind": "manual-contract",
       "source": "src/sim/data-anim.js",
