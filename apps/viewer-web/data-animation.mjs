@@ -24,7 +24,7 @@ export function createDataAnimation({ viewport, elements, context }) {
     const space = selectionSpace(model);
     frame = orientedFrame({
       residues: space.residues.map((r) => ({ position: r.position, entity: r.entity, authSeq: r.authSeq, insertion: r.insertion, labelSeq: r.labelSeq, chain: r.chain, labelAsym: r.labelAsym })),
-      ligands: space.ligands, config: { axis: config.axis, membranes: config.membranes }, animation: config.animation,
+      ligands: space.ligands, config: { axis: config.axis, axisFit: config.axisFit, up: config.up, down: config.down, membranes: config.membranes }, animation: config.animation,
     });
     engine = new DataAnimation(structuredClone(config.animation), frame.structure, {
       rng: seededRng(config.seed), pace: () => Number(elements.pace.value) || 1, scale: () => elements.scale.value, kinetics: config.kinetics ?? null,

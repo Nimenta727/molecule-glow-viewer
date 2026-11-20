@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "id": "chloroplast",
+  "feature": "mechanism.chloroplast",
+  "plugin": {
+    "id": "org.glow.simulation",
+    "version": "1.0.0"
+  },
+  "species": "Spinacia oleracea (3JCU photosystem II–LHCII supercomplex); ATP synthase and carriers are not drawn from a single measured assembly",
+  "structure_metadata": "docs/science/structures.json",
+  "structures": [
+    {
+      "id": "3JCU",
+      "url": "https://files.rcsb.org/download/3JCU.cif",
+      "sha256": "7b9b99f5173e0db4f9bb7839d04f0daf5c4b1648804b4354a0c09526a7e9f968",
+      "interpretation": "Spinach photosystem II–LHCII supercomplex (cryo-EM)"
+    }
+  ],
+  "evidence_classes": {
+    "experimental": "Deposited coordinates of photosystem II–LHCII only.",
+    "derived": "Orientation (flattest direction of the PSII core subunits = membrane normal) and membrane position (centre of the D1 protein) from stated rules.",
+    "modelled": "The compartment model: light response, linear and cyclic electron flow, photosynthetic control, ATP synthesis, leak and Calvin cycle are teaching-level relations with round constants.",
+    "illustrative": "Free proton, ATP and NADPH counts, their positions and speeds, and the display time scale."
+  },
+  "equations": [
+    {
+      "name": "light response",
+      "formula": "L' = L + (light - L)*min(1, h/0.3); act' = act + (light - act)*min(1, h/6)",
+      "unit": "dimensionless, h in s"
+    },
+    {
+      "name": "linear electron flow",
+      "formula": "Je = 0.8*L*fbp*NADP/(NADP+0.04), fbp = 1/(1+exp((dpH-2.5)/0.15))",
+      "unit": "mM/s (teaching units)"
+    },
+    {
+      "name": "proton balance",
+      "formula": "dpH' = dpH + h*(3*Je + 2*Jc - 14/3*Jatp - Jleak)/1.2; pmf = 59*dpH + 20*(1-exp(-dpH/0.6))",
+      "unit": "pH units; mV"
+    },
+    {
+      "name": "Calvin cycle",
+      "formula": "Jcal = 0.12*act*ATP/(ATP+0.3)*NADPH/(NADPH+0.05); ATP uses 3 per cycle, NADPH 2",
+      "unit": "mM/s"
+    }
+  ],
+  "parameters": {
+    "Nt": {
+      "label": "total NADP pool",
+      "value": 0.5,
+      "unit": "mM"
+    },
+    "At": {
+      "label": "total adenine nucleotide pool",
+      "value": 1.5,
+      "unit": "mM"
+    },
+    "light": {
+      "label": "light switch",
+      "value": 1,
+      "unit": "switch (0/1)"
+    },
+    "cef": {
+      "label": "cyclic electron flow switch",
+      "value": 1,
+      "unit": "switch (0/1)"
+    },
+    "unc": {
+      "label": "uncoupler switch",
+      "value": 0,
+      "unit": "switch (0/1)"
+    },
+    "oligo": {
+      "label": "ATP synthase inhibitor switch",
+      "value": 0,
+      "unit": "switch (0/1)"
+    }
+  },
+  "clocks": "Model seconds (teaching time); the model steps on a 0.02 s grid; light switches fade over 0.3 s, Calvin activation over 6 s.",
+  "limitations": [
+    "Constants are teaching values chosen to show light response, cyclic flow, uncoupler and inhibitor behaviour; not fitted to measurements.",
+    "Only the PSII–LHCII structure is in the scene; the b6f complex, PSI, ATP synthase and carriers are not drawn from a measured assembly.",
+    "The work does not draw electron paths through the real cofactors or proton pumping on the structure (still the classic code).",
+    "Compartment volumes are not modelled."
+  ],
+  "literature": [
+    "Structure of spinach photosystem II-LHCII supercomplex at 3.2 A resolution. Nature 2016, doi:10.1038/nature18020",
+    "Mitchell P. Chemiosmotic coupling in oxidative and photosynthetic phosphorylation. Biol Rev 1966"
+  ],
+  "software": [
+    "plugins/simulation/kinetic-model.mjs",
+    "plugins/simulation/expression.mjs"
+  ],
+  "classic_sources": [
+    "src/sim/cell-kinetics.js",
+    "src/sim/processes/chloroplast.js"
+  ],
+  "new_sources": [
+    "plugins/simulation/works/mechanism-kinetics.mjs",
+    "plugins/simulation/works/mechanism-works.mjs"
+  ],
+  "validation": {
+    "comparison_report": "docs/parity/kinetics-parity-report.txt",
+    "expert_experimental_validation": "pending",
+    "note": "The data model equals the classic compartment model bit for bit over scripted switch schedules; it is a teaching model, not a fit to measurements, and has not been reviewed by a domain expert."
+  }
+}

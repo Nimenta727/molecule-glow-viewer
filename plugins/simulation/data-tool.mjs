@@ -3,9 +3,9 @@ import { compileKineticModel } from './kinetic-model.mjs';
 
 /**
  * The "data animation" tool (4.4.3b): the authored form of plugins/simulation/data-animation.mjs. Its configuration, stored in `scene.tools[].config`:
- *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', membranes: [{ at, offset }], seed, scale, kinetics?: <kinetic model v1> }
+ *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', axisFit?: [part keywords], up?: keyword, down?: keyword, membranes: [{ at, offset }], seed, scale, kinetics?: <kinetic model v1> }
  * `kinetics` is an optional compartment model (concentrations, pH, membrane potential; plugins/simulation/kinetic-model.mjs) whose pools follow the animation's.
- * `axis` and `membranes` are the classic scene's orientation and membrane placement (the engine runs with the structure's axis vertical, see structure-frame.mjs).
+ * `axisFit` (membrane complexes: the flattest direction of these parts is the membrane normal, as the classic) and `up` / `down` (which part ends above / below) refine the orientation; `axis` and `membranes` are the classic scene's orientation and membrane placement (the engine runs with the structure's axis vertical, see structure-frame.mjs).
  * The Viewer runs it (`runtime: 'layer-v1'`); Studio edits it through the generated tool panel. Nothing here names a protein or a pack.
  */
 export const DATA_TOOL = 'org.glow.tool.data-animation';
@@ -30,7 +30,9 @@ export function normalizeDataConfig(raw) {
     if (errors.length) throw new Error(`动力学模型有误：${errors.join('；')}`);
     kinetics = JSON.parse(json);
   }
-  return { animation: spec, ...(kinetics ? { kinetics } : {}), axis: AXES.includes(source.axis) ? source.axis : 'sym', membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
+  const words = (v) => (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 120)).slice(0, 8);
+  const one = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined), fit = words(source.axisFit), up = one(source.up), down = up ? undefined : one(source.down);
+  return { animation: spec, ...(kinetics ? { kinetics } : {}), axis: AXES.includes(source.axis) ? source.axis : 'sym', ...(fit.length ? { axisFit: fit } : {}), ...(up ? { up } : {}), ...(down ? { down } : {}), membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
 }
 
 /** Editable fields: the run settings, then every pool, flow and reaction of the declaration (add or remove them in the declaration itself). */

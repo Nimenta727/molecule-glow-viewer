@@ -37,9 +37,20 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
   if (!residues?.length) throw new Error('取向需要结构的残基坐标');
   const native = residues.map((r) => r.position), g = mean(native), mode = config.axis ?? 'sym';
   let R = [[1, 0, 0], [0, 1, 0], [0, 0, 1]], axis = null;
-  if (mode !== 'native') { axis = chooseAxis(mode, { points: native }).direction; R = rotationToUp(axis); }
+  if (mode !== 'native') {
+    // membrane complexes: the flattest direction of the named (transmembrane) parts is the membrane normal, as the classic axisFit; too few residues fall back to the whole model
+    const fit = config.axisFit?.length ? residues.filter((r) => config.axisFit.some((k) => kwMatch(r.entity ?? '', k))).map((r) => r.position) : [];
+    axis = chooseAxis(fit.length > 50 ? 'short' : mode, { points: fit.length > 50 ? fit : native }).direction; R = rotationToUp(axis);
+  }
   const toOriented = (p) => apply(R, [p[0] - g[0], p[1] - g[1], p[2] - g[2]]);
   let oriented = native.map(toOriented), flipAbout = null;
+  // up / down: the named part ends above (below) the middle; the axis sign is arbitrary, so turn the model half a turn about a horizontal axis if it is the wrong way up
+  const side = config.up ?? config.down;
+  if (side) {
+    const named = residues.map((r, i) => ({ r, p: oriented[i] })).filter(({ r }) => kwMatch(r.entity ?? '', side));
+    const my = named.length ? named.reduce((t, { p }) => t + p[1], 0) / named.length : 0;
+    if (named.length && (config.up ? my < 0 : my > 0)) flipAbout = structureBox(oriented).centre;
+  }
   const build = (points) => {
     const place = (p) => (flipAbout ? flipAboutHorizontal(p, flipAbout) : p);
     const pts = flipAbout ? points.map(place) : points;
@@ -63,8 +74,9 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
   };
   let structure = build(oriented);
   // orient.up: the anchor's side of the model faces up (the axis sign is arbitrary), by a half turn about a horizontal axis through the middle
-  const flipped = animation ? needsFlip(animation, structure) : false;
+  if (flipAbout) structure = build(oriented);
+  const flipped = !flipAbout && (animation ? needsFlip(animation, structure) : false);
   if (flipped) { flipAbout = structureBox(oriented).centre; structure = build(oriented); }
   const fromOriented = (q) => { const p = flipAbout ? flipAboutHorizontal(q, flipAbout) : q; const r = applyT(R, p); return [r[0] + g[0], r[1] + g[1], r[2] + g[2]]; };
-  return { structure, flipped, axis, rotation: R, centroid: g, toNative: fromOriented, fromNative: (p) => { const q = toOriented(p); return flipAbout ? flipAboutHorizontal(q, flipAbout) : q; } };
+  return { structure, flipped: Boolean(flipAbout), axis, rotation: R, centroid: g, toNative: fromOriented, fromNative: (p) => { const q = toOriented(p); return flipAbout ? flipAboutHorizontal(q, flipAbout) : q; } };
 }

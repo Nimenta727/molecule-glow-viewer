@@ -401,13 +401,13 @@
     },
     {
       "id": "new.mechanism.respiratory-chain",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
+      "runner": "tools/kinetics-parity.mjs",
       "steps": [
         "Play respiratory-chain pack; toggle inhibitors and track proton/electron ledger."
       ],
       "expected": "Q-cycle semantics preserved; no negative pools; ATP equals returning H+ times 3/8 under declared accounting; inhibitor responses match classic.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "tools/kinetics-parity.mjs runs the classic compartment model and the data model of the shipped work side by side (identical state, fluxes, pH, read-outs, curves; 5/5). The official pack was opened in a software-rendered browser session: the work runs, the readouts follow the switches. The electron paths, proton pumping choreography and ledger on the structure are not built; full parity remains pending."
     },
     {
       "id": "classic.mechanism.chloroplast",
@@ -420,13 +420,13 @@
     },
     {
       "id": "new.mechanism.chloroplast",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
+      "runner": "tools/kinetics-parity.mjs",
       "steps": [
         "Play light reaction pack with zero and positive light; save and replay."
       ],
       "expected": "Light response, linear electron flow and NADPH/ATP ledger match declared stoichiometry; compartment totals and units explicit.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "tools/kinetics-parity.mjs runs the classic compartment model and the data model of the shipped work side by side (identical state, fluxes, pH, read-outs, curves; 5/5). The official pack was opened in a software-rendered browser session: the work runs, the readouts follow the switches. The electron paths, proton pumping choreography and ledger on the structure are not built; full parity remains pending."
     },
     {
       "id": "classic.mechanism.flagellar-motor",

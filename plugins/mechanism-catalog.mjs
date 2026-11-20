@@ -11,6 +11,7 @@ import { kcsaToolDescriptor, KCSA_TOOL } from './kcsa/tool.mjs';
 import { motionPlugin } from './motion/index.mjs';
 import { SOLUTION_TOOL } from './motion/solution-tool.mjs';
 import { simulationPlugin } from './simulation/index.mjs';
+import { mechanismWorkConfig } from './simulation/works/mechanism-works.mjs';
 import { DATA_TOOL, normalizeDataConfig } from './simulation/data-tool.mjs';
 import { PROCESS_TOOL } from './simulation/process-tool.mjs';
 import { TRANSLATION_TOOL } from './simulation/translation-tool.mjs';
@@ -66,6 +67,10 @@ export function toolIdForScene(scene) {
  */
 export function dataAnimationEntry(scene) {
   const legacy = scene.legacy?.scene, animation = legacy?.animation;
+  const work = mechanismWorkConfig(legacy);   // classic compartment-kinetics works (respiratory chain, chloroplast): a membrane, two compartments and the kinetic model
+  if (work) {
+    try { return { id: 'data-animation', tool: { id: DATA_TOOL, version: simulationPlugin.manifest.version }, config: normalizeDataConfig(work) }; } catch { return undefined; }
+  }
   if (!animation || typeof animation !== 'object') return undefined;
   try {
     const config = normalizeDataConfig({ animation, axis: legacy.axis, membranes: legacy.membranes ?? (Number.isFinite(legacy.memY) ? [{ at: '', offset: legacy.memY }] : []), seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7 });

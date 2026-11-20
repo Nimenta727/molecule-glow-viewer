@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "id": "respiratory-chain",
+  "feature": "mechanism.respiratory-chain",
+  "plugin": {
+    "id": "org.glow.simulation",
+    "version": "1.0.0"
+  },
+  "species": "Bos taurus (5GUP respirasome, 6ZPO ATP synthase) and Equus caballus (1HRC cytochrome c as stand-in) — a composite teaching scene, not one measured assembly",
+  "structure_metadata": "docs/science/structures.json",
+  "structures": [
+    {
+      "id": "5GUP",
+      "url": "https://files.rcsb.org/download/5GUP.cif",
+      "sha256": "2aa09c2ad6e3b096412b8434057317f4cded1bee53868f384bc406202432d694",
+      "interpretation": "Mammalian respiratory supercomplex I1III2IV1 (cryo-EM)"
+    },
+    {
+      "id": "6ZPO",
+      "url": "https://files.rcsb.org/download/6ZPO.cif",
+      "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec",
+      "interpretation": "Bovine ATP synthase, c8 ring"
+    },
+    {
+      "id": "1HRC",
+      "url": "https://files.rcsb.org/download/1HRC.cif",
+      "sha256": "00ddc70047e8eb00d5acf2fa2ab5ab3ba6f942c75212ff2ebe3234130a16e17b",
+      "interpretation": "Horse heart cytochrome c (stand-in for the mobile carrier)"
+    }
+  ],
+  "evidence_classes": {
+    "experimental": "Deposited coordinates of the respirasome, ATP synthase and cytochrome c only.",
+    "derived": "Orientation (flattest direction of the transmembrane subunits = membrane normal) and the membrane position (centre of the named part) from stated rules.",
+    "modelled": "The compartment model: respiratory control, ATP synthesis, proton leak, pH and potential are teaching-level relations with round constants.",
+    "illustrative": "Free proton, ATP and NADH counts, their positions and speeds, and the display time scale."
+  },
+  "equations": [
+    {
+      "name": "proton-motive force",
+      "formula": "pmf' = pmf + h*(5*Je - 11/3*Jatp - Jleak)*60 (mV)",
+      "unit": "mV, h in s"
+    },
+    {
+      "name": "respiratory control",
+      "formula": "Je = 1.2*O2*fbp*NADH/(NADH+0.3), fbp = 1/(1+exp((pmf-205)/7))",
+      "unit": "mM/s (teaching units)"
+    },
+    {
+      "name": "ATP synthase",
+      "formula": "Jatp = (1-oligo)*x/(1+x)*ADP/(ADP+0.15), x = max(0,(pmf-140)/30); 8 H+ per 3 ATP (c8 ring) + 1 for ADP/Pi import = 11/3",
+      "unit": "mM/s"
+    },
+    {
+      "name": "compartment pH",
+      "formula": "pH_IMS = 7.2 - 0.4*0.0045*pmf; pH_matrix = 7.2 + 0.6*0.0045*pmf; membrane potential = pmf*(1-59*0.0045)",
+      "unit": "pH units; mV"
+    }
+  ],
+  "parameters": {
+    "NADt": {
+      "label": "total NAD pool",
+      "value": 3,
+      "unit": "mM"
+    },
+    "At": {
+      "label": "total adenine nucleotide pool",
+      "value": 3,
+      "unit": "mM"
+    },
+    "sub": {
+      "label": "substrate (NADH supply) switch",
+      "value": 1,
+      "unit": "switch (0/1)"
+    },
+    "o2": {
+      "label": "O2 switch",
+      "value": 1,
+      "unit": "switch (0/1)"
+    },
+    "demand": {
+      "label": "ATP demand x3 switch",
+      "value": 0,
+      "unit": "switch (0/1)"
+    },
+    "oligo": {
+      "label": "oligomycin switch",
+      "value": 0,
+      "unit": "switch (0/1)"
+    },
+    "dnp": {
+      "label": "DNP uncoupler switch",
+      "value": 0,
+      "unit": "switch (0/1)"
+    }
+  },
+  "clocks": "Model seconds (teaching time); the model steps on a 0.02 s grid and warms up to a resting state; the animation pace follows the oxygen consumption rate.",
+  "limitations": [
+    "Constants and relations are teaching values chosen to show respiratory control, oligomycin and uncoupler responses; they are not fitted to measurements.",
+    "The work does not draw electron paths through the real cofactors, the Q cycle, or the 4+4+2 proton accounting on the structure (still the classic code).",
+    "The scene combines three entries from two species; relative placement is not measured.",
+    "Compartment volumes are not modelled; concentrations are in a single teaching unit."
+  ],
+  "literature": [
+    "Structure of mammalian respiratory supercomplex I1III2IV1. Cell 2016, doi:10.1016/j.cell.2016.11.012",
+    "Structure of the dimeric ATP synthase from bovine mitochondria. PNAS 2020, doi:10.1073/pnas.2013998117",
+    "Mitchell P. Chemiosmotic coupling in oxidative and photosynthetic phosphorylation. Biol Rev 1966"
+  ],
+  "software": [
+    "plugins/simulation/kinetic-model.mjs",
+    "plugins/simulation/expression.mjs"
+  ],
+  "classic_sources": [
+    "src/sim/cell-kinetics.js",
+    "src/sim/processes/respiratory-chain.js"
+  ],
+  "new_sources": [
+    "plugins/simulation/works/mechanism-kinetics.mjs",
+    "plugins/simulation/works/mechanism-works.mjs"
+  ],
+  "validation": {
+    "comparison_report": "docs/parity/kinetics-parity-report.txt",
+    "expert_experimental_validation": "pending",
+    "note": "The data model equals the classic compartment model bit for bit over scripted switch schedules; it is a teaching model, not a fit to measurements, and has not been reviewed by a domain expert."
+  }
+}

@@ -4,6 +4,8 @@
 |---|---|---|
 | ATP synthase | [atp-synthase.json](../../plugins/atp-synthase/scientific-card.json) | 6ZPO 牛线粒体 c8 教学播放器；质子账本通过，合成/释放计数语义和完整事件仍待比对 |
 | KcsA | [kcsa.json](../../plugins/kcsa/scientific-card.json) | 五套坐标、四态教学速率；速率/电流对照通过，随机时钟、区室、水合和曲线未追平 |
+| 呼吸链 | [respiratory-chain.card.json](../../plugins/simulation/works/respiratory-chain.card.json) | 5GUP 呼吸体＋6ZPO＋1HRC 组合教学场景；区室动力学与经典逐位一致，电子路径/泵编排未迁，未经专家审阅 |
+| 叶绿体 | [chloroplast.card.json](../../plugins/simulation/works/chloroplast.card.json) | 3JCU 光系统 II–LHCII；区室动力学与经典逐位一致，电子路径/泵编排未迁，未经专家审阅 |
 | AdK | [adenylate-kinase.json](../../plugins/adenylate-kinase/scientific-card.json) | 4AKE/1AKE A 链两态；闭合端相对 CORE 的域测量通过，反应动力学未迁移 |
 
 [structures.json](structures.json)保留本轮 RCSB 技能查询的紧凑来源摘要；坐标 SHA-256 对应 [固定下载清单](../../tools/fixtures/structures.json)。没有把实体 1 一律当目标蛋白：KcsA 的实体 1 是 Fab，实际通道为实体 3；物种描述据此核对。5VK6 的条目标题明确为 E71A，不能因为 API 的 mutation count 为 0 就称其为野生型。[5VK6 记录](https://www.rcsb.org/structure/5VK6)

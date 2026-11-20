@@ -618,6 +618,101 @@
         }
       ],
       "checked_sources": []
+    },
+    {
+      "id": "5GUP",
+      "coordinate": {
+        "id": "5GUP",
+        "bytes": 12351474,
+        "sha256": "2aa09c2ad6e3b096412b8434057317f4cded1bee53868f384bc406202432d694",
+        "url": "https://files.rcsb.org/download/5GUP.cif"
+      },
+      "title": "Cryo-EM structure of mammalian respiratory supercomplex I1III2IV1",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of Mammalian Respiratory Supercomplex I1III2IV1",
+        "year": 2016,
+        "pdbx_database_id_PubMed": 27912063,
+        "pdbx_database_id_DOI": "10.1016/j.cell.2016.11.012"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/5GUP",
+          "retrieved_at": "2026-11-20T12:07:21.797570+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/5GUP",
+          "canonical_url": "https://www.rcsb.org/structure/5GUP"
+        }
+      ]
+    },
+    {
+      "id": "3JCU",
+      "coordinate": {
+        "id": "3JCU",
+        "bytes": 8670548,
+        "sha256": "7b9b99f5173e0db4f9bb7839d04f0daf5c4b1648804b4354a0c09526a7e9f968",
+        "url": "https://files.rcsb.org/download/3JCU.cif"
+      },
+      "title": "Cryo-EM structure of spinach PSII-LHCII supercomplex at 3.2 Angstrom resolution",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of spinach photosystem II-LHCII supercomplex at 3.2 A resolution",
+        "year": 2016,
+        "pdbx_database_id_DOI": "10.1038/nature18020"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/3JCU",
+          "retrieved_at": "2026-11-20T12:07:21.797570+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/3JCU",
+          "canonical_url": "https://www.rcsb.org/structure/3JCU"
+        }
+      ]
+    },
+    {
+      "id": "1HRC",
+      "coordinate": {
+        "id": "1HRC",
+        "bytes": 160446,
+        "sha256": "00ddc70047e8eb00d5acf2fa2ab5ab3ba6f942c75212ff2ebe3234130a16e17b",
+        "url": "https://files.rcsb.org/download/1HRC.cif"
+      },
+      "title": "HIGH-RESOLUTION THREE-DIMENSIONAL STRUCTURE OF HORSE HEART CYTOCHROME C",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "High-resolution three-dimensional structure of horse heart cytochrome c.",
+        "year": 1990,
+        "pdbx_database_id_PubMed": 2166170,
+        "pdbx_database_id_DOI": "10.1016/0022-2836(90)90200-6"
+      },
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1HRC",
+          "retrieved_at": "2026-11-20T12:07:21.797570+00:00",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1HRC",
+          "canonical_url": "https://www.rcsb.org/structure/1HRC"
+        }
+      ]
     }
   ]
 }

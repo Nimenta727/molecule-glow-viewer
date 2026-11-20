@@ -1,14 +1,72 @@
 {
-  "format":"glow-smoke-structures-v1",
-  "note":"Unmodified RCSB files used by release probes. Download separately; never bundled in the EXE. Hash changes require fixture review.",
-  "structures":[
-    {"id":"6ZPO","bytes":9215764,"sha256":"7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec","url":"https://files.rcsb.org/download/6ZPO.cif"},
-    {"id":"1K4C","bytes":570033,"sha256":"da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763","url":"https://files.rcsb.org/download/1K4C.cif"},
-    {"id":"5VK6","bytes":842196,"sha256":"2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b","url":"https://files.rcsb.org/download/5VK6.cif"},
-    {"id":"5VKE","bytes":839525,"sha256":"d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65","url":"https://files.rcsb.org/download/5VKE.cif"},
-    {"id":"2HVK","bytes":532711,"sha256":"2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df","url":"https://files.rcsb.org/download/2HVK.cif"},
-    {"id":"2ITD","bytes":468193,"sha256":"30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828","url":"https://files.rcsb.org/download/2ITD.cif"},
-    {"id":"4AKE","bytes":381852,"sha256":"fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9","url":"https://files.rcsb.org/download/4AKE.cif"},
-    {"id":"1AKE","bytes":426810,"sha256":"01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948","url":"https://files.rcsb.org/download/1AKE.cif"}
+  "format": "glow-smoke-structures-v1",
+  "note": "Unmodified RCSB files used by release probes. Download separately; never bundled in the EXE. Hash changes require fixture review.",
+  "structures": [
+    {
+      "id": "6ZPO",
+      "bytes": 9215764,
+      "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec",
+      "url": "https://files.rcsb.org/download/6ZPO.cif"
+    },
+    {
+      "id": "1K4C",
+      "bytes": 570033,
+      "sha256": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763",
+      "url": "https://files.rcsb.org/download/1K4C.cif"
+    },
+    {
+      "id": "5VK6",
+      "bytes": 842196,
+      "sha256": "2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b",
+      "url": "https://files.rcsb.org/download/5VK6.cif"
+    },
+    {
+      "id": "5VKE",
+      "bytes": 839525,
+      "sha256": "d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65",
+      "url": "https://files.rcsb.org/download/5VKE.cif"
+    },
+    {
+      "id": "2HVK",
+      "bytes": 532711,
+      "sha256": "2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df",
+      "url": "https://files.rcsb.org/download/2HVK.cif"
+    },
+    {
+      "id": "2ITD",
+      "bytes": 468193,
+      "sha256": "30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828",
+      "url": "https://files.rcsb.org/download/2ITD.cif"
+    },
+    {
+      "id": "4AKE",
+      "bytes": 381852,
+      "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9",
+      "url": "https://files.rcsb.org/download/4AKE.cif"
+    },
+    {
+      "id": "1AKE",
+      "bytes": 426810,
+      "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948",
+      "url": "https://files.rcsb.org/download/1AKE.cif"
+    },
+    {
+      "id": "5GUP",
+      "bytes": 12351474,
+      "sha256": "2aa09c2ad6e3b096412b8434057317f4cded1bee53868f384bc406202432d694",
+      "url": "https://files.rcsb.org/download/5GUP.cif"
+    },
+    {
+      "id": "3JCU",
+      "bytes": 8670548,
+      "sha256": "7b9b99f5173e0db4f9bb7839d04f0daf5c4b1648804b4354a0c09526a7e9f968",
+      "url": "https://files.rcsb.org/download/3JCU.cif"
+    },
+    {
+      "id": "1HRC",
+      "bytes": 160446,
+      "sha256": "00ddc70047e8eb00d5acf2fa2ab5ab3ba6f942c75212ff2ebe3234130a16e17b",
+      "url": "https://files.rcsb.org/download/1HRC.cif"
+    }
   ]
 }
