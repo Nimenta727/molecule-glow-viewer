@@ -128,6 +128,23 @@ function armPoints(a, s, centre, warn) {
   return a.fractions.map((f) => [pc.centre[0] + e[0] * (lo + (hi - lo) * f), y0, pc.centre[2] + e[2] * (lo + (hi - lo) * f)]);
 }
 
+/**
+ * The two volumes drawn for a compartment model's pH (classic: the pH volumes of cell-kinetics.js): a box above the membrane and one below it, as wide as the structure (plus a margin), from
+ * `gap` Å off the membrane to `reach` Å beyond the structure. In the engine's frame (membrane normal vertical). Returns { top: { min, max }, bot: { min, max } }.
+ */
+export function compartmentBoxes(structure, { gap = 30, margin = 80, reach = 120 } = {}) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of structure.points) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); }
+  const ym = (structure.membraneY ?? [])[0] ?? (lo[1] + hi[1]) / 2;
+  return { top: { min: [lo[0] - margin, ym + gap, lo[2] - margin], max: [hi[0] + margin, Math.max(hi[1] + reach, ym + gap + 1), hi[2] + margin] },
+    bot: { min: [lo[0] - margin, Math.min(lo[1] - reach, ym - gap - 1), lo[2] - margin], max: [hi[0] + margin, ym - gap, hi[2] + margin] } };
+}
+/** The triangles of an axis-aligned box: { positions: [[x, y, z]...] (8), indices: [a, b, c...] (12 triangles) }. */
+export function boxTriangles({ min, max }) {
+  const positions = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [i & 1 ? max[0] : min[0], i & 2 ? max[1] : min[1], i & 4 ? max[2] : min[2]]);
+  return { positions, indices: [0, 1, 3, 0, 3, 2, 4, 6, 7, 4, 7, 5, 0, 4, 5, 0, 5, 1, 2, 3, 7, 2, 7, 6, 0, 2, 6, 0, 6, 4, 1, 5, 7, 1, 7, 3] };
+}
+
 /** The middle of the box around a structure's points, and half its diagonal (the classic centre and size of a model). */
 export function structureBox(points) {
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];

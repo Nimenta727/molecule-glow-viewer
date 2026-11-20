@@ -1,4 +1,4 @@
-import { DataAnimation } from '../../plugins/simulation/data-animation.mjs';
+import { DataAnimation, compartmentBoxes, boxTriangles } from '../../plugins/simulation/data-animation.mjs';
 import { orientedFrame } from '../../plugins/simulation/structure-frame.mjs';
 import { seededRng } from '../../plugins/motion/particles.mjs';
 import { selectionSpace } from '../../plugins/structure/selection.mjs';
@@ -13,10 +13,12 @@ import { Replay, STEP, REPLAY_LIMITS } from '../../plugins/simulation/replay.mjs
  * entry holds the configuration; the animation starts from its seed and, with a Replay (plugins/simulation/replay.mjs), can be rewound and changed by hand: the interventions
  * and the step it was at are saved in the entry's `state`, and a plain run saves nothing.
  */
-const POOL = 'data-pool', MOVING = 'data-moving', STREAM = 'data-stream';
+const POOL = 'data-pool', MOVING = 'data-moving', STREAM = 'data-stream', HOT = 'data-hot-sites', VOLUME = ['data-ph-top', 'data-ph-bottom'];
+/** The sites the animation works at (the classic marked the residues near them to glow): at most this many distinct ones, each pulsing about every 1.6 s of animation time. */
+const MAX_HOT = 80, hotSites = (points) => { const seen = new Set(), out = []; for (const p of points) { const key = p.map((v) => Math.round(v / 6)).join(','); if (!seen.has(key)) { seen.add(key); out.push(p); } if (out.length >= MAX_HOT) break; } return out; };
 
 export function createDataAnimation({ viewport, elements, context, strip = null, drive = null }) {
-  let replay = null, frame = null, config = null, runFrame = null, last = 0, carry = 0, available = true, lastKey = '', syncers = [], savedState = null;
+  let lastVolume = '', replay = null, frame = null, config = null, runFrame = null, last = 0, carry = 0, available = true, lastKey = '', syncers = [], savedState = null;
   const engineOf = () => replay?.engine ?? null;
 
   const show = (text) => { elements.info.textContent = text; };
@@ -39,11 +41,28 @@ export function createDataAnimation({ viewport, elements, context, strip = null,
     return replay.engine;
   }
 
+  /** The pH of each compartment as a translucent volume above and below the membrane: its colour is the solution colour at that pH, denser the more acid it is (the classic). Rebuilt only when it changes visibly. */
+  function drawVolumes(centre, k) {
+    const comps = engineOf()?.kinetics?.compartments();
+    if (!comps?.length || !frame) { if (lastVolume) { VOLUME.forEach((tag) => viewport.setOverlayMesh(tag, null)); lastVolume = ''; } return; }
+    const opacity = (pH) => Math.round(Math.max(0.35, Math.min(1.3, 0.55 + 0.22 * (7.6 - pH))) * 0.1 * 50) / 50, key = JSON.stringify(comps.slice(0, 2).map((c) => [c.colour, opacity(c.pH)]));
+    if (key === lastVolume) return;
+    lastVolume = key;
+    const boxes = compartmentBoxes(frame.structure), parse = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    [boxes.top, boxes.bot].slice(0, comps.length).forEach((box, i) => {
+      const { positions, indices } = boxTriangles(box), colour = parse(comps[i].colour), pos = new Float32Array(positions.length * 3), colors = new Float32Array(positions.length * 3);
+      positions.forEach((p, n) => { pos.set(frame.toNative(p).map((v, j) => (v - centre[j]) * k), n * 3); colors.set(colour, n * 3); });
+      viewport.setOverlayMesh(VOLUME[i], { pos, idx: new Uint32Array(indices), colors }, { opacity: opacity(comps[i].pH) });
+    });
+  }
   function draw() {
-    const clear = () => { viewport.setParticleCloud(POOL, []); viewport.setParticleCloud(MOVING, []); viewport.setParticleCloud(STREAM, []); viewport.setEventTags([]); };
+    const clear = () => { VOLUME.forEach((tag) => viewport.setOverlayMesh(tag, null)); lastVolume = ''; viewport.setParticleCloud(HOT, []); viewport.setParticleCloud(POOL, []); viewport.setParticleCloud(MOVING, []); viewport.setParticleCloud(STREAM, []); viewport.setEventTags([]); };
     if (!available || !engineOf() || !context.model()) { clear(); return; }
     const centre = displayCenter(context.model()), k = PRESENTATION_METERS_PER_ANGSTROM, { items, tags } = engineOf().frame();
     const convert = (item) => ({ position: frame.toNative(item.position).map((v, i) => (v - centre[i]) * k), radius: item.radius * k, color: item.color, alpha: item.alpha, label: item.label, name: item.name });
+    drawVolumes(centre, k);
+    const pulse = 0.5 + 0.5 * Math.sin(2 * Math.PI * engineOf().time / 1.6);
+    viewport.setParticleCloud(HOT, hotSites(engineOf().hotPoints ?? []).map((p) => ({ position: frame.toNative(p).map((v, i) => (v - centre[i]) * k), radius: (6 + 3 * pulse) * k, color: '#ffe680', alpha: 0.12 + 0.2 * pulse, name: '作用位点（闪光）' })));
     viewport.setParticleCloud(POOL, items.filter((i) => i.kind === 'pool').map(convert));
     viewport.setParticleCloud(MOVING, items.filter((i) => i.kind === 'moving').map(convert), { overlay: true });
     viewport.setParticleCloud(STREAM, items.filter((i) => i.kind === 'stream').map(convert), { overlay: true });

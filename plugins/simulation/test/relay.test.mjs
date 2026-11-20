@@ -113,3 +113,15 @@ test('chloroplast relay: per NADPH 4 photons and 6 H⁺ into the lumen, one O₂
   assert.deepEqual(Object.values(engine.balance()).filter((v) => v.expected !== v.actual), []);
   assert.ok(engine.rotor.travelled > 0 && c['H⁺ 回流（ATP 合酶）'] >= 14 * Math.floor(engine.rotor.travelled) - 0, '14 H⁺ per turn of the c14 ring');
 });
+
+test('compartment boxes: two volumes above and below the membrane, as wide as the structure; a box is 8 corners and 12 triangles; the sites the animation works at are collected', async () => {
+  const { compartmentBoxes, boxTriangles } = await import('../data-animation.mjs');
+  const b = compartmentBoxes(structure(), { gap: 30, margin: 10, reach: 50 });
+  assert.ok(b.top.min[1] === 30 && b.top.max[1] > b.top.min[1] && b.bot.max[1] === -30 && b.bot.min[1] < b.bot.max[1], 'above and below the membrane, off it by the gap');
+  assert.deepEqual([b.top.min[0], b.top.max[0]], [Math.min(...points.map((p) => p[0])) - 10, Math.max(...points.map((p) => p[0])) + 10]);
+  const t = boxTriangles(b.top); assert.equal(t.positions.length, 8); assert.equal(t.indices.length, 36); assert.ok(t.indices.every((i) => i >= 0 && i < 8));
+  const config = normalizeDataConfig(mechanismWorkConfig({ process: 'respiratoryChain', axisFit: ['x'], up: 'y', membranes: [{ at: 'z', offset: 0 }] }));
+  const engine = new DataAnimation(config.animation, structure({ ligands: cofactors }), { rng: seededRng(7), kinetics: config.kinetics });
+  assert.ok(engine.hotPoints.length > 20, 'the cofactors, pumps and paths of the relay are marked sites');
+  assert.equal(engine.kinetics.compartments().length, 2); assert.match(engine.kinetics.compartments()[0].colour, /^#[0-9a-f]{6}$/);
+});
