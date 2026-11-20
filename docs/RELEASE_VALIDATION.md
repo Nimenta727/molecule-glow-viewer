@@ -8,7 +8,7 @@
 
 `node desktop/scripts/package-platform.cjs --stage-only` 输出独立暂存目录。脚本复制官方 `plugins/` 整体以及共享工作区/Shell 辅助模块，不再通过字符串替换注入入口。临时默认经典 Viewer；`GLOW_PAGE=viewer.html`、`studio.html`、`dev.html` 和菜单仍选择对应入口，`GLOW_QUERY` 保留。原工程没有声明 OS 文件关联，本轮不宣称新增文件关联；导入文件通过实际 UI 验证。
 
-每个候选包含 `build-info.json`：源码提交、是否有工作区改动、时间、Electron 版本、逐文件 SHA-256 和内容集合哈希。帮助菜单可查看摘要；预加载器只提供只读构建信息。`node desktop/scripts/package-platform.cjs` 生成 `desktop/dist/release/candidate.json` 和带提交短号的 portable EXE；不会发布 GitHub Release。当前发行系列为 `0.5.0`；候选文件名带源码提交。最终公共文件名、标签、原始候选和哈希由 Release 清单关联，不能把旧版本下载文件算作当前源码。
+每个候选包含 `build-info.json`：源码提交、是否有工作区改动、时间、Electron 版本、逐文件 SHA-256 和内容集合哈希。帮助菜单可查看摘要；预加载器只提供只读构建信息。`node desktop/scripts/package-platform.cjs` 生成 `desktop/dist/release/candidate.json` 和带提交短号的 portable EXE；不会发布 GitHub Release。当前发行系列为 `0.6.0`；候选文件名带源码提交。最终公共文件名、标签、原始候选和哈希由 Release 清单关联，不能把旧版本下载文件算作当前源码。
 
 `check-platform-stage.cjs` 使用 V8 编译但不执行模块，检查本地静态依赖、字面量动态 import、import map、外部模块、本地 CommonJS require 和入口资源均在暂存根内，并核对清单哈希。负例包括缺失机制模块、越界、远程模块与内容篡改。计算式动态路径、运行时生成的 Worker 等仍需浏览器回归覆盖，静态扫描不被称为完整运行证明。
 
@@ -61,3 +61,9 @@ Windows 作业在暂存和实际 EXE 六例后，分别执行 `tools/security-sm
 按顺序执行 EXE 功能和安全回归，避免同时启动同一个 portable。发行附 release-manifest.json、SHA256SUMS.txt、测试摘要和 Skill ZIP；记录精确源码/标签、本地 EXE/ASAR/内容哈希、Skill 哈希与 CI。新版本说明保留经典默认和新平台迁移预览定位。
 
 只有具体产物通过后才发布 draft Release；标签指向被构建和验证的源码提交，不指向后来仅补报告的提交。签名状态和未迁功能如实列出。历史 0.4.0 与本次 0.5.0 下载文件不混用。
+
+## v0.6.0 起：标签触发的自动发行
+
+`.github/workflows/desktop-release.yml` 在推送 `desktop-v*` 标签时运行：先以可复用方式调用完整 `platform.yml` 闸门（源码测试、暂存六例、安全、Studio M3、Skill 打包、实际 portable EXE 六例与安全回归），全部通过后才由发布作业建 Release。发布作业核对标签版本等于 `desktop/package.json`、候选 `sourceCommit` 等于标签提交且 `sourceDirty=false`，再把候选改名为 `MoleculeGlow-<版本>-win-x64.exe`，附 Skill ZIP、验证证据 ZIP、`release-manifest.json` 与 `SHA256SUMS.txt`；说明取自 `docs/releases/<标签>.md`。任一闸门失败则不建 Release。签名状态仍为未签名。
+
+0.6.0 修正：打包检查原先要求目录里每个插件都带科学卡，导致自 4.4.2d 引入 motion/simulation 两个纯工具插件后 Windows 作业在暂存步骤失败。现规则为：注册播放器（`registerPlayer`）的机理插件必须带卡，纯工具框架插件不要求。

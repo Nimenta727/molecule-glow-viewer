@@ -18,7 +18,7 @@ function fixture(t) {
   put('app/apps/viewer-web/index.html', '<script type="module" src="./main.mjs"></script>');
   put('app/apps/viewer-web/main.mjs', "import '../../plugins/mechanism-catalog.mjs';");
   put('app/plugins/mechanism-catalog.mjs', "export { player } from './kcsa/index.mjs';");
-  put('app/plugins/kcsa/index.mjs', 'export const player = {};');
+  put('app/plugins/kcsa/index.mjs', 'export const player = { activate(c) { c.registerPlayer("kcsa", {}); } };');
   put('app/plugins/kcsa/scientific-card.json', JSON.stringify({plugin:{id:'test.kcsa',version:'1'},structures:[{id:'fixture'}],validation:{completion:'documented_model_not_full_parity'}}));
   for (const name of ['main.js', 'preload.js', 'platform-shell.cjs', 'smoke-runner.cjs']) put(name, 'void 0;');
   put('build-info.json', JSON.stringify({ files: [], contentSha256: sha256('[]') }));
@@ -59,4 +59,13 @@ test('packaged mechanisms must carry scientific cards in the checked stage, not 
   const { stage }=fixture(t);assert.deepEqual(checkStage(stage).scientificCards,['test.kcsa']);
   fs.unlinkSync(path.join(stage,'app/plugins/kcsa/scientific-card.json'));
   assert.throws(()=>checkStage(stage),/scientific-card.json/);
+});
+
+test('tool-only framework plugins in the catalog need no scientific card', t => {
+  const { stage, put }=fixture(t);
+  put('app/plugins/mechanism-catalog.mjs', "export { player } from './kcsa/index.mjs';\nexport { motion } from './motion/index.mjs';");
+  put('app/plugins/motion/index.mjs', 'export const motion = { activate(c) { c.registerTool("solution", {}); } };');
+  assert.deepEqual(checkStage(stage).scientificCards,['test.kcsa']);
+  put('app/plugins/motion/index.mjs', 'export const motion = { activate(c) { c.registerPlayer("m", {}); } };');
+  assert.throws(()=>checkStage(stage),/motion\/scientific-card.json/);
 });

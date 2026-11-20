@@ -1,6 +1,6 @@
 # 当前文档入口
 
-日期：2026-11-20；Desktop/Skill 发布系列 0.5.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
+日期：2026-11-20；Desktop/Skill 发布系列 0.6.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
 
 | 文档 | 阅读目的 |
 |---|---|
@@ -16,6 +16,6 @@
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |
 | [DUPLICATION_MAP](DUPLICATION_MAP.md) | 保留/复用/待合并位置 |
 
-活跃机器资料：[feature-parity.json](feature-parity.json)、[parity](parity/README.md)、[science](science/README.md)。validation 和 images 保留证据的稳定路径；不能把历史通过冒充当前提交通过。最新资产身份见 Release 的 release-manifest.json；本次状态见 [Desktop 0.5.0 记录](validation/desktop-v0.5.0.json)。
+活跃机器资料：[feature-parity.json](feature-parity.json)、[parity](parity/README.md)、[science](science/README.md)。validation 和 images 保留证据的稳定路径；不能把历史通过冒充当前提交通过。最新资产身份见 Release 的 release-manifest.json；0.6.0 的产物哈希、源码提交与测试摘要见该 Release 的 release-manifest.json（由 desktop-release 工作流在全部闸门通过后生成）；上一版见 [Desktop 0.5.0 记录](validation/desktop-v0.5.0.json)。
 
 制作：[Skill](../skill/README.md)；数据格式：[workshop/SCHEMA.md](../workshop/SCHEMA.md)。每一步的改动与下一步规划在 [routine](routine/)（按日期-主题命名）。

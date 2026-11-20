@@ -6,7 +6,7 @@
 
 **最新进度**：见 [项目现状](docs/STATUS.md)——4.4.0–4.4.7 的功能工具已在新 Viewer/Studio 中接入，呼吸链与叶绿体两个官方包已作为作品运行（区室动力学与经典逐位一致）；测试 407/407；经典作品回归（4.4.8）只做了一部分（电子/质子运动编排、鞭毛马达、整细胞、翻译的核糖体结构动画未做），桌面/GPU 尚未验证。
 
-**Desktop v0.5.0（已发布的旧构建，不含 4.4 之后的功能）**：[Windows 便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/MoleculeGlow-0.5.0-win-x64.exe) · [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/molecule-glow-viewer-skill-0.5.0.zip)
+**Desktop v0.6.0（含 4.4 至 4.4.8 的功能）**：[Windows 便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.6.0/MoleculeGlow-0.6.0-win-x64.exe) · [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.6.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.6.0/molecule-glow-viewer-skill-0.6.0.zip)；旧版 [v0.5.0](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0) 保留。
 
 ![经典 ATP 合酶](docs/images/example_atp_synthase.jpg)
 

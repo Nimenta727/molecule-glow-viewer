@@ -47,7 +47,10 @@ function checkStage(directory) {
   const catalog = path.join(app, 'plugins/mechanism-catalog.mjs');
   const scientificCards = [];
   if (fs.existsSync(catalog)) for (const match of fs.readFileSync(catalog, 'utf8').matchAll(/\bfrom\s+['"](\.\/[^'"]+\/index\.mjs)['"]/g)) {
-    const cardFile = required(path.join(path.dirname(path.resolve(path.dirname(catalog), match[1])), 'scientific-card.json'));
+    // Only mechanisms (plugins that register a player) carry a scientific card; tool-only framework plugins (motion, simulation) do not.
+    const pluginDir = path.dirname(path.resolve(path.dirname(catalog), match[1]));
+    if (!/\bregisterPlayer\s*\(/.test(fs.readFileSync(required(path.join(pluginDir, 'index.mjs')), 'utf8'))) continue;
+    const cardFile = required(path.join(pluginDir, 'scientific-card.json'));
     const card = JSON.parse(fs.readFileSync(cardFile, 'utf8'));
     if (!card.plugin?.id || !card.plugin.version || !card.structures?.length || !card.validation?.completion) throw new Error('Incomplete packaged scientific card: ' + cardFile);
     scientificCards.push(card.plugin.id);

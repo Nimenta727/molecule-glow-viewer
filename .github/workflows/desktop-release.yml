@@ -1,0 +1,53 @@
+name: desktop-release
+on:
+  push:
+    tags: ['desktop-v*']
+permissions:
+  contents: read
+jobs:
+  gate:
+    uses: ./.github/workflows/platform.yml
+  publish:
+    needs: gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-candidate-and-evidence
+          path: evidence
+      - name: Assemble verified release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"; version="${tag#desktop-v}"
+          pkg=$(node -p "require('./desktop/package.json').version")
+          [ "$version" = "$pkg" ] || { echo "tag $version != desktop/package.json $pkg"; exit 1; }
+          cand=evidence/release/candidate.json
+          node -e "const c=require('./$cand'); if(c.sourceCommit!==process.env.GITHUB_SHA||c.sourceDirty) {console.error('candidate not built from tag commit', c); process.exit(1)}"
+          mkdir -p out
+          cp "evidence/release/$(node -p "require('./$cand').file")" "out/MoleculeGlow-${version}-win-x64.exe"
+          cp "evidence/release/molecule-glow-viewer-skill-${version}.zip" out/
+          (cd evidence && zip -qr "../out/desktop-validation-${version}.zip" gate-stage gate-exe gate-m3 gate-security-stage gate-security-exe gate-parity-numerics.json release/candidate.json release/build-info.json 2>/dev/null || true)
+          [ -f "out/desktop-validation-${version}.zip" ] || { echo "no evidence zip"; exit 1; }
+          node -e "
+            const fs=require('fs'),crypto=require('crypto');
+            const c=require('./$cand');
+            const assets=fs.readdirSync('out').sort().map(name=>{const b=fs.readFileSync('out/'+name);return {name,bytes:b.length,sha256:crypto.createHash('sha256').update(b).digest('hex'),url:'https://github.com/'+process.env.GITHUB_REPOSITORY+'/releases/download/$tag/'+name};});
+            fs.writeFileSync('out/release-manifest.json',JSON.stringify({schema_version:1,version:'$version',tag:'$tag',sourceCommit:c.sourceCommit,sourceDirty:c.sourceDirty,signed:false,
+              scope:'Classic default; Core/plugins and Studio migration preview. Not migration-complete.',
+              build:{contentSha256:c.contentSha256,candidateFile:c.file,candidateSha256:c.sha256},
+              gate:{workflow:'platform-release-gate',run:process.env.GITHUB_SERVER_URL+'/'+process.env.GITHUB_REPOSITORY+'/actions/runs/'+process.env.GITHUB_RUN_ID},assets},null,2)+'\n');
+            fs.writeFileSync('out/SHA256SUMS.txt',assets.map(a=>a.sha256+'  '+a.name).join('\n')+'\n');"
+          ls -l out
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"; notes="docs/releases/${tag}.md"
+          [ -f "$notes" ] || { echo "missing $notes"; exit 1; }
+          gh release create "$tag" out/* --title "$(head -1 "$notes" | sed 's/^# //')" --notes-file "$notes" --verify-tag
