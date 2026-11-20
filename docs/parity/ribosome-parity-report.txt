@@ -1,0 +1,10 @@
+4V6F: 21568 residues, 58 of mRNA, 6 tRNA chains
+ok   mRNA: 58 points, the codon position of the P site is point 32
+ok   template tRNA (the P-site tRNA): 74 residues, same centre, same acceptor-arm weights
+ok   E site: same rotation and translation (within 1e-9)
+ok   E site: the acceptor end (last residue) lands on the same point
+ok   P site: same rotation and translation (within 1e-9)
+ok   P site: the acceptor end (last residue) lands on the same point
+ok   A site: same rotation and translation (within 1e-9)
+ok   A site: the acceptor end (last residue) lands on the same point
+8/8 identical

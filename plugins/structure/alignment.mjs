@@ -11,6 +11,12 @@ export const centroid = (points) => {
 
 // Horn's quaternion fit, as used by the classic Viewer's beta-state alignment.
 export function superpose(target, source) {
+  const fit = superposeFit(target, source);
+  return (point) => rotateVector(point.map((value, i) => value - fit.cb[i]), fit.quaternion).map((value, i) => value + fit.ca[i]);
+}
+
+/** The fit itself: { quaternion [x, y, z, w], ca (centroid of target), cb (centroid of source) }; a point p of the source goes to rotate(p - cb) + ca. */
+export function superposeFit(target, source) {
   if (target.length !== source.length || target.length < 3) throw new Error('构象对齐至少需要三对坐标。');
   const ca = centroid(target), cb = centroid(source);
   const s = Array.from({ length: 3 }, () => [0, 0, 0]);
@@ -43,5 +49,5 @@ export function superpose(target, source) {
   const index = eigenvalues.indexOf(Math.max(...eigenvalues));
   const [w, x, y, z] = vectors.map((row) => row[index]);
   const quaternion = [x, y, z, w];
-  return (point) => rotateVector(point.map((value, i) => value - cb[i]), quaternion).map((value, i) => value + ca[i]);
+  return { quaternion, ca, cb };
 }
