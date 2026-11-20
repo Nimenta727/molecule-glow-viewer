@@ -223,3 +223,6 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .seq-gap { display: inline-block; width: 0.82rem; height: 0.35rem; margin: 0 1px; background: #c8ccd4; border-radius: 1px; }
 .seq-more { margin: 0.2rem 0 0; color: var(--dim); }
 @media (max-width: 760px) { .sequence-bar:not([hidden]) { right: var(--gap); bottom: 7rem; } }
+.sequence-chips:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--line); font-size: 0.74rem; }
+.sequence-chips button { padding: 0 0.45rem; background: #fff; border-width: 1px; }
+.sequence-chips .source { color: var(--dim); }

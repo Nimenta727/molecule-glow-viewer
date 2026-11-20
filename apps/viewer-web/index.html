@@ -47,7 +47,8 @@
           </div>
         </section>
         <section id="sequence-bar" class="sequence-bar" aria-label="序列条" hidden>
-          <header><b>序列</b><span id="sequence-info" aria-live="polite">拖动选择一段；灰块是结构里缺失的残基</span><button id="sequence-close" type="button" aria-label="关闭序列条">×</button></header>
+          <header><b>序列</b><span id="sequence-info" aria-live="polite">拖动选择一段；灰块是结构里缺失的残基</span><button id="sequence-sites" type="button" title="从 RCSB + UniProt 读取活性位点、结合位点、跨膜段等">UniProt 注释</button><button id="sequence-close" type="button" aria-label="关闭序列条">×</button></header>
+          <div id="sequence-chips" class="sequence-chips" hidden></div>
           <div id="sequence-rows" class="sequence-rows"></div>
         </section>
         <aside id="info-panel" class="info-panel" aria-label="场景信息与结构工具">

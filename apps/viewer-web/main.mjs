@@ -14,6 +14,7 @@ import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
@@ -269,6 +270,7 @@ function boot() {
       active = scene;
       showStructurePick();
       sequenceBar.setModel(active.model);
+      resetSiteChips();
       elements['chain-id'].value = '';
       elements['residue-id'].value = '';
       showNavigation();
@@ -388,6 +390,53 @@ function boot() {
     const on = sequenceBar.setVisible();
     elements['sequence-toggle'].setAttribute('aria-pressed', String(on));
     if (on) { sequenceBar.setModel(active?.model); syncSequence(); }
+  });
+  let siteLoad = 0;
+  function resetSiteChips() { siteLoad++; elements['sequence-chips'].replaceChildren(); elements['sequence-chips'].hidden = true; }
+  elements['sequence-sites'].addEventListener('click', async () => {
+    const token = ++siteLoad, chips = elements['sequence-chips'];
+    const source = active?.scene.assets.find((asset) => asset.kind === 'file' && asset.provenance?.source)?.provenance.source;
+    try {
+      if (source?.provider !== 'RCSB PDB') throw new FunctionalSiteError('只有 PDB 条目才能读取 UniProt 注释');
+      sequenceBar.setInfo('正在读取 UniProt 注释…');
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+      let result;
+      try {
+        result = await loadFunctionalSites(source.accession, {
+          signal: controller.signal,
+          async fetchJson(url, init) {
+            const response = await fetch(url, init);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          },
+        });
+      } finally { clearTimeout(timer); }
+      if (token !== siteLoad) return;
+      sequenceBar.setSites(result.sites);
+      chips.replaceChildren();
+      const entries = Object.entries(result.sites);
+      for (const [type, list] of entries) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = `${SITE_CATEGORIES[type].label} ${list.length}`;
+        chip.style.cssText = `border-color:${SITE_CATEGORIES[type].color};color:${SITE_CATEGORIES[type].color}`;
+        chip.addEventListener('click', () => {
+          const r = selectSet(siteExpression(list));
+          elements['selection-expression'].value = siteExpression(list);
+          const notes = [...new Set(list.map((site) => site.text).filter(Boolean))].slice(0, 3).join('；');
+          sequenceBar.setInfo(`${SITE_CATEGORIES[type].label}：已选 ${r?.summary ?? ''}（UniProt ${result.accessions.join('、')}）${notes ? ` ${notes}` : ''}`);
+        });
+        chips.append(chip);
+      }
+      const note = document.createElement('span');
+      note.className = 'source';
+      note.textContent = entries.length ? `来源 UniProt ${result.accessions.join('、')}（按 RCSB 序列比对换算）` : `这个条目在 UniProt（${result.accessions.join('、') || '无比对'}）里没有这些类别的注释`;
+      chips.append(note);
+      chips.hidden = false;
+      sequenceBar.setInfo(result.warnings.length ? result.warnings.join(' ') : '点一个类别：在 3D 中选中这些残基');
+    } catch (error) {
+      if (token === siteLoad) sequenceBar.setInfo(error.name === 'AbortError' ? '读取 UniProt 超时，请稍后再试。' : error.message);
+    }
   });
   elements['sequence-close'].addEventListener('click', () => { sequenceBar.setVisible(false); elements['sequence-toggle'].setAttribute('aria-pressed', 'false'); });
 
@@ -1050,6 +1099,7 @@ function boot() {
     active = undefined;
     showStructurePick();
     sequenceBar.setModel(null);
+    resetSiteChips();
     syncControls();
     showDiagnostics();
     showNavigation();

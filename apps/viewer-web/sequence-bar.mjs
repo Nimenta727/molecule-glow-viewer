@@ -1,3 +1,4 @@
+import { SITE_CATEGORIES, sitesAtResidue } from '../../plugins/structure/functional-sites.mjs';
 import { sequenceRows, rangeExpression, residueTitle } from '../../plugins/structure/sequence.mjs';
 
 /**
@@ -5,7 +6,7 @@ import { sequenceRows, rangeExpression, residueTitle } from '../../plugins/struc
  * The data (rows, gaps, secondary structure) comes from plugins/structure/sequence.mjs; this file only draws and forwards events.
  */
 export function createSequenceBar({ root, rowsBox, info, onSelect }) {
-  let data = { rows: [], hidden: 0 }, cells = [], dragFrom = null, visible = false, model = null;
+  let data = { rows: [], hidden: 0 }, cells = [], dragFrom = null, visible = false, model = null, sites = null;
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -39,10 +40,21 @@ export function createSequenceBar({ root, rowsBox, info, onSelect }) {
       });
       rowsBox.append(line);
     });
+    markSites();
     if (data.hidden) rowsBox.append(el('p', 'seq-more', `另有 ${data.hidden} 条链没有列出（用 glow.select('chain …') 选择）`));
   }
 
-  function setModel(next) { model = next; render(); }
+  /** Colours the cells covered by UniProt sites (a bar on top) and lists them, with the accession, in each cell's tooltip. */
+  function markSites() {
+    for (const { node, cell } of cells) {
+      const found = sites ? sitesAtResidue(sites, cell.residue) : [];
+      node.style.boxShadow = found.length ? `inset 0 3px 0 ${SITE_CATEGORIES[found[0].type].color}` : '';
+      const base = residueTitle(cell);
+      node.title = found.length ? `${base}\n${found.map(({ type, site }) => `${SITE_CATEGORIES[type].label}${site.text ? `：${site.text}` : ''}（UniProt ${site.accession}）`).join('\n')}` : base;
+    }
+  }
+  function setSites(next) { sites = next; markSites(); }
+  function setModel(next) { model = next; sites = null; render(); }
   function setVisible(on) {
     visible = on == null ? !visible : Boolean(on);
     root.hidden = !visible;
@@ -74,5 +86,5 @@ export function createSequenceBar({ root, rowsBox, info, onSelect }) {
     if (expression) onSelect(expression, { first: row.cells[Math.min(from.index, to)] });
   });
 
-  return { setModel, setVisible, render, highlight, get visible() { return visible; }, setInfo(text) { info.textContent = text; } };
+  return { setModel, setSites, setVisible, render, highlight, get visible() { return visible; }, setInfo(text) { info.textContent = text; } };
 }
