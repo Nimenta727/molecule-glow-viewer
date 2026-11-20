@@ -1,8 +1,10 @@
 import { normalizeDataAnimation, DATA_LIMITS } from './data-spec.mjs';
+import { compileKineticModel } from './kinetic-model.mjs';
 
 /**
  * The "data animation" tool (4.4.3b): the authored form of plugins/simulation/data-animation.mjs. Its configuration, stored in `scene.tools[].config`:
- *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', membranes: [{ at, offset }], seed, scale }
+ *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', membranes: [{ at, offset }], seed, scale, kinetics?: <kinetic model v1> }
+ * `kinetics` is an optional compartment model (concentrations, pH, membrane potential; plugins/simulation/kinetic-model.mjs) whose pools follow the animation's.
  * `axis` and `membranes` are the classic scene's orientation and membrane placement (the engine runs with the structure's axis vertical, see structure-frame.mjs).
  * The Viewer runs it (`runtime: 'layer-v1'`); Studio edits it through the generated tool panel. Nothing here names a protein or a pack.
  */
@@ -19,7 +21,16 @@ export function normalizeDataConfig(raw) {
   const { spec, errors } = normalizeDataAnimation(source.animation);
   if (errors.length) throw new Error(`数据动画配置有误：${errors.join('；')}`);
   const membranes = (Array.isArray(source.membranes) ? source.membranes : []).slice(0, 2).map((m) => ({ at: typeof m?.at === 'string' ? m.at.slice(0, 80) : '', offset: Number.isFinite(Number(m?.offset)) ? Math.max(-500, Math.min(500, Number(m.offset))) : 0 }));
-  return { animation: spec, axis: AXES.includes(source.axis) ? source.axis : 'sym', membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
+  let kinetics;
+  if (source.kinetics !== undefined && source.kinetics !== null) {
+    const { model, errors } = compileKineticModel(source.kinetics);
+    for (const dot of model.dots) if (!(dot.comp in spec.compartments)) errors.push(`动力学粒子“${dot.label}”写了不存在的区室“${dot.comp}”（可用：${Object.keys(spec.compartments).join('、')}）。`);
+    let json = ''; try { json = JSON.stringify(source.kinetics); } catch { errors.push('动力学模型必须是纯数据。'); }
+    if (json.length > 200000) errors.push('动力学模型太大（最多 200 KB）。');
+    if (errors.length) throw new Error(`动力学模型有误：${errors.join('；')}`);
+    kinetics = JSON.parse(json);
+  }
+  return { animation: spec, ...(kinetics ? { kinetics } : {}), axis: AXES.includes(source.axis) ? source.axis : 'sym', membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
 }
 
 /** Editable fields: the run settings, then every pool, flow and reaction of the declaration (add or remove them in the declaration itself). */
@@ -37,6 +48,9 @@ export function dataAuthorFields(config) {
     { path: `animation.pools.${i}.n`, type: 'number', integer: true, min: 0, max: DATA_LIMITS.pool, step: 1, label: `第 ${i + 1} 个池的个数`, group: '分子池' }));
   (a.flows ?? []).forEach((f, i) => fields.push(text(`animation.flows.${i}.name`, `第 ${i + 1} 条流的名称`, '流', 60), text(`animation.flows.${i}.species`, `第 ${i + 1} 条流的分子`, '流', 40),
     { path: `animation.flows.${i}.rate`, type: 'number', min: 0, max: 20, step: 0.05, label: `第 ${i + 1} 条流的速率（次/秒）`, group: '流' }));
+  const k = cfg.kinetics;
+  for (const [name, value] of Object.entries(k?.constants ?? {})) fields.push({ path: `kinetics.constants.${name}`, type: 'number', min: -1e6, max: 1e6, step: 0.001, label: `动力学常量 ${name}`, group: '区室动力学', default: value });
+  for (const [name, value] of Object.entries(k?.state ?? {})) fields.push({ path: `kinetics.state.${name}`, type: 'number', min: -1e6, max: 1e6, step: 0.001, label: `动力学初值 ${name}`, group: '区室动力学', default: value });
   (a.reactions ?? []).forEach((r, i) => fields.push(text(`animation.reactions.${i}.name`, `第 ${i + 1} 个反应的名称`, '反应', 60), text(`animation.reactions.${i}.text`, `第 ${i + 1} 个反应的事件文字`, '反应', DATA_LIMITS.text),
     { path: `animation.reactions.${i}.rate`, type: 'number', min: 0, max: 20, step: 0.05, label: `第 ${i + 1} 个反应的速率（次/秒）`, group: '反应' }));
   return fields;

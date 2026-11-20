@@ -364,11 +364,12 @@
       "id": "new.animation.data-v1-adk-kcsa",
       "kind": "partial-automation",
       "runner": "tools/data-anim-parity.mjs",
+      "also_runs": ["tools/kinetics-parity.mjs"],
       "steps": [
         "Open AdK and KcsA pure-data official packs; play, intervene, rewind and export."
       ],
       "expected": "Compartment/species names and stoichiometry preserved; events follow declared flows/reactions; no code from pack; quantities recover after reopen.",
-      "scope": "Runner compares the engine with the classic data animation step by step on real structures (pools, molecules on a journey, counters, event log, fast streams); opening the official KcsA and AdK packs in the Viewer (animation runs, counters and events, slow/fast, restart, save, close, reopen: same picture pixel for pixel at step 0, no page errors) and editing the declaration in Studio then running the export were checked in a software-rendered browser session, not by this runner; intervening and rewinding are not built; full parity remains pending."
+      "scope": "Runner compares the engine with the classic data animation step by step on real structures (pools, molecules on a journey, counters, event log, fast streams); opening the official KcsA and AdK packs in the Viewer (animation runs, counters and events, slow/fast, restart, save, close, reopen: same picture pixel for pixel at step 0, no page errors) and editing the declaration in Studio then running the export were checked in a software-rendered browser session, not by this runner; a work carrying a compartment model (K+ efflux driving concentrations and the equilibrium potential, switches, sliders, curves) was run in the Viewer and its constants edited in Studio the same way; intervening and rewinding are not built; the compartment kinetics are compared with the classic respiratory-chain and chloroplast cell models by tools/kinetics-parity.mjs; full parity remains pending."
     },
     {
       "id": "classic.mechanism.respiratory-chain",

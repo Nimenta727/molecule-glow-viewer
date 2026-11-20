@@ -1,6 +1,7 @@
 import { PoolSet, FlowStream, createOccupancy, brownPath, shellRegion, speciesOf, makeRng, seededRng } from '../motion/particles.mjs';
 import { Motion, EventLog } from '../motion/journey.mjs';
 import { normalizeDataAnimation } from './data-spec.mjs';
+import { KineticSimulation } from './kinetic-model.mjs';
 
 /**
  * The data-only animation engine (classic: PROCESSES.dataAnim in src/sim/data-anim.js). Compartments hold pools of molecules; a flow takes a molecule from one
@@ -66,17 +67,42 @@ export function needsFlip(raw, structure) {
 }
 
 export class DataAnimation {
-  constructor(raw, structure, { rng = seededRng(7), pace = () => 1, scale = () => 'slow' } = {}) {
+  constructor(raw, structure, { rng = seededRng(7), pace = () => 1, scale = () => 'slow', kinetics = null } = {}) {
     const { spec, errors, warnings } = normalizeDataAnimation(raw);
     if (errors.length) throw new Error(`数据动画无法运行：${errors.join('；')}`);
     if (!structure?.points?.length) throw new Error('数据动画需要一个结构（没有坐标）');
-    Object.assign(this, { spec, structure, pace, scale, warnings: [...warnings], counters: {}, time: 0, flying: new Set(), violations: [], layer: null });
+    Object.assign(this, { spec, structure, basePace: pace, scale, warnings: [...warnings], counters: {}, time: 0, flying: new Set(), violations: [], layer: null });
     this.rng = makeRng(rng);
     this.occupancy = createOccupancy(structure.points);
     this.motion = new Motion({ deferred: true });
     this.events = new EventLog(() => this.time);
     this.ledger = { created: {}, consumed: {}, vanished: {}, taken: {}, given: {} };
     this.#setup();
+    this.#attachKinetics(kinetics);
+  }
+  /** The animation's tempo: the host's pace, scaled by the compartment model's flux the way the classic did (clamped to 0.5-1.8). */
+  pace = () => this.basePace() * (this.kinetics ? Math.max(0.5, Math.min(1.8, this.kinetics.flux.rate)) : 1);
+
+  /**
+   * An optional compartment model (concentrations, pH, membrane potential; see kinetic-model.mjs). Its `dots` say how many free molecules each compartment
+   * shows: the pool named `label@compartment` follows that number, and the animation's own pool of that name is the same pool. The model reads the
+   * animation's counters as its inputs.
+   */
+  #attachKinetics(raw) {
+    if (!raw) return;
+    const kinetics = new KineticSimulation(raw);
+    for (const dot of kinetics.model.dots) if (!(dot.comp in this.spec.compartments)) throw new Error(`动力学模型的粒子“${dot.label}”写了不存在的区室“${dot.comp}”（可用：${Object.keys(this.spec.compartments).join('、')}）。`);
+    this.kinetics = kinetics; this.kineticDots = kinetics.model.dots.map((dot) => ({ dot, pool: null, filled: false }));
+    this.#followKinetics();
+  }
+  #followKinetics() {
+    const k = this.kinetics, counts = k.dots();
+    k.setInputs(Object.fromEntries(Object.entries(k.model.inputs).map(([name, counter]) => [name, this.counters[counter] ?? 0])));
+    this.kineticDots.forEach((d, i) => {
+      d.pool ??= this.pools.pool(`${d.dot.label}@${d.dot.comp}`, { name: d.dot.label, ...speciesOf(d.dot.label, this.pools.species), ...(d.dot.color ? { col: hexToNumber(d.dot.color) } : {}), r: d.dot.r, region: this.comp[d.dot.comp], n: 0, maxTags: 2 });
+      d.pool.n = counts[i].count;
+      if (!d.filled) { d.filled = true; const had = d.pool.items.length; d.pool.fill(); this.initialInventory[d.pool.name] = (this.initialInventory[d.pool.name] ?? 0) + d.pool.items.length - had; }   // the first fill is part of the starting stock
+    });
   }
 
   /* ---------------- setup ---------------- */
@@ -230,6 +256,7 @@ export class DataAnimation {
   /** Advance by `dt` seconds of scene time. */
   step(dt) {
     this.time += dt;
+    if (this.kinetics) { this.kinetics.update(dt); this.#followKinetics(); }
     const pace = this.pace();
     if (this.scale() === 'fast') {
       this.layer ||= this.#buildLayer();
@@ -263,7 +290,7 @@ export class DataAnimation {
     return { items, tags: this.events.tags.map((t) => ({ ...t })) };
   }
   /** Counters, events and metering for the panels and for tests. */
-  summary() { return { time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
+  summary() { return { kinetics: this.kinetics ? { readout: this.kinetics.readout(), compartments: this.kinetics.compartments(), explain: this.kinetics.explain(), diverged: this.kinetics.diverged } : null, time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
   /** Stop everything (the scene closed): nothing keeps running, nothing is called. */
-  dispose() { this.motion.clear(); this.flying.clear(); this.pools.clear(); this.layer = null; }
+  dispose() { this.kinetics = null; this.motion.clear(); this.flying.clear(); this.pools.clear(); this.layer = null; }
 }

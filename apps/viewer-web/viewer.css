@@ -270,3 +270,5 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .particle-list { margin: 0.4rem 0 0; padding: 0; list-style: none; font-size: 0.82rem; }
 .particle-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.1rem 0; }
 .particle-card { position: absolute; z-index: 5; pointer-events: none; padding: 0.15rem 0.45rem; border: 1px solid var(--ink, #2c3440); border-radius: 0.25rem; background: #f7f7f4; color: #2c3440; font-size: 0.8rem; white-space: nowrap; }
+.data-kinetics { margin-top: 0.4rem; }
+.data-kinetics .particle-list li canvas { width: 7.5rem; height: 1.5rem; flex: none; }

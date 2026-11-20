@@ -102,3 +102,34 @@ test('dispose: everything stops and nothing is called afterwards', () => {
   const a = make(pack('adk-reaction-data')); a.run(200); const counters = a.summary().counters;
   a.dispose(); assert.equal(a.motion.running, 0); a.motion.tick(5); a.motion.flush(); assert.deepEqual(a.summary().counters, counters);
 });
+
+const kModel = (over = {}) => ({ version: 1, inputs: { effluxed: 'K⁺ 外流' }, constants: { Ki0: 140, Ko0: 5 },
+  step: [{ let: 'ki', expr: 'Ki0 - 0.6 * effluxed' }, { let: 'ko', expr: 'Ko0 + 0.6 * effluxed' }, { let: 'rate', expr: 'effluxed > 3 ? 3 : 0.1' }],
+  series: [{ label: '钾平衡电位 E_K', range: [-120, 0], color: '#c04fd0', expr: '25.69 * log(ko / ki)', format: { digits: 1, unit: ' mV' } }],
+  dots: [{ label: 'K⁺', comp: '胞外', max: 30, count: 'ko' }], explain: [{ text: 'E_K = {25.69 * log(ko / ki)|1} mV' }], warmup: false, ...over });
+
+test('a compartment model rides on the animation: counters are its inputs, concentrations follow the flows, the pool follows the concentration, the flux paces the animation', () => {
+  const a = make(pack('kcsa-data'), { kinetics: kModel() });
+  const e0 = a.summary().kinetics.readout[0].value; assert.ok(Math.abs(e0 - 25.69 * Math.log(5 / 140)) < 1e-9, 'starts at the resting concentrations');
+  const pool = a.pools.pools.get('K⁺@胞外'), before = pool.n;
+  a.run(900);
+  const s = a.summary();
+  assert.ok(s.counters['K⁺ 外流'] >= 5 && s.kinetics.readout[0].value > e0, 'K⁺ leaves the cell, so the potassium equilibrium potential rises');
+  assert.ok(pool.n > before && pool.n <= 30, `the outside pool follows its concentration (${before} -> ${pool.n})`); assert.match(s.kinetics.explain, /^E_K = -\d+\.\d mV$/);
+  assert.ok(Math.abs(a.pace() - 1.8) < 1e-12, 'a fast flux speeds the animation up, clamped at 1.8'); assert.equal(s.kinetics.diverged, false);
+  const slow = make(pack('kcsa-data'), { kinetics: kModel({ step: [{ let: 'ki', expr: 'Ki0' }, { let: 'ko', expr: 'Ko0' }, { let: 'rate', expr: '0.1' }] }) }); assert.equal(slow.pace(), 0.5, 'and a slow one slows it down, clamped at 0.5');
+  for (const [name, { expected, actual }] of Object.entries(a.balance())) assert.equal(actual, expected, `${name}: the ledger still balances`);
+});
+
+test('a compartment model must name compartments the animation has; without one the animation is as before', () => {
+  assert.throws(() => make(pack('kcsa-data'), { kinetics: kModel({ dots: [{ label: 'K⁺', comp: '不存在', count: 'ko' }] }) }), /不存在的区室“不存在”.*胞内、胞外/);
+  assert.throws(() => make(pack('kcsa-data'), { kinetics: { version: 1 } }), /无法运行/);
+  const plain = make(pack('kcsa-data')); assert.equal(plain.summary().kinetics, null); assert.equal(plain.pace(), 1);
+  const same = (seed) => { const x = make(pack('kcsa-data'), { seed }); x.run(300); return x.frame().items.map((i) => i.position); };
+  assert.deepEqual(same(5), same(5));
+});
+
+test('the compartment model is deterministic with the animation: the same seed and steps give the same picture and numbers', () => {
+  const run = () => { const a = make(pack('kcsa-data'), { kinetics: kModel(), seed: 4 }); a.run(500); return [a.frame().items.map((i) => i.position), a.summary().kinetics.readout]; };
+  assert.deepEqual(run(), run());
+});

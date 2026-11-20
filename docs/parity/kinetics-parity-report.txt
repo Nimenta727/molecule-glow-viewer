@@ -1,0 +1,7 @@
+ok   respiratory chain: 3600 frames of 16.7 ms (60 s, 40 switch changes); 225 panel redraws, 11 different explanations: state differs by 0.0e+0, fluxes 0.0e+0, pH 0.0e+0; 0 pool-count, 0 colour, 0 read-out, 0 text and 0 curve disagreements
+ok   respiratory chain, 50 ms frames: 1800 frames of 50.0 ms (90 s, 40 switch changes); 300 panel redraws, 54 different explanations: state differs by 0.0e+0, fluxes 0.0e+0, pH 0.0e+0; 0 pool-count, 0 colour, 0 read-out, 0 text and 0 curve disagreements
+ok   chloroplast: 3600 frames of 16.7 ms (60 s, 40 switch changes); 225 panel redraws, 15 different explanations: state differs by 0.0e+0, fluxes 0.0e+0, pH 0.0e+0; 0 pool-count, 0 colour, 0 read-out, 0 text and 0 curve disagreements
+ok   chloroplast, 50 ms frames: 1800 frames of 50.0 ms (90 s, 40 switch changes); 300 panel redraws, 24 different explanations: state differs by 0.0e+0, fluxes 0.0e+0, pH 0.0e+0; 0 pool-count, 0 colour, 0 read-out, 0 text and 0 curve disagreements
+ok   pH colours: 551 values from pH 4 to 9.5 give the same colour as the classic (0 differences)
+
+5/5 identical

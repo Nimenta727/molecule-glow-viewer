@@ -27,7 +27,7 @@ export function createDataAnimation({ viewport, elements, context }) {
       ligands: space.ligands, config: { axis: config.axis, membranes: config.membranes }, animation: config.animation,
     });
     engine = new DataAnimation(structuredClone(config.animation), frame.structure, {
-      rng: seededRng(config.seed), pace: () => Number(elements.pace.value) || 1, scale: () => elements.scale.value,
+      rng: seededRng(config.seed), pace: () => Number(elements.pace.value) || 1, scale: () => elements.scale.value, kinetics: config.kinetics ?? null,
     });
     lastKey = '';
     return engine;
@@ -44,7 +44,44 @@ export function createDataAnimation({ viewport, elements, context }) {
     viewport.setEventTags(tags.map((t) => ({ text: t.text, age: t.age, dur: t.dur, position: frame.toNative(t.position).map((v, i) => (v - centre[i]) * k) })));
   }
 
+  // The compartment model (concentrations, pH, membrane potential): switches and sliders, read-outs with their curves, the pH of each compartment, a note.
+  function buildKineticControls() {
+    const box = elements.kinetics; box.replaceChildren(); box.hidden = !engine?.kinetics;
+    if (!engine?.kinetics) return;
+    const k = engine.kinetics, add = (tag, props = {}) => Object.assign(document.createElement(tag), props), rows = document.createElement('div');
+    for (const c of k.model.controls) {
+      const label = document.createElement('label'); label.className = 'take-apart-row'; label.title = c.tip;
+      const input = document.createElement('input');
+      if (c.type === 'range') {
+        Object.assign(input, { type: 'range', min: c.min, max: c.max, step: c.step, value: k.ctrl[c.id] });
+        const out = document.createElement('output'); out.textContent = `${k.ctrl[c.id]}${c.unit ? ' ' + c.unit : ''}`;
+        input.addEventListener('input', () => { k.setControl(c.id, Number(input.value)); out.textContent = `${input.value}${c.unit ? ' ' + c.unit : ''}`; lastKey = ''; });
+        label.append(`${c.label} `, input, ' ', out);
+      } else {
+        Object.assign(input, { type: 'checkbox', checked: k.ctrl[c.id] });
+        input.addEventListener('change', () => { k.setControl(c.id, input.checked); lastKey = ''; });
+        label.append(input, ` ${c.label}`);
+      }
+      rows.append(label);
+    }
+    box.append(rows, add('ul', { className: 'particle-list', id: 'kinetic-readout' }), add('ul', { className: 'particle-list', id: 'kinetic-compartments' }), add('p', { className: 'structure-summary', id: 'kinetic-note' }));
+  }
+  function drawKinetics() {
+    const k = engine?.kinetics; if (!k) return;
+    const read = document.getElementById('kinetic-readout'), comps = document.getElementById('kinetic-compartments'), note = document.getElementById('kinetic-note');
+    if (!read) return;
+    read.replaceChildren(...k.readout().map((r, i) => {
+      const li = document.createElement('li'), name = document.createElement('span'), canvas = document.createElement('canvas');
+      name.textContent = `${r.label}：${r.text}`; canvas.width = 120; canvas.height = 24; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `${r.label}的变化曲线`);
+      const g = canvas.getContext('2d'), H = k.hist[i], [lo, hi] = r.range; g.strokeStyle = r.color; g.lineWidth = 1.6; g.beginPath();
+      H.forEach((v, n) => { const x = canvas.width - (H.length - 1 - n) * (canvas.width / 239), y = canvas.height - 2 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * (canvas.height - 4); n ? g.lineTo(x, y) : g.moveTo(x, y); });
+      g.stroke(); li.append(name, canvas); return li;
+    }));
+    comps.replaceChildren(...k.compartments().map((c) => { const li = document.createElement('li'), chip = document.createElement('i'); chip.style.cssText = `display:inline-block;width:0.8em;height:0.8em;border-radius:50%;background:${c.colour};margin-right:0.4em`; li.append(chip, `${c.name}　pH ${c.pH.toFixed(2)}`); return li; }));
+    note.textContent = k.diverged ? '区室动力学的数值发散，已停止（请调整参数后“从头开始”）。' : k.explain();
+  }
   function describe() {
+    drawKinetics();
     if (!engine) { show('此作品没有数据动画。'); return; }
     const s = engine.summary(), counters = Object.entries(s.counters), key = JSON.stringify([counters, s.events.length, s.warnings.length, s.violations.length]);
     if (key === lastKey) return;
@@ -65,7 +102,7 @@ export function createDataAnimation({ viewport, elements, context }) {
   function start() { if (runFrame == null) { last = 0; runFrame = requestAnimationFrame(tick); } }
   function stop() { if (runFrame != null) cancelAnimationFrame(runFrame); runFrame = null; last = 0; }
 
-  function rebuild() { stop(); engine?.dispose(); engine = null; try { build(); } catch (error) { engine = null; show(`无法运行数据动画：${error.message}`); } draw(); describe(); if (engine && elements.play.checked) start(); }
+  function rebuild() { stop(); engine?.dispose(); engine = null; try { build(); } catch (error) { engine = null; show(`无法运行数据动画：${error.message}`); } buildKineticControls(); draw(); describe(); if (engine && elements.play.checked) start(); }
 
   elements.play.addEventListener('change', () => { if (elements.play.checked) { if (!engine) rebuild(); else start(); } });
   elements.reset.addEventListener('click', () => rebuild());
@@ -77,7 +114,7 @@ export function createDataAnimation({ viewport, elements, context }) {
     /** After the viewport was rebuilt: draw again. */
     reapply() { if (engine) draw(); },
     setAvailable(on) { if (available === on) return; available = on; if (!on) stop(); else if (engine && elements.play.checked) start(); draw(); },
-    reset() { stop(); engine?.dispose(); engine = null; frame = null; config = null; elements.play.checked = false; elements.counters.replaceChildren(); elements.events.replaceChildren(); show(''); draw(); },
+    reset() { stop(); engine?.dispose(); engine = null; frame = null; config = null; elements.play.checked = false; elements.kinetics.replaceChildren(); elements.kinetics.hidden = true; elements.counters.replaceChildren(); elements.events.replaceChildren(); show(''); draw(); },
     get active() { return Boolean(engine); },
     /** For tests and the command API: the engine's current summary. */
     summary: () => engine?.summary() ?? null,

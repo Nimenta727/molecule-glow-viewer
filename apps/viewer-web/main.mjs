@@ -635,7 +635,7 @@ function boot() {
   });
   const dataAnimation = createDataAnimation({
     viewport,
-    elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'] },
+    elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'], kinetics: elements['data-kinetics'] },
     context: { model: () => active?.model },
   });
   setParticlesAvailable = (on) => particleFlow.setAvailable(on);

@@ -56,3 +56,22 @@ test('Studio-style editing through the generic tool model: pool size, flow rate,
   assert.ok(kp.includes('membranes.0.offset') && kp.includes('animation.flows.0.rate') && kp.includes('animation.flows.0.name'));
   const inComp = authorFields(t, kc).find((f) => f.path === 'animation.pools.0.in'); assert.deepEqual(inComp.options.map((o) => o.value), ['胞内', '胞外']);
 });
+
+const kinetics = { version: 1, inputs: { effluxed: 'K⁺ 外流' }, constants: { Ki0: 140, Ko0: 5 }, state: { drift: 0 },
+  controls: [{ id: 'scale', type: 'range', label: '每次外流的浓度变化', min: 0.1, max: 2, step: 0.1, default: 0.6, unit: 'mM' }],
+  step: [{ let: 'ki', expr: 'Ki0 - scale * effluxed' }, { let: 'ko', expr: 'Ko0 + scale * effluxed' }],
+  series: [{ label: 'E_K', range: [-120, 0], expr: '25.69 * log(ko / ki)', format: { digits: 1, unit: ' mV' } }], dots: [{ label: 'K⁺', comp: '胞外', max: 30, count: 'ko' }], warmup: false };
+
+test('the tool keeps and checks an optional compartment model: pure data, names real compartments, constants and start values are editable fields', async () => {
+  const { tool: t } = await tool();
+  const base = dataAnimationEntry({ legacy: { scene: packScene('kcsa-data') } }).config;
+  let config = normalizeDataConfig({ ...base, kinetics });
+  assert.deepEqual(config.kinetics, kinetics); assert.equal(normalizeDataConfig(base).kinetics, undefined, 'optional');
+  assert.throws(() => normalizeDataConfig({ ...base, kinetics: { ...kinetics, dots: [{ label: 'K⁺', comp: '不存在', max: 3, count: 'ko' }] } }), /不存在的区室“不存在”/);
+  assert.throws(() => normalizeDataConfig({ ...base, kinetics: { ...kinetics, step: [{ let: 'a', expr: 'zzz' }] } }), /没有定义“zzz”/);
+  assert.throws(() => normalizeDataConfig({ ...base, kinetics: { ...kinetics, step: [{ let: 'a', expr: '1' }], series: [], big: 'x'.repeat(250000) } }) || normalizeDataConfig({ ...base, kinetics: { version: 1, constants: { A: 1 }, state: {}, step: [{ let: 'b', expr: 'A' }], pad: 'x'.repeat(250000) } }), /太大/);
+  const paths = authorFields(t, config).map((f) => f.path);
+  for (const p of ['kinetics.constants.Ki0', 'kinetics.constants.Ko0', 'kinetics.state.drift']) assert.ok(paths.includes(p), p);
+  config = editAuthorField(t, config, 'kinetics.constants.Ko0', '4.5'); assert.equal(config.kinetics.constants.Ko0, 4.5);
+  assert.throws(() => editAuthorField(t, config, 'kinetics.constants.Ko0', '1e9'), /之间/); assert.equal(getPath(config, 'kinetics.constants.Ko0'), 4.5);
+});
