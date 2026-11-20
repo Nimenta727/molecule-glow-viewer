@@ -121,6 +121,14 @@
               <div id="morph-panel" hidden>
                 <label class="take-apart-row">第一构象 <input id="morph-fraction" type="range" min="0" max="1" step="0.01" value="0" aria-label="构象变形进度"> 第二构象</label>
                 <div class="take-apart-row"><label><input id="morph-auto" type="checkbox"> 自动往复</label><button id="morph-remove" type="button">移除第二构象</button></div>
+                <details class="morph-settings">
+                  <summary>叠合范围与结构域</summary>
+                  <label for="morph-core">叠合范围（选择语言，空＝全部匹配残基）</label>
+                  <input id="morph-core" type="text" maxlength="500" placeholder="chain A and resi 1-29,60-121,160-214" autocomplete="off" spellcheck="false">
+                  <label for="morph-domains">结构域（每行 名称: 选择表达式）</label>
+                  <textarea id="morph-domains" rows="3" maxlength="2000" placeholder="NMP: chain A and resi 30-59&#10;LID: chain A and resi 122-159" spellcheck="false"></textarea>
+                  <button id="morph-apply" type="button">应用</button>
+                </details>
               </div>
               <p id="morph-info" class="structure-summary" aria-live="polite"></p>
             </div>

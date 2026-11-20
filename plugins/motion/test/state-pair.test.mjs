@@ -85,3 +85,26 @@ test('layers get a second state in which the points sit where the fitted residue
   assert.equal(decorated.filter((layer) => !layer.positions?.length).length, 0);
   assert.deepEqual(conformationLayers([{ mode: 'points' }], anchors, targets, 0.05), [{ mode: 'points' }]);
 });
+
+import { domainMotions } from '../state-pair.mjs';
+import { evaluateSelection } from '../../structure/selection.mjs';
+import { selectionSpace } from '../../structure/selection.mjs';
+
+test('fitting on a core shows the other domain as its own rotation, instead of spreading the deviation', () => {
+  const space = selectionSpace(A), pick = (expression) => new Set(evaluateSelection(expression, space).residues);
+  const core = pick('chain A and resi 1-4'), moving = pick('chain A and resi 5-8');
+  const fit = fitStates(A, B, { core });
+  assert.equal(fit.coreCount, 4);
+  assert.ok(fit.rmsdCore < 1e-6, 'the rigid half superposes exactly');
+  assert.ok(fit.rmsdAfter > 1, 'the rest of the chain does not');
+  const [motion] = domainMotions(fit, [{ name: 'tail', residues: moving }], 1);
+  assert.ok(Math.abs(motion.angle - 60) < 1e-2, `domain turns by the 60 degrees it was bent: ${motion.angle}`);
+  const [half] = domainMotions(fit, [{ name: 'tail', residues: moving }], 0.5);
+  assert.ok(Math.abs(half.angle - 30) < 1e-2, `half way: ${half.angle}`);
+  assert.deepEqual(domainMotions(fit, [{ name: 'few', residues: pick('resi 1-2') }])[0].angle, null, 'too few residues: no number');
+});
+
+test('a core with too few matched residues is refused', () => {
+  const space = selectionSpace(A);
+  assert.throws(() => fitStates(A, B, { core: new Set(evaluateSelection('resi 1-2', space).residues) }), StatePairError);
+});

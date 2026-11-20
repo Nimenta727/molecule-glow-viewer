@@ -559,7 +559,7 @@ function boot() {
   const stateMorph = createStateMorph({
     viewport,
     elements: {
-      panel: elements['morph-panel'], fraction: elements['morph-fraction'], auto: elements['morph-auto'], remove: elements['morph-remove'], info: elements['morph-info'],
+      panel: elements['morph-panel'], core: elements['morph-core'], domains: elements['morph-domains'], apply: elements['morph-apply'], fraction: elements['morph-fraction'], auto: elements['morph-auto'], remove: elements['morph-remove'], info: elements['morph-info'],
     },
     context: {
       model: () => active?.model,
@@ -656,7 +656,7 @@ function boot() {
     const saved = view?.morph, second = saved && active.scene.assets.find(({ id }) => id === saved.assetId);
     if (second && active.models?.get(second.id) && active.resources.get(second.path)) {
       const loaded = { model: active.models.get(second.id), bytes: active.resources.get(second.path), name: second.path, mediaType: second.mediaType, source: second.provenance?.source };
-      Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0));
+      Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0, saved.config));
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
     syncClipControls();
@@ -1287,7 +1287,7 @@ function boot() {
         id: 'conformation-b', kind: 'file', path, mediaType: state.mediaType, sha256: [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, '0')).join(''),
         provenance: { source: state.source, conformationOf: source.id },
       });
-      source.provenance.viewerState = { ...source.provenance.viewerState, morph: { assetId: 'conformation-b', label: state.label, fraction: state.fraction } };
+      source.provenance.viewerState = { ...source.provenance.viewerState, morph: { assetId: 'conformation-b', label: state.label, fraction: state.fraction, config: state.config } };
       resources = new Map(resources).set(path, state.bytes);
     }
     return { scene, resources };

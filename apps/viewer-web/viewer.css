@@ -261,3 +261,6 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .morph-controls { padding: 0 0.75rem; }
 .morph-controls .structure-form { margin-top: 0.4rem; }
 #morph-accession { width: 7rem; }
+.morph-settings { margin-top: 0.4rem; font-size: 0.78rem; }
+.morph-settings label { display: block; margin-top: 0.3rem; color: var(--dim); }
+.morph-settings input[type="text"], .morph-settings textarea { width: 100%; box-sizing: border-box; font: inherit; }

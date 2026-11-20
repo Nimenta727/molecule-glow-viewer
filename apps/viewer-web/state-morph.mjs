@@ -1,5 +1,5 @@
-import { fitStates, stateTargets, stateAnchors, stateLigands, conformationLayers, displayCenter, pingPong, visibleState, StatePairError } from '../../plugins/motion/state-pair.mjs';
-import { selectionSpace } from '../../plugins/structure/selection.mjs';
+import { fitStates, domainMotions, stateTargets, stateAnchors, stateLigands, conformationLayers, displayCenter, pingPong, visibleState, StatePairError } from '../../plugins/motion/state-pair.mjs';
+import { selectionSpace, evaluateSelection, SelectionError } from '../../plugins/structure/selection.mjs';
 import { ligandGeometry } from './ligand-geometry.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 
@@ -22,22 +22,45 @@ export function createStateMorph({ viewport, elements, context }) {
     elements.panel.hidden = true;
     elements.auto.checked = false;
     elements.fraction.value = '0';
+    elements.core.value = '';
+    elements.domains.value = '';
     show('');
   }
 
-  function describe(fit, label) {
-    const note = `${label}：匹配 ${fit.matched} 个残基${fit.unmatchedA || fit.unmatchedB ? `（第一构象未匹配 ${fit.unmatchedA}，第二构象未匹配 ${fit.unmatchedB}）` : ''}；叠合后 RMSD ${fit.rmsdAfter.toFixed(2)} Å（叠合前 ${fit.rmsdBefore.toFixed(2)} Å），最大位移 ${fit.maxShift.toFixed(1)} Å。`;
-    return `${note} 画面是两个终点之间的线性插值（示意，不是真实路径）。`;
+  /** The settings text boxes -> { core: Set | null, domains: [{ name, residues }] } on the first conformation; a bad expression says so. */
+  function readSettings(config) {
+    const space = selectionSpace(context.model());
+    const residues = (expression, what) => {
+      try { return new Set(evaluateSelection(expression, space).residues); }
+      catch (error) { throw new StatePairError(`${what}：${error instanceof SelectionError ? error.message : error.message}`); }
+    };
+    const core = config.core.trim() ? residues(config.core, '叠合范围') : null;
+    const domains = config.domains.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+      const match = /^([^:：]+)[:：](.+)$/.exec(line);
+      if (!match) throw new StatePairError(`结构域写成 “名称: 选择表达式”：${line}`);
+      return { name: match[1].trim(), residues: residues(match[2].trim(), `结构域 ${match[1].trim()}`) };
+    });
+    return { core, domains };
+  }
+
+  function describe(fit, label, domains) {
+    const range = fit.coreCount < fit.matched ? `在 ${fit.coreCount} 个残基的叠合范围内 RMSD ${fit.rmsdCore.toFixed(2)} Å，全部匹配残基 ${fit.rmsdAfter.toFixed(2)} Å` : `叠合后 RMSD ${fit.rmsdAfter.toFixed(2)} Å（叠合前 ${fit.rmsdBefore.toFixed(2)} Å）`;
+    const note = `${label}：匹配 ${fit.matched} 个残基${fit.unmatchedA || fit.unmatchedB ? `（第一构象未匹配 ${fit.unmatchedA}，第二构象未匹配 ${fit.unmatchedB}）` : ''}；${range}，最大位移 ${fit.maxShift.toFixed(1)} Å。`;
+    const motions = domains.length ? ` 结构域相对叠合范围的运动：${domains.map((d) => (d.angle == null ? `${d.name}（残基太少）` : `${d.name} 转 ${d.angle.toFixed(1)}°、位移 ${d.shift.toFixed(1)} Å`)).join('；')}。` : '';
+    return `${note}${motions} 画面是两个终点之间的线性插值（示意，不是真实路径）。`;
   }
 
   /** Fits the loaded second conformation, draws it and its small molecules. `loaded` = { model, bytes, name, mediaType, source }. */
-  async function start(loaded, label, fraction, mine = token) {
-    const fit = fitStates(context.model(), loaded.model);
-    morph = { fit, targets: stateTargets(fit), loaded, label, fraction, ligands: [] };
+  async function start(loaded, label, fraction, mine = token, config = { core: '', domains: '' }) {
+    const settings = readSettings(config);
+    const fit = fitStates(context.model(), loaded.model, { core: settings.core });
+    morph = { fit, targets: stateTargets(fit), loaded, label, fraction, ligands: [], config };
+    elements.core.value = config.core;
+    elements.domains.value = config.domains;
     elements.panel.hidden = false;
     context.rebuild();   // re-draws the structure with its second state (decorate is called on the way)
     apply(fraction);
-    show(describe(fit, label));
+    show(describe(fit, label, domainMotions(fit, settings.domains, 1)));
     await prepareLigands(mine);
   }
 
@@ -110,6 +133,13 @@ export function createStateMorph({ viewport, elements, context }) {
     frame = requestAnimationFrame(tick);
   };
 
+  elements.apply.addEventListener('click', async () => {
+    if (!morph) return;
+    const { loaded, label, fraction } = morph, config = { core: elements.core.value, domains: elements.domains.value };
+    try { readSettings(config); } catch (error) { show(error.message); return; }   // a bad expression changes nothing
+    const mine = ++token;
+    try { await start(loaded, label, fraction, mine, config); } catch (error) { show(error.message); }
+  });
   elements.fraction.addEventListener('input', () => { elements.auto.checked = false; apply(+elements.fraction.value); });
   elements.auto.addEventListener('change', () => {
     if (!elements.auto.checked) return;
@@ -124,11 +154,12 @@ export function createStateMorph({ viewport, elements, context }) {
     /** After the viewport was rebuilt: put the second state, the fraction and the molecules back. */
     reapply() { if (!morph) return; drawLigands(); apply(morph.fraction); },
     /** What a saved work needs: the second structure's file and the current fraction (null when there is none). */
-    save: () => (morph ? { bytes: morph.loaded.bytes, name: morph.loaded.name, mediaType: morph.loaded.mediaType, source: morph.loaded.source, label: morph.label, fraction: morph.fraction } : null),
+    save: () => (morph ? { bytes: morph.loaded.bytes, name: morph.loaded.name, mediaType: morph.loaded.mediaType, source: morph.loaded.source, label: morph.label, fraction: morph.fraction, config: morph.config } : null),
     /** Reopening a saved work: `loaded` = { model, bytes, name, mediaType, source }. */
-    async restore(loaded, label, fraction) {
+    async restore(loaded, label, fraction, config) {
       const mine = ++token;
-      try { await start(loaded, label, Math.min(1, Math.max(0, fraction)), mine); } catch (error) { show(`无法恢复第二构象：${error.message}`); }
+      const clean = { core: typeof config?.core === 'string' ? config.core.slice(0, 500) : '', domains: typeof config?.domains === 'string' ? config.domains.slice(0, 2000) : '' };
+      try { await start(loaded, label, Math.min(1, Math.max(0, fraction)), mine, clean); } catch (error) { show(`无法恢复第二构象：${error.message}`); }
     },
   };
 }
