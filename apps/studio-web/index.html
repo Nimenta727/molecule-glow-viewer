@@ -7,6 +7,7 @@
     <title>Glow Studio</title>
     <link rel="stylesheet" href="../../src/styles/startup.css">
     <link rel="stylesheet" href="./studio.css">
+    <link rel="stylesheet" href="../../plugins/workshop/workshop.css">
     <script type="importmap">
       {
         "imports": {
@@ -26,6 +27,9 @@
         <nav class="project-actions" aria-label="项目操作">
           <button id="new-project" type="button">新建项目</button>
           <button id="import-structure" type="button">导入结构为新场景</button>
+          <button id="import-package" type="button">导入场景包</button>
+          <button id="workshop" type="button">工坊</button>
+          <input id="package-file" type="file" accept=".glow,application/zip" hidden>
           <input id="structure-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
           <button id="open-project" type="button">打开项目</button>
           <input id="project-file" type="file" accept=".glow-project,.json,application/json" hidden>
@@ -37,7 +41,7 @@
       <div class="workspace">
         <aside class="panel left-panel" aria-label="项目资源与场景">
           <section class="panel-section scene-section">
-            <h2>场景树</h2>
+            <h2>对象</h2>
             <label for="scene-picker">当前场景</label>
             <select id="scene-picker"></select>
             <form id="scene-title-form" class="navigation-form">
@@ -64,6 +68,16 @@
                 <option value="rotate">旋转</option>
                 <option value="scale">缩放</option>
               </select>
+              <label for="representation-style" id="representation-label" hidden>结构表示</label>
+              <select id="representation-style" aria-label="结构表示" hidden>
+                <option value="">跟随作品</option>
+                <option value="blob">团块（墨线）</option>
+                <option value="cartoon">结构示意</option>
+                <option value="backbone">主链</option>
+                <option value="functional">功能分区（示意）</option>
+                <option value="surface">低分辨率表面</option>
+              </select>
+              <span id="representation-note" class="toolbar-note" role="status" aria-live="polite"></span>
             </div>
             <div class="primitive-tools" aria-label="添加对象">
               <button id="add-box" type="button">添加方盒</button>
@@ -75,6 +89,16 @@
         </section>
 
         <aside class="panel right-panel" aria-label="属性与制作信息">
+          <div class="history-bar" aria-label="编辑历史">
+            <button id="undo" type="button">撤销</button><button id="redo" type="button">重做</button>
+          </div>
+          <div class="tabs" role="tablist" aria-label="面板">
+            <button id="tab-properties" type="button" role="tab" aria-controls="pane-properties" aria-selected="true">属性</button>
+            <button id="tab-tools" type="button" role="tab" aria-controls="pane-tools" aria-selected="false">工具</button>
+            <button id="tab-story" type="button" role="tab" aria-controls="pane-story" aria-selected="false">讲解</button>
+          </div>
+
+          <div id="pane-properties" role="tabpanel" aria-labelledby="tab-properties">
           <section class="panel-section">
             <h2>属性</h2>
             <form id="inspector" class="inspector-form" novalidate>
@@ -106,15 +130,20 @@
             </form>
           </section>
 
-          <details id="navigation-settings" class="panel-section panel-group">
+          </div>
+
+          <div id="pane-tools" role="tabpanel" aria-labelledby="tab-tools" hidden>
+            <section class="panel-section" id="tool-settings">
+              <h2>工具配置</h2>
+              <div id="tool-config"></div>
+            </section>
+          </div>
+
+          <div id="pane-story" role="tabpanel" aria-labelledby="tab-story" hidden>
+          <details id="navigation-settings" class="panel-section panel-group" open>
             <summary><h2>四模式导航</h2></summary>
             <div id="navigation-editor"></div>
           </details>
-
-          <section class="panel-section history-tools">
-            <h2>编辑历史</h2>
-            <div class="button-row"><button id="undo" type="button">撤销</button><button id="redo" type="button">重做</button></div>
-          </section>
 
           <details class="panel-section panel-group">
             <summary><h2>标注</h2></summary>
@@ -146,6 +175,7 @@
             <button id="add-bookmark" type="button">保存当前视角</button>
             <ul id="bookmark-list" class="text-list" aria-label="视角书签列表"></ul>
           </details>
+          </div>
         </aside>
       </div>
 

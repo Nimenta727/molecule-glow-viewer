@@ -974,6 +974,7 @@ async function verifyNavigationAuthoring(studio, viewer, directory, { projectPat
   await set('#navigation-view', expected.views[3].id, 'change');
   assert.equal(await evaluate("document.querySelectorAll('[data-step-title]').length"), 2);
   assert.deepEqual(await evaluate("[...document.querySelector('#view-parents').selectedOptions].map(option => option.value)"), [systemView, proteinView]);
+  await evaluate("document.querySelector('#tab-story').click()");   // the navigation editor lives on the story tab
   await captureWindow(studio, directory, 'studio-navigation', '#navigation-settings');
   const exported = await download('scene', '#export-scene', scenePath);
   fs.writeFileSync(path.join(directory, 'studio-four-modes.glow'), exported);

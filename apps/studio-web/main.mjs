@@ -8,6 +8,16 @@ import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geome
 import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
 import { createNavigationEditor } from './navigation-editor.mjs';
+import { createToolConfigPanel } from './tool-config.mjs';
+import { initTabs } from './panel-tabs.mjs';
+import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
+import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
+import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { readScenePackage } from '../../packages/schema/archive.mjs';
+import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
+import { toolEntriesForScene, toolTitle } from '../../plugins/mechanism-catalog.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -33,6 +43,49 @@ const navigationEditor = createNavigationEditor(ui['navigation-editor'], {
 });
 
 function session() { return sessions.get(project.activeSceneId); }
+
+// The structure importer and the mechanism plugins are activated on demand; the latter register the tools whose
+// authoring configuration the "工具配置" section edits.
+function ensureStructurePlugin() {
+  structureReady ??= import('../../plugins/structure/index.mjs').then(({ structurePlugin, STRUCTURE_IMPORTER_ID }) =>
+    host.activate(structurePlugin).then(() => STRUCTURE_IMPORTER_ID)).catch((error) => {
+    structureReady = undefined;
+    throw error;
+  });
+  return structureReady;
+}
+let toolPluginsReady;
+function ensureToolPlugins() {
+  toolPluginsReady ??= (async () => {
+    await ensureStructurePlugin();
+    const { mechanismPlugins } = await import('../../plugins/mechanism-catalog.mjs');
+    const active = new Set(host.listActive().map(({ id }) => id));
+    for (const plugin of mechanismPlugins) if (!active.has(plugin.manifest.id)) await host.activate(plugin);
+  })().catch((error) => { toolPluginsReady = undefined; throw error; });
+  return toolPluginsReady;
+}
+const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
+  getTool: (id) => host.getTool(id),
+  getScene: () => session().getScene(),
+  apply: (id, config) => edit({ type: 'setToolConfig', id, config }, '已更新工具配置。'),
+  report: (message) => status(message),
+  listTools: () => host.listTools({ audience: 'author' }),
+  addTool: (toolId) => {
+    const tool = host.getTool(toolId), entry = { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) };
+    const bindings = autoBindings(tool, session().getScene(), entry);   // the tool proposes the objects it works on in this scene
+    edit({ type: 'addToolEntry', entry: Object.keys(bindings).length ? { ...entry, bindings } : entry }, Object.keys(bindings).length ? '已添加工具，并按建议绑定对象。' : '已添加工具（场景里没有可绑定的对象）。');
+  },
+  removeTool: (id) => edit({ type: 'removeToolEntry', id }, '已移除工具条目。'),
+  setBindings: (id, bindings) => edit({ type: 'setToolBindings', id, bindings }, '已更新对象绑定。'),
+});
+// Tabs: properties / tools / story. Opening the tools tab activates the tool plugins so the tool list is complete.
+initTabs(document.querySelector('.tabs'), {
+  storageKey: 'glow.studio.tab',
+  onSelect: (tab) => {
+    if (tab.id !== 'tab-tools' || !project) return;
+    ensureToolPlugins().then(() => toolConfigPanel.render(session().getScene())).catch((error) => status(`无法启用工具插件。 ${error.message}`));
+  },
+});
 
 const host = createPluginHost({
   getScene: () => session().getCoreDocument(),
@@ -77,7 +130,7 @@ function installProject(next, resources = new Map()) {
   refresh({ resetCamera: true, resetTime: true });
 }
 
-function geometryFor(current) {
+function previewLayers(current) {
   if (previews.has(current)) return previews.get(current);
   const layers = new Map();
   const resources = current.getResources();
@@ -88,13 +141,68 @@ function geometryFor(current) {
   return layers;
 }
 
+// What the viewport draws: the structure in the same representation the Viewer shows (ink blobs, functional domains, ...), built
+// from the parsed structure model; until that model is ready, or when it cannot be built, the preview geometry stored in the scene.
+const structureViews = new WeakMap();   // session -> { models, built: Map(style -> layers), failed }
+const viewStyle = { value: '' };         // '' = follow the work (stored style, then the default for this kind of work)
+
+function geometryFor(current) {
+  const view = structureViews.get(current);
+  const style = viewStyle.value || '';
+  return view?.built.get(style) ?? previewLayers(current);
+}
+
+async function ensureStructureView(current) {
+  const scene = current.getScene();
+  if (!structureSources(scene).length) return false;
+  const view = structureViews.get(current) ?? { models: undefined, built: new Map(), failed: false };
+  structureViews.set(current, view);
+  const style = viewStyle.value || '';
+  if (view.failed || view.built.has(style)) return false;
+  await ensureStructurePlugin();
+  const service = host.getService('org.glow.structure.model', '1.0.0'), representation = host.getRepresentation('org.glow.structure.preview');
+  if (!service || !representation) { view.failed = true; return false; }
+  if (!view.models) {
+    view.models = new Map();
+    const resources = current.getResources();
+    for (const source of structureSources(scene)) {
+      try {
+        view.models.set(source.id, service.parse({ bytes: resources.get(source.path), name: source.path, mediaType: source.mediaType },
+          { assemblyId: source.provenance?.assemblyId, chains: source.provenance?.chains }));
+      } catch { /* a structure that cannot be parsed keeps its preview geometry */ }
+    }
+  }
+  const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
+    style: style || undefined, defaultStyle: defaultStyleFor(scene) });
+  view.built.set(style, layers);
+  return true;
+}
+
+let representationTicket = 0;
+function upgradeRepresentation() {
+  const current = session(), ticket = ++representationTicket;
+  const style = viewStyle.value || '';
+  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(style) || structureViews.get(current)?.failed) return;
+  // Progress goes to its own note next to the selector, never to the status line the author's last action reports on.
+  ui['representation-note'].textContent = '正在构建结构表示…';
+  ensureStructureView(current).then((built) => {
+    if (ticket !== representationTicket || session() !== current) return;
+    ui['representation-note'].textContent = '';
+    if (built) refresh();
+  }).catch((error) => {
+    const view = structureViews.get(current);
+    if (view) view.failed = true;
+    if (ticket === representationTicket) ui['representation-note'].textContent = `结构表示不可用，保留预览几何：${error.message}`;
+  });
+}
+
 function newProject() {
   navigationEditor.assertSaved();
   loading++;
   const scene = {
-    format: 'glow-scene', schemaVersion: 2, id: makeId('scene'), title: '空白场景',
+    format: 'glow-scene', schemaVersion: 3, id: makeId('scene'), title: '空白场景',
     units: { length: 'meter', time: 'second' },
-    assets: [], nodes: [], timeline: { duration: 4, tracks: [] }, dependencies: [], evidence: [],
+    assets: [], nodes: [], timeline: { duration: 4, tracks: [] }, dependencies: [], evidence: [], tools: [], resources: [],
   };
   installProject({
     format: 'glow-project', schemaVersion: 1, id: makeId('project'), title: '未命名工程',
@@ -123,6 +231,10 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   if (!document.nodes.some(({ id }) => id === selection)) selection = null;
   renderPanels(scene, document);
   showPose();
+  const hasStructure = structureSources(scene).length > 0;
+  for (const id of ['representation-style', 'representation-label']) ui[id].hidden = !hasStructure;
+  if (!hasStructure) ui['representation-note'].textContent = '';
+  upgradeRepresentation();
 }
 
 function select(id) {
@@ -159,7 +271,15 @@ function renderPanels(scene, document) {
   ui['scene-tree'].replaceChildren(...ordered.map(([node, depth]) => {
     const item = listItem(node.name || node.id, () => select(node.id));
     item.style.paddingInlineStart = `${Math.min(depth, 10) * 0.85}rem`;
-    item.firstChild.setAttribute('aria-pressed', String(node.id === selection));
+    item.querySelector('button').setAttribute('aria-pressed', String(node.id === selection));
+    // Outliner row: visibility toggle (a checkbox, so the selection button stays the only button in the row), then the name.
+    const eye = globalThis.document.createElement('input');   // `document` is the scene document in this function
+    eye.type = 'checkbox'; eye.className = 'eye'; eye.checked = node.visible; eye.title = '显示 / 隐藏';
+    eye.setAttribute('aria-label', `显示 ${node.name || node.id}`);
+    eye.addEventListener('change', run(() => edit({ type: 'updateNode', id: node.id, patch: { visible: eye.checked } }, eye.checked ? '已显示对象。' : '已隐藏对象。')));
+    item.classList.add('outline-row');
+    if (!node.visible) item.classList.add('hidden-node');
+    item.prepend(eye);
     return item;
   }));
   const node = tree.get(selection);
@@ -199,6 +319,11 @@ function renderPanels(scene, document) {
   ui['evidence-list'].replaceChildren(...scene.evidence.map(({ type, citation, assetId }) =>
     listItem([TYPES[type] || type, citation || assetId].filter(Boolean).join(' · '))));
   navigationEditor.render(scene);
+  toolConfigPanel.render(scene);
+  if (scene.tools?.length && !toolPluginsReady) {
+    ensureToolPlugins().then(() => { if (session().getScene().id === scene.id) toolConfigPanel.render(session().getScene()); })
+      .catch((error) => status(`无法启用工具插件。 ${error.message}`));
+  }
 }
 
 function showPose() {
@@ -263,6 +388,7 @@ viewport = createViewport(ui.viewport, {
 
 onClick('new-project', newProject);
 onClick('import-structure', () => { navigationEditor.assertSaved(); ui['structure-file'].click(); });
+onClick('import-package', () => { navigationEditor.assertSaved(); ui['package-file'].click(); });
 onClick('open-project', () => { navigationEditor.assertSaved(); ui['project-file'].click(); });
 onClick('reset-camera', () => viewport.resetCamera());
 ui['gizmo-mode'].addEventListener('change', () => viewport.setGizmoMode(ui['gizmo-mode'].value));
@@ -300,21 +426,17 @@ onClick('export-scene', async () => {
   status('场景包已生成。');
 });
 
-watchFile('structure-file', async (file) => {
+// A structure (a file, or bytes fetched from a resource) becomes a new work: the structure is its first resource.
+async function importStructureAsWork(structure, { title, message }) {
   const ticket = ++loading;
-  if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
   status('正在导入结构…');
-  structureReady ??= import('../../plugins/structure/index.mjs').then(({ structurePlugin, STRUCTURE_IMPORTER_ID }) =>
-    host.activate(structurePlugin).then(() => STRUCTURE_IMPORTER_ID)).catch((error) => {
-    structureReady = undefined;
-    throw error;
-  });
-  const importer = host.getImporter(await structureReady);
-  const imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  const importer = host.getImporter(await ensureStructurePlugin());
+  const imported = await importer.importScene(structure);
   if (ticket !== loading) return;
   navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
-  const scene = { ...imported.scene, id, timeline: { duration: 4, tracks: [] } };
+  // Scenes in Studio are always the current format: the imported structure becomes a resource of a v3 work.
+  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources);
   const next = createStudioSession(scene, imported.resources);
   geometryFor(next);
   sessions.set(id, next);
@@ -322,7 +444,59 @@ watchFile('structure-file', async (file) => {
   selection = scene.nodes[0]?.id ?? null;
   editingPose = false;
   refresh({ resetCamera: true, resetTime: true });
-  status(`已导入 ${file.name}。`);
+  status(message);
+}
+
+watchFile('structure-file', async (file) => {
+  if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+  await importStructureAsWork({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }, { message: `已导入 ${file.name}。` });
+});
+
+// ---- workshop: works open in the Viewer; a resource becomes a new work here ------------------------------------------------
+let rcsbSource;
+const workshop = createWorkshopDialog(document, {
+  load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+  toolTitle,
+  actions: {
+    works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => {
+      const url = new URL('../viewer-web/index.html', location.href);
+      url.searchParams.set('work', entry.id);
+      const override = new URLSearchParams(location.search).get('workshop');
+      if (override) url.searchParams.set('workshop', override);
+      window.open(url, '_blank', 'noopener');
+      return false;   // the dialog stays open
+    } }],
+    resources: [{ label: '用此资源新建作品', title: '从来源取回、核对哈希，成为新作品的第一个资源', run: async (entry) => {
+      navigationEditor.assertSaved();
+      const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs');
+      rcsbSource ??= createRcsbSource();
+      const structure = await fetchResource(entry, { load: (accession, options) => rcsbSource.load(accession, options) });
+      await importStructureAsWork(structure, { title: entry.title, message: `已用资源 ${entry.record.id} 新建作品。` });
+    } }],
+  },
+});
+onClick('workshop', () => workshop.open().catch((error) => status(`无法打开工坊。 ${error.message}`)));
+
+watchFile('package-file', async (file) => {
+  const ticket = ++loading;
+  if (file.size > 128 * 1024 * 1024) throw new Error('场景包超过 128 MiB。');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('请选择 .glow 场景包（Viewer 的“保存”导出）。旧版 v1 文本包请先在 Viewer 中打开并保存。');
+  status('正在导入场景包…');
+  const { scene: read, resources } = await readScenePackage(bytes);
+  // A v2 package is brought to v3 with the default tool configuration of its declared mechanism; a v3 work keeps its own.
+  const { scene: work } = await upgradeSceneToV3(read, resources, { tools: toolEntriesForScene(read) });
+  if (ticket !== loading) return;
+  navigationEditor.assertSaved();
+  const id = sessions.has(work.id) ? makeId(work.id) : work.id;
+  const next = createStudioSession({ ...work, id }, resources);
+  geometryFor(next);
+  sessions.set(id, next);
+  project = { ...project, activeSceneId: id };
+  selection = work.nodes[0]?.id ?? null;
+  editingPose = false;
+  refresh({ resetCamera: true, resetTime: true });
+  status(`已导入场景包 ${file.name}。`);
 });
 
 watchFile('project-file', async (file) => {
@@ -331,8 +505,18 @@ watchFile('project-file', async (file) => {
   status('正在打开工程…');
   const decoded = await decodeProject(new Uint8Array(await file.arrayBuffer()));
   if (ticket !== loading) return;
-  installProject(decoded.project, decoded.resourcesByScene);
+  const scenes = [];
+  for (const scene of decoded.project.scenes) {
+    scenes.push((await upgradeSceneToV3(scene, decoded.resourcesByScene.get(scene.id) ?? new Map(), { tools: toolEntriesForScene(scene) })).scene);
+  }
+  if (ticket !== loading) return;
+  installProject({ ...decoded.project, scenes }, decoded.resourcesByScene);
   status('工程已打开。');
+});
+
+ui['representation-style'].addEventListener('change', () => {
+  viewStyle.value = ui['representation-style'].value;
+  refresh();   // shows what is already built; builds the missing representation in the background
 });
 
 ui['scene-picker'].addEventListener('change', run(() => {

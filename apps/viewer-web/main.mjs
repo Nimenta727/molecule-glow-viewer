@@ -10,13 +10,18 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
-import { defaultStyleFor } from './default-style.mjs';
+import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
+import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
+import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -29,7 +34,9 @@ const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
-const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
+const STYLES = new Set(STRUCTURE_STYLES);
+// Mechanism cameras frame the step's participants but never closer than this fraction of the whole structure's radius.
+const MECHANISM_CONTEXT = 0.5;
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
@@ -189,11 +196,13 @@ function boot() {
     async prepare(input, { signal, scope }) {
       let loaded;
       const importer = host.getImporter(IMPORTER);
-      if (input.accession || (input.file && isStructureFile(input.file.name))) {
+      if (input.accession || input.structure || (input.file && isStructureFile(input.file.name))) {
         if (!importer || !structureLifetime) throw new Error('请先启用官方结构插件。');
         const combined = AbortSignal.any([signal, structureLifetime.signal]);
         let structure;
-        if (input.accession) {
+        if (input.structure) {
+          structure = input.structure;   // bytes already fetched and checked against the workshop's record
+        } else if (input.accession) {
           structure = await loadAccession(input.accession, combined);
         } else {
           if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
@@ -247,7 +256,7 @@ function boot() {
       handles.current = prepared;
       const navigation = createSceneNavigation(loaded.scene.presentation?.navigation, document.nodes);
       const nodes = new Map(loaded.scene.nodes.map((node) => [node.id, node]));
-      const name = input.file?.name ?? input.accession ?? (input.demo ? '四模式示例' : '基础几何示例');
+      const name = input.file?.name ?? input.accession ?? input.structure?.name ?? (input.demo ? '四模式示例' : '基础几何示例');
       return { ...loaded, store, nodes, timeline, prepared, handles, overlayCapacity, navigation, name, player };
     },
     commit(scene) {
@@ -298,14 +307,14 @@ function boot() {
       elements['mechanism-speed'].value = String(snapshot.speed);
       elements['mechanism-seed'].value = String(snapshot.seed);
       elements['mechanism-rate'].value = String(snapshot.playbackRate);
-      elements['mechanism-parameters'].replaceChildren(...Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => {
-        const label = document.createElement('label'), input = document.createElement('input');
-        label.append(document.createTextNode(parameter.label));
-        input.type = parameter.control === 'range' ? 'range' : 'number'; input.dataset.parameter = key;
-        for (const attribute of ['min', 'max', 'step']) input.setAttribute(attribute, parameter[attribute]);
-        input.value = snapshot.parameters[key]; label.append(input); return label;
-      }));
-      elements['mechanism-parameter-panel'].hidden = !panel?.parameters;
+      // Runtime controls come from the tool's descriptor, filtered to what a viewing front end may show; a player without
+      // a descriptor falls back to the numeric table of its panel definition.
+      const tool = host.getTool(active.playerId);
+      const controls = tool ? toolControls(tool, 'view') : Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => ({
+        key, type: 'number', label: parameter.label, min: parameter.min, max: parameter.max, step: parameter.step, control: parameter.control, default: parameter.value }));
+      active.mechanismControls = new Map(controls.map((control) => [control.key, control]));
+      elements['mechanism-parameters'].replaceChildren(...renderControls(document, controls, snapshot.parameters ?? {}));
+      elements['mechanism-parameter-panel'].hidden = !controls.length;
       elements['mechanism-parameter-title'].textContent = panel?.parametersTitle ?? '机制参数';
       elements['mechanism-back'].disabled = true;
       elements['mechanism-steps'].replaceChildren(...player.steps.map(({ title }, index) => {
@@ -322,7 +331,7 @@ function boot() {
       else button.removeAttribute('aria-current');
     }
     elements['mechanism-caption'].textContent = player.steps[stage].caption;
-    for (const input of elements['mechanism-parameters'].querySelectorAll('input')) if (input !== document.activeElement) input.value = snapshot.parameters?.[input.dataset.parameter];
+    for (const input of elements['mechanism-parameters'].querySelectorAll('input, select')) if (input !== document.activeElement) writeControl(input, snapshot.parameters?.[input.dataset.parameter]);
     elements['mechanism-metrics'].textContent = snapshot.metrics ?? '';
     elements['mechanism-counters'].textContent = `${Object.entries(snapshot.counters).map(([name, value]) => `${name} ${value}`).join(' · ')} · ${snapshot.time.toFixed(2)} 示意秒`;
     const eventKey = JSON.stringify(snapshot.events);
@@ -405,50 +414,19 @@ function boot() {
     loaded.structureTargets = new Map();
     const representation = host.getRepresentation(REPRESENTATION);
     if (!representation || !loaded.model) return layers;
-    const sources = loaded.scene.assets.filter(({ kind, mediaType }) =>
-      kind === 'file' && ['chemical/x-mmcif', 'chemical/x-pdb'].includes(mediaType));
-    if (!sources.length) return layers;
-    loaded.models ??= new Map([[sources[0].id, loaded.model]]);
-    for (const source of sources) {
-      const model = loaded.models.get(source.id);
-      if (!model) continue;
-      const previews = loaded.scene.assets.filter(({ id, provenance }) =>
-        layers.has(id) && provenance?.sourceAssetId === source.id && provenance.style === 'cartoon');
-      if (!previews.length) continue;
-      loaded.representationSource ??= source;
-      const storedStyle = source.provenance?.viewerStyle;
-      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : defaultStyleFor(loaded.scene));
-      const builds = new Map();
-      const build = (mode) => {
-        if (!builds.has(mode)) {
-          const groups = representation.build(model, { style: mode, functionalRules: loaded.scene.legacy?.scene });
-          builds.set(mode, { groups, byKey: new Map(groups.map((group) => [group.key, group])) });
-        }
-        return builds.get(mode);
-      };
-      const nodesByAsset = new Map(loaded.scene.nodes.map((node) => [node.assetId, node]));
-      for (const [index, asset] of previews.entries()) {
-        const metadata = nodesByAsset.get(asset.id)?.extensions?.[STRUCTURE];
-        const effective = STYLES.has(asset.provenance.legacyStyle) ? asset.provenance.legacyStyle : style;
-        const { byKey, groups } = build(effective);
-        const group = metadata?.chainKey ? byKey.get(metadata.chainKey) : groups[index];
-        if (group && metadata?.sourceAssetId === source.id && metadata.chainId === group.chainId) {
-          for (const targets of group.pointTargets) {
-            for (const target of targets ?? []) {
-              target.sourceAssetId = source.id;
-              loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
-              if (source === sources[0]) loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
-            }
-          }
-          layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
-            ...layer, representationStyle: effective, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
-              ? { color: asset.provenance.legacyColor } : {}),
-            pointTargets: group.pointTargets[layerIndex],
-          })));
-        }
-      }
-    }
-    return layers;
+    const [first] = structureSources(loaded.scene);
+    if (!first) return layers;
+    loaded.models ??= new Map([[first.id, loaded.model]]);
+    const result = buildStructureLayers({
+      scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
+      onTarget(target, source, primary) {
+        target.sourceAssetId = source.id;
+        loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
+        if (primary) loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
+      },
+    });
+    loaded.representationSource = result.representationSource;
+    return result.layers;
   }
 
   function refreshStructureView(style) {
@@ -597,6 +575,8 @@ function boot() {
     const navigation = active?.navigation;
     if (!navigation) return;
     const view = navigation.current();
+    // The mode panel lists the steps in mechanism mode, so the plain step list of the player controls steps aside.
+    elements['mechanism-steps'].hidden = view.mode === 'mechanism';
     const selected = navigation.selection();
     const step = modePanel.syncStep(active.timeline.time, active.inspectionStep ?? active.player?.snapshot().stage);
     const previous = active.modeState;
@@ -780,6 +760,27 @@ function boot() {
     }
   }
 
+  // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
+  // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
+  const workshop = createWorkshopDialog(document, {
+    load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+    toolTitle,
+    actions: {
+      works: [{ label: '打开', title: '下载、核对哈希后在 Viewer 中打开', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      resources: [{ label: '打开结构', title: '从来源取回、核对哈希后作为结构打开', run: (entry) => openWorkshopResource(entry) }],
+    },
+  });
+  async function openWorkshopWork(entry, catalog) {
+    const bytes = await fetchWorkBytes(catalog, entry);
+    await setStructureEnabled(true);   // official works restore their structures and mechanisms through the structure plugin
+    await openScene({ file: new File([bytes], entry.file.split('/').pop()) }, { propagate: true });
+  }
+  async function openWorkshopResource(entry) {
+    await setStructureEnabled(true);
+    const structure = await fetchResource(entry, { load: (accession, { signal } = {}) => loadAccession(accession, signal ?? new AbortController().signal) });
+    await openScene({ structure, assembly: elements['structure-assembly'].checked }, { propagate: true });
+  }
+  elements.workshop.addEventListener('click', () => workshop.open().catch((error) => setStatus(`无法打开工坊。 ${error.message}`)));
   elements.example.addEventListener('click', () => openScene());
   elements['four-modes-example'].addEventListener('click', () => openScene({ demo: true }));
   elements['navigation-entries'].addEventListener('click', (event) => {
@@ -873,7 +874,7 @@ function boot() {
         }
       } else {
         if (active?.player) {
-          storePlayerState(active.scene, active.playerId, active.player.save());
+          storePlayerState(active.scene, active.playerId, active.player.save(), (id) => host.resolveToolId(id) ?? id);
           active.player.dispose();
           active.player = undefined;
         }
@@ -939,7 +940,7 @@ function boot() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
     if (active.player) {
-      storePlayerState(scene, active.playerId, active.player.save());
+      storePlayerState(scene, active.playerId, active.player.save(), (id) => host.resolveToolId(id) ?? id);
       if (active.player.evidence) {
         if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
       } else if (!scene.evidence.some(({ citation }) => citation === ATP_6ZPO_TEMPLATE.sceneEvidence.citation)) {
@@ -1063,10 +1064,10 @@ function boot() {
   elements['mechanism-parameters'].addEventListener('change', (event) => {
     const key = event.target.dataset.parameter;
     if (!key || !active?.player?.setParameters) return;
-    try { active.player.setParameters({ [key]: Number(event.target.value) }); showPose(); }
+    const type = active.mechanismControls?.get(key)?.type ?? 'number', raw = readControl(event.target);
+    try { active.player.setParameters({ [key]: type === 'number' ? Number(raw) : type === 'boolean' ? Boolean(raw) : raw }); showPose(); }
     catch (error) { setStatus(error.message); }
-    const value = active.player.snapshot().parameters[key];
-    event.target.value = value;
+    writeControl(event.target, active.player.snapshot().parameters[key]);
   });
   elements['mechanism-parameters'].addEventListener('input', (event) => {
     if (event.target.type === 'range') event.target.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1098,7 +1099,7 @@ function boot() {
     showPose();
     const participants = active.player.steps[step].nodeIds;
     if (participants.length) viewport.focusNode(participants[0],
-      { duration: cameraDuration(), includeIds: participants.slice(1) });
+      { duration: cameraDuration(), includeIds: participants.slice(1), minRadiusFraction: MECHANISM_CONTEXT });
   }
   elements['mechanism-enter'].addEventListener('click', () => {
     if (!active?.player) return;
@@ -1107,7 +1108,7 @@ function boot() {
     const view = active.player.navigation.views.find((view) => view.mode === 'mechanism');
     if (active.navigation?.enter(view.id, viewport.getCamera({ destination: true }))) finishNavigation();
     const step = active.player.steps[active.player.snapshot().stage];
-    if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration() });
+    if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration(), includeIds: step.nodeIds.slice(1), minRadiusFraction: MECHANISM_CONTEXT });
     elements['mechanism-back'].disabled = false;
   });
   elements['mechanism-protein'].addEventListener('click', () => {
@@ -1192,7 +1193,15 @@ function boot() {
     scenes.close();
     viewport.dispose();
   });
-  openScene();
+  // `?work=<id>` opens that workshop work at start (Studio's "在 Viewer 中打开" uses it); otherwise the basic example.
+  const workId = new URLSearchParams(location.search).get('work');
+  if (workId) {
+    workshop.catalog().then((catalog) => {
+      const entry = catalog.works.find(({ id }) => id === workId);
+      if (!entry) throw new Error(`工坊里没有作品 ${workId}。`);
+      return openWorkshopWork(entry, catalog);
+    }).catch((error) => setStatus(`无法打开工坊作品。 ${error.message}`));
+  } else openScene();
 }
 
 try {

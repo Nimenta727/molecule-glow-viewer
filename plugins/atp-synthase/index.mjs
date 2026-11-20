@@ -1,3 +1,5 @@
+import { atpToolDescriptor, ATP_TOOL, atpSourceId, atpRotorTest } from './tool.mjs';
+import { nodesOfSource, boundOrMatched } from '../shared/bindings.mjs';
 import { centroid, rotateVector, superpose } from '../structure/alignment.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM as scale, selectCoordinateAtoms } from '../structure/representation.mjs';
 import { matchesPart } from '../structure/functional-preview.mjs';
@@ -8,7 +10,7 @@ import { displaceVertices } from '../motion/conformation.mjs';
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
   manifest: { id: ATP_PLAYER, version: '1.0.0', apiVersion: 1,
-    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels'] },
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels', 'tools'] },
   activate(context) {
     const instances = new Set();
     context.lifecycle.add(() => { for (const player of instances) player.dispose(); instances.clear(); });
@@ -20,6 +22,7 @@ export const atpSynthasePlugin = {
       instances.add(player);
       return player;
     } });
+    context.registerTool(ATP_TOOL, atpToolDescriptor(this.manifest.version, ATP_PLAYER));
     const { panel } = ATP_6ZPO_TEMPLATE;
     context.registerPanel(ATP_PLAYER, {
       title: panel.title,
@@ -38,7 +41,7 @@ const residueKey = (atom) => String(atom.labelSeqId || atom.authSeqId);
 const round = (value) => Math.round(value * 1e9) / 1e9;
 
 /** `config` is the work configuration (see config.mjs); omitted = the built-in 6ZPO template, which keeps old packs working. */
-export function createAtpPlayer({ model, scene, state = {}, config }) {
+export function createAtpPlayer({ model, scene, state = {}, config, bindings }) {
   const cfg = normalizeAtpConfig(config);
   let disposed = false;
   const atoms = selectCoordinateAtoms(model).map(({ atom }) => atom);
@@ -93,9 +96,8 @@ export function createAtpPlayer({ model, scene, state = {}, config }) {
     });
     nextStates.set(chainKey(own[0]), alternatives);
   }
-  const nodes = scene.nodes.filter((node) => node.extensions?.['org.glow.structure']?.sourceAssetId ===
-    scene.assets.find((asset) => asset.kind === 'file' && asset.mediaType === 'chemical/x-mmcif')?.id);
-  const rotor = nodes.filter((node) => cfg.parts.rotor.some((name) => matchesPart(node.extensions['org.glow.structure'].partName, name)));
+  const nodes = nodesOfSource(scene, atpSourceId(scene));
+  const rotor = boundOrMatched(nodes, bindings, 'rotor', atpRotorTest(cfg));   // the saved binding, else the configured part names
   if (!rotor.length) throw new Error('当前预览没有 ATP 合酶转子节点。');
   const steps = cfg.steps.map((step) => ({ ...step, nodeIds: nodes.filter((node) =>
     step.parts.some((name) => matchesPart(node.extensions['org.glow.structure'].partName, name))).map(({ id }) => id) }));

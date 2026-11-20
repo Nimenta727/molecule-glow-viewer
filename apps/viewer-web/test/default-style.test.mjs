@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultStyleFor } from '../default-style.mjs';
+import { defaultStyleFor } from '../../../plugins/default-style.mjs';
 
 test('scenes with functional-domain rules open in the functional view, everything else as ink blobs', () => {
   assert.equal(defaultStyleFor({ legacy: { scene: { core: [{ name: 'CORE' }] } } }), 'functional');

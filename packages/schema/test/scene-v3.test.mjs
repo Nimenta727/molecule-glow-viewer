@@ -113,3 +113,17 @@ test('attachStructureResources completes a scene after a mechanism added structu
   assert.deepEqual(scene.resources.map(({ id }) => id), ['res.rcsb.6ZPO', 'res.rcsb.1AKE']);
   assert.equal(validateScene(scene).assets.length, 2);
 });
+
+test('tool bindings must name nodes of the scene and have the right shape', async () => {
+  const node = (id) => ({ id, name: id, parentId: null, assetId: null, visible: true, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } });
+  const base = { ...v2(), schemaVersion: 3, resources: [], nodes: [node('a'), node('b')],
+    tools: [{ id: 't', tool: { id: 'x.y', version: '1.0.0' }, config: {}, bindings: { ring: ['a', 'b'], hub: [] } }] };
+  assert.deepEqual(validateScene(base).tools[0].bindings, { ring: ['a', 'b'], hub: [] });
+  const changed = (bindings) => () => validateScene({ ...base, tools: [{ ...base.tools[0], bindings }] });
+  assert.throws(changed({ ring: ['a', 'ghost'] }), /binds role "ring" to unknown node "ghost"/);
+  assert.throws(changed({ ring: ['a', 'a'] }), SchemaValidationError, 'a node is bound once per role');
+  assert.throws(changed({ ring: 'a' }), SchemaValidationError);
+  assert.throws(changed({ ring: [3] }), SchemaValidationError);
+  const { bindings, ...without } = base.tools[0];
+  assert.equal(validateScene({ ...base, tools: [without] }).tools[0].bindings, undefined, 'bindings are optional');
+});

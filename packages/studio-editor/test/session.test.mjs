@@ -144,3 +144,69 @@ test('a v3 work keeps its tools, resource records and links through editing, und
   session.undo(); assert.deepEqual(session.getScene(), scene);
   session.redo(); assert.deepEqual(session.getScene().tools, scene.tools);
 });
+
+test('setToolConfig replaces one tool entry\'s configuration, is undoable, and refuses bad targets', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [],
+    tools: [{ id: 'a', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 1 }, state: { time: 2 } }, { id: 'b', tool: { id: 'x.z', version: '1.0.0' }, config: { m: 1 } }] };
+  const session = createStudioSession(base);
+  assert.equal(session.dispatch({ type: 'setToolConfig', id: 'a', config: { n: 5, nested: { ok: true } } }), true);
+  assert.deepEqual(session.getScene().tools[0], { id: 'a', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 5, nested: { ok: true } }, state: { time: 2 } });
+  assert.deepEqual(session.getScene().tools[1].config, { m: 1 }, 'other entries are untouched');
+  assert.equal(session.dispatch({ type: 'setToolConfig', id: 'a', config: { n: 5, nested: { ok: true } } }), false, 'no change, no history entry');
+  session.undo(); assert.deepEqual(session.getScene().tools[0].config, { n: 1 });
+  session.redo(); assert.equal(session.getScene().tools[0].config.n, 5);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'missing', config: {} }), /没有工具条目/);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'a', config: [] }), /config object/);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'a', config: { bad: () => 1 } }), /JSON|non/i);
+  const { tools, resources, ...v2 } = base;
+  assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'setToolConfig', id: 'a', config: {} }), /v3/);
+});
+
+test('addToolEntry and removeToolEntry manage the tool list: unique ids, undoable, v3 only', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [], tools: [] };
+  const session = createStudioSession(base);
+  const entry = { tool: { id: 'org.glow.legacy-process.kcsa', version: '1.0.0' }, config: { a: 1 } };
+  assert.equal(session.dispatch({ type: 'addToolEntry', entry }), true);
+  assert.equal(session.dispatch({ type: 'addToolEntry', entry }), true);
+  assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa', 'kcsa-2'], 'ids are generated and unique');
+  assert.deepEqual(session.getScene().tools[1].config, { a: 1 });
+  entry.config.a = 99;
+  assert.equal(session.getScene().tools[0].config.a, 1, 'the scene holds its own copy');
+  assert.equal(session.dispatch({ type: 'removeToolEntry', id: 'kcsa' }), true);
+  assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa-2']);
+  session.undo(); assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa', 'kcsa-2']);
+  session.undo(); session.undo(); assert.deepEqual(session.getScene().tools, []);
+  assert.throws(() => session.dispatch({ type: 'removeToolEntry', id: 'nope' }), /没有工具条目/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { tool: { id: 'x' }, config: {} } }), /requires/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { ...entry, config: [] } }), /requires/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { ...entry, tool: { id: 'x', version: 'one' } } }), /invalid/i);
+  const { tools, resources, ...v2 } = base;
+  assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'addToolEntry', entry }), /v3/);
+});
+
+test('setToolBindings saves which nodes a tool works on, refuses unknown nodes, and null returns to the tool\'s proposal', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const node = (id) => ({ id, name: id, parentId: null, assetId: null, visible: true, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } });
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' }, assets: [], nodes: [node('a'), node('b'), node('c')],
+    timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [], tools: [{ id: 't', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 1 } }] };
+  const session = createStudioSession(base);
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'b'], hub: ['c'] } }), true);
+  assert.deepEqual(session.getScene().tools[0].bindings, { ring: ['a', 'b'], hub: ['c'] });
+  assert.deepEqual(session.getScene().tools[0].config, { n: 1 }, 'the configuration is untouched');
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'b'], hub: ['c'] } }), false, 'no change, no history entry');
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'ghost'] } }), /unknown node "ghost"/);
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 't', bindings: [] }), /bindings object or null/);
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 'nope', bindings: {} }), /没有工具条目/);
+  assert.deepEqual(session.getScene().tools[0].bindings, { ring: ['a', 'b'], hub: ['c'] }, 'a refused command changes nothing');
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: null }), true);
+  assert.equal(session.getScene().tools[0].bindings, undefined);
+  session.undo(); assert.deepEqual(session.getScene().tools[0].bindings.ring, ['a', 'b']);
+  // a tool entry can be added together with bindings
+  const added = createStudioSession(base);
+  added.dispatch({ type: 'addToolEntry', entry: { tool: { id: 'x.z', version: '1.0.0' }, config: {}, bindings: { ring: ['b'] } } });
+  assert.deepEqual(added.getScene().tools[1].bindings, { ring: ['b'] });
+});

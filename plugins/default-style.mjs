@@ -1,5 +1,5 @@
-import { resolveMechanism } from '../../plugins/mechanism-catalog.mjs';
-import { ADK_PLAYER } from '../../plugins/adenylate-kinase/index.mjs';
+import { resolveMechanism } from './mechanism-catalog.mjs';
+import { ADK_PLAYER } from './adenylate-kinase/index.mjs';
 
 // Which structure representation a scene opens with when it does not store one. The classic default is flat colour
 // domains with ink outlines ("blob"). Scenes that declare functional domains (legacy `core` rules) and the adenylate
