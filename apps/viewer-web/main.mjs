@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -19,6 +19,7 @@ import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/s
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { createObjectSpin } from './object-spin.mjs';
 import { createParticleFlow } from './particle-flow.mjs';
+import { createDataAnimation } from './data-animation.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
@@ -31,6 +32,7 @@ import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 import { prepareWorkScene, storePlayerState, toolEntryFor } from './work-scene.mjs';
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
+import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
@@ -66,7 +68,7 @@ function setStatus(message) {
   elements.status.textContent = message;
 }
 
-let setParticlesAvailable = () => {};   // set once the particle panel exists (it lives in the inner scope)
+let setParticlesAvailable = () => {}, setDataAnimationAvailable = () => {};   // set once the particle panel exists (it lives in the inner scope)
 function syncControls() {
   const playback = active?.player?.snapshot();
   const timeline = playback ? { ...playback, duration: active.player.duration } : active?.timeline;
@@ -91,6 +93,9 @@ function syncControls() {
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
   const particlesTool = Boolean(host.getTool(SOLUTION_TOOL));   // the layer is the motion plugin's tool: without the plugin nothing is drawn and the config is kept
   setParticlesAvailable(particlesTool);
+  const dataTool = Boolean(host.getTool(DATA_TOOL)) && Boolean(active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === DATA_TOOL));
+  setDataAnimationAvailable(dataTool);
+  elements['data-controls'].hidden = !structureEnabled || !active?.model || !dataTool;
   elements['particle-controls'].hidden = !structureEnabled || !active?.model || !particlesTool;
   elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
@@ -290,6 +295,7 @@ function boot() {
       showStructurePick();
       objectSpin.reset();
       particleFlow.reset();
+      dataAnimation.reset();
       stateMorph.reset();
       entryIntro.reset();
       leaveTakeApart();
@@ -627,7 +633,13 @@ function boot() {
     },
     context: { model: () => active?.model },
   });
+  const dataAnimation = createDataAnimation({
+    viewport,
+    elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'] },
+    context: { model: () => active?.model },
+  });
   setParticlesAvailable = (on) => particleFlow.setAvailable(on);
+  setDataAnimationAvailable = (on) => dataAnimation.setAvailable(on);
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -691,6 +703,8 @@ function boot() {
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
     if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
+    const data = toolEntryFor(active.scene, DATA_TOOL, (id) => host.resolveToolId(id) ?? id);
+    if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config)); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
     applyClipping();
   }
@@ -760,6 +774,7 @@ function boot() {
     stateMorph.reapply();
     objectSpin.reapply();
     particleFlow.reapply();
+    dataAnimation.reapply();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -1379,6 +1394,7 @@ function boot() {
     showStructurePick();
     objectSpin.reset();
     particleFlow.reset();
+    dataAnimation.reset();
     stateMorph.reset();
     entryIntro.reset();
     leaveTakeApart();

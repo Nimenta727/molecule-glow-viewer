@@ -16,10 +16,54 @@ import { normalizeDataAnimation } from './data-spec.mjs';
 const add = (p, d) => [p[0] + d[0], p[1] + d[1], p[2] + d[2]];
 const hexToNumber = (hex) => parseInt(hex.slice(1), 16);
 const hexOf = (n) => '#' + n.toString(16).padStart(6, '0');
+export const STEP = 1 / 30;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /** Turn the whole structure half a turn about a horizontal axis through `centre` (the classic `orient.up`: the model's PCA axis sign is arbitrary). */
 export const flipAboutHorizontal = (p, centre) => [p[0], 2 * centre[1] - p[1], 2 * centre[2] - p[2]];
+
+
+/** Where an anchor is in `structure`, as a list of points; `centre` is where a missing one falls back to, `warn(text)` hears about it. */
+export function resolveAnchor(a, s, centre, warn = () => {}) {
+  const off = Array.isArray(a) ? [0, 0, 0] : (a.offset ?? [0, 0, 0]), one = (p) => [add(p, off)];
+  if (Array.isArray(a)) return [a.slice(0, 3)];
+  if (a.ligand != null || a.ligands != null) {
+    const comp = String(a.ligand ?? a.ligands).toUpperCase(), L = (s.ligands ?? []).filter((x) => x.comp === comp);
+    if (!L.length) { warn(`没有找到小分子 ${comp}：改用模型中心。`); return one(centre); }
+    if (a.ligand != null) return one(L[Math.min(L.length - 1, a.index || 0)].centre);
+    const P = []; for (const x of L) if (!P.some((q) => Math.hypot(q[0] - x.centre[0], q[1] - x.centre[1], q[2] - x.centre[2]) < 1)) P.push(x.centre.slice());   // symmetry copies coincide
+    const out = P.map((p) => add(p, off)); if (a.order === 'up') out.sort((p, q) => p[1] - q[1]); if (a.order === 'down') out.sort((p, q) => q[1] - p[1]);
+    return out;
+  }
+  if (a.residue != null) {
+    const m = /^(-?\d+)([A-Za-z]?)$/.exec(String(a.residue).trim()), p = m ? s.residue?.({ number: +m[1], ins: m[2].toUpperCase(), part: a.part, chain: a.chain }) : null;
+    if (!p) warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
+    return one(p ?? centre);
+  }
+  if (a.label_seq != null) {
+    const p = s.residue?.({ labelSeq: +a.label_seq, part: a.part, labelAsym: a.label_asym });
+    if (!p) warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
+    return one(p ?? centre);
+  }
+  if (a.part != null) { const p = s.part?.(a.part); if (!p) warn(`没有找到部件 ${a.part}：改用模型中心。`); return one(p ?? centre); }
+  if (a.membrane != null) return one([centre[0], (s.membraneY ?? [])[a.membrane] ?? centre[1], centre[2]]);
+  return one(centre);
+}
+
+/** The middle of the box around a structure's points, and half its diagonal (the classic centre and size of a model). */
+export function structureBox(points) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const p of points) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); }
+  return { centre: lo.map((v, k) => (v + hi[k]) / 2), radius: Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2 };
+}
+
+/** Does the declared `orient.up` anchor sit below the middle? Then the host turns the whole structure half a turn (flipAboutHorizontal) before running. */
+export function needsFlip(raw, structure) {
+  const { spec } = normalizeDataAnimation(raw);
+  if (!spec.orient?.up) return false;
+  const { centre } = structureBox(structure.points);
+  return resolveAnchor(spec.orient.up, structure, centre)[0][1] < centre[1];
+}
 
 export class DataAnimation {
   constructor(raw, structure, { rng = seededRng(7), pace = () => 1, scale = () => 'slow' } = {}) {
@@ -39,9 +83,7 @@ export class DataAnimation {
   #warn(text) { if (!this.warnings.includes(text)) this.warnings.push(text); }
   #setup() {
     const { spec, structure } = this, pts = structure.points;
-    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
-    for (const p of pts) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); }
-    this.c = lo.map((v, k) => (v + hi[k]) / 2); this.R = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) / 2;
+    const box = structureBox(pts); this.c = box.centre; this.R = box.radius;
     const custom = Object.fromEntries(Object.entries(spec.species).map(([name, s]) => [name, { col: hexToNumber(s.col), r: clamp(s.r, 0.8, 6) }]));
     this.pools = new PoolSet({ rng: this.rng, occupancy: this.occupancy, species: custom });
     const mem = structure.membraneY ?? [];
@@ -67,31 +109,7 @@ export class DataAnimation {
   #pool(species, comp, n = 0) { return this.pools.speciesPool(species, comp, this.comp[comp], n); }
 
   /** Where an anchor is, as a list of points (a `ligands` anchor expands to every copy; none found: the middle of the model, with a warning). */
-  anchor(a) {
-    const s = this.structure, off = Array.isArray(a) ? [0, 0, 0] : (a.offset ?? [0, 0, 0]), one = (p) => [add(p, off)];
-    if (Array.isArray(a)) return [a.slice(0, 3)];
-    if (a.ligand != null || a.ligands != null) {
-      const comp = String(a.ligand ?? a.ligands).toUpperCase(), L = (s.ligands ?? []).filter((x) => x.comp === comp);
-      if (!L.length) { this.#warn(`没有找到小分子 ${comp}：改用模型中心。`); return one(this.c); }
-      if (a.ligand != null) return one(L[Math.min(L.length - 1, a.index || 0)].centre);
-      const P = []; for (const x of L) if (!P.some((q) => Math.hypot(q[0] - x.centre[0], q[1] - x.centre[1], q[2] - x.centre[2]) < 1)) P.push(x.centre.slice());   // symmetry copies coincide
-      const out = P.map((p) => add(p, off)); if (a.order === 'up') out.sort((p, q) => p[1] - q[1]); if (a.order === 'down') out.sort((p, q) => q[1] - p[1]);
-      return out;
-    }
-    if (a.residue != null) {
-      const m = /^(-?\d+)([A-Za-z]?)$/.exec(String(a.residue).trim()), p = m ? s.residue?.({ number: +m[1], ins: m[2].toUpperCase(), part: a.part, chain: a.chain }) : null;
-      if (!p) this.#warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
-      return one(p ?? this.c);
-    }
-    if (a.label_seq != null) {
-      const p = s.residue?.({ labelSeq: +a.label_seq, part: a.part, labelAsym: a.label_asym });
-      if (!p) this.#warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
-      return one(p ?? this.c);
-    }
-    if (a.part != null) { const p = s.part?.(a.part); if (!p) this.#warn(`没有找到部件 ${a.part}：改用模型中心。`); return one(p ?? this.c); }
-    if (a.membrane != null) return one([this.c[0], (s.membraneY ?? [])[a.membrane] ?? this.c[1], this.c[2]]);
-    return one(this.c);
-  }
+  anchor(a) { return resolveAnchor(a, this.structure, this.c, (text) => this.#warn(text)); }
 
   /* ---------------- metering ---------------- */
   #count(kind, species) { this.ledger[kind][species] = (this.ledger[kind][species] ?? 0) + 1; }
@@ -227,6 +245,14 @@ export class DataAnimation {
     this.events.tick(dt);
   }
   run(steps, dt = 1 / 30) { for (let i = 0; i < steps; i++) this.step(dt); }
+  /** Advance by real time in fixed 1/30 s steps (at most 4 per call, so a long pause does not fast-forward); the picture then depends only on the seed and the step count. */
+  advance(dt) {
+    this.carry = (this.carry ?? 0) + Math.max(0, dt);
+    let n = 0;
+    while (this.carry >= STEP && n < 4) { this.step(STEP); this.carry -= STEP; n++; }
+    if (this.carry > STEP) this.carry = STEP;
+    return n;
+  }
 
   /** What to draw: [{ kind: 'pool' | 'moving' | 'stream', name, position, radius, color, alpha, label? }] and the event tags still showing. */
   frame() {

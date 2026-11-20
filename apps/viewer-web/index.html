@@ -127,6 +127,17 @@
               <div class="take-apart-row"><label><input id="spin-play" type="checkbox"> 播放</label><button id="spin-reset" type="button">复位角度</button></div>
               <p id="spin-info" class="structure-summary" aria-live="polite">在“部件显隐”里给要旋转的部件勾上“旋转”。</p>
             </div>
+            <div id="data-controls" class="morph-controls" hidden>
+              <div class="structure-form"><strong>数据反应动画</strong></div>
+              <label class="take-apart-row">时间尺度
+                <select id="data-scale" aria-label="时间尺度"><option value="slow">慢：逐个分子</option><option value="fast">快：粒子流</option></select>
+              </label>
+              <label class="take-apart-row">快慢 <input id="data-pace" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="动画快慢"></label>
+              <div class="take-apart-row"><label><input id="data-play" type="checkbox"> 播放</label><button id="data-reset" type="button">从头开始</button></div>
+              <ul id="data-counters" class="particle-list" aria-label="计数器"></ul>
+              <details open><summary>事件记录</summary><ol id="data-events" class="particle-list"></ol></details>
+              <p id="data-info" class="structure-summary" aria-live="polite"></p>
+            </div>
             <div id="particle-controls" class="morph-controls" hidden>
               <div class="structure-form">
                 <label for="particle-species">溶液粒子</label>

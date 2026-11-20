@@ -17,7 +17,7 @@ const edit = (tool, config, path, raw) => editAuthorField(tool, config, path, ra
 test('the motion plugin registers the solution tool for both front ends and releases it when deactivated', async () => {
   const host = await hostWithMotion(), tool = host.getTool(SOLUTION_TOOL);
   assert.equal(tool.runtime, 'layer-v1'); assert.deepEqual([...tool.audience], ['view', 'author']);
-  assert.deepEqual(host.listTools({ audience: 'author' }).map(({ id }) => id), [SOLUTION_TOOL]);
+  assert.ok(host.listTools({ audience: 'author' }).some(({ id }) => id === SOLUTION_TOOL));
   assert.ok(tool.model.assumptions.length >= 3, 'states the limits of its model');
   assert.equal(toolTitle(SOLUTION_TOOL), tool.title);
   await assert.rejects(() => host.deactivate('org.glow.structure'), /required by/);

@@ -40,3 +40,18 @@ test('layout keeps coordinates for parts omitted from the geometry preview budge
   assert.equal(result.scene.nodes.length, 1);
   assert.deepEqual(result.layout.map(({ name, points }) => [name, points.length]), [['Chain A', 3], ['Chain B', 3]]);
 });
+
+test('keeping chains keeps the small molecules in them or within 6 A of their residues (classic keepChains), and drops the far ones and the other chain', async () => {
+  const rows = [
+    'ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 10.00           C',
+    'ATOM      2  CA  GLY A   2       3.800   0.000   0.000  1.00 10.00           C',
+    'ATOM      3  CA  ALA B   1      50.000   0.000   0.000  1.00 10.00           C',
+    'HETATM    4  K     K C 101       2.000   4.000   0.000  1.00 10.00           K',   // own chain C, 4 A from chain A: kept
+    'HETATM    5  K     K D 102      90.000   0.000   0.000  1.00 10.00           K',   // far from everything: dropped
+    'HETATM    6  K     K E 103      50.000   3.000   0.000  1.00 10.00           K',   // near chain B only: dropped when only A is kept
+    'HETATM    7  O   HOH F 104       2.000   2.000   0.000  1.00 10.00           O',   // water: never kept this way
+  ];
+  const result = await importStructureScene({ bytes: new TextEncoder().encode(rows.join('\n') + '\n'), name: 'keep.pdb' }, { chains: ['A'], includeLayout: true });
+  const atoms = result.model.atoms.map((a) => `${a.residueName}${a.authSeqId}`).sort();
+  assert.deepEqual(atoms, ['ALA1', 'GLY2', 'K101']);
+});

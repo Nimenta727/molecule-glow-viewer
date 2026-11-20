@@ -10,11 +10,13 @@ import { adkToolDescriptor, ADK_TOOL } from './adenylate-kinase/tool.mjs';
 import { kcsaToolDescriptor, KCSA_TOOL } from './kcsa/tool.mjs';
 import { motionPlugin } from './motion/index.mjs';
 import { SOLUTION_TOOL } from './motion/solution-tool.mjs';
+import { simulationPlugin } from './simulation/index.mjs';
+import { DATA_TOOL, normalizeDataConfig } from './simulation/data-tool.mjs';
 import { autoBindings } from '../packages/plugin-host/tool-model.mjs';
 export const mechanismPlugins = [atpSynthasePlugin, kcsaPlugin, adenylateKinasePlugin];
 /** Plugins that offer tools other than the mechanism players. They follow the structure plugin (both front ends activate them with it). */
-export const toolPlugins = [motionPlugin];
-export { SOLUTION_TOOL };
+export const toolPlugins = [motionPlugin, simulationPlugin];
+export { SOLUTION_TOOL, DATA_TOOL };
 export const mechanismPlayers = Object.freeze({ atpSynthase: ATP_PLAYER, kcsa: KCSA_PLAYER });
 
 export function resolveMechanism(scene) {
@@ -40,6 +42,7 @@ const TOOLS = {
 /** Display name of one of the built-in tools by id (new id or old player id), without needing its plugin to be active. */
 export function toolTitle(id) {
   if (id === SOLUTION_TOOL) return '溶液粒子与流';
+  if (id === DATA_TOOL) return '数据反应动画';
   for (const [player, [toolId, describe]] of Object.entries(TOOLS)) if (id === toolId || id === player) return describe('1.0.0', player).title;
   return id;
 }
@@ -50,7 +53,26 @@ export function toolIdForScene(scene) {
   return id && TOOLS[id] ? TOOLS[id][0] : undefined;
 }
 
+/**
+ * The data animation entry of a scene that carries a classic `animation` declaration (plain data: compartments, pools, flows, reactions). The declaration
+ * and the classic scene's axis and membrane placement become the tool's configuration; a declaration the engine cannot run is left out (the scene keeps it
+ * in its legacy block).
+ */
+export function dataAnimationEntry(scene) {
+  const legacy = scene.legacy?.scene, animation = legacy?.animation;
+  if (!animation || typeof animation !== 'object') return undefined;
+  try {
+    const config = normalizeDataConfig({ animation, axis: legacy.axis, membranes: legacy.membranes ?? (Number.isFinite(legacy.memY) ? [{ at: '', offset: legacy.memY }] : []), seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7 });
+    return { id: 'data-animation', tool: { id: DATA_TOOL, version: simulationPlugin.manifest.version }, config };
+  } catch { return undefined; }
+}
+
 export function toolEntriesForScene(scene) {
+  const data = dataAnimationEntry(scene);
+  return [...mechanismEntriesForScene(scene), ...(data ? [data] : [])];
+}
+
+function mechanismEntriesForScene(scene) {
   const id = resolveMechanism(scene);
   const plugin = mechanismPlugins.find(({ manifest }) => manifest.id === id);
   if (!plugin || !TEMPLATES[id]) return [];

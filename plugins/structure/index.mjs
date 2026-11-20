@@ -34,9 +34,35 @@ async function hash(bytes) {
   return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, '0')).join('');
 }
 
+// Keeping chains (classic keepChains): the atoms of the chosen chains, plus every small molecule that sits in a chosen chain or within 6 A of one of its
+// residues (so the K+ ions of a channel, which the file files under their own chains, stay with the channel).
+const LIGAND_REACH = 6;
 function filterChains(model, chains) {
   if (!Array.isArray(chains) || !chains.length) return model;
-  return { ...model, atoms: model.atoms.filter((atom) => chains.includes(atom.labelChainId || atom.authChainId)) };
+  const chosen = (atom) => chains.includes(atom.labelChainId || atom.authChainId);
+  const kept = model.atoms.filter(chosen);
+  const grid = new Map(), cell = (v) => Math.floor(v / LIGAND_REACH), key = (x, y, z) => `${x},${y},${z}`;
+  for (const atom of kept) {
+    if (atom.record !== 'ATOM' || (atom.name !== 'CA' && atom.name !== 'P')) continue;
+    const k = key(cell(atom.position[0]), cell(atom.position[1]), cell(atom.position[2]));
+    (grid.get(k) ?? grid.set(k, []).get(k)).push(atom.position);
+  }
+  const near = (p) => {
+    const x = cell(p[0]), y = cell(p[1]), z = cell(p[2]);
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      for (const q of grid.get(key(x + dx, y + dy, z + dz)) ?? []) if (Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < LIGAND_REACH) return true;
+    }
+    return false;
+  };
+  const groups = new Map();
+  for (const atom of model.atoms) {
+    if (atom.record !== 'HETATM' || chosen(atom) || ['HOH', 'WAT', 'DOD'].includes(String(atom.residueName).toUpperCase())) continue;
+    const id = `${atom.labelChainId}|${atom.residueName}|${atom.authSeqId}|${atom.assemblyCopy ?? ''}`;
+    (groups.get(id) ?? groups.set(id, []).get(id)).push(atom);
+  }
+  const extra = new Set();
+  for (const atoms of groups.values()) if (atoms.some((atom) => near(atom.position))) for (const atom of atoms) extra.add(atom);
+  return { ...model, atoms: model.atoms.filter((atom) => chosen(atom) || extra.has(atom)) };
 }
 
 function parseCoordinates({ bytes, name, mediaType }, { assemblyId, chains } = {}) {

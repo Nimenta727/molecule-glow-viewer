@@ -543,7 +543,51 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     }
     return null;
   }
+  /**
+   * Named events at a point (classic eventTag): `setEventTags(items)` shows [{ text, position, age, dur }] in viewport coordinates; each tag rises a little
+   * and fades in and out over its `dur` seconds. Call it again with the current list every frame; [] removes them all.
+   */
+  const eventTextures = new Map(), eventSprites = [];
+  function eventTexture(text) {
+    let entry = eventTextures.get(text);
+    if (!entry) {
+      const measure = document.createElement('canvas').getContext('2d');
+      measure.font = 'bold 26px sans-serif';
+      const width = Math.max(64, Math.min(1024, Math.ceil(measure.measureText(text).width) + 28)), canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = 48;
+      const context = canvas.getContext('2d');
+      context.font = 'bold 26px sans-serif'; context.textAlign = 'center'; context.lineJoin = 'round';
+      context.lineWidth = 7; context.strokeStyle = 'rgba(247, 247, 244, 0.95)'; context.strokeText(text, width / 2, 33);
+      context.fillStyle = '#2c3440'; context.fillText(text, width / 2, 33);
+      const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace;
+      entry = { texture, aspect: width / 48 };
+      eventTextures.set(text, entry);
+    }
+    return entry;
+  }
+  function setEventTags(items = []) {
+    if (!active) items = [];
+    while (eventSprites.length > items.length) { const sprite = eventSprites.pop(); sprite.removeFromParent(); sprite.material.dispose(); }
+    items.forEach((item, i) => {
+      let sprite = eventSprites[i];
+      if (!sprite) { sprite = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, depthWrite: false, transparent: true })); sprite.renderOrder = 22; eventSprites.push(sprite); }
+      if (sprite.parent !== active.root) active.root.add(sprite);
+      const { texture, aspect } = eventTexture(item.text), u = Math.max(0, Math.min(1, item.age / item.dur));
+      sprite.material.map = texture; sprite.material.needsUpdate = true;
+      sprite.material.opacity = Math.min(1, u / 0.1, (1 - u) / 0.3);
+      sprite.scale.set(0.26 * aspect, 0.26, 1);
+      sprite.position.fromArray(item.position); sprite.position.y += 0.1 + 0.2 * u;
+    });
+    invalidate();
+  }
+  function clearEventTags() {
+    setEventTags([]);
+    for (const { texture } of eventTextures.values()) texture.dispose();
+    eventTextures.clear();
+  }
+
   function clearParticleClouds() {
+    clearEventTags();
     for (const tag of [...clouds.keys()]) removeCloud(tag);
     for (const { texture, material } of cloudLabelTextures.values()) { texture.dispose(); material.dispose(); }
     cloudLabelTextures.clear();
@@ -1130,6 +1174,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }
