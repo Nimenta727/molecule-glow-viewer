@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { parseMmcif } from '../plugins/structure/parser.mjs';
 import { selectionSpace } from '../plugins/structure/selection.mjs';
+import { Journey, Motion, EventLog, membraneCrossing, ease as myEase } from '../plugins/motion/journey.mjs';
 import { createOccupancy, brownPath, catmullRom, boxRegion, shellRegion, ParticlePool, FlowStream, seededRng } from '../plugins/motion/particles.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -20,13 +21,18 @@ const stub = `
 const makeTag = (text, o) => ({ el: { style: {}, textContent: text }, on: false, set() {}, remove() {}, o });
 const makeParticle = (col, r) => { const m = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: col })); m.scale.setScalar(r); return m; };
 const procRoot = new THREE.Group(), world = new THREE.Group();
-const illustrative = () => false, anim = () => Promise.resolve(), ease = (u) => u, eventLog = [];
+const illustrative = () => false;
+class Stale extends Error {}
+const addEventListener = () => {};
 const U = { uTime: { value: 0 } };
 const PARTICLE_GEO = new THREE.BufferGeometry();
 const _cv = new THREE.Vector3(), _tp = new THREE.Vector3(), _tm4 = new THREE.Matrix4(), _tq0 = new THREE.Quaternion(), _tsv = new THREE.Vector3();
 let model = null, cellSim = null, rand = Math.random, randVis = Math.random;
 `;
 vm.runInContext(stub, ctx);
+const geo = fs.readFileSync(path.join(ROOT, 'src/derived/geometry.js'), 'utf8');
+vm.runInContext(geo.split('\n').find((l) => l.startsWith('const ease = ')), ctx);
+vm.runInContext(fs.readFileSync(path.join(ROOT, 'src/sim/anim-runner.js'), 'utf8'), ctx);
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'src/sim/motion-kit.js'), 'utf8'), ctx);
 const classic = (expr) => vm.runInContext(expr, ctx);
 const setStreams = (seed) => { const r = seededRng(seed); ctx.__sim = r.sim; ctx.__vis = r.vis; classic('rand = __sim; randVis = __vis;'); return seededRng(seed); };
@@ -167,6 +173,74 @@ for (const id of ['6ZPO', '1K4C', '4AKE']) {
     check(`flow of ${def.label}: 300 steps, up to ${peak} particles on ${def.paths.length} path(s): ${stream.emitted} emitted / ${stream.finished} finished; largest position difference ${worst.toExponential(1)} Å, scale ${scaleWorst.toExponential(1)}, ${countMismatch} count disagreements`, worst < 1e-3 && scaleWorst < 1e-5 && !countMismatch, `${worst} / ${scaleWorst} / ${countMismatch}`);
     classic('__flow.dispose(); 0');
   }
+}
+
+// 6b. travel, events, membrane crossing ----------------------------------------------------------------------------------------------------------------------
+{
+  const flush = () => new Promise((r) => setImmediate(r)), DT = 1 / 60;
+  // travel: every leg option, one tick at a time against the classic runner
+  let worst = 0, alphaWorst = 0, rotWorst = 0, ticks = 0, endMismatch = 0;
+  const variants = [{}, { ease: true }, { fadeIn: 0.3 }, { fadeOut: 0.25 }, { fadeIn: 0.2, fadeOut: 0.2, ease: true }, { tumble: true }];
+  for (const [vi, opt] of variants.entries()) for (const a0 of [1, 0.05]) {
+    const rngA = seededRng(50 + vi), pts = brownPath([0, 0, 0], [60, 20, -10], {}, { rng: rngA }), dur = 1.3;
+    ctx.__P = pts.map(V); ctx.__opt = opt; ctx.__a0 = a0;
+    classic('var __o = new THREE.Object3D(); __o.userData.alpha = __a0; var __done = false; travel(__o, __P, 1.3, __opt).then(() => { __done = true; }); 0');
+    const item = { name: 'x', position: [0, 0, 0], alpha: a0, rotation: [0, 0, 0] }, j = new Journey(item, [{ path: pts, dur, ...opt }]);
+    for (let k = 0; k < 120 && !j.finished; k++) {
+      j.step(DT); classic(`tickAnims(${DT})`); await flush(); ticks++;
+      const o = classic('__o'), alpha = o.userData.alpha ?? 1;
+      worst = Math.max(worst, close(o.position.toArray(), item.position));
+      if (opt.fadeIn || opt.fadeOut) alphaWorst = Math.max(alphaWorst, Math.abs(alpha - item.alpha));
+      if (opt.tumble) rotWorst = Math.max(rotWorst, Math.abs(o.rotation.x - item.rotation[0]), Math.abs(o.rotation.y - item.rotation[1]));
+    }
+    if (classic('__done') !== true || !j.finished) endMismatch++;
+  }
+  check(`travel: ${variants.length * 2} legs (plain / eased / fade in / fade out / both / tumbling, from full and from 5% alpha), ${ticks} ticks at 60 fps: largest position difference ${worst.toExponential(1)} Å, alpha ${alphaWorst.toExponential(1)}, tumble ${rotWorst.toExponential(1)} rad, ${endMismatch} legs ending on different ticks`, worst < 1e-9 && alphaWorst < 1e-12 && rotWorst < 1e-9 && !endMismatch, `${worst}/${alphaWorst}/${rotWorst}/${endMismatch}`);
+  const m = [0, 0.4, 0.5, 1, 1.2, -0.1].map((t) => [t, myEase(t), classic(`ease(${t})`)]);
+  check(`ease: smoothstep equals the classic one on ${m.length} inputs`, m.every(([, a, b]) => a === b), JSON.stringify(m));
+
+  // event log
+  const log = new EventLog(() => 12.34567), eventsBefore = classic('eventLog.length');
+  ctx.__tp = V([1, 2, 3]); classic('U.uTime.value = 12.34567; eventTag("ADP + Pi → <b>ATP</b>", __tp, 2)');
+  log.add('ADP + Pi → <b>ATP</b>', [1, 2, 3], 2);
+  const cl = classic('eventLog[eventLog.length - 1]');
+  for (let i = 0; i < 520; i++) log.add('e' + i, [0, 0, 0]);
+  check(`event log: entry equals the classic one ("${log.events[0] && cl.text}", t ${cl.t}), stripped of markup, capped at ${log.events.length}`, cl.t === 12.346 && cl.text === 'ADP + Pi → ATP' && log.events.length === 500 && eventsBefore === 0, JSON.stringify(cl));
+
+  // proton across a membrane through a channel, whole thing, both engines from the same seed; pools on both sides
+  let posWorst = 0, tickCount = 0, poolMismatch = 0, labelMismatch = 0, runs = 0;
+  for (const id of ['6ZPO', '1K4C']) {
+    const parsed = parseMmcif(fs.readFileSync(path.join(dir, id + '.cif'), 'utf8')), pts = selectionSpace(parsed).residues.map((r) => r.position);
+    const c = pts.reduce((s, p) => [s[0] + p[0] / pts.length, s[1] + p[1] / pts.length, s[2] + p[2] / pts.length], [0, 0, 0]);
+    ctx.__atoms = pts.map((p) => ({ p: V(p) })); classic('model = { allAtoms: __atoms }');
+    const occupancy = createOccupancy(pts);
+    for (const opts of [{}, { label: 'H⁺ in', tIn: 1, tChan: 0.6, tOut: 0.9 }]) {
+      const rng = setStreams(77 + runs++);
+      const mk = (y0, y1) => ({ c: [c[0], c[1], c[2]], d: [1, 0, 0], n: [0, 0, 1], ulo: -150, uhi: 150, vlo: -150, vhi: 150, ym: c[1], y0, y1 });
+      const topBox = mk(c[1] + 25, c[1] + 140), botBox = mk(c[1] - 140, c[1] - 25);
+      const chan = [[c[0], c[1] + 30, c[2]], [c[0] + 3, c[1] + 8, c[2] + 2], [c[0] + 1, c[1] - 8, c[2] - 2], [c[0], c[1] - 30, c[2]]];
+      const mineTop = new ParticlePool({ name: 'H⁺', region: boxRegion(topBox, topBox.y0, topBox.y1, { rng, occupancy }), n: 8 }, { rng, occupancy }); mineTop.fill();
+      const mineBot = new ParticlePool({ name: 'H⁺', region: boxRegion(botBox, botBox.y0, botBox.y1, { rng, occupancy }), n: 0 }, { rng, occupancy });
+      ctx.__chan = chan.map(V); ctx.__opts = opts;
+      const clsBox = (b) => `{ c: new THREE.Vector3(${b.c}), d: new THREE.Vector3(1,0,0), n: new THREE.Vector3(0,0,1), ulo: -150, uhi: 150, vlo: -150, vhi: 150, ym: ${c[1]} }`;
+      classic(`var __top = new MolPool({ label: 'H⁺', col: 1, region: boxRegion(${clsBox(topBox)}, ${topBox.y0}, ${topBox.y1}), n: 8, make: () => makeParticle(1, 2) }); __top.fill();
+               var __bot = new MolPool({ label: 'H⁺', col: 1, region: boxRegion(${clsBox(botBox)}, ${botBox.y0}, ${botBox.y1}), n: 0, make: () => makeParticle(1, 2) }); var __h = null;
+               var __cross = protonAcross(__top, __bot, __chan, __opts).then(() => { __fin = true; }); var __fin = false; 0`);
+      const motion = new Motion(), journey = membraneCrossing(motion, mineTop, mineBot, chan, opts, { rng, occupancy });
+      // the classic took its particle synchronously too: find it as the one object parented to the overlay
+      const theirObj = classic('procRoot.children[procRoot.children.length - 1]');
+      for (let k = 0; k < 400 && motion.running; k++) {
+        motion.tick(DT); classic(`tickAnims(${DT})`); await flush(); tickCount++;
+        posWorst = Math.max(posWorst, close(theirObj.position.toArray(), journey.item.position));
+      }
+      await flush();
+      const fin = classic('__fin') === true, theirBot = classic('__bot.items.length'), theirTop = classic('__top.items.length');
+      if (!fin || mineBot.items.length !== theirBot || mineTop.items.length !== theirTop) poolMismatch++;
+      if (journey.item.label !== (opts.label ? 'H⁺' : 'H⁺')) labelMismatch++;
+      classic('procRoot.children.length = 0; 0');
+    }
+  }
+  check(`proton across a membrane (4 runs on 6ZPO / 1K4C, default and custom timings, ${tickCount} ticks): largest position difference ${posWorst.toExponential(1)} Å, ${poolMismatch} runs ending with different pool contents, ${labelMismatch} label slips`, posWorst < 1e-6 && !poolMismatch && !labelMismatch, `${posWorst}/${poolMismatch}/${labelMismatch}`);
 }
 
 // 6. every particle is named --------------------------------------------------------------------------------------------------------------------------------

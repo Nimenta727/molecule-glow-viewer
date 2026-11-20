@@ -17,6 +17,10 @@ ok   4AKE: pool of 24 H⁺ (plain) over 240 steps with 5 take/give and the count
 ok   4AKE: pool of 24 H⁺ (tumbling) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
 ok   flow of H⁺: 300 steps, up to 12 particles on 3 path(s): 57 emitted / 53 finished; largest position difference 3.9e-6 Å, scale 1.2e-7, 0 count disagreements
 ok   flow of K⁺: 300 steps, up to 11 particles on 1 path(s): 28 emitted / 25 finished; largest position difference 2.1e-6 Å, scale 1.2e-7, 0 count disagreements
+ok   travel: 12 legs (plain / eased / fade in / fade out / both / tumbling, from full and from 5% alpha), 936 ticks at 60 fps: largest position difference 4.0e-15 Å, alpha 0.0e+0, tumble 0.0e+0 rad, 0 legs ending on different ticks
+ok   ease: smoothstep equals the classic one on 6 inputs
+ok   event log: entry equals the classic one ("ADP + Pi → ATP", t 12.346), stripped of markup, capped at 500
+ok   proton across a membrane (4 runs on 6ZPO / 1K4C, default and custom timings, 782 ticks): largest position difference 8.5e-14 Å, 0 runs ending with different pool contents, 0 label slips
 ok   unnamed pools and flows are refused: 4/4
 
-20/20 identical
+24/24 identical
