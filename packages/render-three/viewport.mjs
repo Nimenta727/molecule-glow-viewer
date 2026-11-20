@@ -467,9 +467,10 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   function drawParticleLabel(canvas, name, color) {
     const context = canvas.getContext('2d');
     context.clearRect(0, 0, 128, 48);
-    context.fillStyle = '#ffffffdd'; context.fillRect(0, 0, 128, 48);
-    context.fillStyle = color; context.font = 'bold 28px sans-serif'; context.textAlign = 'center';
-    context.fillText(name, 64, 34);
+    // Lettering with a paper-coloured halo instead of an opaque box, so the label reads on any background without a frame.
+    context.font = 'bold 28px sans-serif'; context.textAlign = 'center'; context.lineJoin = 'round';
+    context.lineWidth = 7; context.strokeStyle = 'rgba(247, 247, 244, 0.95)'; context.strokeText(name, 64, 34);
+    context.fillStyle = color; context.fillText(name, 64, 34);
   }
 
   function updateParticleMolecule(marker, particle) {
@@ -516,7 +517,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       drawParticleLabel(canvas, name, color);
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
-      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true }));
+      // depthWrite off: a label must not enter the depth buffer, or the ink pass draws its quad as a framed box.
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true }));
       label.renderOrder = 21;
       label.scale.set(0.42, 0.16, 1); label.position.y = 0.16;
       marker.add(label);
@@ -630,7 +632,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function focusNode(id, { bookmark, duration = 0, includeIds = [] } = {}) {
+  // `minRadiusFraction` keeps context in view: the frame is never tighter than that fraction of the whole scene's radius.
+  function focusNode(id, { bookmark, duration = 0, includeIds = [], minRadiusFraction = 0 } = {}) {
     const object = active?.groups.get(id);
     if (!object) return false;
     object.updateWorldMatrix(true, false);
@@ -650,7 +653,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       ? new THREE.Vector3(...bookmark.position).sub(target)
       : camera.position.clone().sub(controls.target);
     if (offset.lengthSq() === 0) offset.set(1, 0.72, 1);
-    const radius = Math.max(0.25, sphere.radius + sphere.center.distanceTo(target));
+    const radius = Math.max(0.25, sphere.radius + sphere.center.distanceTo(target), (active?.radius ?? 0) * minRadiusFraction);
     const distance = Math.max(bookmark ? offset.length() : 0, radius / Math.sin(fitAngle()) * 1.06);
     const position = offset.setLength(distance).add(target);
     setCamera({ position: position.toArray(), target: target.toArray() }, { duration, responsive: true });

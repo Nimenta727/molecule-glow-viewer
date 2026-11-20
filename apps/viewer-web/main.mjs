@@ -32,6 +32,8 @@ const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
+// Mechanism cameras frame the step's participants but never closer than this fraction of the whole structure's radius.
+const MECHANISM_CONTEXT = 0.5;
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
@@ -599,6 +601,8 @@ function boot() {
     const navigation = active?.navigation;
     if (!navigation) return;
     const view = navigation.current();
+    // The mode panel lists the steps in mechanism mode, so the plain step list of the player controls steps aside.
+    elements['mechanism-steps'].hidden = view.mode === 'mechanism';
     const selected = navigation.selection();
     const step = modePanel.syncStep(active.timeline.time, active.inspectionStep ?? active.player?.snapshot().stage);
     const previous = active.modeState;
@@ -1100,7 +1104,7 @@ function boot() {
     showPose();
     const participants = active.player.steps[step].nodeIds;
     if (participants.length) viewport.focusNode(participants[0],
-      { duration: cameraDuration(), includeIds: participants.slice(1) });
+      { duration: cameraDuration(), includeIds: participants.slice(1), minRadiusFraction: MECHANISM_CONTEXT });
   }
   elements['mechanism-enter'].addEventListener('click', () => {
     if (!active?.player) return;
@@ -1109,7 +1113,7 @@ function boot() {
     const view = active.player.navigation.views.find((view) => view.mode === 'mechanism');
     if (active.navigation?.enter(view.id, viewport.getCamera({ destination: true }))) finishNavigation();
     const step = active.player.steps[active.player.snapshot().stage];
-    if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration() });
+    if (step.nodeIds.length) viewport.focusNode(step.nodeIds[0], { duration: cameraDuration(), includeIds: step.nodeIds.slice(1), minRadiusFraction: MECHANISM_CONTEXT });
     elements['mechanism-back'].disabled = false;
   });
   elements['mechanism-protein'].addEventListener('click', () => {
