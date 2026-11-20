@@ -163,6 +163,23 @@ function applyMetadata(scene, command) {
       entry.config = clone(command.config);
       break;
     }
+    case 'addToolEntry': {
+      if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
+      const entry = command.entry;
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.tool?.id !== 'string' || typeof entry.tool?.version !== 'string' ||
+        !entry.config || typeof entry.config !== 'object' || Array.isArray(entry.config)) throw new TypeError('addToolEntry requires { tool: { id, version }, config }');
+      const base = (typeof entry.id === 'string' && entry.id) || entry.tool.id.split('.').at(-1).replace(/[^A-Za-z0-9._:-]/g, '-');
+      let id = base, n = 1;
+      while (next.tools.some((item) => item.id === id)) id = `${base}-${++n}`;
+      next.tools.push({ ...clone(entry), id });
+      break;
+    }
+    case 'removeToolEntry': {
+      if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
+      if (!next.tools.some(({ id }) => id === command.id)) throw new TypeError(`作品里没有工具条目 ${String(command.id)}。`);
+      next.tools = next.tools.filter(({ id }) => id !== command.id);
+      break;
+    }
     case 'addEvidence': {
       const entry = command.entry;
       if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.type !== 'string' || typeof entry.citation !== 'string') {
@@ -193,7 +210,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig', 'addToolEntry', 'removeToolEntry'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 

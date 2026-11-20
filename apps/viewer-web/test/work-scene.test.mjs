@@ -82,3 +82,20 @@ test('the player receives the configuration and state of its tool entry, for pre
   runtime.createPlayer(scene, { time: 8 });
   assert.deepEqual(createInput.state, { time: 8 }, 'an explicit state wins');
 });
+
+test('a scene\'s tool entry decides which player runs, before the legacy declaration is consulted', async () => {
+  const { createMechanismRuntime } = await import('../mechanism-runtime.mjs');
+  const made = [];
+  const players = { 'org.glow.legacy-process.atp-synthase': { create: (input) => { made.push(['atp', input.config]); return 'atp-player'; } } };
+  const runtime = createMechanismRuntime({ getPlayer: (id) => players[id], getService: () => ({ parse() {} }) }, {});
+  const config = { id: 'mine' };
+  // no legacy declaration at all: only the tool entry says which player this work uses
+  const scene = { model: { atoms: [] }, warnings: [], scene: { assets: [], tools: [{ id: 'a', tool: { id: 'org.glow.legacy-process.atp-synthase', version: '1.0.0' }, config }] } };
+  assert.equal(runtime.createPlayer(scene), 'atp-player');
+  assert.equal(scene.playerId, 'org.glow.legacy-process.atp-synthase');
+  assert.deepEqual(made, [['atp', config]]);
+  // an entry for a tool that is not registered is ignored here (the legacy declaration still applies)
+  const unknown = { model: { atoms: [] }, warnings: [], scene: { legacy: { scene: { process: 'atpSynthase' } }, assets: [], tools: [{ id: 'x', tool: { id: 'not.registered', version: '1.0.0' }, config: {} }] } };
+  assert.equal(runtime.createPlayer(unknown), 'atp-player');
+  assert.equal(unknown.playerId, 'org.glow.legacy-process.atp-synthase');
+});

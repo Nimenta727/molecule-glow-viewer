@@ -4,9 +4,11 @@ import { toolEntryFor, readPlayerState } from './work-scene.mjs';
 // Adapter only: the loaded scene owns prepared resources and the existing player handle.
 // No parallel scene, timing or simulation state is introduced here.
 export function createMechanismRuntime(host, { loadAccession, onProgress = () => {} }) {
+  // A v3 work names its player in scene.tools; scenes that only carry a legacy declaration keep working through the catalog.
+  const playerIdOf = (scene) => scene.tools?.find((entry) => host.getPlayer(entry.tool.id))?.tool.id ?? resolveMechanism(scene);
   function createPlayer(loaded, state) {
     if (!loaded.model) return;
-    loaded.playerId = resolveMechanism(loaded.scene);
+    loaded.playerId = playerIdOf(loaded.scene);
     const factory = host.getPlayer(loaded.playerId);
     if (!factory) return;
     try {
@@ -18,7 +20,7 @@ export function createMechanismRuntime(host, { loadAccession, onProgress = () =>
     }
   }
   async function preparePlayer(loaded, signal) {
-    const id = resolveMechanism(loaded.scene), factory = host.getPlayer(id);
+    const id = playerIdOf(loaded.scene), factory = host.getPlayer(id);
     if (!loaded.model || !factory?.prepare) return;
     try {
       onProgress('正在准备机制构象坐标…');

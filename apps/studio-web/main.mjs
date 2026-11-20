@@ -9,6 +9,7 @@ import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
 import { createNavigationEditor } from './navigation-editor.mjs';
 import { createToolConfigPanel } from './tool-config.mjs';
+import { initTabs } from './panel-tabs.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
@@ -63,6 +64,20 @@ const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
   getScene: () => session().getScene(),
   apply: (id, config) => edit({ type: 'setToolConfig', id, config }, '已更新工具配置。'),
   report: (message) => status(message),
+  listTools: () => host.listTools({ audience: 'author' }),
+  addTool: (toolId) => {
+    const tool = host.getTool(toolId);
+    edit({ type: 'addToolEntry', entry: { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) } }, '已添加工具。');
+  },
+  removeTool: (id) => edit({ type: 'removeToolEntry', id }, '已移除工具条目。'),
+});
+// Tabs: properties / tools / story. Opening the tools tab activates the tool plugins so the tool list is complete.
+initTabs(document.querySelector('.tabs'), {
+  storageKey: 'glow.studio.tab',
+  onSelect: (tab) => {
+    if (tab.id !== 'tab-tools' || !project) return;
+    ensureToolPlugins().then(() => toolConfigPanel.render(session().getScene())).catch((error) => status(`无法启用工具插件。 ${error.message}`));
+  },
 });
 
 const host = createPluginHost({
@@ -123,9 +138,9 @@ function newProject() {
   navigationEditor.assertSaved();
   loading++;
   const scene = {
-    format: 'glow-scene', schemaVersion: 2, id: makeId('scene'), title: '空白场景',
+    format: 'glow-scene', schemaVersion: 3, id: makeId('scene'), title: '空白场景',
     units: { length: 'meter', time: 'second' },
-    assets: [], nodes: [], timeline: { duration: 4, tracks: [] }, dependencies: [], evidence: [],
+    assets: [], nodes: [], timeline: { duration: 4, tracks: [] }, dependencies: [], evidence: [], tools: [], resources: [],
   };
   installProject({
     format: 'glow-project', schemaVersion: 1, id: makeId('project'), title: '未命名工程',
@@ -190,7 +205,15 @@ function renderPanels(scene, document) {
   ui['scene-tree'].replaceChildren(...ordered.map(([node, depth]) => {
     const item = listItem(node.name || node.id, () => select(node.id));
     item.style.paddingInlineStart = `${Math.min(depth, 10) * 0.85}rem`;
-    item.firstChild.setAttribute('aria-pressed', String(node.id === selection));
+    item.querySelector('button').setAttribute('aria-pressed', String(node.id === selection));
+    // Outliner row: visibility toggle (a checkbox, so the selection button stays the only button in the row), then the name.
+    const eye = globalThis.document.createElement('input');   // `document` is the scene document in this function
+    eye.type = 'checkbox'; eye.className = 'eye'; eye.checked = node.visible; eye.title = '显示 / 隐藏';
+    eye.setAttribute('aria-label', `显示 ${node.name || node.id}`);
+    eye.addEventListener('change', run(() => edit({ type: 'updateNode', id: node.id, patch: { visible: eye.checked } }, eye.checked ? '已显示对象。' : '已隐藏对象。')));
+    item.classList.add('outline-row');
+    if (!node.visible) item.classList.add('hidden-node');
+    item.prepend(eye);
     return item;
   }));
   const node = tree.get(selection);
@@ -346,7 +369,8 @@ watchFile('structure-file', async (file) => {
   if (ticket !== loading) return;
   navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
-  const scene = { ...imported.scene, id, timeline: { duration: 4, tracks: [] } };
+  // Scenes in Studio are always the current format: the imported structure becomes a resource of a v3 work.
+  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, timeline: { duration: 4, tracks: [] } }, imported.resources);
   const next = createStudioSession(scene, imported.resources);
   geometryFor(next);
   sessions.set(id, next);
@@ -385,7 +409,12 @@ watchFile('project-file', async (file) => {
   status('正在打开工程…');
   const decoded = await decodeProject(new Uint8Array(await file.arrayBuffer()));
   if (ticket !== loading) return;
-  installProject(decoded.project, decoded.resourcesByScene);
+  const scenes = [];
+  for (const scene of decoded.project.scenes) {
+    scenes.push((await upgradeSceneToV3(scene, decoded.resourcesByScene.get(scene.id) ?? new Map(), { tools: toolEntriesForScene(scene) })).scene);
+  }
+  if (ticket !== loading) return;
+  installProject({ ...decoded.project, scenes }, decoded.resourcesByScene);
   status('工程已打开。');
 });
 

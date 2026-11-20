@@ -163,3 +163,27 @@ test('setToolConfig replaces one tool entry\'s configuration, is undoable, and r
   const { tools, resources, ...v2 } = base;
   assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'setToolConfig', id: 'a', config: {} }), /v3/);
 });
+
+test('addToolEntry and removeToolEntry manage the tool list: unique ids, undoable, v3 only', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [], tools: [] };
+  const session = createStudioSession(base);
+  const entry = { tool: { id: 'org.glow.legacy-process.kcsa', version: '1.0.0' }, config: { a: 1 } };
+  assert.equal(session.dispatch({ type: 'addToolEntry', entry }), true);
+  assert.equal(session.dispatch({ type: 'addToolEntry', entry }), true);
+  assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa', 'kcsa-2'], 'ids are generated and unique');
+  assert.deepEqual(session.getScene().tools[1].config, { a: 1 });
+  entry.config.a = 99;
+  assert.equal(session.getScene().tools[0].config.a, 1, 'the scene holds its own copy');
+  assert.equal(session.dispatch({ type: 'removeToolEntry', id: 'kcsa' }), true);
+  assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa-2']);
+  session.undo(); assert.deepEqual(session.getScene().tools.map(({ id }) => id), ['kcsa', 'kcsa-2']);
+  session.undo(); session.undo(); assert.deepEqual(session.getScene().tools, []);
+  assert.throws(() => session.dispatch({ type: 'removeToolEntry', id: 'nope' }), /没有工具条目/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { tool: { id: 'x' }, config: {} } }), /requires/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { ...entry, config: [] } }), /requires/);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry: { ...entry, tool: { id: 'x', version: 'one' } } }), /invalid/i);
+  const { tools, resources, ...v2 } = base;
+  assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'addToolEntry', entry }), /v3/);
+});
