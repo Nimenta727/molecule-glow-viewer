@@ -8,7 +8,7 @@
     "src/derived/geometry.js": "55c6970feed02b97cb00e0aca41a91bf2cc3f374bcf2aec73f9b05ae2b28b42d",
     "src/data/parse.js": "8ce50230f6b273ec8142ff7db6f5e180db7a799c1ffd7d231a3fd9e8f1a8ec4f",
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
-    "plugins/kcsa/kinetics.mjs": "eb65b1290a160493f7e2a21f4933c6748ad20bf55bca524be783e9529c33a31c",
+    "plugins/kcsa/kinetics.mjs": "726dd40b1aefc201efe667d0130782d11e5408ddc8fce866156a328ed1c7487c",
     "plugins/kcsa/config.mjs": "b11f1a3c1724135025acda5ffc15f19350befd544a8ff7dc4470a721b880fcae",
     "plugins/atp-synthase/index.mjs": "ca119ff5c272205251903be7121e0c880ad39b0f634d64a667c44ac64ecd046b",
     "plugins/atp-synthase/config.mjs": "81e63d4f8fe7b67760df5bfa813bbbe06d43212ed0d0e787d11ca67d607edefa",

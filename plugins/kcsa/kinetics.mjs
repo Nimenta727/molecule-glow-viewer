@@ -1,3 +1,5 @@
+import { createMarkovRun } from '../simulation/markov-model.mjs';
+import { KCSA_GATING } from '../simulation/works/kcsa-gating.mjs';
 // Rates ported from src/sim/processes/kcsa.js. Units: mV, mM, µM, seconds.
 export const PARAMETERS = {
   pH: { label: '胞内 pH', min: 3.5, max: 8, step: 0.1, value: 4 },
@@ -60,78 +62,41 @@ export function gateRates(s, c) {
   if (s.ba) add(0.3 * Math.exp(-0.6 * u), 'ba-');
   return rates;
 }
-const LABELS = { open: 'pH 门打开', close: '门关闭', inact: '过滤器失活', recover: '失活恢复，门关', reopen: '恢复导电',
-  'tba+': 'TBA 结合中央腔', 'tba-': 'TBA 解离', 'ba+': 'Ba²⁺ 阻断过滤器', 'ba-': 'Ba²⁺ 解离',
-  AB: '水合 K⁺ 进入中央腔', BC: '敲击：K⁺ 进入过滤器', CD: 'K⁺ 释放至胞外', DC: 'K⁺ 从胞外进入',
-  DA: '过滤器重新分配', BA: 'K⁺ 退回胞内', CB: '敲击反向', AD: '过滤器反向重排', na: 'Na⁺ 进入腔后被排斥' };
 export const conformationWeights = (s, t) => {
   const f = Math.min(1, Math.max(0, (t - s.confTime) / 0.8));
   return s.confFrom.map((weight, i) => weight * (1 - f) + Number(i === s.confTo) * f);
 };
 
-// One CTMC on display time, with separately configurable gating and permeation clocks.
-// The clocks run continuously; visual interpolation never blocks or advances chemistry.
+// The KcsA chain runs on the generic Markov engine since 4.4.8: the model is data (plugins/simulation/works/kcsa-gating.mjs), exact Gillespie sampling on a seeded stream, a
+// schedule of parameter changes, clocks and counters. This wrapper keeps the player's view of it: the state at a display time with the fields the player reads. The clocks run
+// continuously; visual interpolation never blocks or advances chemistry. The same seed and schedule give the same events at the same times as the hand-written chain did.
+const GATE_TARGET = { open: 1, reopen: 1, close: 0, recover: 0, inact: 2 };
+const PERMEATION = /^[A-D][A-D]$/, STAGES = { AB: 1, BC: 3, CD: 4, DC: 4, DA: 2, BA: 1, CB: 3, AD: 2 };
 export function createKinetics(seed, schedule) {
-  let rng = seed >>> 0;
-  const random = () => { rng = (rng + 0x6d2b79f5) >>> 0; let n = rng; n = Math.imul(n ^ n >>> 15, n | 1); n ^= n + Math.imul(n ^ n >>> 7, n | 61); return ((n ^ n >>> 14) >>> 0) / 4294967296; };
-  const history = [{ time: 0, gate: 'C', perm: 'A', tba: false, ba: false, out: 0, inn: 0, na: 0,
-    ns: 0, gateSeconds: 0, openSeconds: 0, confTime: 0, confFrom: [1, 0, 0], confTo: 0, stage: 0, id: 'initial', configIndex: 0,
-    permTime: -1, lastPermId: null, naTime: -1 }];
-  let pending;
-  function clock(previous, time, c) {
-    const dt = time - previous.time;
-    return { ns: previous.ns + (conducting(previous) ? dt * c.speed * c.ionSpeed : 0),
-      gateSeconds: previous.gateSeconds + dt * c.speed * c.gateSpeed,
-      openSeconds: previous.openSeconds + (conducting(previous) ? dt * c.speed * c.gateSpeed : 0) };
-  }
-  function next() {
-    const s = history.at(-1), c = schedule[s.configIndex], { f, b } = permeationRates(c);
-    const rates = gateRates(s, c).map(([r, id]) => [r * c.gateSpeed * c.speed, id]);
-    if (conducting(s)) {
-      const edges = { A: [[f[0], 'AB'], [b[3], 'AD']], B: [[b[0], 'BA'], [f[1], 'BC']], C: [[b[1], 'CB'], [f[2], 'CD']], D: [[b[2], 'DC'], [f[3], 'DA']] }[s.perm] ?? [];
-      rates.push(...edges.map(([r, id]) => [r * c.ionSpeed * 1e-9 * c.speed, id]));
-      if (['A', 'D'].includes(s.perm)) rates.push([f[0] * (c.Nai / c.Ki) * 0.5 * c.ionSpeed * 1e-9 * c.speed, 'na']);
+  const run = createMarkovRun(KCSA_GATING, seed, schedule);
+  // What the last events left behind (the conformation the gate is moving between, the stage, when a K+ last moved and when Na+ last entered), folded event by event and kept.
+  const folded = [{ time: 0, id: 'initial', confTime: 0, confFrom: [1, 0, 0], confTo: 0, stage: 0, permTime: -1, lastPermId: null, naTime: -1 }];
+  function extend(time) {
+    run.at(time);
+    for (const event of run.eventsBetween(folded.at(-1).time, time)) {
+      const d = folded.at(-1), next = { ...d, time: event.time, id: event.id };
+      if (event.id in GATE_TARGET) {
+        next.confFrom = conformationWeights(d, event.time); next.confTime = event.time; next.confTo = GATE_TARGET[event.id]; next.stage = event.id === 'inact' ? 5 : 0;
+      } else if (event.id === 'na') next.naTime = event.time;
+      else if (PERMEATION.test(event.id)) { next.permTime = event.time; next.lastPermId = event.id; next.stage = STAGES[event.id]; }
+      folded.push(next);
     }
-    const total = rates.reduce((sum, [r]) => sum + r, 0);
-    const tau = total ? -Math.log(1 - random()) / total : Infinity;
-    const boundary = schedule[s.configIndex + 1]?.time ?? Infinity;
-    if (s.time + tau >= boundary) return { ...s, ...clock(s, boundary, c), time: boundary, configIndex: s.configIndex + 1, id: 'parameter' };
-    if (!Number.isFinite(tau)) return { ...s, time: Infinity };
-    let pick = random() * total, id = rates.at(-1)[1];
-    for (const [r, name] of rates) { pick -= r; if (pick <= 0) { id = name; break; } }
-    const time = s.time + tau, result = { ...s, ...clock(s, time, c), time, id };
-    if (['open', 'reopen', 'close', 'recover', 'inact'].includes(id)) {
-      result.confFrom = conformationWeights(s, time); result.confTime = time;
-      result.gate = id === 'inact' ? 'I' : ['open', 'reopen'].includes(id) ? 'O' : 'C';
-      result.confTo = { C: 0, O: 1, I: 2 }[result.gate];
-      if (id === 'inact') result.perm = 'X';
-      if (['recover', 'reopen'].includes(id)) result.perm = 'A';
-      result.stage = id === 'inact' ? 5 : 0;
-    } else if (id.startsWith('tba')) result.tba = id.endsWith('+');
-    else if (id.startsWith('ba')) result.ba = id.endsWith('+');
-    else if (id === 'na') { result.na++; result.naTime = time; }
-    else {
-      result.perm = id[1];
-      result.permTime = time; result.lastPermId = id;
-      result.stage = { AB: 1, BC: 3, CD: 4, DC: 4, DA: 2, BA: 1, CB: 3, AD: 2 }[id];
-      if (id === 'CD') result.out++;
-      if (id === 'DC') result.inn++;
-    }
-    return result;
   }
   return {
     at(time) {
-      while (true) {
-        pending ??= next();
-        if (pending.time > time) break;
-        if (history.length > 250000) throw new Error('KcsA 事件容量已满。');
-        history.push(pending); pending = undefined;
-      }
-      let lo = 0, hi = history.length;
-      while (lo + 1 < hi) { const mid = (lo + hi) >>> 1; if (history[mid].time <= time) lo = mid; else hi = mid; }
-      const s = history[lo], c = schedule[s.configIndex];
-      return { ...s, ...clock(s, time, c), time, parameters: c, weights: conformationWeights(s, time),
-        events: history.slice(Math.max(1, lo - 19), lo + 1).map(({ time, id }) => ({ time, label: LABELS[id] ?? '参数变更' })) };
+      extend(time);
+      let lo = 0, hi = folded.length;
+      while (lo + 1 < hi) { const mid = (lo + hi) >>> 1; if (folded[mid].time <= time) lo = mid; else hi = mid; }
+      const d = folded[lo], y = run.at(time);
+      return { time, gate: y.vars.gate, perm: y.vars.perm, tba: y.vars.tba === 'on', ba: y.vars.ba === 'on', out: y.counters.out, inn: y.counters.inn, na: y.counters.na,
+        ns: y.clocks.ns, gateSeconds: y.clocks.gateSeconds, openSeconds: y.clocks.openSeconds, confTime: d.confTime, confFrom: d.confFrom, confTo: d.confTo, stage: d.stage,
+        id: d.id, configIndex: y.configIndex, permTime: d.permTime, lastPermId: d.lastPermId, naTime: d.naTime, parameters: y.parameters, weights: conformationWeights(d, time),
+        events: y.events.map(({ time: t, label }) => ({ time: t, label })) };
     },
   };
 }
