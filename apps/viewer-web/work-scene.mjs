@@ -34,6 +34,7 @@ export function completeBindings(scene, getTool) {
  */
 export function makeStaticTemplate(loaded) {
   const config = loaded.scene.legacy?.scene, removed = [];
+  loaded.legacyProcess = config?.process;   // what the pack was about (the cell view is offered for a cell, a local system and a ribosome whether or not they move)
   if (config && typeof config === 'object') for (const key of ['process', 'animation', 'states', 'energy', 'energyHL']) if (key in config) { removed.push(key); delete config[key]; }
   loaded.isTemplate = true;
   return removed;

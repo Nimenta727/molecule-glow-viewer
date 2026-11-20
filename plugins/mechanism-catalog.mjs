@@ -79,14 +79,14 @@ export function dataAnimationEntry(scene) {
 }
 
 /**
- * The classic ribosome scene (`process: translation`) and the cell corner (`process: cellCorner`: a translation station and a KcsA station side by side) as tool entries: the
+ * The classic ribosome scene (`process: translation`), the cell corner (`process: cellCorner`: a translation station and a KcsA station side by side) and the whole cell (`process: wholeCell`: the same two stations running inside the cell) as tool entries: the
  * translation tool with its default template, and the multi-process tool with its default members and shared controls. The classic's own seed is kept when it declares one.
  */
 export function processEntry(scene) {
   const legacy = scene.legacy?.scene, seed = Number.isSafeInteger(legacy?.seed) ? legacy.seed : undefined, version = simulationPlugin.manifest.version;
   try {
     if (legacy?.process === 'translation') return { id: 'translation', tool: { id: TRANSLATION_TOOL, version }, config: normalizeTranslationConfig({ ...TRANSLATION_TEMPLATE, ...(seed !== undefined ? { seed } : {}) }) };
-    if (legacy?.process === 'cellCorner') return { id: 'multi-process', tool: { id: COMPOSITION_TOOL, version }, config: normalizeCompositionConfig(JSON.parse(JSON.stringify(COMPOSITION_TEMPLATE))) };
+    if (legacy?.process === 'cellCorner' || legacy?.process === 'wholeCell') return { id: 'multi-process', tool: { id: COMPOSITION_TOOL, version }, config: normalizeCompositionConfig(JSON.parse(JSON.stringify(COMPOSITION_TEMPLATE))) };
   } catch { /* a declaration the tool cannot run stays in the legacy block */ }
   return undefined;
 }

@@ -39,7 +39,7 @@ test('the official resource catalogue holds valid, reproducible records that agr
 test('every template and work names resources the catalogue holds and tools the application registers; templates need no tool', () => {
   const tools = new Set([ATP_TOOL, ADK_TOOL, KCSA_TOOL, DATA_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, PROCESS_TOOL]);
   const known = new Set(resources.resources.map(({ record }) => record.id));
-  assert.equal(works.packs.length, 23);
+  assert.equal(works.packs.length, 24);
   for (const work of works.packs) {
     assert.equal(work.kind, 'work', work.id);
     assert.ok(['template', 'work'].includes(work.zone), `${work.id}: zone`);
@@ -59,7 +59,7 @@ test('every template and work names resources the catalogue holds and tools the 
   const templates = works.packs.filter((work) => work.zone === 'template'), animated = new Set(works.packs.filter((work) => work.zone === 'work').map((work) => work.id.replace(/\.work$/, '')));
   assert.equal(templates.length, 13); assert.ok(templates.every((template) => template.file && !template.id.endsWith('.work')));
   assert.ok(!templates.some((template) => ['official.kcsa-data', 'official.adk-reaction-data'].includes(template.id)), 'a pure animation-format demo is a work only');
-  assert.ok(['official.whole-cell'].every((id) => !animated.has(id)), 'the whole cell has no animated version yet');
+  assert.deepEqual(by['official.whole-cell.work'], [COMPOSITION_TOOL], 'the whole cell has an animated version: its two stations run inside the cell');
 });
 
 test('the committed catalogues are exactly what the build scripts produce', () => {

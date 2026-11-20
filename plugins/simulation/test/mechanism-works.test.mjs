@@ -59,7 +59,7 @@ test('the classic ribosome scene and cell corner become the translation tool and
   const t = processEntry({ legacy: { scene: { id: '4V6F', process: 'translation' } } }), c = processEntry({ legacy: { scene: { id: '4V6F', process: 'cellCorner' } } });
   assert.equal(t.tool.id, 'org.glow.tool.translation'); assert.equal(t.config.template, 'ubq');
   assert.equal(c.tool.id, 'org.glow.tool.multi-process'); assert.deepEqual(c.config.members.map((m) => m.kind), ['translation', 'process']); assert.equal(c.config.controls.length, 2);
-  assert.equal(processEntry({ legacy: { scene: { process: 'wholeCell' } } }), undefined); assert.equal(processEntry({}), undefined);
+  assert.equal(processEntry({ legacy: { scene: { process: 'wholeCell' } } }).tool.id, 'org.glow.tool.multi-process', 'the whole cell runs the same two stations inside the cell'); assert.equal(processEntry({}), undefined);
   assert.equal(toolEntriesForScene({ legacy: { scene: { process: 'translation' } } }).length, 1);
   assert.equal(processEntry({ legacy: { scene: { process: 'translation', seed: 11 } } }).config.seed, 11);
 });

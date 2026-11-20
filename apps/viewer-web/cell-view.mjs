@@ -84,7 +84,7 @@ export function createCellView({ viewport, elements, context }) {
     viewport.setOverlayMesh(INNER, make(cell.config.Rim, [0.56, 0.72, 0.91]), { opacity: 0.12 });
     viewport.setOverlayMesh(OUTER, make(cell.Rom, [0.91, 0.73, 0.56]), { opacity: 0.08 });
     shown = true; elements.toggle.textContent = '隐藏细胞'; elements.levels.hidden = false; elements.crowd.hidden = false;
-    elements.note.textContent = `大肠杆菌细胞：长 ${(cell.config.L / 10000).toFixed(0)} µm，内膜半径 ${cell.config.Rim / 10} nm，内外膜相距 ${cell.config.env / 10} nm；内膜在核糖体上方 ${MEMBRANE_ABOVE_RIBOSOME} Å。按真实尺寸画出；拟核、鞭毛、肽聚糖、拥挤的细胞质没有画（仍是经典代码）。`;
+    elements.note.textContent = `大肠杆菌细胞：长 ${(cell.config.L / 10000).toFixed(0)} µm，内膜半径 ${cell.config.Rim / 10} nm，内外膜相距 ${cell.config.env / 10} nm；内膜在核糖体上方 ${MEMBRANE_ABOVE_RIBOSOME} Å。按真实尺寸画出；拥挤的细胞质请按“填充细胞质”；拟核、鞭毛、肽聚糖、膜蛋白没有画（仍是经典代码）。`;
     flyTo('cell'); hud();
   }
   const shapeCache = new Map();
@@ -110,5 +110,5 @@ export function createCellView({ viewport, elements, context }) {
   function hide() { crowdToken++; viewport.setParticleCloud(CROWD, []); shown = false; cancelAnimationFrame(timer); viewport.setOverlayMesh(INNER, null); viewport.setOverlayMesh(OUTER, null); elements.toggle.textContent = '画出整个细胞'; elements.levels.hidden = true; elements.crowd.hidden = true; elements.level.textContent = ''; }
   elements.toggle.addEventListener('click', () => (shown ? hide() : show()));
   for (const [level, button] of Object.entries(elements.fly)) button.addEventListener('click', () => flyTo(level));
-  return { reset() { hide(); elements.note.textContent = ''; cell = null; } };
+  return { show, reset() { hide(); elements.note.textContent = ''; cell = null; } };
 }

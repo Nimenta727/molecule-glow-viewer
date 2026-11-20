@@ -670,6 +670,41 @@
   },
   {
    "kind": "work",
+   "title": "整个细胞：大肠杆菌（从 2 µm 缩放到原子）（动态演示）",
+   "category": "cell",
+   "topic": "cell",
+   "tags": [
+    "细胞",
+    "多尺度"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "一个大肠杆菌从 2 µm 一路缩放到原子：外膜、肽聚糖、内膜、拟核、2.5 万个核糖体、鞭毛，再放大到正在工作的分子机器。",
+   "pdb": [
+    "4V6F",
+    "1K4C"
+   ],
+   "resources": [
+    "res.rcsb.1K4C"
+   ],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.whole-cell.glow",
+   "cover": "covers/official.whole-cell.jpg",
+   "size": 1437,
+   "sha256": "5844e1fa3da8fff2c8450c3a8bafeb277c49878344cab221eb6bf4ab76795677",
+   "zone": "work",
+   "id": "official.whole-cell.work",
+   "tools": [
+    "org.glow.tool.multi-process"
+   ]
+  },
+  {
+   "kind": "work",
    "title": "ATP 合酶",
    "category": "single",
    "topic": "mechanism",

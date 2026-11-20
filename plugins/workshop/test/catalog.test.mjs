@@ -18,7 +18,7 @@ const base = 'https://example.test/workshop/';
 test('the real catalogues load: works and resources of the official source, with a missing community source reported, not thrown', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
   assert.equal(catalog.templates.length, 13, 'templates: static, one per pack that is not only an animation demo');
-  assert.equal(catalog.works.length, 10, 'works: the animated versions');
+  assert.equal(catalog.works.length, 11, 'works: the animated versions');
   assert.ok(catalog.templates.every((entry) => entry.zone === 'template' && entry.tools.length === 0), 'a template needs no tool');
   assert.ok(catalog.works.every((entry) => entry.zone === 'work' && entry.tools.length > 0), 'a work names the tools it needs');
   assert.deepEqual([...new Set([...catalog.templates, ...catalog.works].map((entry) => entry.topic))].sort(), ['cell', 'local-system', 'mechanism', 'protein'], 'the four subjects');
@@ -74,7 +74,7 @@ test('a broken catalogue entry is dropped with a note and the rest still loads; 
   const strayWork = JSON.parse(read('official/index.json'));
   strayWork.packs[0].file = '../../etc/passwd';
   const guarded = await loadCatalog({ base, fetch: localFetch({ 'official/index.json': JSON.stringify(strayWork) }), sources: ['official'] });
-  assert.equal(guarded.works.length + guarded.templates.length, 22, 'an entry whose file path escapes packs/ is ignored');
+  assert.equal(guarded.works.length + guarded.templates.length, 23, 'an entry whose file path escapes packs/ is ignored');
   await assert.rejects(loadCatalog({ base: 3, fetch: localFetch() }), TypeError);
 });
 

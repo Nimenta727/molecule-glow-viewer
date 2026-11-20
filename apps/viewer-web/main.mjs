@@ -121,7 +121,7 @@ function syncControls() {
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['membrane-controls'].hidden = !structureEnabled || !active?.model;
   elements['analysis-controls'].hidden = !structureEnabled || !active?.model;
-  elements['cell-controls'].hidden = !structureEnabled || !active?.model || !['wholeCell', 'cellCorner', 'translation'].includes(active?.scene.legacy?.scene?.process);
+  elements['cell-controls'].hidden = !structureEnabled || !active?.model || !['wholeCell', 'cellCorner', 'translation'].includes(active?.legacyProcess ?? active?.scene.legacy?.scene?.process);
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
@@ -335,6 +335,7 @@ function boot() {
       showDiagnostics();
       focusCurrentView(0);
       restoreStructureView();
+      if ((active.legacyProcess ?? active.scene.legacy?.scene?.process) === 'wholeCell') Promise.resolve().then(() => cellView.show());   // the whole cell opens with its cell drawn, as a template and as a work
       showPresentation();
       showResources();
       if (restoreFocus) (scene.navigation ? elements['navigation-heading'] : elements.open).focus();
