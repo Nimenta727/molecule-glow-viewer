@@ -1,0 +1,7 @@
+ok   cell constants (inner membrane radius, envelope, length, corner offset, region size): identical to the classic ECOLI
+ok   capsule surface, axis along x: 20769 vertices and 40960 triangles, largest position difference 0.0e+0 Å, indices identical
+ok   capsule surface, turned 0.7 rad: 5265 vertices and 10240 triangles, largest position difference 0.0e+0 Å, indices identical
+ok   capsule surface, a small cell: 775 vertices and 1440 triangles, largest position difference 0.0e+0 Å, indices identical
+ok   cell placement under the corner (origin, outer radius, half length): identical to the classic setup
+
+5/5 identical

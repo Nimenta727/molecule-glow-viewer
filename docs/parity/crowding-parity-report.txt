@@ -1,0 +1,6 @@
+ok   behind a cut plane, the classic defaults: 106 copies placed (ATP 合酶 2/2, 钾通道 5/5, 腺苷酸激酶 35/0, KcsA 64/0), volume fraction 13.3% (classic 13.3%): centres/orientations/phases differ by 0.0e+0, shapes 1.4e-14, blobs (two times, float32 matrices) 2.4e-5; 0 type and 0 count disagreements
+ok   another seed, coarser shapes (one blob per ~12 residues, at most 30): 136 copies placed (ATP 合酶 2/2, 钾通道 5/5, 腺苷酸激酶 65/0, KcsA 64/0), volume fraction 16.1% (classic 16.1%): centres/orientations/phases differ by 0.0e+0, shapes 1.4e-14, blobs (two times, float32 matrices) 2.2e-5; 0 type and 0 count disagreements
+ok   an arbitrary volume (a ball, estimated by Monte Carlo), 6 Å grid: 133 copies placed (ATP 合酶 2/2, 钾通道 5/5, 腺苷酸激酶 63/0, KcsA 63/0), volume fraction 16.1% (classic 16.1%): centres/orientations/phases differ by 0.0e+0, shapes 7.1e-15, blobs (two times, float32 matrices) 2.1e-5; 0 type and 0 count disagreements
+ok   crowded to 30% with a bigger fill limit: 248 copies placed (ATP 合酶 2/2, 钾通道 5/5, 腺苷酸激酶 109/0, KcsA 132/0), volume fraction 27.9% (classic 27.9%): centres/orientations/phases differ by 0.0e+0, shapes 2.8e-14, blobs (two times, float32 matrices) 2.2e-5; 0 type and 0 count disagreements
+
+4/4 identical

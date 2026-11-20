@@ -478,13 +478,13 @@
     },
     {
       "id": "new.system.cell-corner",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
+      "runner": "tools/crowding-parity.mjs",
       "steps": [
         "Run translation and KcsA concurrently; intervene in one station; navigate away/back."
       ],
       "expected": "Independent clocks, controls and counters; return restores each state; compartment pH/V/concentrations remain associated with correct station.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "Runner compares the crowd placement with the classic buildCrowd copy by copy (4 scenarios); the Node tests check that several processes run independently (each equals its own standalone run, a control of one never changes another, interventions restore every member). A Viewer panel, the cell-corner layout and drawing are not built; full parity remains pending."
     },
     {
       "id": "classic.system.whole-cell",
@@ -497,13 +497,13 @@
     },
     {
       "id": "new.system.whole-cell",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
+      "runner": "tools/cell-parity.mjs",
       "steps": [
         "Enter cell at 2 micrometers; navigate system/protein/mechanism and back; load twice."
       ],
       "expected": "Real content at each scale; full state restoration; scene/resources/listeners do not grow relative to same settled scene.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "Runner compares the capsule geometry and placement with the classic whole-cell code vertex for vertex; the Node tests check the scale ladder and the view stack. Drawing the cell, the camera flight, real content at every scale and repeated-load stability are not built; full parity remains pending."
     },
     {
       "id": "classic.selection.full-language-sets",
