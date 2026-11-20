@@ -6,12 +6,13 @@
  *   { steps: [{ label, text, select? }], stage?: { mode: 'manual' | 'cycle', period? } }
  *   - `label`   short name of the step (shown in the strip);  `text` its explanation (shown when clicked);  `select` a selection expression (plugins/structure/selection.mjs)
  *               for the structures involved, e.g. `entity "/^复合体 I$/"`.
- *   - `stage`   which step is lit: `manual` = none until the reader clicks one; `cycle` = the steps in turn, one round every `period` animation seconds (the animation clock,
- *               so a paused or slowed animation holds the strip). The classic lit the step where the electron actually was; here the cycle is only an illustration of the order.
+ *   - `stage`   which step is lit: `manual` = none until the reader clicks one; `relay` = the step the animation's relay is at (a relay action's `stage`; the classic lit the step where
+ *               the electron actually was); `cycle` = the steps in turn, one round every `period` animation seconds (the animation clock, so a paused or slowed animation holds the
+ *               strip; only an illustration of the order).
  * Nothing here knows a protein: the steps are text, the highlights are selection expressions that match whatever parts the structure has.
  */
 export const ENERGY_LIMITS = Object.freeze({ steps: 12, label: 40, text: 1600, select: 200, minPeriod: 2, maxPeriod: 120, defaultPeriod: 24 });
-export const STAGE_MODES = Object.freeze(['manual', 'cycle']);
+export const STAGE_MODES = Object.freeze(['manual', 'cycle', 'relay']);
 
 /** Validates a strip declaration; returns { energy, errors } (energy is undefined when the declaration is absent or has errors). Strings are plain text, never HTML. */
 export function normalizeEnergy(raw) {
@@ -36,9 +37,10 @@ export function normalizeEnergy(raw) {
   return { energy: { steps, stage: mode === 'cycle' ? { mode, period } : { mode } }, errors };
 }
 
-/** The index of the step to light at animation time `t` (seconds), or -1 when none is (manual mode, no steps, a clock that is not a finite number). */
-export function litStep(energy, t) {
+/** The index of the step to light at animation time `t` (seconds) and relay stage `stage`, or -1 when none is (manual mode, no steps, a clock that is not a finite number, a stage that is not a step). */
+export function litStep(energy, t, stage = null) {
   const n = energy?.steps?.length ?? 0;
+  if (n && energy.stage?.mode === 'relay') return Number.isInteger(stage) && stage >= 0 && stage < n ? stage : -1;
   if (!n || energy.stage?.mode !== 'cycle' || !Number.isFinite(t) || t < 0) return -1;
   const phase = (t % energy.stage.period) / energy.stage.period;
   return Math.min(n - 1, Math.floor(phase * n));

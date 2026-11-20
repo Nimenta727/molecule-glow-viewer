@@ -56,7 +56,7 @@ export function dataAuthorFields(config) {
     { path: `animation.flows.${i}.rate`, type: 'number', min: 0, max: 20, step: 0.05, label: `第 ${i + 1} 条流的速率（次/秒）`, group: '流' }));
   const strip = cfg.energy;
   if (strip) {
-    fields.push({ path: 'energy.stage.mode', type: 'select', label: '能量转化条：哪一步亮', group: '能量转化条', options: [{ value: 'manual', label: '不自动亮，点哪步看哪步' }, { value: 'cycle', label: '随动画按顺序轮流亮（示意）' }] });
+    fields.push({ path: 'energy.stage.mode', type: 'select', label: '能量转化条：哪一步亮', group: '能量转化条', options: [{ value: 'manual', label: '不自动亮，点哪步看哪步' }, { value: 'relay', label: '跟着接力走到哪一步亮哪一步' }, { value: 'cycle', label: '随动画按顺序轮流亮（示意）' }] });
     if (strip.stage?.mode === 'cycle') fields.push({ path: 'energy.stage.period', type: 'number', min: ENERGY_LIMITS.minPeriod, max: ENERGY_LIMITS.maxPeriod, step: 1, label: '轮流一圈的动画秒数', group: '能量转化条' });
     strip.steps.forEach((step, i) => fields.push(text(`energy.steps.${i}.label`, `第 ${i + 1} 步的名称`, '能量转化条', ENERGY_LIMITS.label), { path: `energy.steps.${i}.text`, type: 'text', label: `第 ${i + 1} 步的讲解`, group: '能量转化条', maxLength: ENERGY_LIMITS.text },
       text(`energy.steps.${i}.select`, `第 ${i + 1} 步涉及的结构（选择表达式，可留空）`, '能量转化条', ENERGY_LIMITS.select)));

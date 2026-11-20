@@ -34,7 +34,7 @@ export function createEnergyStrip({ root, context }) {
       li.append(button); row.append(li); return button;
     });
     follow = null;
-    if (energy.steps.some((s) => s.select) && energy.stage.mode === 'cycle') {
+    if (energy.steps.some((s) => s.select) && energy.stage.mode !== 'manual') {
       follow = document.createElement('button'); follow.type = 'button'; follow.className = 'energy-follow'; follow.textContent = '◎ 跟随'; follow.setAttribute('aria-pressed', 'false');
       follow.title = '播放时自动标出当前步骤涉及的结构（点一下标记，再点一下取消）';
       follow.addEventListener('click', () => { const on = follow.getAttribute('aria-pressed') !== 'true'; follow.setAttribute('aria-pressed', String(on)); if (!on) { context.clear(); ownSelection = undefined; } else if (lit >= 0) mark(lit, { auto: true }); });
@@ -50,9 +50,9 @@ export function createEnergyStrip({ root, context }) {
     /** The declaration of the work's tool entry (already validated); null/undefined hides the strip. */
     load(next) { energy = next ?? null; lit = -1; opened = -1; ownSelection = undefined; render(); },
     /** The animation clock in seconds: lights the step that is due. */
-    update(time) {
+    update(time, stage = null) {
       if (!energy || !available) return;
-      const next = litStep(energy, time);
+      const next = litStep(energy, time, stage);
       if (next === lit) return;
       lit = next; showLit(lit);
       if (lit >= 0 && follow?.getAttribute('aria-pressed') === 'true') {

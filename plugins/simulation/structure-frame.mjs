@@ -42,6 +42,9 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
     const fit = config.axisFit?.length ? residues.filter((r) => config.axisFit.some((k) => kwMatch(r.entity ?? '', k))).map((r) => r.position) : [];
     axis = chooseAxis(fit.length > 50 ? 'short' : mode, { points: fit.length > 50 ? fit : native }).direction; R = rotationToUp(axis);
   }
+  // the part a small molecule sits in = the entity of the nearest residue (the classic partAt)
+  const partOf = (c) => { let best = '', bd = Infinity; for (const r of residues) { const d = (r.position[0] - c[0]) ** 2 + (r.position[1] - c[1]) ** 2 + (r.position[2] - c[2]) ** 2; if (d < bd) { bd = d; best = r.entity ?? ''; } } return best; };
+  const ligandInfo = ligands.map((l) => { const native = mean(l.atoms.map((a) => a.position)); return { comp: String(l.comp).toUpperCase(), native, part: partOf(native) }; });
   const toOriented = (p) => apply(R, [p[0] - g[0], p[1] - g[1], p[2] - g[2]]);
   let oriented = native.map(toOriented), flipAbout = null;
   // up / down: the named part ends above (below) the middle; the axis sign is arbitrary, so turn the model half a turn about a horizontal axis if it is the wrong way up
@@ -57,12 +60,13 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
     const byEntity = (name) => residues.map((r, i) => ({ r, p: pts[i] })).filter(({ r }) => kwMatch(r.entity ?? '', name));
     const structure = {
       points: pts,
-      ligands: ligands.map((l) => ({ comp: String(l.comp).toUpperCase(), centre: place(toOriented(mean(l.atoms.map((a) => a.position)))) })),
+      ligands: ligandInfo.map(({ comp, native, part }) => ({ comp, centre: place(toOriented(native)), part })),
       residue: ({ number, ins = '', part, chain, labelSeq, labelAsym }) => {
         const hit = residues.findIndex((r) => (labelSeq != null ? r.labelSeq === labelSeq && (!labelAsym || r.labelAsym === labelAsym) : r.authSeq === number && (r.insertion ?? '').toUpperCase() === ins && (!chain || r.chain === chain)) && (!part || kwMatch(r.entity ?? '', part)));
         return hit < 0 ? null : pts[hit];
       },
       part: (name) => { const list = byEntity(name); return list.length ? mean(list.map(({ p }) => p)) : null; },
+      partPoints: (name) => byEntity(name).map(({ p }) => p),
       membraneY: [],
     };
     structure.membraneY = (config.membranes ?? []).slice(0, 2).map((m) => {

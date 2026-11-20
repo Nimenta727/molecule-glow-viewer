@@ -1,5 +1,6 @@
 import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS } from './mechanism-kinetics.mjs';
 import { MECHANISM_ENERGY } from './mechanism-energy.mjs';
+import { RESPIRATORY_ANCHORS, RESPIRATORY_RELAY } from './respiratory-relay.mjs';
 
 /**
  * The configuration of the classic works that are compartment kinetics around a membrane complex (classic processes `respiratoryChain` and `chloroplast`), as data-animation tool
@@ -8,11 +9,11 @@ import { MECHANISM_ENERGY } from './mechanism-energy.mjs';
  * keywords of the classic scenes; the same configuration works for any structure that has such parts.
  *
  *   top = the first compartment of the classic model (matrix / stroma), bot = the second (intermembrane space / thylakoid lumen).
- * The energy strips come from mechanism-energy.mjs. Not included (still the classic's own code): the electron paths through the real cofactors and the proton pumping and ATP synthase rotor choreography.
+ * The energy strips come from mechanism-energy.mjs. The respiratory chain's electron and proton choreography is a relay (respiratory-relay.mjs); not included yet: the ATP synthase rotor coupling.
  */
 const COMPARTMENTS = Object.freeze({ top: Object.freeze({ side: 'above', membrane: 0, gap: 30 }), bot: Object.freeze({ side: 'below', membrane: 0, gap: 30 }) });
 const WORKS = Object.freeze({
-  respiratoryChain: Object.freeze({ kinetics: RESPIRATORY_CHAIN_KINETICS, title: '线粒体呼吸链' }),
+  respiratoryChain: Object.freeze({ kinetics: RESPIRATORY_CHAIN_KINETICS, title: '线粒体呼吸链', relay: Object.freeze({ species: { 'cyt c': { col: '#ff7040', r: 3.4 } }, pools: [{ species: 'O₂', in: 'top', n: 3 }], anchors: RESPIRATORY_ANCHORS, relays: [RESPIRATORY_RELAY] }) }),
   chloroplast: Object.freeze({ kinetics: CHLOROPLAST_KINETICS, title: '叶绿体光反应' }),
 });
 // The flagellar motor (classic process `flagellarMotor`): H+ from the periplasm flow through the stator channels into the cytoplasm. The classic puts 11 stators on a ring of
@@ -45,7 +46,7 @@ export function mechanismWorkConfig(legacy) {
   const work = WORKS[legacy?.process];
   if (!work) return undefined;
   return {
-    animation: { version: 1, compartments: JSON.parse(JSON.stringify(COMPARTMENTS)), pools: [], flows: [], reactions: [] },
+    animation: { version: 1, compartments: JSON.parse(JSON.stringify(COMPARTMENTS)), pools: [], flows: [], reactions: [], ...(work.relay ? JSON.parse(JSON.stringify(work.relay)) : {}) },
     axis: 'short',
     ...(Array.isArray(legacy.axisFit) ? { axisFit: legacy.axisFit.map(text).filter(Boolean).slice(0, 8) } : {}),
     ...(text(legacy.up) ? { up: text(legacy.up) } : text(legacy.down) ? { down: text(legacy.down) } : {}),

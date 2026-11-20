@@ -84,3 +84,25 @@ Studio 内粒子预览、细胞一角空间布局/拥挤绘制、70S 核糖体�
 - `kind` 只能是 `control`（`id` 是动力学控件名，`value` 是数字或开关）、`pace`（0.3–3）、`scale`（`slow`/`fast`）；最多 200 条，可回退到 30 分钟内。读取时无效的条目被丢弃，指向已不存在的控件的条目被跳过并在说明里提示。
 - 没有干预的纯播放不保存任何东西，打开后总是从种子重新开始。起点固定为快慢 1×、作品声明的时间尺度。
 
+## 命名锚点、新锚点与接力（数据动画工具，`animation` 里的扩展）
+
+经典只有“流”和“反应”。呼吸链这类“一个循环里电子、质子按顺序走”的编排，用 `anchors`（命名位置）和 `relays`（接力）写成数据：
+
+```json
+"anchors": {
+  "feI": { "ligands": "SF4", "part": "/NADH|Acyl carrier/", "chain": "down" },
+  "N2":  { "ligands": "SF4", "part": "/NADH|Acyl carrier/", "chain": "down", "take": "last" },
+  "qI":  { "ref": "N2", "onMembrane": { "index": 0, "dy": 0, "blend": 0.6 } }
+},
+"relays": [{ "name": "一个 NADH", "rate": 0.12, "gate": "flux", "phases": [
+  [ { "species": "NADH", "from": "top", "via": [ { "ref": "nadh" } ], "counter": "NADH", "stage": 0 } ],
+  [ { "species": "e⁻", "via": [ { "ref": "nadh" }, { "ref": "feI" }, { "ref": "qI" } ], "hop": 0.45, "stage": 1 },
+    { "species": "H⁺", "from": "top", "to": "bot", "via": [ ], "wait": false, "delay": 0.5 } ]
+] }]
+```
+
+- **锚点**：`{ "ref": 名字 }` 引用 `anchors` 里的命名锚点（互相引用可以，引用自己会报错）。`ligands` 可写多个组分代码（`"SF4,FES"`），用 `part`（它所在的部件，名称片段或 `/正则/`）筛选，再用 `pick`（`top` / `bottom` / `nearest`（配 `to`）/ `paired` / `unpaired`（成对的铜，CuA）、`rank`）或 `chain`（`down`/`up`：经所有这些辅因子的电子传递最短路径，跳距≤20 Å，平方和最小）选出；`above` / `below`（配 `margin`）按高度筛；`take: first|last` 取链的首尾。`{ "between": [A, B], "t": 0.45 }` 取两点之间；`{ "arm": 部件, "fractions": [0.2] }` 取部件在膜附近的长轴上的点；任何锚点都可加 `onMembrane: { index, dy, blend }`，把高度往那层膜移（blend 0–1）再加 dy。
+- **接力 `relays`**：一个循环由若干**阶段**组成；一个阶段里的**动作**同时开始，下一阶段在所有 `wait` 不为 false 的动作结束后开始。动作的写法和“流”一样（`species`、`from`、`to`、`via`、`labelVia`、`counter`……），另有：`hop`（电子每跳 20 Å 的秒数）、`brown`（用绕开蛋白的随机路径连接各点，配 `inside`、`clear`、`free`）、`delay`、`every`（每 n 个循环才做一次）、`stage`（开始时把能量条的“当前步骤”设为它）、`text`（开始时显示的事件文字）、`then`（本动作结束后接着做的动作，最多 2 层）、`{ "pause": 秒 }`（只停顿）。`rate` 是每秒启动的循环数，`max` 同时进行的循环数，`gate: "flux"` 表示动力学通量接近 0 时不再启动。快速时间尺度下不画粒子，计数器仍按同样的计量增长。
+- **能量条跟随接力**：`energy.stage.mode: "relay"` 时亮的是接力动作最近设置的 `stage`。
+- 一个“流”可加 `by: "rotor"` 或 `"rate"`，速率再乘上动力学模型的对应通量。
+

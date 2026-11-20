@@ -2,6 +2,8 @@ import { PoolSet, FlowStream, createOccupancy, brownPath, shellRegion, speciesOf
 import { Motion, EventLog } from '../motion/journey.mjs';
 import { normalizeDataAnimation } from './data-spec.mjs';
 import { KineticSimulation } from './kinetic-model.mjs';
+import { cofactorChain } from '../structure/site-analysis.mjs';
+import { principalAxes } from '../motion/rotation.mjs';
 
 /**
  * The data-only animation engine (classic: PROCESSES.dataAnim in src/sim/data-anim.js). Compartments hold pools of molecules; a flow takes a molecule from one
@@ -24,31 +26,90 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const flipAboutHorizontal = (p, centre) => [p[0], 2 * centre[1] - p[1], 2 * centre[2] - p[2]];
 
 
-/** Where an anchor is in `structure`, as a list of points; `centre` is where a missing one falls back to, `warn(text)` hears about it. */
-export function resolveAnchor(a, s, centre, warn = () => {}) {
-  const off = Array.isArray(a) ? [0, 0, 0] : (a.offset ?? [0, 0, 0]), one = (p) => [add(p, off)];
+/** The classic keyword match for a part name: the name contains the key (any case), or the key is /regex/flags. */
+export function matchPart(name, key) {
+  if (key.startsWith('/') && key.lastIndexOf('/') > 0) { const i = key.lastIndexOf('/'); try { return new RegExp(key.slice(1, i), key.slice(i + 1) || 'i').test(name); } catch { return false; } }
+  return name.toLowerCase().includes(key.toLowerCase());
+}
+const dist3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+
+/**
+ * Where an anchor is in `structure`, as a list of points; `centre` is where a missing one falls back to, `warn(text)` hears about it, `named` holds the anchors a `{ ref }` names.
+ * The structure may also supply `partPoints(name)` (the positions of a part's residues, for `arm` anchors); its ligands may carry the `part` they sit in.
+ */
+export function resolveAnchor(a, s, centre, warn = () => {}, named = {}, trail = []) {
   if (Array.isArray(a)) return [a.slice(0, 3)];
-  if (a.ligand != null || a.ligands != null) {
-    const comp = String(a.ligand ?? a.ligands).toUpperCase(), L = (s.ligands ?? []).filter((x) => x.comp === comp);
-    if (!L.length) { warn(`没有找到小分子 ${comp}：改用模型中心。`); return one(centre); }
-    if (a.ligand != null) return one(L[Math.min(L.length - 1, a.index || 0)].centre);
-    const P = []; for (const x of L) if (!P.some((q) => Math.hypot(q[0] - x.centre[0], q[1] - x.centre[1], q[2] - x.centre[2]) < 1)) P.push(x.centre.slice());   // symmetry copies coincide
-    const out = P.map((p) => add(p, off)); if (a.order === 'up') out.sort((p, q) => p[1] - q[1]); if (a.order === 'down') out.sort((p, q) => q[1] - p[1]);
-    return out;
-  }
-  if (a.residue != null) {
+  const sub = (x, name) => resolveAnchor(x, s, centre, warn, named, name ? [...trail, name] : trail), first = (x) => sub(x)[0];
+  const off = a.offset ?? [0, 0, 0], one = (p) => [add(p, off)];
+  let points;
+  if (a.ref != null) {
+    if (!named[a.ref]) { warn(`没有命名锚点“${a.ref}”：改用模型中心。`); points = one(centre); }
+    else if (trail.includes(a.ref)) { warn(`命名锚点“${a.ref}”引用了它自己（${[...trail, a.ref].join(' → ')}）：改用模型中心。`); points = one(centre); }
+    else points = sub(named[a.ref], a.ref).map((p) => add(p, off));
+  } else if (a.between != null) { const [p, q] = [first(a.between[0]), first(a.between[1])]; points = one([0, 1, 2].map((k) => p[k] + (q[k] - p[k]) * a.t)); }
+  else if (a.arm != null) points = armPoints(a, s, centre, warn).map((p) => add(p, off));
+  else if (a.ligand != null || a.ligands != null) points = ligandPoints(a, s, centre, warn, sub, first).map((p) => add(p, off));
+  else if (a.residue != null) {
     const m = /^(-?\d+)([A-Za-z]?)$/.exec(String(a.residue).trim()), p = m ? s.residue?.({ number: +m[1], ins: m[2].toUpperCase(), part: a.part, chain: a.chain }) : null;
     if (!p) warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
-    return one(p ?? centre);
-  }
-  if (a.label_seq != null) {
+    points = one(p ?? centre);
+  } else if (a.label_seq != null) {
     const p = s.residue?.({ labelSeq: +a.label_seq, part: a.part, labelAsym: a.label_asym });
     if (!p) warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
-    return one(p ?? centre);
+    points = one(p ?? centre);
+  } else if (a.part != null) { const p = s.part?.(a.part); if (!p) warn(`没有找到部件 ${a.part}：改用模型中心。`); points = one(p ?? centre); }
+  else if (a.membrane != null) points = one([centre[0], (s.membraneY ?? [])[a.membrane] ?? centre[1], centre[2]]);
+  else points = one(centre);
+  if (a.onMembrane) {
+    const y = (s.membraneY ?? [])[a.onMembrane.index];
+    if (y === undefined) warn('onMembrane 指的那层膜不存在：高度保持不变。');
+    else points = points.map((p) => [p[0], p[1] + (y + a.onMembrane.dy - p[1]) * a.onMembrane.blend, p[2]]);
   }
-  if (a.part != null) { const p = s.part?.(a.part); if (!p) warn(`没有找到部件 ${a.part}：改用模型中心。`); return one(p ?? centre); }
-  if (a.membrane != null) return one([centre[0], (s.membraneY ?? [])[a.membrane] ?? centre[1], centre[2]]);
-  return one(centre);
+  return points;
+}
+
+/** The cofactors an anchor names, narrowed, picked or chained as it says (see data-spec.mjs). */
+function ligandPoints(a, s, centre, warn, sub, first) {   // (`sub` and `first` resolve the anchors inside it)
+  const comps = String(a.ligand ?? a.ligands).toUpperCase().split(',').map((x) => x.trim()).filter(Boolean);
+  let L = (s.ligands ?? []).filter((x) => comps.includes(x.comp));
+  if (a.part != null) L = L.filter((x) => matchPart(x.part ?? '', a.part));
+  if (!L.length) { warn(`没有找到小分子 ${comps.join('/')}${a.part != null ? `（部件 ${a.part}）` : ''}：改用模型中心。`); return [centre.slice()]; }
+  if (a.ligand != null && !a.pick && !a.chain) return [L[Math.min(L.length - 1, a.index || 0)].centre.slice()];
+  let P = []; for (const x of L) if (!P.some((q) => dist3(q, x.centre) < 1)) P.push(x.centre.slice());   // symmetry copies coincide
+  if (a.above) { const y = first(a.above)[1] + (a.margin ?? 0); P = P.filter((p) => p[1] > y); }
+  if (a.below) { const y = first(a.below)[1] - (a.margin ?? 0); P = P.filter((p) => p[1] < y); }
+  if (!P.length) { warn(`筛选后没有剩下小分子 ${comps.join('/')}：改用模型中心。`); return [centre.slice()]; }
+  if (a.chain) {
+    const chain = cofactorChain(P.map((position) => ({ position })), { direction: a.chain === 'up' ? [0, -1, 0] : [0, 1, 0] });
+    const path = chain ? chain.map((c) => c.position) : P.slice(0, 1);
+    return a.take === 'first' ? [path[0]] : a.take === 'last' ? [path[path.length - 1]] : path;
+  }
+  if (a.pick) {
+    const near = (p, q) => dist3(p, q) < 3.5, rank = a.rank ?? 0;
+    let order;
+    if (a.pick === 'top') order = [...P].sort((p, q) => q[1] - p[1]);
+    else if (a.pick === 'bottom') order = [...P].sort((p, q) => p[1] - q[1]);
+    else if (a.pick === 'nearest') { const ref = first(a.to); order = [...P].sort((p, q) => dist3(p, ref) - dist3(q, ref)); }
+    else {   // a binuclear centre (CuA): members with a partner within 3.5 Å; or the lone ones (CuB)
+      const paired = P.filter((p) => P.some((q) => q !== p && near(p, q))), lone = P.filter((p) => !paired.includes(p));
+      order = a.pick === 'paired' ? (paired.length ? paired : [...P].sort((p, q) => p[1] - q[1])) : (lone.length ? lone : [...P].sort((p, q) => q[1] - p[1]));
+    }
+    return [order[Math.min(rank, order.length - 1)]];
+  }
+  if (a.order === 'up') P.sort((p, q) => p[1] - q[1]); if (a.order === 'down') P.sort((p, q) => q[1] - p[1]);
+  return P;
+}
+
+/**
+ * Points along the long axis of a part's residues near the membrane (the classic proton-pumping positions along the membrane arm of complex I): the longest principal axis of those
+ * residues, projected onto the horizontal plane, from the lowest to the highest position along it, at the given fractions, at the height of the first membrane.
+ */
+function armPoints(a, s, centre, warn) {
+  const y0 = (s.membraneY ?? [])[0] ?? centre[1], all = s.partPoints?.(a.arm) ?? [], arm = all.filter((p) => Math.abs(p[1] - y0) < a.halfHeight);
+  if (arm.length < 20) { warn(`部件 ${a.arm} 在膜附近的残基太少：沿用它的中心。`); const c = s.part?.(a.arm) ?? centre; return a.fractions.map(() => [c[0], y0, c[2]]); }
+  const pc = principalAxes(arm), flat = [pc.axes[2][0], 0, pc.axes[2][2]], norm = Math.hypot(flat[0], flat[1], flat[2]) || 1, e = flat.map((v) => v / norm);
+  const ts = arm.map((p) => (p[0] - pc.centre[0]) * e[0] + (p[1] - pc.centre[1]) * e[1] + (p[2] - pc.centre[2]) * e[2]), lo = Math.min(...ts), hi = Math.max(...ts);
+  return a.fractions.map((f) => [pc.centre[0] + e[0] * (lo + (hi - lo) * f), y0, pc.centre[2] + e[2] * (lo + (hi - lo) * f)]);
 }
 
 /** The middle of the box around a structure's points, and half its diagonal (the classic centre and size of a model). */
@@ -128,14 +189,22 @@ export class DataAnimation {
       return { ...f, pts: via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])], t: sim(), busy: 0 };
     });
     this.reacts = spec.reactions.flatMap((r) => this.anchor(r.site).map((site) => { hot.push(site); return { ...r, site, t: sim(), busy: 0 }; }));
-    for (const x of [...this.flows, ...this.reacts]) if (x.counter) this.counters[x.counter] = 0;
+    const prepare = (a) => {
+      if (a.pause !== undefined) return a;
+      const via = a.via.flatMap((x) => this.anchor(x)); hot.push(...via);
+      return { ...a, pts: via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])], ...(a.then ? { then: a.then.map(prepare) } : {}) };
+    };
+    this.relays = (spec.relays ?? []).map((r) => ({ ...r, t: sim(), acc: 0, busy: 0, n: 0, phases: r.phases.map((phase) => phase.map(prepare)) }));
+    const walk = (a) => [a, ...(a.then ?? []).flatMap(walk)];
+    for (const x of [...this.flows, ...this.reacts, ...this.relays, ...this.relays.flatMap((r) => r.phases.flat().flatMap(walk))]) if (x.counter) this.counters[x.counter] = 0;
+    this.stage = null;
     this.hotPoints = hot;
     this.initialInventory = this.inventory();
   }
   #pool(species, comp, n = 0) { return this.pools.speciesPool(species, comp, this.comp[comp], n); }
 
   /** Where an anchor is, as a list of points (a `ligands` anchor expands to every copy; none found: the middle of the model, with a warning). */
-  anchor(a) { return resolveAnchor(a, this.structure, this.c, (text) => this.#warn(text)); }
+  anchor(a) { return resolveAnchor(a, this.structure, this.c, (text) => this.#warn(text), this.spec.anchors ?? {}); }
 
   /* ---------------- metering ---------------- */
   #count(kind, species) { this.ledger[kind][species] = (this.ledger[kind][species] ?? 0) + 1; }
@@ -179,7 +248,7 @@ export class DataAnimation {
 
   /* ---------------- flows and reactions ---------------- */
   #ctx() { return { rng: this.rng, occupancy: this.occupancy }; }
-  #runFlow(f) {
+  #runFlow(f, after = () => { f.busy--; }) {
     const k = this.pace(), P = f.pts, sp = f.species, ctx = this.#ctx(), end = P[P.length - 1];
     let item;
     if (f.from) item = this.#take(sp, f.from, P[0]); else item = this.#newParticle(sp, P[0], 0);
@@ -205,8 +274,42 @@ export class DataAnimation {
     } else legs.push({ path: [end, add(end, [0, 0.01, 0])], dur: 0.6, fadeOut: 1 });
     this.motion.go(item, legs, { onDone: (it) => {
       if (f.to) this.#give(it, sp, f.to); else { this.flying.delete(it); this.#count('vanished', sp); }
-      f.busy--;
+      after();
     } });
+  }
+  /* ---------------- relays: a cycle of phases (an addition to the classic) ---------------- */
+  /** A relay that needs the compartment model's flux starts no cycle while the flux is (nearly) zero, as the classic did. */
+  #relayOpen(r) { return !r.gate || !this.kinetics || this.kinetics.flux.rate > 0.08; }
+  #due(a, cycle) { return !a.every || (cycle + 1) % a.every === 0; }
+  #countRelay(r) {   // the fast scale shows no journeys: the counters of every action (follow-ups too) keep the stoichiometry
+    const cycle = r.n++, each = (a) => { if (a.counter && this.#due(a, cycle)) this.counters[a.counter]++; (a.then ?? []).forEach((x) => { if (this.#due(x, cycle)) each(x); }); };
+    if (r.counter) this.counters[r.counter]++; r.phases.flat().forEach((a) => { if (this.#due(a, cycle)) each(a); });
+  }
+  #runRelay(r) {
+    const cycle = r.n++, run = (i) => {
+      if (i >= r.phases.length) { r.busy--; if (r.counter) this.counters[r.counter]++; return; }
+      const todo = r.phases[i].filter((a) => this.#due(a, cycle));
+      let waiting = todo.filter((a) => a.wait !== false).length, moved = false;
+      const next = () => { if (!moved) { moved = true; run(i + 1); } };
+      for (const a of todo) this.#launch(a, () => { if (a.wait !== false && --waiting === 0) next(); }, cycle);
+      if (!waiting) next();
+    };
+    run(0);
+  }
+  /** One action of a relay: a flow-shaped journey. `hop` paces it per 20 Å hop (electrons between cofactors); `brown` joins its points by wandering paths. */
+  #launch(a, done, cycle = 0) {
+    const k = this.pace(), ctx = this.#ctx();
+    if (a.pause !== undefined) { this.motion.wait(Math.max(0.001, a.pause) / k, () => { if (a.stage !== undefined) this.stage = a.stage; done(); }); return; }
+    let pts = a.pts;
+    if (a.brown) { const keep = a.inside ? this.keepF[a.inside] : undefined; pts = pts.slice(0, 1); for (let i = 1; i < a.pts.length; i++) pts.push(...brownPath(a.pts[i - 1], a.pts[i], { n: 14, clear: a.clear ?? 12, free0: a.free ?? 14, free1: a.free ?? 14, wander: 0.25, keep }, ctx).slice(1)); }
+    const tVia = a.tVia ?? (a.hop ? pts.slice(1).reduce((sum, p, i) => sum + a.hop * (0.35 + dist3(pts[i], p) / 20), 0) : undefined);
+    const flow = { species: a.species, pts, from: a.from, to: a.to, free: a.free, tIn: a.tIn, tOut: a.tOut, tVia, labelVia: a.labelVia, counter: a.counter, tumble: a.tumble, events: [] };
+    const start = () => {
+      if (a.stage !== undefined) this.stage = a.stage;
+      if (a.text) this.events.add(a.text, add(pts[0], [0, 7, 0]), 2.2);
+      this.#runFlow(flow, () => { done(); for (const next of a.then ?? []) if (this.#due(next, cycle)) this.#launch(next, () => {}, cycle); });
+    };
+    if (a.delay > 0) this.motion.wait(a.delay / k, start); else start();
   }
   #runReaction(r) {
     const k = this.pace(), at = r.site, ctx = this.#ctx(), ins = [];
@@ -262,9 +365,11 @@ export class DataAnimation {
       this.layer ||= this.#buildLayer();
       for (const { stream } of this.layer) stream.update(dt, pace);
       for (const x of [...this.flows, ...this.reacts]) if (x.counter) { x.acc = (x.acc || 0) + dt * pace * x.rate; while (x.acc >= 1) { x.acc--; this.counters[x.counter]++; } }
+      for (const r of this.relays) if (this.#relayOpen(r)) { r.acc += dt * pace * r.rate; while (r.acc >= 1) { r.acc--; this.#countRelay(r); } }   // fast: the counters keep the stoichiometry
     } else {
-      for (const f of this.flows) { f.t += dt * f.rate * pace; if (f.t >= 1 && f.busy < (f.max ?? 3)) { f.t = 0; f.busy++; this.#runFlow(f); } else if (f.t > 1) f.t = 1; }
+      for (const f of this.flows) { f.t += dt * f.rate * pace * (f.by && this.kinetics ? this.kinetics.flux[f.by] ?? 1 : 1); if (f.t >= 1 && f.busy < (f.max ?? 3)) { f.t = 0; f.busy++; this.#runFlow(f); } else if (f.t > 1) f.t = 1; }
       for (const r of this.reacts) { r.t += dt * r.rate * pace; if (r.t >= 1 && r.busy < (r.max ?? 2)) { r.t = 0; r.busy++; this.#runReaction(r); } else if (r.t > 1) r.t = 1; }
+      for (const r of this.relays) { r.t += dt * r.rate * pace; if (r.t >= 1 && r.busy < r.max && this.#relayOpen(r)) { r.t = 0; r.busy++; this.#runRelay(r); } else if (r.t > 1) r.t = 1; }
     }
     this.motion.tick(dt);
     this.pools.update(dt);
@@ -290,7 +395,7 @@ export class DataAnimation {
     return { items, tags: this.events.tags.map((t) => ({ ...t })) };
   }
   /** Counters, events and metering for the panels and for tests. */
-  summary() { return { kinetics: this.kinetics ? { readout: this.kinetics.readout(), compartments: this.kinetics.compartments(), explain: this.kinetics.explain(), diverged: this.kinetics.diverged } : null, time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
+  summary() { return { stage: this.stage, kinetics: this.kinetics ? { readout: this.kinetics.readout(), compartments: this.kinetics.compartments(), explain: this.kinetics.explain(), diverged: this.kinetics.diverged } : null, time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
   /** Stop everything (the scene closed): nothing keeps running, nothing is called. */
   dispose() { this.kinetics = null; this.motion.clear(); this.flying.clear(); this.pools.clear(); this.layer = null; }
 }

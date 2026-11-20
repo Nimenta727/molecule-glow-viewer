@@ -1,0 +1,26 @@
+5GUP: 13920 residues, 52 small molecules, membrane at y = -29.675 in the work's frame
+ok   Fe–S chain of complex I: 6 [4Fe-4S] clusters, same path and points
+ok   nadh: same point as the classic to the last bit
+ok   qI: same point as the classic to the last bit
+ok   cuA: same point as the classic to the last bit
+ok   cuB: same point as the classic to the last bit
+ok   a3: same point as the classic to the last bit
+ok   ha: same point as the classic to the last bit
+ok   c1: same point as the classic to the last bit
+ok   bL: same point as the classic to the last bit
+ok   bH: same point as the classic to the last bit
+ok   isp: same point as the classic to the last bit
+ok   Qo: same point as the classic to the last bit
+ok   Qi: same point as the classic to the last bit
+ok   dock1: same point as the classic to the last bit
+ok   dock2: same point as the classic to the last bit
+ok   pump1: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
+ok   pump2: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
+ok   pump3: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
+ok   pump4: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
+ok   no anchor fell back to the middle of the model
+ok   the shipped work on 5GUP: no anchor fell back (0)
+ok   4 NADH cycles: 24 H⁺ pumped (6 per NADH), 16 released by the Q cycle (4 per NADH), 2 O₂ → 2 H₂O (1 per 2 NADH)
+ok   steps of the energy strip reached: 0 1 2 3 4 5 6
+ok   the metering of every species balances
+24/24 identical
