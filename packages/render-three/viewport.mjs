@@ -457,6 +457,76 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
+  /**
+   * Free particles (solution molecules and flow streams, plugins/motion/particles.mjs). `setParticleCloud(tag, items)` replaces the set `tag` with
+   * items { position, radius, color, alpha?, label? } in viewport coordinates; every item is a sphere (one instanced mesh per set) and an item with a
+   * `label` also shows its name beside it. A particle that is fading in or out shrinks with its alpha. The sets are part of the picture only: not
+   * dimmed or clipped with the parts, and dropped when the scene is cleared. `setParticleCloud(tag, [])` removes a set. `{ overlay: true }` draws the set over the protein (the classic
+   * overlay: a particle at work stays visible inside channels); otherwise the set is hidden behind protein like everything else.
+   */
+  const clouds = new Map();   // tag -> { mesh, capacity, material, labels: Sprite[] }
+  const cloudLabelTextures = new Map();   // "name|color" -> { texture, material }
+  const cloudGeometry = new THREE.SphereGeometry(1, 10, 8);
+  function cloudLabel(name, color) {
+    const key = `${name}|${color}`;
+    let entry = cloudLabelTextures.get(key);
+    if (!entry) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 128; canvas.height = 48;
+      drawParticleLabel(canvas, name, color);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      entry = { texture, material: new THREE.SpriteMaterial({ map: texture, depthTest: false, depthWrite: false, transparent: true }) };
+      cloudLabelTextures.set(key, entry);
+    }
+    return entry.material;
+  }
+  function removeCloud(tag) {
+    const cloud = clouds.get(tag);
+    if (!cloud) return;
+    cloud.mesh.removeFromParent(); cloud.mesh.dispose(); cloud.material.dispose();
+    for (const sprite of cloud.labels) sprite.removeFromParent();
+    clouds.delete(tag);
+  }
+  function setParticleCloud(tag, items = [], { overlay = false } = {}) {
+    if (!active || !items.length) { removeCloud(tag); invalidate(); return 0; }
+    let cloud = clouds.get(tag);
+    if (cloud && (cloud.parent !== active.root || cloud.capacity < items.length)) { removeCloud(tag); cloud = undefined; }
+    if (!cloud) {
+      const capacity = Math.max(64, items.length * 2), material = new THREE.MeshBasicMaterial({ depthTest: !overlay });
+      const mesh = new THREE.InstancedMesh(cloudGeometry, material, capacity);
+      mesh.frustumCulled = false; mesh.userData.selectionMarker = true; mesh.userData.particleCloud = tag; mesh.renderOrder = overlay ? 20 : 5;
+      active.root.add(mesh);
+      cloud = { mesh, capacity, material, labels: [], parent: active.root };
+      clouds.set(tag, cloud);
+    }
+    const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), size = new THREE.Vector3(), color = new THREE.Color(), at = new THREE.Vector3();
+    items.forEach((item, i) => {
+      const scale = item.radius * Math.max(0.01, Math.min(1, item.alpha ?? 1));
+      matrix.compose(at.fromArray(item.position), rotation, size.setScalar(scale));
+      cloud.mesh.setMatrixAt(i, matrix);
+      cloud.mesh.setColorAt(i, color.set(item.color));
+    });
+    cloud.mesh.count = items.length;
+    cloud.mesh.instanceMatrix.needsUpdate = true;
+    if (cloud.mesh.instanceColor) cloud.mesh.instanceColor.needsUpdate = true;
+    const labelled = items.filter((item) => item.label);
+    while (cloud.labels.length > labelled.length) cloud.labels.pop().removeFromParent();
+    labelled.forEach((item, i) => {
+      let sprite = cloud.labels[i];
+      if (!sprite) { sprite = new THREE.Sprite(); sprite.renderOrder = 21; sprite.scale.set(0.7, 0.27, 1); active.root.add(sprite); cloud.labels.push(sprite); }
+      sprite.material = cloudLabel(item.label, '#2c3440');   // dark lettering: the species colour (a pale yellow for H⁺) does not read on the paper background
+      sprite.position.fromArray(item.position); sprite.position.y += item.radius + 0.18;
+    });
+    invalidate();
+    return items.length;
+  }
+  function clearParticleClouds() {
+    for (const tag of [...clouds.keys()]) removeCloud(tag);
+    for (const { texture, material } of cloudLabelTextures.values()) { texture.dispose(); material.dispose(); }
+    cloudLabelTextures.clear();
+  }
+
   /** Moves the camera to look at a point target from the current direction, close enough for something `extent` (viewport units) across. */
   function focusPoint(target, extent = 0.5) {
     const end = locate(target);
@@ -679,6 +749,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     gizmo?.detach();
     scene.add(prepared.root);
     active = prepared;
+    clearParticleClouds();   // the sets hung on the previous scene's root; the Viewer puts its particles back after a rebuild
     fitCamera(prepared);
     if (previous) disposeHandle(previous);
     invalidate();
@@ -902,6 +973,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   function clear() {
     setLinks([]);
     for (const tag of new Set(molecules.map((m) => m.tag))) setMolecules([], { tag });
+    clearParticleClouds();
     cancelPick();
     cancelCameraTransition();
     responsiveFraming = false;
@@ -1036,6 +1108,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

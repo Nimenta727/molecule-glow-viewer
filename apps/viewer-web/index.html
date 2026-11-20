@@ -126,6 +126,26 @@
               <div class="take-apart-row"><label><input id="spin-play" type="checkbox"> 播放</label><button id="spin-reset" type="button">复位角度</button></div>
               <p id="spin-info" class="structure-summary" aria-live="polite">在“部件显隐”里给要旋转的部件勾上“旋转”。</p>
             </div>
+            <div id="particle-controls" class="morph-controls" hidden>
+              <div class="structure-form">
+                <label for="particle-species">溶液粒子</label>
+                <select id="particle-species" aria-label="分子种类"></select>
+                <input id="particle-count" type="number" min="1" max="200" step="1" value="20" aria-label="分子个数">
+                <button id="particle-add" type="button">加入</button>
+              </div>
+              <div id="particle-flow-form">
+                <input id="particle-from" type="text" maxlength="500" placeholder="流的起点：残基组，如 chain A" aria-label="流的起点残基组" autocomplete="off" spellcheck="false">
+                <input id="particle-to" type="text" maxlength="500" placeholder="流的终点：残基组，如 chain B" aria-label="流的终点残基组" autocomplete="off" spellcheck="false">
+                <button id="particle-flow-add" type="button">加入流（用上面选的分子种类）</button>
+              </div>
+              <label class="take-apart-row">流速 <input id="particle-rate" type="range" min="0" max="3" step="0.1" value="1" aria-label="每秒周期数"> 周期/秒</label>
+              <label class="take-apart-row">时间尺度
+                <select id="particle-scale" aria-label="时间尺度"><option value="slow">慢：逐个分子</option><option value="fast">快：粒子流</option></select>
+              </label>
+              <div class="take-apart-row"><label><input id="particle-play" type="checkbox"> 播放</label><button id="particle-reset" type="button">复位</button><button id="particle-clear" type="button">全部移除</button></div>
+              <ul id="particle-list" class="particle-list"></ul>
+              <p id="particle-info" class="structure-summary" aria-live="polite"></p>
+            </div>
             <div id="morph-controls" class="morph-controls" hidden>
               <div class="structure-form">
                 <label for="morph-accession">构象变形</label>

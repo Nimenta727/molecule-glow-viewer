@@ -266,3 +266,6 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .morph-settings input[type="text"], .morph-settings textarea { width: 100%; box-sizing: border-box; font: inherit; }
 
 #spin-pair input { width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
+#particle-flow-form { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.4rem; }
+.particle-list { margin: 0.4rem 0 0; padding: 0; list-style: none; font-size: 0.82rem; }
+.particle-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.1rem 0; }

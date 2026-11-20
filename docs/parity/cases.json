@@ -349,7 +349,7 @@
         "Seed the classic kit and the new module identically; fill pools in a compartment, diffuse, take and give particles, build Brownian paths through the structure and run flow streams."
       ],
       "expected": "Occupancy answers, Brownian bridge points, region samples, pool positions/modes/alpha and flow positions equal the classic ones to 1e-9 A (flow positions to the classic float32 matrix storage); free particles never sit inside protein; a pool or stream without a name is refused. Two-point travel paths are straight lines, a deliberate difference from the three.js scratch-vector curve.",
-      "scope": "Runner compares the pure logic with the classic code on real structures; drawing, travel animation, event tags and the Viewer/Studio wiring are not covered and not yet built."
+      "scope": "Runner compares the pure logic with the classic code on real structures; the Viewer panel (add pools and a flow, play, pause, switch scale, save, close, reopen: same picture pixel for pixel at step 0, no page errors) was checked in a software-rendered browser session, not by this runner; Studio configuration and event tag rendering are not built."
     },
     {
       "id": "classic.animation.data-v1-adk-kcsa",

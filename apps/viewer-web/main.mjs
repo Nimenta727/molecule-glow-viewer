@@ -18,6 +18,7 @@ import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteErr
 import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/structure/representation.mjs';
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { createObjectSpin } from './object-spin.mjs';
+import { createParticleFlow } from './particle-flow.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
@@ -86,6 +87,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['particle-controls'].hidden = !structureEnabled || !active?.model;
   elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
@@ -283,6 +285,7 @@ function boot() {
       active = scene;
       showStructurePick();
       objectSpin.reset();
+      particleFlow.reset();
       stateMorph.reset();
       entryIntro.reset();
       leaveTakeApart();
@@ -610,6 +613,15 @@ function boot() {
     },
     context: { model: () => active?.model, parts: computeStructureParts },
   });
+  const particleFlow = createParticleFlow({
+    viewport,
+    elements: {
+      species: elements['particle-species'], count: elements['particle-count'], add: elements['particle-add'], from: elements['particle-from'], to: elements['particle-to'],
+      flowAdd: elements['particle-flow-add'], rate: elements['particle-rate'], scale: elements['particle-scale'], play: elements['particle-play'],
+      reset: elements['particle-reset'], clear: elements['particle-clear'], list: elements['particle-list'], info: elements['particle-info'],
+    },
+    context: { model: () => active?.model },
+  });
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -671,6 +683,7 @@ function boot() {
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
+    if (view?.particles) Promise.resolve().then(() => particleFlow.restore(view.particles));
     syncClipControls();
     applyClipping();
   }
@@ -739,6 +752,7 @@ function boot() {
     applyClipping();
     stateMorph.reapply();
     objectSpin.reapply();
+    particleFlow.reapply();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -1286,6 +1300,7 @@ function boot() {
         camera,
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
+        ...(particleFlow.save() ? { particles: particleFlow.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {
@@ -1341,6 +1356,7 @@ function boot() {
     active = undefined;
     showStructurePick();
     objectSpin.reset();
+    particleFlow.reset();
     stateMorph.reset();
     entryIntro.reset();
     leaveTakeApart();
