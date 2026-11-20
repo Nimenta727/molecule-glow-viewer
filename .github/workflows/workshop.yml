@@ -25,6 +25,8 @@ jobs:
         run: node workshop/tools/validate.mjs
       - name: Rebuild indexes
         run: node workshop/tools/build-index.mjs
+      - name: Rebuild the resource catalogue
+        run: node workshop/tools/build-resources.mjs
       - name: Discussion threads and stats (main only)
         if: github.event_name != 'pull_request'
         env:

@@ -1,0 +1,28 @@
+/* Workshop dialog (Viewer and Studio). Uses each app's colour tokens when present. */
+dialog.workshop {
+  width: min(52rem, calc(100vw - 2rem)); max-height: calc(100vh - 3rem); padding: 0; border: 1px solid var(--line, #d9dce2); border-radius: 6px;
+  background: var(--paper, #fff); color: var(--ink, #1f2733); box-shadow: 0 12px 40px rgba(31, 39, 51, 0.25); overflow: hidden;
+}
+dialog.workshop[open] { display: flex; flex-direction: column; }
+dialog.workshop::backdrop { background: rgba(31, 39, 51, 0.35); }
+.workshop > header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; border-bottom: 1px solid var(--line, #d9dce2); background: var(--head, #eceef3); }
+.workshop > header h2 { margin: 0; font-size: 1rem; }
+.workshop-close { border: 0; background: transparent; font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 0.4rem; }
+.workshop-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; padding: 0.6rem 1rem; border-bottom: 1px solid var(--line, #d9dce2); }
+.workshop-controls input[type="search"] { flex: 1; min-width: 10rem; }
+.workshop-tabs { display: flex; gap: 0; }
+.workshop-tabs [role="tab"] { border: 1px solid var(--line, #d9dce2); background: #fff; padding: 0.3rem 0.9rem; cursor: pointer; }
+.workshop-tabs [role="tab"]:first-child { border-radius: 4px 0 0 4px; }
+.workshop-tabs [role="tab"]:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
+.workshop-tabs [role="tab"][aria-selected="true"] { background: var(--acc-soft, #eceffa); border-color: var(--acc, #4a5fb0); color: var(--acc-ink, #2f3f86); font-weight: 600; }
+.workshop-note { margin: 0; padding: 0.35rem 1rem; min-height: 1.4rem; color: var(--dim, #5d6676); font-size: 0.85rem; }
+.workshop-note[data-kind="error"] { color: #9a3412; background: #fbf0e2; }
+.workshop-list { margin: 0; padding: 0 1rem 1rem; list-style: none; overflow: auto; display: grid; gap: 0.6rem; }
+.workshop-card { border: 1px solid var(--line, #d9dce2); border-radius: 5px; padding: 0.6rem 0.8rem; background: #fff; }
+.workshop-card-head { display: flex; align-items: baseline; gap: 0.6rem; }
+.workshop-card h3 { margin: 0; font-size: 0.98rem; }
+.workshop-badge { font-size: 0.72rem; padding: 0 0.45rem; border: 1px solid var(--line, #d9dce2); border-radius: 999px; color: var(--dim, #5d6676); }
+.workshop-card p { margin: 0.25rem 0 0; font-size: 0.86rem; }
+.workshop-meta, .workshop-deps { color: var(--dim, #5d6676); }
+.workshop-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+.workshop-empty { color: var(--dim, #5d6676); padding: 1rem 0; }

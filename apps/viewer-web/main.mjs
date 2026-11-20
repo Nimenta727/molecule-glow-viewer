@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -18,6 +18,8 @@ import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
+import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
@@ -194,11 +196,13 @@ function boot() {
     async prepare(input, { signal, scope }) {
       let loaded;
       const importer = host.getImporter(IMPORTER);
-      if (input.accession || (input.file && isStructureFile(input.file.name))) {
+      if (input.accession || input.structure || (input.file && isStructureFile(input.file.name))) {
         if (!importer || !structureLifetime) throw new Error('请先启用官方结构插件。');
         const combined = AbortSignal.any([signal, structureLifetime.signal]);
         let structure;
-        if (input.accession) {
+        if (input.structure) {
+          structure = input.structure;   // bytes already fetched and checked against the workshop's record
+        } else if (input.accession) {
           structure = await loadAccession(input.accession, combined);
         } else {
           if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
@@ -252,7 +256,7 @@ function boot() {
       handles.current = prepared;
       const navigation = createSceneNavigation(loaded.scene.presentation?.navigation, document.nodes);
       const nodes = new Map(loaded.scene.nodes.map((node) => [node.id, node]));
-      const name = input.file?.name ?? input.accession ?? (input.demo ? '四模式示例' : '基础几何示例');
+      const name = input.file?.name ?? input.accession ?? input.structure?.name ?? (input.demo ? '四模式示例' : '基础几何示例');
       return { ...loaded, store, nodes, timeline, prepared, handles, overlayCapacity, navigation, name, player };
     },
     commit(scene) {
@@ -756,6 +760,27 @@ function boot() {
     }
   }
 
+  // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
+  // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
+  const workshop = createWorkshopDialog(document, {
+    load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+    toolTitle,
+    actions: {
+      works: [{ label: '打开', title: '下载、核对哈希后在 Viewer 中打开', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      resources: [{ label: '打开结构', title: '从来源取回、核对哈希后作为结构打开', run: (entry) => openWorkshopResource(entry) }],
+    },
+  });
+  async function openWorkshopWork(entry, catalog) {
+    const bytes = await fetchWorkBytes(catalog, entry);
+    await setStructureEnabled(true);   // official works restore their structures and mechanisms through the structure plugin
+    await openScene({ file: new File([bytes], entry.file.split('/').pop()) }, { propagate: true });
+  }
+  async function openWorkshopResource(entry) {
+    await setStructureEnabled(true);
+    const structure = await fetchResource(entry, { load: (accession, { signal } = {}) => loadAccession(accession, signal ?? new AbortController().signal) });
+    await openScene({ structure, assembly: elements['structure-assembly'].checked }, { propagate: true });
+  }
+  elements.workshop.addEventListener('click', () => workshop.open().catch((error) => setStatus(`无法打开工坊。 ${error.message}`)));
   elements.example.addEventListener('click', () => openScene());
   elements['four-modes-example'].addEventListener('click', () => openScene({ demo: true }));
   elements['navigation-entries'].addEventListener('click', (event) => {
@@ -1168,7 +1193,15 @@ function boot() {
     scenes.close();
     viewport.dispose();
   });
-  openScene();
+  // `?work=<id>` opens that workshop work at start (Studio's "在 Viewer 中打开" uses it); otherwise the basic example.
+  const workId = new URLSearchParams(location.search).get('work');
+  if (workId) {
+    workshop.catalog().then((catalog) => {
+      const entry = catalog.works.find(({ id }) => id === workId);
+      if (!entry) throw new Error(`工坊里没有作品 ${workId}。`);
+      return openWorkshopWork(entry, catalog);
+    }).catch((error) => setStatus(`无法打开工坊作品。 ${error.message}`));
+  } else openScene();
 }
 
 try {

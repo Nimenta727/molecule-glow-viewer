@@ -12,10 +12,12 @@ import { createToolConfigPanel } from './tool-config.mjs';
 import { initTabs } from './panel-tabs.mjs';
 import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
 import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
+import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
-import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
+import { toolEntriesForScene, toolTitle } from '../../plugins/mechanism-catalog.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -424,17 +426,17 @@ onClick('export-scene', async () => {
   status('场景包已生成。');
 });
 
-watchFile('structure-file', async (file) => {
+// A structure (a file, or bytes fetched from a resource) becomes a new work: the structure is its first resource.
+async function importStructureAsWork(structure, { title, message }) {
   const ticket = ++loading;
-  if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
   status('正在导入结构…');
   const importer = host.getImporter(await ensureStructurePlugin());
-  const imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  const imported = await importer.importScene(structure);
   if (ticket !== loading) return;
   navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
   // Scenes in Studio are always the current format: the imported structure becomes a resource of a v3 work.
-  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, timeline: { duration: 4, tracks: [] } }, imported.resources);
+  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources);
   const next = createStudioSession(scene, imported.resources);
   geometryFor(next);
   sessions.set(id, next);
@@ -442,8 +444,38 @@ watchFile('structure-file', async (file) => {
   selection = scene.nodes[0]?.id ?? null;
   editingPose = false;
   refresh({ resetCamera: true, resetTime: true });
-  status(`已导入 ${file.name}。`);
+  status(message);
+}
+
+watchFile('structure-file', async (file) => {
+  if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+  await importStructureAsWork({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }, { message: `已导入 ${file.name}。` });
 });
+
+// ---- workshop: works open in the Viewer; a resource becomes a new work here ------------------------------------------------
+let rcsbSource;
+const workshop = createWorkshopDialog(document, {
+  load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+  toolTitle,
+  actions: {
+    works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => {
+      const url = new URL('../viewer-web/index.html', location.href);
+      url.searchParams.set('work', entry.id);
+      const override = new URLSearchParams(location.search).get('workshop');
+      if (override) url.searchParams.set('workshop', override);
+      window.open(url, '_blank', 'noopener');
+      return false;   // the dialog stays open
+    } }],
+    resources: [{ label: '用此资源新建作品', title: '从来源取回、核对哈希，成为新作品的第一个资源', run: async (entry) => {
+      navigationEditor.assertSaved();
+      const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs');
+      rcsbSource ??= createRcsbSource();
+      const structure = await fetchResource(entry, { load: (accession, options) => rcsbSource.load(accession, options) });
+      await importStructureAsWork(structure, { title: entry.title, message: `已用资源 ${entry.record.id} 新建作品。` });
+    } }],
+  },
+});
+onClick('workshop', () => workshop.open().catch((error) => status(`无法打开工坊。 ${error.message}`)));
 
 watchFile('package-file', async (file) => {
   const ticket = ++loading;

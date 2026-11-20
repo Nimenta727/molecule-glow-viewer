@@ -1,0 +1,369 @@
+{
+ "format": "glow-resources",
+ "version": 1,
+ "source": "official",
+ "name": "官方资源",
+ "updated": "2026-11-20",
+ "resources": [
+  {
+   "kind": "resource",
+   "title": "大肠杆菌腺苷酸激酶与 Ap5A（闭合态）",
+   "description": "与双底物类似物抑制剂 Ap5A 结合的闭合构象。",
+   "tags": [
+    "腺苷酸激酶",
+    "构象变化",
+    "酶",
+    "抑制剂"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1AKE",
+    "version": "01f41b1b",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1AKE.cif",
+      "sha256": "01f41b1b42318a1a5df7f650dbab881677aa0e8d825f7c42dd26ae16a94c0948",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 426810
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1AKE",
+     "url": "https://www.rcsb.org/structure/1AKE"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "STRUCTURE OF THE COMPLEX BETWEEN ADENYLATE KINASE FROM ESCHERICHIA COLI AND THE INHIBITOR AP5A REFINED AT 1.9 ANGSTROMS RESOLUTION: A MODEL FOR A CATALYTIC TRANSITION STATE",
+     "species": "Escherichia coli",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Structure of the complex between adenylate kinase from Escherichia coli and the inhibitor Ap5A refined at 1.9 A resolution. A model for a catalytic transition state. (1992)",
+     "doi": "10.1016/0022-2836(92)90582-5"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "KcsA 钾通道（关闭态）",
+   "description": "链霉菌 KcsA 在高 K⁺ 下的结构（含抗体 Fab），选择性过滤器中有 K⁺ 位点。KcsA 作品的主结构。",
+   "tags": [
+    "钾通道",
+    "膜蛋白",
+    "离子通道"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1K4C",
+    "version": "da8a06fa",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1K4C.cif",
+      "sha256": "da8a06fa1d2a514b106fbbf43ec63c88450027a427ba751b2a61da0f02a38763",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 570033
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1K4C",
+     "url": "https://www.rcsb.org/structure/1K4C"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Potassium Channel KcsA-Fab complex in high concentration of K+",
+     "species": "Streptomyces lividans",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Chemistry of ion coordination and hydration revealed by a K+ channel-Fab complex at 2.0 A resolution. (2001)",
+     "doi": "10.1038/35102009"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "KcsA 与 TBA（中央腔阻断剂）",
+   "description": "四丁基铵（TBA）结合在中央腔的 KcsA 结构。",
+   "tags": [
+    "钾通道",
+    "阻断剂"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.2HVK",
+    "version": "2f449a22",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "2HVK.cif",
+      "sha256": "2f449a22e03e8de4867bef485c45fcc151804ad326facd7e20b99addf0ada0df",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 532711
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "2HVK",
+     "url": "https://www.rcsb.org/structure/2HVK"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "crystal structure of the KcsA-Fab-TBA complex in high K+",
+     "species": "Streptomyces lividans",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Crystallographic Study of the Tetrabutylammonium Block to the KcsA K(+) Channel. (2007)",
+     "doi": "10.1016/j.jmb.2006.11.081"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "KcsA 与 Ba²⁺（过滤器阻断剂）",
+   "description": "Ba²⁺ 结合在选择性过滤器的 KcsA 结构。",
+   "tags": [
+    "钾通道",
+    "阻断剂"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.2ITD",
+    "version": "30461db5",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "2ITD.cif",
+      "sha256": "30461db53b7e0397573e296b52a5274a9dea0bf9bdb7f7212381e38258dbc828",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 468193
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "2ITD",
+     "url": "https://www.rcsb.org/structure/2ITD"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Potassium Channel KcsA-Fab complex in Barium Chloride",
+     "species": "Streptomyces lividans",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Structural and Thermodynamic Properties of Selective Ion Binding in a K(+) Channel. (2007)",
+     "doi": "10.1371/journal.pbio.0050121"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "大肠杆菌腺苷酸激酶（张开态）",
+   "description": "底物结合前的张开构象，含 CORE、NMP、LID 三个域。",
+   "tags": [
+    "腺苷酸激酶",
+    "构象变化",
+    "酶"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.4AKE",
+    "version": "fcb2ff49",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "4AKE.cif",
+      "sha256": "fcb2ff49a3e255797fee277ce28e0acace67f6e6ddf432841f8451f00cbde9e9",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 381852
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "4AKE",
+     "url": "https://www.rcsb.org/structure/4AKE"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "ADENYLATE KINASE",
+     "species": "Escherichia coli",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Adenylate kinase motions during catalysis: an energetic counterweight balancing substrate binding. (1996)",
+     "doi": "10.1016/S0969-2126(96)00018-4"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "KcsA E71A（开放态）",
+   "description": "非失活突变体 E71A 的开放构象，用于推算 K⁺ 进入中央腔的孔道。",
+   "tags": [
+    "钾通道",
+    "离子通道",
+    "门控"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.5VK6",
+    "version": "2805a965",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "5VK6.cif",
+      "sha256": "2805a9651e78d498fbd1841690189fa214319a2998c168dcc62410d78a53fb5b",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 842196
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "5VK6",
+     "url": "https://www.rcsb.org/structure/5VK6"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Open conformation of KcsA non-inactivating E71A mutant",
+     "species": "Streptomyces lividans",
+     "method": "X-RAY DIFFRACTION",
+     "mutation": "E71A",
+     "citation": "The gating cycle of a K+ channel at atomic resolution. (2017)",
+     "doi": "10.7554/eLife.28032"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "KcsA（深度失活态）",
+   "description": "KcsA 深度失活的开放构象。",
+   "tags": [
+    "钾通道",
+    "离子通道",
+    "失活"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.5VKE",
+    "version": "d69f8987",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "5VKE.cif",
+      "sha256": "d69f89878b749ae5cc1a817c454e156ce7ad4a1452c9758875a6c71725d3ee65",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 839525
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "5VKE",
+     "url": "https://www.rcsb.org/structure/5VKE"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Open conformation of KcsA deep-inactivated",
+     "species": "Streptomyces lividans",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "The gating cycle of a K+ channel at atomic resolution. (2017)",
+     "doi": "10.7554/eLife.28032"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "牛线粒体 ATP 合酶（整体，状态 1）",
+   "description": "完整的 F1Fo ATP 合酶：F1 头部、中央柄、c 环和 a 亚基。ATP 合酶作品使用的主结构。",
+   "tags": [
+    "ATP 合酶",
+    "膜蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6ZPO",
+    "version": "7a992857",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6ZPO.cif",
+      "sha256": "7a9928575fc8396ebb753834f18b90593f16b046329bc5a7cc933b1b8e67c4ec",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 9215764
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6ZPO",
+     "url": "https://www.rcsb.org/structure/6ZPO"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "bovine ATP synthase monomer state 1 (combined)",
+     "species": "Bos taurus",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure of the dimeric ATP synthase from bovine mitochondria. (2020)",
+     "doi": "10.1073/pnas.2013998117"
+    }
+   }
+  }
+ ]
+}

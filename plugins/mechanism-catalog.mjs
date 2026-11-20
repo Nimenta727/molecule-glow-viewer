@@ -32,6 +32,18 @@ const TOOLS = {
  * or the adenylate-kinase pair) this is that player with its full default configuration, so the configuration
  * travels with the work and reopens identically even if the built-in template changes later.
  */
+/** Display name of one of the built-in tools by id (new id or old player id), without needing its plugin to be active. */
+export function toolTitle(id) {
+  for (const [player, [toolId, describe]] of Object.entries(TOOLS)) if (id === toolId || id === player) return describe('1.0.0', player).title;
+  return id;
+}
+
+/** The id of the tool a scene's legacy mechanism declaration stands for, or undefined when it declares none. */
+export function toolIdForScene(scene) {
+  const id = resolveMechanism(scene);
+  return id && TOOLS[id] ? TOOLS[id][0] : undefined;
+}
+
 export function toolEntriesForScene(scene) {
   const id = resolveMechanism(scene);
   const plugin = mechanismPlugins.find(({ manifest }) => manifest.id === id);
