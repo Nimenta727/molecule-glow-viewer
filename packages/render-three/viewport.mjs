@@ -355,24 +355,33 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   /**
-   * Small molecules drawn as ball-and-stick at their ligand points: items are { target, geometry } where `target` is a ligand point target and
-   * `geometry` comes from molecule-geometry.mjs (positions relative to that point, viewport units). They ride on the node of the point, so they follow
-   * take-apart offsets. setMolecules([]) removes them.
+   * Small molecules drawn as ball-and-stick. An item is { geometry, target } (placed at a ligand point target) or { geometry, nodeId, position }
+   * (placed at `position`, in the node's own viewport coordinates); `geometry` comes from molecule-geometry.mjs (relative to that place). They ride on
+   * the node, so they follow take-apart offsets. Items belong to a `tag` (default 'default'); setMolecules([], { tag }) removes that set.
+   * showMolecules(tag, visible) hides or shows a set without rebuilding it.
    */
-  let molecules = [];
+  let molecules = [];   // [{ group, tag }]
   const sphereGeometry = new THREE.SphereGeometry(1, 12, 8), stickGeometry = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
-  function setMolecules(items = []) {
-    for (const group of molecules) {
-      group.removeFromParent();
-      group.traverse((object) => { if (object.isInstancedMesh) { object.material.dispose(); object.dispose(); } });
+  function setMolecules(items = [], { tag = 'default' } = {}) {
+    for (const entry of molecules.filter((m) => m.tag === tag)) {
+      entry.group.removeFromParent();
+      entry.group.traverse((object) => { if (object.isInstancedMesh) { object.material.dispose(); object.dispose(); } });
     }
-    molecules = [];
+    molecules = molecules.filter((m) => m.tag !== tag);
     let drawn = 0;
-    for (const { target, geometry } of active ? items : []) {
-      const end = locate(target);
-      if (!end) continue;
+    for (const { target, geometry, nodeId, position } of active ? items : []) {
       const group = new THREE.Group();
-      group.position.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+      let parent;
+      if (target) {
+        const end = locate(target);
+        if (!end) continue;
+        group.position.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+        parent = end.mesh;
+      } else {
+        parent = active.groups.get(nodeId);
+        if (!parent || !Array.isArray(position)) continue;
+        group.position.fromArray(position);
+      }
       const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), size = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
       const instanced = (shape, count) => {
         const mesh = new THREE.InstancedMesh(shape, new THREE.MeshStandardMaterial({ roughness: 0.6 }), Math.max(1, count));
@@ -413,12 +422,16 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         mesh.instanceMatrix.needsUpdate = true;
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       }
-      end.mesh.add(group);
-      molecules.push(group);
+      parent.add(group);
+      molecules.push({ group, tag });
       drawn++;
     }
     invalidate();
     return drawn;
+  }
+  function showMolecules(tag, visible) {
+    for (const entry of molecules) if (entry.tag === tag) entry.group.visible = visible;
+    invalidate();
   }
 
   /** Moves the camera to look at a point target from the current direction, close enough for something `extent` (viewport units) across. */
@@ -867,7 +880,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
   function clear() {
     setLinks([]);
-    setMolecules([]);
+    for (const tag of new Set(molecules.map((m) => m.tag))) setMolecules([], { tag });
     cancelPick();
     cancelCameraTransition();
     responsiveFraming = false;
@@ -1002,6 +1015,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, showMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

@@ -1,7 +1,4 @@
-import { loadChemComp, bondsFromTemplate, bondsByDistance } from '../../plugins/structure/chemical-component.mjs';
-import { elementStyle } from '../../plugins/structure/elements.mjs';
-import { valenceGeometry } from '../../packages/render-three/molecule-geometry.mjs';
-import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
+import { ligandGeometry } from './ligand-geometry.mjs';
 
 /**
  * The valence view of a selected small molecule: ball-and-stick with bond orders (single / double / triple / aromatic) from the RCSB chemical
@@ -38,13 +35,7 @@ export function createLigandView({ viewport, button, note, wrapper, context }) {
     try { template = await context.template(ligand.comp); } catch (error) { failure = error; }
     if (mine !== token) return;
     const atoms = ligand.atoms.map((a) => ({ name: a.name, element: a.element, position: a.position }));
-    let bonds = template ? bondsFromTemplate(atoms, template) : null, source = 'CCD';
-    if (!bonds) { bonds = bondsByDistance(atoms); source = 'distance'; }
-    const centre = atoms.reduce((sum, a) => sum.map((v, k) => v + a.position[k] / atoms.length), [0, 0, 0]);
-    const geometry = valenceGeometry(atoms.map((a) => {
-      const [color, radius] = elementStyle(a.element);
-      return { position: a.position.map((v, k) => (v - centre[k]) * PRESENTATION_METERS_PER_ANGSTROM), color, radius };
-    }), bonds, PRESENTATION_METERS_PER_ANGSTROM);
+    const { geometry, bonds, source } = ligandGeometry(atoms, template);
     const drawn = viewport.setMolecules([{ target: selection, geometry }]);
     if (!drawn) { note.textContent = '这个小分子在当前表示里没有可放置的点。'; return; }
     savedCamera = viewport.getCamera({ destination: true });

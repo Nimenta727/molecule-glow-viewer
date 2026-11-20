@@ -15,7 +15,7 @@ import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
-import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
+import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/structure/representation.mjs';
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
@@ -455,6 +455,18 @@ function boot() {
   });
   elements['sequence-close'].addEventListener('click', () => { sequenceBar.setVisible(false); elements['sequence-toggle'].setAttribute('aria-pressed', 'false'); });
 
+  /** The scene node that draws a chain group (`chainKey` metadata), of the main structure. */
+  function nodeOfChain(key) {
+    const source = active?.representationSource?.id;
+    return active?.scene.nodes.find((node) => node.extensions?.[STRUCTURE]?.chainKey === key && node.extensions[STRUCTURE].sourceAssetId === source)?.id;
+  }
+  const loadChemicalComponent = (comp) => loadChemComp(comp, {
+    async fetchText(url, init) {
+      const response = await fetch(url, init);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.text();
+    },
+  });
   const takeApart = createTakeApart({
     viewport,
     elements: {
@@ -463,10 +475,7 @@ function boot() {
     },
     context: {
       model: () => active?.representationSource ? active.model : null,
-      nodeForChain(key) {
-        const source = active?.representationSource?.id;
-        return active?.scene.nodes.find((node) => node.extensions?.[STRUCTURE]?.chainKey === key && node.extensions[STRUCTURE].sourceAssetId === source)?.id;
-      },
+      nodeForChain: nodeOfChain,
       targetFor: (residue) => active.structureTargets.get(structureObjectId('residue', residue.atom)),
       showResidues: (result, options) => showSelection(result, options),
       clearSelection: () => clearSet(),
@@ -544,13 +553,7 @@ function boot() {
     context: {
       selection: () => active?.structureSelection,
       ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
-      template: (comp) => loadChemComp(comp, {
-        async fetchText(url, init) {
-          const response = await fetch(url, init);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.text();
-        },
-      }),
+      template: loadChemicalComponent,
     },
   });
   const stateMorph = createStateMorph({
@@ -563,15 +566,25 @@ function boot() {
       canMorph: () => Boolean(active?.model) && !active.player,
       rebuild: () => refreshStructureView(),
       setStatus,
+      template: loadChemicalComponent,
+      nodeForResidue: (residue) => nodeOfChain(chainGroupKey(residue.atom)),
       async loadModel(input) {
         const service = host.getService(MODEL_SERVICE, '1.0.0');
         const source = active.representationSource, options = { assemblyId: source?.provenance?.assemblyId, chains: source?.provenance?.chains };
+        let bytes, name, mediaType, origin;
         if (input.file) {
           if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
-          return service.parse({ bytes: new Uint8Array(await input.file.arrayBuffer()), name: input.file.name, mediaType: /\.m?cif$/i.test(input.file.name) ? 'chemical/x-mmcif' : 'chemical/x-pdb' }, options);
+          bytes = new Uint8Array(await input.file.arrayBuffer());
+          name = input.file.name;
+          mediaType = /\.m?cif$/i.test(name) ? 'chemical/x-mmcif' : 'chemical/x-pdb';
+          origin = { provider: 'local file', name };
+        } else {
+          const loaded = await loadAccession(input.accession, undefined);
+          ({ bytes, name } = loaded);
+          mediaType = loaded.mediaType ?? 'chemical/x-mmcif';
+          origin = loaded.source ?? { provider: 'RCSB PDB', accession: input.accession.toUpperCase() };
         }
-        const loaded = await loadAccession(input.accession, undefined);
-        return service.parse({ bytes: loaded.bytes, name: loaded.name, mediaType: loaded.mediaType ?? 'chemical/x-mmcif' }, options);
+        return { model: service.parse({ bytes, name, mediaType }, options), bytes, name, mediaType, source: origin };
       },
     },
   });
@@ -639,6 +652,11 @@ function boot() {
     else if (active.scene.legacy && !active.navigation) resetPreviewCamera();
     if (typeof view?.selection === 'string') {
       showStructurePick(active.structureTargets?.get(view.selection));
+    }
+    const saved = view?.morph, second = saved && active.scene.assets.find(({ id }) => id === saved.assetId);
+    if (second && active.models?.get(second.id) && active.resources.get(second.path)) {
+      const loaded = { model: active.models.get(second.id), bytes: active.resources.get(second.path), name: second.path, mediaType: second.mediaType, source: second.provenance?.source };
+      Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0));
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
     syncClipControls();
@@ -1257,13 +1275,30 @@ function boot() {
     }
     return scene;
   }
+  /** The scene and its files for saving: the loaded second conformation (if any) goes in as an ordinary structure file asset. */
+  async function exportBundle() {
+    const scene = sceneForExport(), state = stateMorph.save();
+    let resources = active.resources;
+    const source = scene.assets.find(({ id }) => id === active.representationSource?.id);
+    if (state && source) {
+      const path = `assets/conformation-b.${/\.m?cif$/i.test(state.name) ? 'cif' : 'pdb'}`;
+      const digest = await crypto.subtle.digest('SHA-256', state.bytes);
+      scene.assets.push({
+        id: 'conformation-b', kind: 'file', path, mediaType: state.mediaType, sha256: [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, '0')).join(''),
+        provenance: { source: state.source, conformationOf: source.id },
+      });
+      source.provenance.viewerState = { ...source.provenance.viewerState, morph: { assetId: 'conformation-b', label: state.label, fraction: state.fraction } };
+      resources = new Map(resources).set(path, state.bytes);
+    }
+    return { scene, resources };
+  }
   elements.save.addEventListener('click', async () => {
     if (!active || saving) return;
-    const scene = sceneForExport();
+    const { scene, resources: files } = await exportBundle();
     saving = true;
     syncControls();
     try {
-      const bytes = await writeScenePackage(scene, active.resources);
+      const bytes = await writeScenePackage(scene, files);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
       const link = document.createElement('a');
       link.href = url;
@@ -1454,7 +1489,7 @@ function boot() {
     enableStructure: () => setStructureEnabled(true, { propagate: true }),
     open: (input) => openScene(input, { propagate: true }),
     snapshot: (width) => viewport.snapshot(width),
-    exportPack: () => writeScenePackage(sceneForExport(), active.resources),
+    exportPack: async () => { const { scene, resources: files } = await exportBundle(); return writeScenePackage(scene, files); },
     animate(value) {
       active.inspectionStep = undefined;
       const playing = active.player ? active.player.snapshot().playing : active.timeline.playing;
