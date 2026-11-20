@@ -1,0 +1,49 @@
+ok   ATP: template atoms (31: names, elements, centred ideal coordinates)
+ok   ATP: template bonds and orders (33)
+ok   HEM: template atoms (43: names, elements, centred ideal coordinates)
+ok   HEM: template bonds and orders (50)
+ok   F09: template atoms (10: names, elements, centred ideal coordinates)
+ok   F09: template bonds and orders (9)
+ok   K: template atoms (1: names, elements, centred ideal coordinates)
+ok   K: template bonds and orders (0)
+ok   ATP via SDF fallback: atoms and bonds (31/33)
+ok   ATP: valence drawing — 31 joints/balls, 36 sticks, 30 dashes at the same places
+ok   HEM: valence drawing — 43 joints/balls, 62 sticks, 30 dashes at the same places
+ok   F09: valence drawing — 10 joints/balls, 9 sticks, 0 dashes at the same places
+ok   1AKE: same ligands (2)
+ok   1AKE: distance-based bonds identical for all 2 ligands
+ok   1K4C: same ligands (9)
+ok   1K4C: distance-based bonds identical for all 9 ligands
+ok   2HVK: same ligands (9)
+ok   2HVK: distance-based bonds identical for all 9 ligands
+ok   2ITD: same ligands (2)
+ok   2ITD: distance-based bonds identical for all 2 ligands
+ok   4AKE: same ligands (0)
+ok   4AKE: distance-based bonds identical for all 0 ligands
+ok   5VK6: same ligands (9)
+ok   5VK6: distance-based bonds identical for all 9 ligands
+ok   5VKE: same ligands (5)
+ok   5VKE: distance-based bonds identical for all 5 ligands
+ok   6ZPO: same ligands (16)
+ok   6ZPO: distance-based bonds identical for all 16 ligands
+ok   6ZPO ATP #0: bonds matched by atom name (33)
+ok   6ZPO ATP #2: bonds matched by atom name (33)
+ok   6ZPO ATP #4: bonds matched by atom name (33)
+ok   1K4C F09 #0: bonds matched by atom name (9)
+ok   1K4C K #1: bonds matched by atom name (0)
+ok   1K4C K #2: bonds matched by atom name (0)
+ok   1K4C K #3: bonds matched by atom name (0)
+ok   1K4C K #4: bonds matched by atom name (0)
+ok   1K4C K #5: bonds matched by atom name (0)
+ok   1K4C K #6: bonds matched by atom name (0)
+ok   1K4C K #7: bonds matched by atom name (0)
+ok   5VK6 F09 #0: bonds matched by atom name (9)
+ok   5VK6 K #2: bonds matched by atom name (0)
+ok   5VK6 K #3: bonds matched by atom name (0)
+ok   5VK6 K #4: bonds matched by atom name (0)
+ok   5VK6 K #5: bonds matched by atom name (0)
+ok   5VK6 K #6: bonds matched by atom name (0)
+ok   5VK6 K #7: bonds matched by atom name (0)
+ok   5VK6 K #8: bonds matched by atom name (0)
+
+91/91 identical

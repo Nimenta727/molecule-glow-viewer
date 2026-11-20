@@ -354,6 +354,85 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     return { center: active.center.toArray(), radius: active.radius, toViewer: camera.position.clone().sub(controls.target).toArray() };
   }
 
+  /**
+   * Small molecules drawn as ball-and-stick at their ligand points: items are { target, geometry } where `target` is a ligand point target and
+   * `geometry` comes from molecule-geometry.mjs (positions relative to that point, viewport units). They ride on the node of the point, so they follow
+   * take-apart offsets. setMolecules([]) removes them.
+   */
+  let molecules = [];
+  const sphereGeometry = new THREE.SphereGeometry(1, 12, 8), stickGeometry = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+  function setMolecules(items = []) {
+    for (const group of molecules) {
+      group.removeFromParent();
+      group.traverse((object) => { if (object.isInstancedMesh) { object.material.dispose(); object.dispose(); } });
+    }
+    molecules = [];
+    let drawn = 0;
+    for (const { target, geometry } of active ? items : []) {
+      const end = locate(target);
+      if (!end) continue;
+      const group = new THREE.Group();
+      group.position.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+      const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), size = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+      const instanced = (shape, count) => {
+        const mesh = new THREE.InstancedMesh(shape, new THREE.MeshStandardMaterial({ roughness: 0.6 }), Math.max(1, count));
+        mesh.count = count;
+        mesh.frustumCulled = false;
+        mesh.userData.selectionMarker = true;   // not dimmed or clipped with the parts
+        group.add(mesh);
+        return mesh;
+      };
+      const balls = instanced(sphereGeometry, geometry.balls.length);
+      geometry.balls.forEach((ball, i) => {
+        matrix.compose(new THREE.Vector3(...ball.position), rotation.identity(), size.setScalar(ball.radius));
+        balls.setMatrixAt(i, matrix);
+        balls.setColorAt(i, color.set(ball.color));
+      });
+      const halves = [];
+      for (const stick of geometry.sticks) {
+        const a = new THREE.Vector3(...stick.a), b = new THREE.Vector3(...stick.b), mid = a.clone().add(b).multiplyScalar(0.5);
+        for (const [from, colorHex] of [[a, stick.colorA], [b, stick.colorB]]) halves.push({ from, mid, radius: stick.radius, colorHex });
+      }
+      const sticks = instanced(stickGeometry, halves.length);
+      halves.forEach(({ from, mid, radius, colorHex }, i) => {
+        const direction = mid.clone().sub(from), length = direction.length();
+        rotation.setFromUnitVectors(up, direction.normalize());
+        matrix.compose(from.clone().add(mid).multiplyScalar(0.5), rotation, size.set(radius, length, radius));
+        sticks.setMatrixAt(i, matrix);
+        sticks.setColorAt(i, color.set(colorHex));
+      });
+      const dashes = instanced(stickGeometry, geometry.dashes.length);
+      geometry.dashes.forEach((dash, i) => {
+        const a = new THREE.Vector3(...dash.a), b = new THREE.Vector3(...dash.b), direction = b.clone().sub(a);
+        rotation.setFromUnitVectors(up, direction.clone().normalize());
+        matrix.compose(a.clone().add(b).multiplyScalar(0.5), rotation, size.set(dash.radius, direction.length(), dash.radius));
+        dashes.setMatrixAt(i, matrix);
+        dashes.setColorAt(i, color.set('#c9d0de'));
+      });
+      for (const mesh of [balls, sticks, dashes]) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+      end.mesh.add(group);
+      molecules.push(group);
+      drawn++;
+    }
+    invalidate();
+    return drawn;
+  }
+
+  /** Moves the camera to look at a point target from the current direction, close enough for something `extent` (viewport units) across. */
+  function focusPoint(target, extent = 0.5) {
+    const end = locate(target);
+    if (!end) return false;
+    end.mesh.updateWorldMatrix(true, false);
+    const point = new THREE.Vector3().fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index).applyMatrix4(end.mesh.matrixWorld);
+    const direction = camera.position.clone().sub(controls.target).normalize();
+    const distance = Math.max(extent * 2.4, 0.3);
+    setCamera({ position: point.clone().addScaledVector(direction, distance).toArray(), target: point.toArray() });
+    return true;
+  }
+
   function setNodeVisibility(ids, visible) {
     for (const id of ids) {
       const group = active?.groups.get(id);
@@ -775,6 +854,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
   function clear() {
     setLinks([]);
+    setMolecules([]);
     cancelPick();
     cancelCameraTransition();
     responsiveFraming = false;
@@ -909,6 +989,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, focusPoint, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

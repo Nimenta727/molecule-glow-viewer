@@ -17,6 +17,8 @@ import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
+import { createLigandView } from './ligand-view.mjs';
+import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
@@ -365,6 +367,7 @@ function boot() {
     viewport.setPointSelection(selection);
     if (selection && active) active.selectionSet = undefined;
     syncSequence();
+    ligandView.onSelection(selection);
     const card = elements['structure-pick'];
     card.hidden = !selection;
     const contacts = elements['structure-contacts'];
@@ -533,10 +536,31 @@ function boot() {
     applyClipping();
   });
 
+  const ligandView = createLigandView({
+    viewport, button: elements['ligand-view-toggle'], note: elements['ligand-view-note'], wrapper: elements['ligand-view-controls'],
+    context: {
+      selection: () => active?.structureSelection,
+      ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
+      template: (comp) => loadChemComp(comp, {
+        async fetchText(url, init) {
+          const response = await fetch(url, init);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        },
+      }),
+    },
+  });
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
-    return showSelection(host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet }));
+    const result = host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet });
+    const shown = showSelection(result);
+    // exactly one small molecule selected: it is the picked ligand (contacts, valence view), as if it had been tapped
+    if (!result.residues.length && result.ligands.length === 1) {
+      const key = structureObjectId('ligand', result.ligands[0].atom), target = [...active.structureTargets.values()].find((t) => t.kind === 'ligand' && structureObjectId('ligand', t.atom) === key);
+      if (target) { showStructurePick(target); active.selectionSet = { ...result, summary: shown.summary }; syncSequence(); }
+    } else if (active.structureSelection?.kind === 'ligand') showStructurePick();   // a different selection replaces the picked ligand
+    return shown;
   }
   /** Marks, dims around and reports a selection result ({ residues, ligands }); the one place that turns a selection into what the viewport shows. */
   function showSelection(result, { markers = true } = {}) {
