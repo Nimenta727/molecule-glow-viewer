@@ -8,7 +8,9 @@ import { superposeFit, rotateVector, centroid } from '../structure/alignment.mjs
  *   `RibosomeMotion` follows the translation process: `sync(state)` is told the discrete state (st, whether E is occupied) and starts the matching move (a tRNA arriving, being accommodated,
  *   going hybrid, translocating, leaving; the mRNA stepping 3 nt), `step(dt)` advances them in real time, `bodies()` says where every residue is.
  * With `factors` (the structures of the other states, superposed on this ribosome by plugins/simulation/entry-alignment.mjs) it also moves the bent A/T tRNA (4V5L), EF-Tu (GTP form 4V5L to GDP form
- * 1TUI), EF-G (intermediate 4V9H to post-translocation 4V5F) and RF1 (4V7P), and marks the antibiotics where they sit. Not here (still the classic's): the nascent chain, the exit tunnel, the close-ups.
+ * 1TUI), EF-G (intermediate 4V9H to post-translocation 4V5F) and RF1 (4V7P), and marks the antibiotics where they sit. With a `tunnel` (the exit tunnel found in the ribosome, from the peptidyl
+ * transferase centre outwards) it also carries the nascent chain: one bead per residue from the 3' end of the peptidyl-tRNA through the tunnel and out (3.5 Å apart, a spiral beyond the exit), pushed
+ * on by one residue at each peptide bond, released through the exit at termination or dropped off with its tRNA. Not here (still the classic's): the close-ups.
  */
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], scale = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
@@ -91,6 +93,17 @@ const FACTOR_COLOURS = { 'EF-Tu': '#2f7fe0', 'EF-G': '#159a52', RF1: '#7c4ddb' }
 const DRUG_NAMES = { TAC: '四环素', PAR: '巴龙霉素', CLM: '氯霉素', ERY: '红霉素', KIR: '黄色霉素', FUA: '夫西地酸' };
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 
+/** The point at arc length `s` along a polyline (before the start: the start; beyond the end it continues straight on along the last segment). */
+export function alongPolyline(path, s) {
+  if (s <= 0 || path.length < 2) return path[0].slice();
+  let rest = s;
+  for (let i = 1; i < path.length; i++) { const d = Math.hypot(...sub(path[i], path[i - 1])); if (rest <= d) return add(path[i - 1], scale(sub(path[i], path[i - 1]), rest / (d || 1))); rest -= d; }
+  const n = path.length, dir = norm(sub(path[n - 1], path[n - 2]));
+  return add(path[n - 1], scale(dir, rest));
+}
+export const polylineLength = (path) => path.slice(1).reduce((t, p, i) => t + Math.hypot(...sub(p, path[i])), 0);
+const RESIDUE_STEP = 3.5;
+
 export class RibosomeMotion {
   /**
    * `speed` shortens the moves (the classic: durations shrink at high speed); at 1 or more they snap. `factors` (optional): { at: Map (sequence number -> position) of the A/T tRNA in the ribosome's
@@ -103,10 +116,30 @@ export class RibosomeMotion {
     this.far = { q: s.A.q, t: add(s.A.t, scale(dir, 90)) };   // where an arriving tRNA comes from (outside the A site) when there is no A/T structure
     this.approach = { tc: 0.45, cr: 0.8, gtp: 0.8, kir: 0.8, rel: 0.9 };
     this.AT = factors?.at ? bentShape(frame, factors.at) : null;
+    this.tunnel = null; this.chain = []; this.chainShift = 0; this.released = []; this.dropDir = norm(sub(s.P.t, frame.C0));
     this.off = { 'EF-Tu': add(scale(dir, 150), scale(side, 40)), 'EF-G': add(scale(dir, 170), scale(side, -60)), RF1: add(scale(dir, 140), scale(side, 70)) };
   }
   /** Give the motion the structures of the factors and antibiotics once they have been fetched and aligned (see the constructor). */
   setFactors(factors) { this.factors = factors; this.AT = factors?.at ? bentShape(this.frame, factors.at) : null; }
+  /** The exit tunnel: points from the peptidyl transferase centre outwards (at least two). */
+  setTunnel(path) { this.tunnel = path && path.length >= 2 ? path : null; }
+  #chainBeads(chain, shift = 0) {
+    if (!this.tunnel || !chain.length) return [];
+    const carrier = this.tr.A ?? this.tr.P ?? this.incoming?.tr; if (!carrier) return [];
+    const anchor = trnaCoords(this.frame, carrier).at(-1), path = [anchor, ...this.tunnel], L = chain.length, n = this.tunnel.length, out = norm(sub(this.tunnel[n - 1], this.tunnel[Math.max(0, n - 6)]));
+    const lt = polylineLength(path), perp1 = norm(cross(out, [0, 1, 0].map((v, k) => (Math.abs(out[1]) > 0.9 ? [1, 0, 0][k] : v)))), perp2 = cross(out, perp1);
+    return chain.map((aa, k) => {
+      const s = (L - 1 - k) * RESIDUE_STEP + 3 - shift;
+      if (s <= lt) return { aa, position: alongPolyline(path, s) };
+      const d = s - lt, r = Math.min(8, d * 0.15), a = k * 0.9;   // outside: a loose spiral round the exit axis
+      return { aa, position: add(add(path[path.length - 1], scale(out, d * 0.4)), add(scale(perp1, r * Math.cos(a)), scale(perp2, r * Math.sin(a)))) };
+    });
+  }
+  #releaseChain(dropped) {
+    const beads = this.#chainBeads(this.chain, this.chainShift); if (!beads.length) return;
+    const n = this.tunnel.length, dir = dropped ? this.dropDir : norm(sub(this.tunnel[n - 1], this.tunnel[Math.max(0, n - 6)]));
+    this.released.push({ beads, dir, t: 0 }); this.chain = []; this.chainShift = 0;
+  }
   #make() { return { id: this.n++, pa: this.frame.sites.P, pb: this.frame.sites.P, w: 0, hy: 0, fade: 1, sAT: 0 }; }
   #tween(o, k, to, dur, done) {
     const d = dur * Math.min(1, 0.02 / Math.max(1e-4, this.speed));
@@ -126,12 +159,16 @@ export class RibosomeMotion {
    * The process is in discrete state `st` (init post tc cr gtp kir rel acc pre g gpost rf term drop) with the E site occupied or not, and the antibiotics bound (`drugs`: { TAC: true, ... }).
    * A change of state starts the move the classic made for it.
    */
-  sync({ st, E = false, drugs = {} }) {
+  sync({ st, E = false, drugs = {}, chain = null }) {
     const prev = this.st, S = this.frame.sites, F = this.factors;
     this.drugs = drugs;
+    if (chain && this.tunnel) {   // the nascent chain as the process has it now (one residue code per residue); one more than before = a peptide bond just formed
+      if (chain.length === this.chain.length + 1 && st !== 'init') { this.chainShift = RESIDUE_STEP; this.#tween(this, 'chainShift', 0, 0.8); }
+      if (st !== 'term' && st !== 'drop') this.chain = chain.slice();
+    }
     if (st !== prev) {
       switch (true) {
-        case st === 'init' || st === 'drop': for (const k of ['A', 'P', 'E']) { this.#leave(this.tr[k]); this.tr[k] = null; } this.#leave(this.incoming?.tr); this.incoming = null; for (const k of Object.keys(this.fb)) this.#factorOut(k); this.#tween(this, 'mFade', 0, 0.8); break;
+        case st === 'init' || st === 'drop': if (this.tunnel && this.chain.length) this.#releaseChain(st === 'drop'); for (const k of ['A', 'P', 'E']) { this.#leave(this.tr[k]); this.tr[k] = null; } this.#leave(this.incoming?.tr); this.incoming = null; for (const k of Object.keys(this.fb)) this.#factorOut(k); this.#tween(this, 'mFade', 0, 0.8); break;
         case prev === 'init' && st === 'post': { const t = this.tr.P = this.#make(); t.fade = 0; this.#tween(t, 'fade', 1, 0.6); this.mOff = 6; this.#tween(this, 'mOff', 0, 1.2); this.#tween(this, 'mFade', 1, 0.6); break; }
         case st === 'tc' && prev === 'post': {
           const t = this.#make(), arr = { w: 0 }; t.fade = 0;
@@ -158,7 +195,7 @@ export class RibosomeMotion {
         }
         case st === 'post' && prev === 'gpost': this.#factorOut('EF-G'); break;
         case st === 'rf': this.#factorIn('RF1', F?.rf); break;
-        case st === 'term': this.#factorOut('RF1'); break;
+        case st === 'term': this.#factorOut('RF1'); if (this.tunnel && this.chain.length) this.#releaseChain(false); break;
         default: break;
       }
       this.st = st;
@@ -168,6 +205,7 @@ export class RibosomeMotion {
   }
   /** Advance the moves by `dt` real seconds. */
   step(dt) {
+    for (let i = this.released.length - 1; i >= 0; i--) { const r = this.released[i]; r.t += dt; if (r.t > 4) this.released.splice(i, 1); }
     for (let i = this.tw.length - 1; i >= 0; i--) {
       const x = this.tw[i]; x.t += dt; const u = Math.min(1, x.t / x.dur);
       x.o[x.k] = x.a + (x.b - x.a) * ease(u);
@@ -188,7 +226,8 @@ export class RibosomeMotion {
       return { kind: b.kind, colour: FACTOR_COLOURS[b.kind], fade: b.fade, positions: b.ref.map((p, i) => { const q = b.morph && b.m ? [0, 1, 2].map((k) => p[k] + (b.morph[i][k] - p[k]) * b.m) : p; return add(q, shift); }) };
     });
     const drugs = Object.entries(this.drugs).filter(([, on]) => on).flatMap(([name]) => (this.factors?.drugs?.[name] ? [{ name, label: DRUG_NAMES[name] ?? name, position: this.factors.drugs[name] }] : []));
-    return { trna: out, factors, drugs, mrna: { positions: mrnaCoords(this.frame, this.mOff), fade: this.mFade }, sites: Object.fromEntries(['E', 'P', 'A'].map((k) => [k, this.tr[k]?.id ?? null])) };
+    const chain = this.#chainBeads(this.chain, this.chainShift), released = this.released.map((r) => ({ fade: Math.max(0, 1 - r.t / 4), beads: r.beads.map((b) => ({ aa: b.aa, position: add(b.position, scale(r.dir, 60 * r.t)) })) }));
+    return { trna: out, factors, drugs, chain, released, mrna: { positions: mrnaCoords(this.frame, this.mOff), fade: this.mFade }, sites: Object.fromEntries(['E', 'P', 'A'].map((k) => [k, this.tr[k]?.id ?? null])) };
   }
   get busy() { return this.tw.length > 0; }
 }

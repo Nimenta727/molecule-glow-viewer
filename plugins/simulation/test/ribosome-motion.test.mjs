@@ -108,3 +108,26 @@ test('antibiotics: a marker where the drug sits while it is bound; none for a dr
   m.sync({ st: 'post', drugs: { TAC: false } }); assert.equal(m.bodies().drugs.length, 0);
   const plain = new RibosomeMotion(frame); plain.sync({ st: 'post' }); settle(plain); plain.sync({ st: 'tc' }); settle(plain); assert.equal(plain.bodies().factors.length, 0); assert.equal(plain.bodies().trna.length, 2);
 });
+
+test('nascent chain: beads 3.5 Å apart from the tRNA end along the tunnel, the oldest furthest in; one more residue pushes the chain on; a loose spiral outside; release at termination, drop-off with the tRNA', async () => {
+  const { alongPolyline, polylineLength } = await import('../ribosome-motion.mjs');
+  assert.deepEqual(alongPolyline([[0, 0, 0], [10, 0, 0], [10, 10, 0]], 15), [10, 5, 0]); assert.deepEqual(alongPolyline([[0, 0, 0], [10, 0, 0]], 14), [14, 0, 0], 'beyond the end: straight on'); assert.deepEqual(alongPolyline([[1, 1, 1], [2, 2, 2]], -3), [1, 1, 1]);
+  assert.ok(Math.abs(polylineLength([[0, 0, 0], [3, 4, 0]]) - 5) < 1e-12);
+  const m = new RibosomeMotion(frame), carrier = () => trnaCoords(frame, { pa: frame.sites.P, pb: frame.sites.P }).at(-1);
+  const out = [0, 1, 0]; m.setTunnel(Array.from({ length: 30 }, (_, i) => [carrier()[0], carrier()[1] + 4 + i * 4, carrier()[2]]));
+  const codes = (n) => ['fM', 'A', 'G', 'K', 'L', 'V', 'S'].slice(0, n);
+  m.sync({ st: 'post', chain: codes(1) }); settle(m);
+  m.sync({ st: 'post', chain: codes(5) }); settle(m);
+  const c = m.bodies().chain; assert.equal(c.length, 5);
+  const gaps = c.slice(1).map((b, i) => Math.hypot(...b.position.map((v, k) => v - c[i].position[k]))); assert.ok(gaps.every((g) => Math.abs(g - 3.5) < 1e-6), gaps.join(','));
+  assert.ok(c[4].position[1] < c[0].position[1] + 1e-9 && c[0].position[1] > c[4].position[1], 'the oldest residue is the furthest along the tunnel'); assert.deepEqual(c.map((b) => b.aa), codes(5));
+  const before = m.bodies().chain[0].position.slice(); m.sync({ st: 'post', chain: codes(6) });
+  assert.ok(Math.hypot(...m.bodies().chain[0].position.map((v, k) => v - before[k])) < 3.5 - 1e-6, 'a new residue: the chain has not yet moved the whole step'); settle(m);
+  assert.ok(Math.abs(m.bodies().chain[0].position[1] - before[1] - 3.5) < 1e-6, 'and then it has moved one residue (3.5 Å)');
+  const far = new RibosomeMotion(frame); far.setTunnel([[0, 0, 0], [0, 10, 0]]); far.sync({ st: 'post', chain: codes(7) }); settle(far);
+  assert.ok(far.bodies().chain.some((b) => Math.hypot(b.position[0], b.position[2] - 0) > 0.5), 'beyond a short tunnel the chain spirals out');
+  m.sync({ st: 'rf', chain: codes(6) }); settle(m, 2); m.sync({ st: 'term', chain: codes(6) }); assert.equal(m.bodies().chain.length, 0, 'the chain left'); assert.equal(m.bodies().released.length, 1);
+  const r0 = m.bodies().released[0].beads[0].position[1]; settle(m, 1); assert.ok(m.bodies().released[0].beads[0].position[1] > r0 + 40, 'it moves out along the tunnel axis'); settle(m, 4); assert.equal(m.bodies().released.length, 0);
+  const d = new RibosomeMotion(frame); d.setTunnel([[0, 0, 0], [0, 10, 0]]); d.sync({ st: 'post', chain: codes(3) }); settle(d); d.sync({ st: 'drop', chain: codes(3) }); assert.equal(d.bodies().released.length, 1);
+  const none = new RibosomeMotion(frame); none.sync({ st: 'post', chain: codes(3) }); assert.equal(none.bodies().chain.length, 0, 'without a tunnel no chain is drawn');
+});

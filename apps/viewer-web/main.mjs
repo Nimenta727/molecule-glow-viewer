@@ -734,7 +734,7 @@ function boot() {
     elements: { title: elements['process-title'], speed: elements['process-speed'], speedOut: elements['process-speed-out'], play: elements['process-play'], reset: elements['process-reset'], jump: elements['process-jump'], jumpGo: elements['process-jump-go'],
       csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
-  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary() }, speed: () => Number(elements['process-speed'].value) || 0.02 });
+  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary() }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
   const compositionPanel = createCompositionPanel({
     elements: { speed: elements['composition-speed'], speedOut: elements['composition-speed-out'], play: elements['composition-play'], reset: elements['composition-reset'], time: elements['composition-time'],
       jump: elements['composition-jump'], jumpGo: elements['composition-jump-go'], controls: elements['composition-shared'], members: elements['composition-members'], info: elements['composition-info'] },
@@ -810,7 +810,7 @@ function boot() {
     const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
     const multi = toolEntryFor(active.scene, COMPOSITION_TOOL, resolve);
     if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
-    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { processPanel.load(translationProcessConfig(normalizeTranslationConfig(translation.config))); ribosomeView.start(); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
+    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); ribosomeView.start(tcfg.strip.sequence); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config), data.state); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
