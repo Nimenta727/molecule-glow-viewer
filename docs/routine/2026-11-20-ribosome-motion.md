@@ -19,3 +19,13 @@
 - 新生肽链与出口通道、原子级特写。
 - 运动用真实时间（补间），不是经典的"分子时间冻结"；过程里事件很快时，中间状态会被跳过。
 - 浏览器里没有看。
+
+## 第二部分（同日）：因子体与抗生素
+- `plugins/simulation/entry-alignment.mjs`（新）：经典 `alignEntry`——只从 RCSB ModelServer 取需要的链/配体，按参考链（核糖体 23S/16S rRNA）迭代剔除地叠合到场景（6 Å、3 Å 两轮剔除，标号按 label 与 author 取更合的一个，只用组装体 1 的链），抓取函数由调用方传入（便于测试）。`tools/entry-alignment-parity.mjs`（联网）：经典拟合块原样在 vm 里跑，对真实的 4V5L、4V9H、4V7P 与 4V6F 的 23S：保留的残基数、标号方式、RMSD、变换结果全部一致（6/6，`docs/parity/entry-alignment-parity-report.txt`）。
+- `ribosome-motion.mjs`：A/T 弯曲 tRNA（`bentShape`，`trnaCoords` 的 `sAT`/`shape`/`shift`）、EF-Tu（4V5L 的 GTP 形式→1TUI 的 GDP 形式，三元复合物飞入、GTP 水解后变构并离开，tRNA 随后伸直容纳）、EF-G（4V9H→4V5F，移位时变构）、RF1（终止时出现）、抗生素位点标记；没有因子结构时回退到原来的做法。
+- `apps/viewer-web/ribosome-view.mjs`：启动时并行下载这些结构（4V5L、1TUI、4V9H、4V5F、4V7P、4V9A、4V51、6ND5），任何一个失败只是少那一项；因子画成珠，药物画成带名字的红色标记。
+- 真实数据联网实测（4V6F）：A/T tRNA 残基 76，EF-Tu 405（GDP 形式 405）、EF-G 622、RF1 354，四个药物位点（四环素、巴龙霉素、氯霉素、夫西地酸）都找到；三元复合物里 EF-Tu 质心与 tRNA 质心相距约 41 Å。
+- 单测：`entry-alignment.test.mjs`（2）、`ribosome-motion.test.mjs` 新增 2（EF-Tu/EF-G/RF1 全程、药物标记、无因子回退）。
+
+### 仍没有做
+新生肽链与出口通道、红霉素与黄色霉素的位点（需要出口通道和 CCD 模板）、原子级特写；浏览器里没有看，下载 9 个条目的耗时没有计入界面反馈。

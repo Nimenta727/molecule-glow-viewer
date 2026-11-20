@@ -1,0 +1,8 @@
+scene: 2908 residues of the 23S rRNA of 4V6F (chain A)
+ok   4V5L: 2524/2864 reference residues kept, matched by aseq numbering, RMSD 0.788 Å: the same fit as the classic (2524/2864, aseq, 0.788 Å)
+ok   4V5L: the transform sends points to the same places (within 1e-7 Å)
+ok   4V9H: 2475/2824 reference residues kept, matched by aseq numbering, RMSD 0.679 Å: the same fit as the classic (2475/2824, aseq, 0.679 Å)
+ok   4V9H: the transform sends points to the same places (within 1e-7 Å)
+ok   4V7P: 2642/2873 reference residues kept, matched by aseq numbering, RMSD 0.750 Å: the same fit as the classic (2642/2873, aseq, 0.750 Å)
+ok   4V7P: the transform sends points to the same places (within 1e-7 Å)
+6/6 identical

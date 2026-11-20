@@ -73,3 +73,38 @@ test('a rejected tRNA leaves; termination and recycling clear the ribosome; at h
   const fast = new RibosomeMotion(frame, { speed: 5 });
   fast.sync({ st: 'post' }); assert.equal(fast.busy, false); assert.equal(fast.bodies().trna.length, 1);
 });
+
+// Factors: made-up structures of EF-Tu (GTP and GDP forms), EF-G (two forms), RF1, the bent A/T tRNA and an antibiotic site.
+const pointsOf = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+const factors = () => {
+  const at = new Map(); for (let s = 1; s <= 76; s++) { const x = applyPose(frame, frame.sites.A, frame.T0[s - 1]); at.set(s, [x[0] + (s > 20 && s < 50 ? 8 : 0), x[1], x[2] + (s > 20 && s < 50 ? 5 : 0)]); }   // bent in the middle
+  return { at, tu: { ref: pointsOf(30, (i) => [i * 2, 0, 0]), gdp: pointsOf(30, (i) => [i * 2, 10, 0]) }, g: { ref: pointsOf(20, (i) => [0, i * 3, 0]), post: pointsOf(20, (i) => [0, i * 3, 12]) }, rf: { ref: pointsOf(10, (i) => [i, i, i]) }, drugs: { TAC: [1, 2, 3] } };
+};
+const settle = (m, ms = 4) => { for (let t = 0; t < ms; t += 0.05) m.step(0.05); };
+const names = (m) => m.bodies().factors.map((f) => f.kind).sort();
+
+test('with factors: EF-Tu comes in with a bent A/T tRNA, changes form and leaves; the tRNA straightens into A; EF-G comes for the translocation and changes form; RF1 comes at termination', () => {
+  const m = new RibosomeMotion(frame, { factors: factors() });
+  m.sync({ st: 'post' }); settle(m);
+  m.sync({ st: 'tc' }); settle(m);
+  assert.deepEqual(names(m), ['EF-Tu'], 'the ternary complex: EF-Tu and its tRNA');
+  const bent = m.bodies().trna.find((t) => t.id === m.incoming.tr.id).positions, straight = trnaCoords(frame, { pa: frame.sites.A, pb: frame.sites.A });
+  assert.ok(Math.hypot(...bent[30].map((v, k) => v - straight[30][k])) > 3, 'the A/T tRNA is bent in the middle'); assert.ok(Math.hypot(...bent[0].map((v, k) => v - straight[0][k])) < 1e-6, 'its ends are in place');
+  for (const st of ['cr', 'gtp']) { m.sync({ st }); settle(m, 1); }
+  m.sync({ st: 'rel' }); settle(m, 0.7); const mid = m.bodies().factors[0]; assert.ok(mid, 'EF-Tu still there while it changes form');
+  settle(m, 3); assert.deepEqual(names(m), [], 'EF-Tu has left');
+  m.sync({ st: 'acc' }); settle(m);
+  const a = m.bodies().trna.find((t) => t.id === m.bodies().sites.A).positions; assert.ok(near(a, 'A') < 1e-6, 'straightened and in the A site');
+  m.sync({ st: 'pre' }); settle(m); m.sync({ st: 'g' }); settle(m); assert.deepEqual(names(m), ['EF-G']);
+  const g0 = m.bodies().factors[0].positions[10][2]; m.sync({ st: 'gpost', E: true }); settle(m, 2);
+  assert.ok(m.bodies().factors[0].positions[10][2] - g0 > 5, 'EF-G changed to its post-translocation form (the residue moved by 12 · progress)');
+  m.sync({ st: 'post', E: true }); settle(m, 3); assert.deepEqual(names(m), [], 'EF-G left');
+  m.sync({ st: 'rf' }); settle(m); assert.deepEqual(names(m), ['RF1']); m.sync({ st: 'term' }); settle(m, 3); assert.deepEqual(names(m), []);
+});
+
+test('antibiotics: a marker where the drug sits while it is bound; none for a drug without a known site; without factors the old approach still works', () => {
+  const m = new RibosomeMotion(frame, { factors: factors() });
+  m.sync({ st: 'post', drugs: { TAC: true, PAR: true } }); assert.deepEqual(m.bodies().drugs.map((d) => d.name), ['TAC']); assert.deepEqual(m.bodies().drugs[0].position, [1, 2, 3]);
+  m.sync({ st: 'post', drugs: { TAC: false } }); assert.equal(m.bodies().drugs.length, 0);
+  const plain = new RibosomeMotion(frame); plain.sync({ st: 'post' }); settle(plain); plain.sync({ st: 'tc' }); settle(plain); assert.equal(plain.bodies().factors.length, 0); assert.equal(plain.bodies().trna.length, 2);
+});
