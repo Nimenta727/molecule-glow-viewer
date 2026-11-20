@@ -56,3 +56,47 @@ export function rotationAngle(fit) {
 }
 
 export { superpose };
+
+/**
+ * Same result as `displaceVertices` (inverse-distance weighting of the nearest anchors) but with the anchors in a grid, so it stays fast with thousands
+ * of anchors (a whole structure) and hundreds of thousands of vertices. Ties are resolved like `nearestAnchors` (earlier anchor first).
+ */
+export function displaceVerticesGrid(positions, anchors, resolvers, { scale, neighbors = 4, cell = 2 } = {}) {
+  const grid = new Map(), key = (x, y, z) => `${x},${y},${z}`, floor = Math.floor;
+  anchors.forEach((anchor, index) => {
+    const k = key(floor(anchor.at[0] / cell), floor(anchor.at[1] / cell), floor(anchor.at[2] / cell));
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(index);
+  });
+  const nearestIndexes = (vertex) => {
+    const [cx, cy, cz] = vertex.map((v) => floor(v / cell));
+    for (let ring = 1; ring < 4096; ring++) {
+      const found = [];
+      for (let x = cx - ring; x <= cx + ring; x++) for (let y = cy - ring; y <= cy + ring; y++) for (let z = cz - ring; z <= cz + ring; z++) {
+        for (const index of grid.get(key(x, y, z)) ?? []) found.push(index);
+      }
+      if (found.length >= neighbors) {
+        // a candidate outside the searched cube could still be nearer than the k-th inside it: accept only when the k-th is within the cube's inner radius
+        const entries = found.map((index) => ({ index, d: sumOfSquares(vertex, anchors[index].at) })).sort((a, b) => a.d - b.d || a.index - b.index).slice(0, neighbors);
+        const safe = (ring * cell) ** 2;
+        if (entries[entries.length - 1].d <= safe || found.length === anchors.length) return entries;
+      }
+      if (found.length === anchors.length) return found.map((index) => ({ index, d: sumOfSquares(vertex, anchors[index].at) })).sort((a, b) => a.d - b.d || a.index - b.index).slice(0, neighbors);
+    }
+    return [];
+  };
+  const output = resolvers.map(() => []);
+  for (let i = 0; i < positions.length; i += 3) {
+    const vertex = positions.slice(i, i + 3), nearest = nearestIndexes(vertex);
+    const weights = nearest.map(({ d }) => 1 / Math.max(1e-12, d)), total = weights.reduce((sum, value) => sum + value, 0);
+    resolvers.forEach((resolve, r) => {
+      const delta = [0, 0, 0];
+      nearest.forEach(({ index }, n) => {
+        const target = resolve(anchors[index]);
+        for (let j = 0; j < 3; j++) delta[j] += (target[j] - anchors[index].from[j]) * scale * weights[n] / total;
+      });
+      output[r].push(...vertex.map((value, j) => value + delta[j]));
+    });
+  }
+  return output;
+}

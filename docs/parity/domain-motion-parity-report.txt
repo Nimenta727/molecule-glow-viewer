@@ -1,0 +1,9 @@
+ok   core selection "chain A and resi 1-29,60-121,160-214": 146 residues fitted (AdK: 214 CA in the chain)
+ok   fraction 1 NMP: 44.821° / 9.786 Å (differences 0.0e+0° / 0.0e+0 Å)
+ok   fraction 1 LID: 52.160° / 14.380 Å (differences 0.0e+0° / 0.0e+0 Å)
+ok   fraction 0.5 NMP: 22.306° / 4.893 Å (differences 0.0e+0° / 0.0e+0 Å)
+ok   fraction 0.5 LID: 26.094° / 7.190 Å (differences 0.0e+0° / 0.0e+0 Å)
+ok   fraction 0.25 NMP: 10.754° / 2.446 Å (differences 0.0e+0° / 0.0e+0 Å)
+ok   fraction 0.25 LID: 12.343° / 3.595 Å (differences 0.0e+0° / 0.0e+0 Å)
+
+7/7 identical

@@ -1,0 +1,17 @@
+ok   4AKE ⇄ 1AKE: 428 matched residues
+ok   4AKE ⇄ 1AKE: fitted target positions, max difference 4.2e-14 Å
+ok   4AKE ⇄ 1AKE: 2 state-B small molecules moved by the same fit
+ok   1K4C ⇄ 5VK6: 506 matched residues
+ok   1K4C ⇄ 5VK6: fitted target positions, max difference 7.0e-14 Å
+ok   1K4C ⇄ 5VK6: 9 state-B small molecules moved by the same fit
+ok   5VK6 ⇄ 5VKE: 527 matched residues
+ok   5VK6 ⇄ 5VKE: fitted target positions, max difference 4.8e-14 Å
+ok   5VK6 ⇄ 5VKE: 5 state-B small molecules moved by the same fit
+ok   1K4C ⇄ 5VKE: 506 matched residues
+ok   1K4C ⇄ 5VKE: fitted target positions, max difference 8.1e-14 Å
+ok   1K4C ⇄ 5VKE: 5 state-B small molecules moved by the same fit
+ok   2HVK ⇄ 2ITD: 534 matched residues
+ok   2HVK ⇄ 2ITD: fitted target positions, max difference 4.0e-14 Å
+ok   2HVK ⇄ 2ITD: 2 state-B small molecules moved by the same fit
+
+15/15 identical

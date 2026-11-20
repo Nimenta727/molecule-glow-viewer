@@ -1,0 +1,4 @@
+ok   4AKE: 1 categories, 12 sites
+ok   1K4C: 4 categories, 6 sites
+
+2/2 identical

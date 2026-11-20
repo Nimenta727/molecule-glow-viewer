@@ -1,0 +1,16 @@
+ok   4AKE title (sentence case)
+ok   4AKE source line: id, method, resolution, species
+ok   4AKE keywords
+ok   4AKE citation title, journal, year, DOI
+ok   4AKE annotations (families, GO)
+ok   4AKE UniProt function text (P69441)
+ok   4AKE same entities chosen for function text
+ok   1K4C title (sentence case)
+ok   1K4C source line: id, method, resolution, species
+ok   1K4C keywords
+ok   1K4C citation title, journal, year, DOI
+ok   1K4C annotations (families, GO)
+ok   1K4C UniProt function text (P0A334)
+ok   1K4C same entities chosen for function text
+
+14/14 identical

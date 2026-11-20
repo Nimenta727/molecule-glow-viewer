@@ -26,7 +26,7 @@ function firstModel(atoms) {
   return atoms.filter((atom) => atom.modelId === id);
 }
 
-function chainKey(atom) {
+export function chainKey(atom) {
   const key = `${text(atom.authChainId)}\u0000${text(atom.labelChainId)}`;
   return atom.assemblyCopy ? `${key}\u0000${atom.assemblyCopy}` : key;
 }
@@ -95,9 +95,12 @@ function isWater(atom) {
   return WATER_NAMES.has(text(atom.residueName).toUpperCase());
 }
 
-function isPolymer(atom, format) {
+export function isPolymer(atom, format) {
   return atom.record === 'ATOM' || (format === 'mmcif' && Boolean(atom.labelSeqId)) || MODIFIED_RESIDUES.has(atom.residueName);
 }
+
+/** The key a chain group carries in the representation and in the scene's node metadata (`chainKey`). */
+export const chainGroupKey = (atom) => `chain:${encodeURIComponent(chainKey(atom).replace('\u0000', '|'))}`;
 
 function chainFor(atom, key) {
   return {
@@ -114,7 +117,7 @@ function mappedResidueId(atom, numbering) {
   return numbering === 'label' ? atom.labelSeqId : atom.authSeqId;
 }
 
-function rangeTypeFor(atom, ranges) {
+export function rangeTypeFor(atom, ranges) {
   for (const range of ranges) {
     const rangeChain = text(range.chainId);
     const chain = text(range.numbering === 'label'
@@ -128,7 +131,7 @@ function rangeTypeFor(atom, ranges) {
   return 'default';
 }
 
-function centerAndScale(items) {
+export function centerAndScale(items) {
   if (!items.length) return { center: [0, 0, 0], point: () => [0, 0, 0] };
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const { pos } of items) for (let axis = 0; axis < 3; axis++) {

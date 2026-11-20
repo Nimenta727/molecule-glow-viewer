@@ -110,6 +110,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
   camera.position.set(4, 3, 5);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.localClippingEnabled = true;   // per-material clipping planes (setClipping)
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setSize(Math.max(container.clientWidth, 1), Math.max(container.clientHeight, 1), false);
@@ -165,6 +166,307 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     }
     invalidate();
     return Boolean(pointSelection?.parent);
+  }
+
+  /** Marks every point whose target belongs to `targets` (a Set) with a wireframe ring: the multi-object counterpart of setPointSelection. */
+  let setMarkers = [];
+  function setPointSelections(targets, { dim = false, markers = true } = {}) {
+    restoreDimming();
+    const keepNodes = new Set();
+    for (const marker of setMarkers) { marker.removeFromParent(); marker.geometry.dispose(); marker.material.dispose(); }
+    setMarkers = [];
+    let count = 0;
+    if (targets?.size && active) {
+      for (const mesh of active.meshes) {
+        const indices = [];
+        (mesh.userData.pointTargets ?? []).forEach((target, index) => { if (target && targets.has(target)) indices.push(index); });
+        if (!indices.length || !isVisible(mesh)) continue;
+        if (!markers) { keepNodes.add(mesh.userData.nodeId); count += indices.length; continue; }
+        const marker = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6),
+          new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }), indices.length);
+        marker.renderOrder = 10;
+        marker.userData.selectionMarker = true;
+        marker.frustumCulled = false;
+        const position = mesh.geometry.getAttribute('position'), matrix = new THREE.Matrix4(), radius = Math.max(mesh.material.size * 0.7, 0.04);
+        indices.forEach((index, slot) => {
+          matrix.makeScale(radius, radius, radius).setPosition(position.getX(index), position.getY(index), position.getZ(index));
+          marker.setMatrixAt(slot, matrix);
+        });
+        mesh.add(marker);
+        setMarkers.push(marker);
+        keepNodes.add(mesh.userData.nodeId);
+        count += indices.length;
+      }
+    }
+    if (dim && keepNodes.size) dimOtherNodes(keepNodes);
+    invalidate();
+    return count;
+  }
+
+  /**
+   * Ghosts every part (node) that holds none of the selected objects, as the classic viewer did: translucent, no depth writes (so no ink
+   * outline), outline hulls hidden. Materials shared with a kept part stay as they are. Undone by restoreDimming().
+   */
+  let dimmed = [];
+  function restoreDimming() {
+    for (const entry of dimmed) {
+      if (entry.hidden) { entry.object.visible = true; continue; }
+      Object.assign(entry.material, { transparent: entry.transparent, opacity: entry.opacity, depthWrite: entry.depthWrite });
+      entry.material.needsUpdate = true;
+    }
+    dimmed = [];
+  }
+  function dimOtherNodes(keepNodes) {
+    if (!active) return 0;
+    const visibleNodes = [...active.groups].filter(([, group]) => isVisible(group));
+    if (visibleNodes.length < 2 || visibleNodes.every(([id]) => keepNodes.has(id))) return 0;
+    const keepMaterials = new Set(), seen = new Set();
+    for (const [id, group] of active.groups) if (keepNodes.has(id)) group.traverse((object) => { if (object.material) keepMaterials.add(object.material); });
+    let count = 0;
+    for (const [id, group] of visibleNodes) {
+      if (keepNodes.has(id)) continue;
+      count++;
+      group.traverse((object) => {
+        const material = object.material;
+        if (!material || Array.isArray(material) || object.userData.selectionMarker) return;
+        if (material.side === THREE.BackSide) { if (object.visible) { object.visible = false; dimmed.push({ object, hidden: true }); } return; }
+        if (keepMaterials.has(material) || seen.has(material)) return;
+        seen.add(material);
+        dimmed.push({ material, transparent: material.transparent, opacity: material.opacity, depthWrite: material.depthWrite });
+        material.transparent = true;
+        material.opacity = Math.min(material.opacity, 0.14);
+        material.depthWrite = false;
+        material.needsUpdate = true;
+      });
+    }
+    return count;
+  }
+
+
+  /**
+   * Temporary placement of nodes on top of whatever pose is applied, without touching the document: an offset (translation, viewport units, in the parent's
+   * space) and/or a spin (a rotation by `angle` radians about the axis { point, direction } given in the same space). The pose a node had is remembered, so
+   * clearing the extras puts it back exactly. setNodeOffsets / setNodeSpins each replace their own kind of extra for every node.
+   */
+  const spinQuaternion = new THREE.Quaternion(), spinAxis = new THREE.Vector3(), spinPivot = new THREE.Vector3();
+  function placeGroup(group) {
+    const extras = group.userData.extras;
+    if (!extras?.offset && !extras?.spin) {
+      if (group.userData.base) { group.position.copy(group.userData.base.position); group.quaternion.copy(group.userData.base.quaternion); group.userData.base = undefined; }
+      group.userData.extras = undefined;
+      return;
+    }
+    group.userData.base ??= { position: group.position.clone(), quaternion: group.quaternion.clone() };
+    const { position, quaternion } = group.userData.base;
+    group.position.copy(position);
+    group.quaternion.copy(quaternion);
+    if (extras.spin) {
+      const { axis, angle } = extras.spin;
+      spinPivot.fromArray(axis.point);
+      spinQuaternion.setFromAxisAngle(spinAxis.fromArray(axis.direction).normalize(), angle);
+      group.position.sub(spinPivot).applyQuaternion(spinQuaternion).add(spinPivot);   // rotate the node's place about the pivot ...
+      group.quaternion.premultiply(spinQuaternion);                                    // ... and its orientation with it
+    }
+    if (extras.offset) group.position.add(spinPivot.fromArray(extras.offset));
+  }
+  function setExtra(kind, values) {
+    if (!active) return;
+    for (const [id, group] of active.groups) {
+      const next = values?.get(id), extras = group.userData.extras ?? {};
+      const empty = !next || (kind === 'offset' && next.every((v) => v === 0)) || (kind === 'spin' && !next.angle);
+      if (empty) delete extras[kind]; else extras[kind] = next;
+      group.userData.extras = extras;
+      placeGroup(group);
+    }
+    updateLinks();
+    updatePresentationOverlay();
+    invalidate();
+  }
+  const setNodeOffsets = (offsets) => setExtra('offset', offsets);
+  /** `spins`: Map(nodeId -> { axis: { point, direction }, angle }). */
+  const setNodeSpins = (spins) => setExtra('spin', spins);
+
+  /**
+   * Lines between pairs of picked points ({ a, b } are point targets of the structure); they follow the nodes when these move.
+   * A pair may carry `aOffset`/`bOffset` (a vector in the point's node space, viewport units: an atom next to its residue point) and its own `color`.
+   */
+  let linkObject, links = [];
+  function locate(target, offset) {
+    for (const mesh of active?.meshes ?? []) {
+      const index = mesh.userData.pointTargets?.indexOf(target) ?? -1;
+      if (index >= 0) return { mesh, index, offset };
+    }
+    return null;
+  }
+  function setLinks(pairs = [], { color = '#e5a529' } = {}) {
+    if (linkObject) { linkObject.removeFromParent(); linkObject.geometry.dispose(); linkObject.material.dispose(); linkObject = undefined; }
+    links = [];
+    if (active) {
+      for (const pair of pairs) {
+        const a = locate(pair.a, pair.aOffset), b = locate(pair.b, pair.bOffset);
+        if (a && b) links.push({ a, b, color: pair.color ?? color });
+      }
+    }
+    if (links.length) {
+      const geometry = new THREE.BufferGeometry(), shade = new THREE.Color(), colors = new Float32Array(links.length * 6);
+      links.forEach(({ color: c }, i) => { shade.set(c); colors.set([shade.r, shade.g, shade.b, shade.r, shade.g, shade.b], i * 6); });
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(links.length * 6), 3));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      linkObject = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 }));
+      linkObject.renderOrder = 11;
+      linkObject.frustumCulled = false;
+      linkObject.userData.selectionMarker = true;
+      scene.add(linkObject);
+      updateLinks();
+    }
+    invalidate();
+    return links.length;
+  }
+  const linkPoint = new THREE.Vector3();
+  function updateLinks() {
+    if (!linkObject) return;
+    const position = linkObject.geometry.getAttribute('position');
+    links.forEach(({ a, b }, i) => {
+      for (const [slot, end] of [[0, a], [1, b]]) {
+        end.mesh.updateWorldMatrix(true, false);
+        linkPoint.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+        if (end.offset) linkPoint.add(new THREE.Vector3(...end.offset));
+        linkPoint.applyMatrix4(end.mesh.matrixWorld);
+        position.setXYZ(i * 2 + slot, linkPoint.x, linkPoint.y, linkPoint.z);
+      }
+    });
+    position.needsUpdate = true;
+  }
+
+  /**
+   * Clipping (see clipping.mjs). `slab` (a plane) is removed from every part; `wedge` ({ planes: [two], nodeIds }) from the listed parts only, where
+   * both planes clip. A part with a wedge uses it instead of the slab. Markers and links are not clipped. setClipping() removes everything.
+   */
+  const toPlane = ({ normal, constant }) => new THREE.Plane(new THREE.Vector3(...normal), constant);
+  function setClipping({ slab = null, wedge = null } = {}) {
+    if (!active) return;
+    const slabPlanes = slab ? [toPlane(slab)] : null, wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
+    for (const [id, group] of active.groups) {
+      const planes = wedgePlanes && wedge.nodeIds.has(id) ? wedgePlanes : slabPlanes, intersection = planes === wedgePlanes && Boolean(planes);
+      group.traverse((object) => {
+        const material = object.material;
+        if (!material || Array.isArray(material) || object.userData.selectionMarker) return;
+        const before = `${material.clippingPlanes?.length ?? 0}|${material.clipIntersection}|${material.side}`;
+        material.clippingPlanes = planes;
+        material.clipIntersection = intersection;
+        // a cut-open solid shows its inside in its own colour, not the dark outline shell behind it
+        if (material.isMeshStandardMaterial) {
+          if (planes && material.side === THREE.FrontSide) { material.userData.sideBeforeClip = THREE.FrontSide; material.side = THREE.DoubleSide; }
+          else if (!planes && material.userData.sideBeforeClip !== undefined) { material.side = material.userData.sideBeforeClip; material.userData.sideBeforeClip = undefined; }
+        }
+        if (before !== `${planes?.length ?? 0}|${intersection}|${material.side}`) material.needsUpdate = true;
+      });
+    }
+    invalidate();
+  }
+  /** Is this object's point removed by its material's clipping planes (a clipped residue cannot be picked)? */
+  function clippedAt(object, point) {
+    const planes = object.material?.clippingPlanes;
+    if (!planes?.length) return false;
+    const outside = planes.map((plane) => plane.distanceToPoint(point) < 0);
+    return object.material.clipIntersection ? outside.every(Boolean) : outside.some(Boolean);
+  }
+  /** What the clipping UI needs to place planes: the model's centre and radius in viewport units, and the direction towards the camera. */
+  function clipFrame() {
+    if (!active) return null;
+    return { center: active.center.toArray(), radius: active.radius, toViewer: camera.position.clone().sub(controls.target).toArray() };
+  }
+
+  /**
+   * Small molecules drawn as ball-and-stick. An item is { geometry, target } (placed at a ligand point target) or { geometry, nodeId, position }
+   * (placed at `position`, in the node's own viewport coordinates); `geometry` comes from molecule-geometry.mjs (relative to that place). They ride on
+   * the node, so they follow take-apart offsets. Items belong to a `tag` (default 'default'); setMolecules([], { tag }) removes that set.
+   * showMolecules(tag, visible) hides or shows a set without rebuilding it.
+   */
+  let molecules = [];   // [{ group, tag }]
+  const sphereGeometry = new THREE.SphereGeometry(1, 12, 8), stickGeometry = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+  function setMolecules(items = [], { tag = 'default' } = {}) {
+    for (const entry of molecules.filter((m) => m.tag === tag)) {
+      entry.group.removeFromParent();
+      entry.group.traverse((object) => { if (object.isInstancedMesh) { object.material.dispose(); object.dispose(); } });
+    }
+    molecules = molecules.filter((m) => m.tag !== tag);
+    let drawn = 0;
+    for (const { target, geometry, nodeId, position } of active ? items : []) {
+      const group = new THREE.Group();
+      let parent;
+      if (target) {
+        const end = locate(target);
+        if (!end) continue;
+        group.position.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+        parent = end.mesh;
+      } else {
+        parent = active.groups.get(nodeId);
+        if (!parent || !Array.isArray(position)) continue;
+        group.position.fromArray(position);
+      }
+      const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), size = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+      const instanced = (shape, count) => {
+        const mesh = new THREE.InstancedMesh(shape, new THREE.MeshStandardMaterial({ roughness: 0.6 }), Math.max(1, count));
+        mesh.count = count;
+        mesh.frustumCulled = false;
+        mesh.userData.selectionMarker = true;   // not dimmed or clipped with the parts
+        group.add(mesh);
+        return mesh;
+      };
+      const balls = instanced(sphereGeometry, geometry.balls.length);
+      geometry.balls.forEach((ball, i) => {
+        matrix.compose(new THREE.Vector3(...ball.position), rotation.identity(), size.setScalar(ball.radius));
+        balls.setMatrixAt(i, matrix);
+        balls.setColorAt(i, color.set(ball.color));
+      });
+      const halves = [];
+      for (const stick of geometry.sticks) {
+        const a = new THREE.Vector3(...stick.a), b = new THREE.Vector3(...stick.b), mid = a.clone().add(b).multiplyScalar(0.5);
+        for (const [from, colorHex] of [[a, stick.colorA], [b, stick.colorB]]) halves.push({ from, mid, radius: stick.radius, colorHex });
+      }
+      const sticks = instanced(stickGeometry, halves.length);
+      halves.forEach(({ from, mid, radius, colorHex }, i) => {
+        const direction = mid.clone().sub(from), length = direction.length();
+        rotation.setFromUnitVectors(up, direction.normalize());
+        matrix.compose(from.clone().add(mid).multiplyScalar(0.5), rotation, size.set(radius, length, radius));
+        sticks.setMatrixAt(i, matrix);
+        sticks.setColorAt(i, color.set(colorHex));
+      });
+      const dashes = instanced(stickGeometry, geometry.dashes.length);
+      geometry.dashes.forEach((dash, i) => {
+        const a = new THREE.Vector3(...dash.a), b = new THREE.Vector3(...dash.b), direction = b.clone().sub(a);
+        rotation.setFromUnitVectors(up, direction.clone().normalize());
+        matrix.compose(a.clone().add(b).multiplyScalar(0.5), rotation, size.set(dash.radius, direction.length(), dash.radius));
+        dashes.setMatrixAt(i, matrix);
+        dashes.setColorAt(i, color.set('#c9d0de'));
+      });
+      for (const mesh of [balls, sticks, dashes]) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      }
+      parent.add(group);
+      molecules.push({ group, tag });
+      drawn++;
+    }
+    invalidate();
+    return drawn;
+  }
+  function showMolecules(tag, visible) {
+    for (const entry of molecules) if (entry.tag === tag) entry.group.visible = visible;
+    invalidate();
+  }
+
+  /** Moves the camera to look at a point target from the current direction, close enough for something `extent` (viewport units) across. */
+  function focusPoint(target, extent = 0.5) {
+    const end = locate(target);
+    if (!end) return false;
+    end.mesh.updateWorldMatrix(true, false);
+    const point = new THREE.Vector3().fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index).applyMatrix4(end.mesh.matrixWorld);
+    const direction = camera.position.clone().sub(controls.target).normalize();
+    const distance = Math.max(extent * 2.4, 0.3);
+    setCamera({ position: point.clone().addScaledVector(direction, distance).toArray(), target: point.toArray() });
+    return true;
   }
 
   function setNodeVisibility(ids, visible) {
@@ -243,7 +545,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.updateMatrixWorld();
     raycaster.setFromCamera(pointer, camera);
     active.root.updateMatrixWorld(true);
-    const hits = raycaster.intersectObjects(active.meshes, false).filter(({ object }) => isVisible(object));
+    const hits = raycaster.intersectObjects(active.meshes, false).filter(({ object, index, point }) =>
+      isVisible(object) && !clippedAt(object, point ?? new THREE.Vector3()));
     const hit = hits.find(({ object, index }) => object.userData.pointTargets?.[index]) ?? hits[0];
     const target = hit?.object.userData.pointTargets?.[hit.index];
     const point = target && new THREE.Vector3()
@@ -395,23 +698,23 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     if (!active) return;
     for (const [id, group] of active.groups) {
       applyTransform(group, pose?.get(id) ?? active.pose.get(id));
+      group.userData.base = undefined;   // the pose was just reset: the extras go on top of it again
+      if (group.userData.extras) placeGroup(group);
     }
+    updateLinks();
     updatePresentationOverlay();
     invalidate();
   }
 
-  function setMechanism(snapshot) {
-    if (!active) return;
-    applyPose(snapshot?.transforms);
-    const highlighted = new Set(snapshot?.highlightedIds);
-    for (const mesh of active.meshes) if (mesh.material.emissive) {
-      mesh.material.emissive.set(highlighted.has(mesh.userData.nodeId) ? '#5a3d0d' : '#000000');
-      mesh.material.emissiveIntensity = 0.35;
-    }
-    const phase = snapshot?.conformation;
+  /**
+   * Moves every layer that carries `conformations` (states) to `phase`: { from, to, fraction } between two states, or { weights } for a blend of
+   * several. Used by the mechanism players and by the generic conformation morph (setConformation).
+   */
+  function applyConformation(phase) {
+    if (!active || !phase) return;
     for (const mesh of active.meshes) {
       const morph = mesh.userData.conformation;
-      if (!morph || !phase) continue;
+      if (!morph) continue;
       const a = phase.weights ? Float32Array.from(morph.states[0], (_, i) =>
         phase.weights.reduce((sum, weight, state) => sum + weight * morph.states[state][i], 0)) : morph.states[phase.from];
       const b = phase.weights ? a : morph.states[phase.to ?? (phase.from + 1) % 3];
@@ -441,6 +744,22 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       }
       mesh.frustumCulled = false;
     }
+  }
+  /** Between the first two states of every layer that has them: 0 = the structure as loaded, 1 = the second conformation. */
+  function setConformation(fraction) {
+    applyConformation({ from: 0, to: 1, fraction: Math.min(1, Math.max(0, fraction)) });
+    invalidate();
+  }
+
+  function setMechanism(snapshot) {
+    if (!active) return;
+    applyPose(snapshot?.transforms);
+    const highlighted = new Set(snapshot?.highlightedIds);
+    for (const mesh of active.meshes) if (mesh.material.emissive) {
+      mesh.material.emissive.set(highlighted.has(mesh.userData.nodeId) ? '#5a3d0d' : '#000000');
+      mesh.material.emissiveIntensity = 0.35;
+    }
+    applyConformation(snapshot?.conformation);
     if (pointSelection?.parent && Number.isSafeInteger(pointSelection.userData.pointIndex)) {
       pointSelection.position.fromBufferAttribute(pointSelection.parent.geometry.getAttribute('position'), pointSelection.userData.pointIndex);
     }
@@ -581,6 +900,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   function clear() {
+    setLinks([]);
+    for (const tag of new Set(molecules.map((m) => m.tag))) setMolecules([], { tag });
     cancelPick();
     cancelCameraTransition();
     responsiveFraming = false;
@@ -715,6 +1036,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

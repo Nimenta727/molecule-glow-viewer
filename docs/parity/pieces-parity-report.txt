@@ -1,0 +1,50 @@
+ok   1AKE 2 pieces (chain:residues, biggest first)
+ok   1AKE interface partners and per-residue nearest foreign residue
+ok   1AKE ligand attachment (2 attached)
+ok   1AKE greedy assembly order
+ok   1AKE explode/pull offsets (Å)
+ok   1AKE restore: offsets at explode 0, pull 0 are exactly zero
+ok   1K4C 3 pieces (chain:residues, biggest first)
+ok   1K4C interface partners and per-residue nearest foreign residue
+ok   1K4C ligand attachment (6 attached)
+ok   1K4C greedy assembly order
+ok   1K4C explode/pull offsets (Å)
+ok   1K4C restore: offsets at explode 0, pull 0 are exactly zero
+ok   2HVK 3 pieces (chain:residues, biggest first)
+ok   2HVK interface partners and per-residue nearest foreign residue
+ok   2HVK ligand attachment (8 attached)
+ok   2HVK greedy assembly order
+ok   2HVK explode/pull offsets (Å)
+ok   2HVK restore: offsets at explode 0, pull 0 are exactly zero
+ok   2ITD 3 pieces (chain:residues, biggest first)
+ok   2ITD interface partners and per-residue nearest foreign residue
+ok   2ITD ligand attachment (2 attached)
+ok   2ITD greedy assembly order
+ok   2ITD explode/pull offsets (Å)
+ok   2ITD restore: offsets at explode 0, pull 0 are exactly zero
+ok   4AKE 2 pieces (chain:residues, biggest first)
+ok   4AKE interface partners and per-residue nearest foreign residue
+ok   4AKE ligand attachment (0 attached)
+ok   4AKE greedy assembly order
+ok   4AKE explode/pull offsets (Å)
+ok   4AKE restore: offsets at explode 0, pull 0 are exactly zero
+ok   5VK6 3 pieces (chain:residues, biggest first)
+ok   5VK6 interface partners and per-residue nearest foreign residue
+ok   5VK6 ligand attachment (7 attached)
+ok   5VK6 greedy assembly order
+ok   5VK6 explode/pull offsets (Å)
+ok   5VK6 restore: offsets at explode 0, pull 0 are exactly zero
+ok   5VKE 3 pieces (chain:residues, biggest first)
+ok   5VKE interface partners and per-residue nearest foreign residue
+ok   5VKE ligand attachment (4 attached)
+ok   5VKE greedy assembly order
+ok   5VKE explode/pull offsets (Å)
+ok   5VKE restore: offsets at explode 0, pull 0 are exactly zero
+ok   6ZPO 29 pieces (chain:residues, biggest first)
+ok   6ZPO interface partners and per-residue nearest foreign residue
+ok   6ZPO ligand attachment (14 attached)
+ok   6ZPO greedy assembly order
+ok   6ZPO explode/pull offsets (Å)
+ok   6ZPO restore: offsets at explode 0, pull 0 are exactly zero
+
+48/48 identical

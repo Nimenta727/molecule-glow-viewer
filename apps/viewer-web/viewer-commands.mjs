@@ -88,10 +88,18 @@ export function createViewerCommands(host) {
     },
     select(value) {
       const current = needScene();
-      if (value === 'none') { host.select(); return { atoms: 0, highlighted: null }; }
+      if (value === 'none') { host.select(); host.clearSet?.(); return { atoms: 0, highlighted: null }; }
       if (typeof value === 'string') {
+        // Anything beyond the two simple forms goes through the full selection language (and/or/not, resi ranges, within ... of, sele ...).
         const match = /^(chain|resid)\s+(\S+)$/.exec(value.trim());
-        if (!match) throw new Error('当前支持 chain A、resid 8、none 或选择对象。');
+        if (!match || value.trim().includes(',')) {
+          host.select();
+          let result;
+          try { result = host.selectSet(value); } catch (error) { throw new Error(error.message); }
+          if (!result) throw new Error('相应结构插件或坐标不可用。');
+          return { ...result, note: '按选择语言匹配全部残基与小分子，以金色线框标出。' };
+        }
+        host.clearSet?.();
         value = { [match[1] === 'chain' ? 'chainId' : 'residueId']: match[2] };
       }
       if (!object(value) || Object.keys(value).some((key) => !['chainId', 'residueId', 'sourceAssetId'].includes(key))) throw new Error('选择参数无效。');

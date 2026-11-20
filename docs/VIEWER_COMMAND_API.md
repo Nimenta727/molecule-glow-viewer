@@ -18,7 +18,7 @@ await glow.load(pack);
 | `help()` / `run(name,args)` | 查询命令或统一调用，失败时拒绝 Promise；一个命令失败后队列继续 |
 | `info()` | 场景 ID、来源、插件、部件、证据、镜头、选择及播放状态 |
 | `load(spec)` | `{pdb,assembly?}`、`{url,assembly?}`、`{packText}` 或 v2 包；按需启用官方结构插件 |
-| `select(spec)` | `{chainId?,residueId?,sourceAssetId?}`；残基可写 `{authSeqId,labelSeqId,insertionCode}`；简写 `chain A`、`resid 8`、`none` |
+| `select(spec)` | `{chainId?,residueId?,sourceAssetId?}`；残基可写 `{authSeqId,labelSeqId,insertionCode}`；简写 `chain A`、`resid 8`、`none`；字符串写成选择语言表达式（`chain A and resi 10-50`、`within 5 of ligands`、`sele`…）时选中**全部**匹配的残基/小分子，回包 `{residues,ligands,marked,summary}` |
 | `represent(mode)` | `cartoon`、`backbone`、`blob`、`functional`、`surface`，作用于主结构；分部件设置沿用当前场景规则 |
 | `camera(pose)` | 省略读取，`reset` 重置，或 `{position:[x,y,z],target:[x,y,z]}`，使用场景米制坐标 |
 | `animate(opts)` | `{pause?,time?,speed?,seed?,step?,steps?,parameters?,morph?}`；speed、seed 需要机制插件；领域参数由当前插件校验；morph 为 0–1 或 `auto`，需要两态插件；跳转、数值 morph 或定步后暂停 |

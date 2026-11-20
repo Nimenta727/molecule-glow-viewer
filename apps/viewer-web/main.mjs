@@ -14,6 +14,17 @@ import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
+import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/structure/representation.mjs';
+import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
+import { createObjectSpin } from './object-spin.mjs';
+import { createStateMorph } from './state-morph.mjs';
+import { createLigandView } from './ligand-view.mjs';
+import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
+import { createEntryIntro } from './entry-intro.mjs';
+import { createTakeApart } from './take-apart.mjs';
+import { createSequenceBar } from './sequence-bar.mjs';
+import { SELECTION_HELP, describeSelection, selectionSpace } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -74,6 +85,12 @@ function syncControls() {
   elements['atp-enabled'].disabled = !structureEnabled;
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
+  elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
+  elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
+  elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
+  elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
+  elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
@@ -265,6 +282,12 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      objectSpin.reset();
+      stateMorph.reset();
+      entryIntro.reset();
+      leaveTakeApart();
+      sequenceBar.setModel(active.model);
+      resetSiteChips();
       elements['chain-id'].value = '';
       elements['residue-id'].value = '';
       showNavigation();
@@ -348,6 +371,9 @@ function boot() {
   function showStructurePick(selection) {
     if (active) active.structureSelection = selection;
     viewport.setPointSelection(selection);
+    if (selection && active) active.selectionSet = undefined;
+    syncSequence();
+    ligandView.onSelection(selection);
     const card = elements['structure-pick'];
     card.hidden = !selection;
     const contacts = elements['structure-contacts'];
@@ -358,6 +384,263 @@ function boot() {
     const copy = atom.assemblyCopy ? ` · 组装副本 ${atom.assemblyCopy}` : '';
     card.textContent = `${STRUCTURE_LABELS[kind]} ${atom.residueName} · 作者编号 ${atom.authChainId || '—'}:${atom.authSeqId || '—'}${atom.insertionCode || ''} · 标签编号 ${atom.labelChainId || '—'}:${atom.labelSeqId || '—'}${copy}`;
     elements['structure-tools'].open = true;
+  }
+
+  const sequenceBar = createSequenceBar({
+    root: elements['sequence-bar'], rowsBox: elements['sequence-rows'], info: elements['sequence-info'],
+    onSelect(expression) {
+      try {
+        const result = selectSet(expression);
+        elements['selection-expression'].value = expression;
+        if (result) sequenceBar.setInfo(`已选 ${result.summary}（glow.select('${expression}')）`);
+      } catch (error) { sequenceBar.setInfo(error.message); }
+    },
+  });
+  /** Lights up what is selected: the whole expression set if there is one, otherwise the single picked residue. */
+  function syncSequence() {
+    if (!sequenceBar.visible) return;
+    const set = active?.selectionSet;
+    const picked = active?.structureSelection?.kind === 'residue' ? structureObjectId('residue', active.structureSelection.atom) : null;
+    const chosen = set ? new Set(set.residues) : null;
+    sequenceBar.highlight((residue) => chosen ? chosen.has(residue) : picked != null && structureObjectId('residue', residue.atom) === picked);
+  }
+  elements['sequence-toggle'].addEventListener('click', () => {
+    const on = sequenceBar.setVisible();
+    elements['sequence-toggle'].setAttribute('aria-pressed', String(on));
+    if (on) { sequenceBar.setModel(active?.model); syncSequence(); }
+  });
+  let siteLoad = 0;
+  function resetSiteChips() { siteLoad++; elements['sequence-chips'].replaceChildren(); elements['sequence-chips'].hidden = true; }
+  elements['sequence-sites'].addEventListener('click', async () => {
+    const token = ++siteLoad, chips = elements['sequence-chips'];
+    const source = active?.scene.assets.find((asset) => asset.kind === 'file' && asset.provenance?.source)?.provenance.source;
+    try {
+      if (source?.provider !== 'RCSB PDB') throw new FunctionalSiteError('只有 PDB 条目才能读取 UniProt 注释');
+      sequenceBar.setInfo('正在读取 UniProt 注释…');
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+      let result;
+      try {
+        result = await loadFunctionalSites(source.accession, {
+          signal: controller.signal,
+          async fetchJson(url, init) {
+            const response = await fetch(url, init);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          },
+        });
+      } finally { clearTimeout(timer); }
+      if (token !== siteLoad) return;
+      sequenceBar.setSites(result.sites);
+      chips.replaceChildren();
+      const entries = Object.entries(result.sites);
+      for (const [type, list] of entries) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = `${SITE_CATEGORIES[type].label} ${list.length}`;
+        chip.style.cssText = `border-color:${SITE_CATEGORIES[type].color};color:${SITE_CATEGORIES[type].color}`;
+        chip.addEventListener('click', () => {
+          const r = selectSet(siteExpression(list));
+          elements['selection-expression'].value = siteExpression(list);
+          const notes = [...new Set(list.map((site) => site.text).filter(Boolean))].slice(0, 3).join('；');
+          sequenceBar.setInfo(`${SITE_CATEGORIES[type].label}：已选 ${r?.summary ?? ''}（UniProt ${result.accessions.join('、')}）${notes ? ` ${notes}` : ''}`);
+        });
+        chips.append(chip);
+      }
+      const note = document.createElement('span');
+      note.className = 'source';
+      note.textContent = entries.length ? `来源 UniProt ${result.accessions.join('、')}（按 RCSB 序列比对换算）` : `这个条目在 UniProt（${result.accessions.join('、') || '无比对'}）里没有这些类别的注释`;
+      chips.append(note);
+      chips.hidden = false;
+      sequenceBar.setInfo(result.warnings.length ? result.warnings.join(' ') : '点一个类别：在 3D 中选中这些残基');
+    } catch (error) {
+      if (token === siteLoad) sequenceBar.setInfo(error.name === 'AbortError' ? '读取 UniProt 超时，请稍后再试。' : error.message);
+    }
+  });
+  elements['sequence-close'].addEventListener('click', () => { sequenceBar.setVisible(false); elements['sequence-toggle'].setAttribute('aria-pressed', 'false'); });
+
+  /** The scene node that draws a chain group (`chainKey` metadata), of the main structure. */
+  function nodeOfChain(key) {
+    const source = active?.representationSource?.id;
+    return active?.scene.nodes.find((node) => node.extensions?.[STRUCTURE]?.chainKey === key && node.extensions[STRUCTURE].sourceAssetId === source)?.id;
+  }
+  const loadChemicalComponent = (comp) => loadChemComp(comp, {
+    async fetchText(url, init) {
+      const response = await fetch(url, init);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.text();
+    },
+  });
+  const takeApart = createTakeApart({
+    viewport,
+    elements: {
+      panel: elements['take-apart-panel'], explode: elements['take-apart-explode'], all: elements['take-apart-all'], restore: elements['take-apart-restore'],
+      play: elements['take-apart-play'], step: elements['take-apart-step'], pieces: elements['take-apart-pieces'], info: elements['take-apart-info'],
+    },
+    context: {
+      model: () => active?.representationSource ? active.model : null,
+      nodeForChain: nodeOfChain,
+      targetFor: (residue) => active.structureTargets.get(structureObjectId('residue', residue.atom)),
+      showResidues: (result, options) => showSelection(result, options),
+      clearSelection: () => clearSet(),
+      assemblyKeywords: () => ({}),
+      setStatus,
+    },
+  });
+  elements['take-apart-toggle'].addEventListener('click', () => {
+    const on = takeApart.toggle();
+    elements['take-apart-toggle'].setAttribute('aria-pressed', String(on));
+  });
+  function leaveTakeApart() { takeApart.exit(); elements['take-apart-toggle'].setAttribute('aria-pressed', 'false'); }
+  const entryIntro = createEntryIntro({
+    box: elements['entry-intro'], button: elements['entry-intro-load'],
+    context: {
+      entryId() {
+        const source = active?.scene.assets.find((asset) => asset.kind === 'file' && asset.provenance?.source)?.provenance.source;
+        return source?.provider === 'RCSB PDB' ? source.accession : null;
+      },
+      sizeOf(entity) {
+        const counts = new Map();
+        for (const residue of selectionSpace(active.model).residues) counts.set(residue.labelAsym, (counts.get(residue.labelAsym) ?? 0) + 1);
+        return Math.max(0, ...entity.asyms.map((asym) => counts.get(asym) ?? 0));
+      },
+      ligands: () => [...new Set(selectionSpace(active.model).ligands.map((ligand) => ligand.comp))],
+      select: (expression) => { elements['selection-expression'].value = expression; selectSet(expression); },
+    },
+  });
+  /** Clipping: a slab through the model, or a wedge on marked parts (classic 剖面 / 剖开). State lives in active.clipping and is saved with the work. */
+  function applyClipping() {
+    const state = active?.clipping, frame = viewport.clipFrame();
+    if (!frame || !state?.enabled) { viewport.setClipping({}); return; }
+    if (state.scope === 'parts') {
+      const planes = wedgePlanes({ toViewer: state.direction, center: frame.center, margin: 4 * PRESENTATION_METERS_PER_ANGSTROM });
+      const parts = computeStructureParts(), nodeIds = new Set(state.wedgeParts.flatMap((key) => (parts.get(key) ?? []).map(({ id }) => id)));
+      viewport.setClipping(planes && nodeIds.size ? { wedge: { planes, nodeIds } } : {});
+    } else viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
+  }
+  function clipState() {
+    if (!active) return null;
+    active.clipping ??= normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1], depth: 0 });
+    return active.clipping;
+  }
+  function syncClipControls() {
+    const state = active?.clipping;
+    elements['clip-enabled'].checked = Boolean(state?.enabled);
+    elements['clip-depth'].value = String(state?.depth ?? 0);
+    elements['clip-scope'].value = state?.scope ?? 'all';
+    elements['clip-depth'].disabled = state?.scope === 'parts';
+  }
+  elements['clip-enabled'].addEventListener('change', () => {
+    const state = clipState();
+    if (!state) return;
+    state.enabled = elements['clip-enabled'].checked;
+    if (state.enabled) state.direction = normalizeClipping({ direction: viewport.clipFrame().toViewer }).direction;   // aim at the current view when switched on
+    applyClipping();
+  });
+  elements['clip-depth'].addEventListener('input', () => { const state = clipState(); if (state) { state.depth = +elements['clip-depth'].value; applyClipping(); } });
+  elements['clip-scope'].addEventListener('change', () => { const state = clipState(); if (state) { state.scope = elements['clip-scope'].value; syncClipControls(); applyClipping(); } });
+  elements['clip-aim'].addEventListener('click', () => {
+    const state = clipState();
+    if (!state) return;
+    state.direction = normalizeClipping({ direction: viewport.clipFrame().toViewer }).direction;
+    applyClipping();
+  });
+  elements['structure-part-list'].addEventListener('change', (event) => {
+    const key = event.target.dataset?.clipPart, state = key && clipState();
+    if (!state) return;
+    state.wedgeParts = event.target.checked ? [...new Set([...state.wedgeParts, key])] : state.wedgeParts.filter((value) => value !== key);
+    applyClipping();
+  });
+
+  const ligandView = createLigandView({
+    viewport, button: elements['ligand-view-toggle'], note: elements['ligand-view-note'], wrapper: elements['ligand-view-controls'],
+    context: {
+      selection: () => active?.structureSelection,
+      ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
+      template: loadChemicalComponent,
+    },
+  });
+  const stateMorph = createStateMorph({
+    viewport,
+    elements: {
+      panel: elements['morph-panel'], core: elements['morph-core'], domains: elements['morph-domains'], apply: elements['morph-apply'], fraction: elements['morph-fraction'], auto: elements['morph-auto'], remove: elements['morph-remove'], info: elements['morph-info'],
+    },
+    context: {
+      model: () => active?.model,
+      canMorph: () => Boolean(active?.model) && !active.player,
+      rebuild: () => refreshStructureView(),
+      setStatus,
+      template: loadChemicalComponent,
+      nodeForResidue: (residue) => nodeOfChain(chainGroupKey(residue.atom)),
+      async loadModel(input) {
+        const service = host.getService(MODEL_SERVICE, '1.0.0');
+        const source = active.representationSource, options = { assemblyId: source?.provenance?.assemblyId, chains: source?.provenance?.chains };
+        let bytes, name, mediaType, origin;
+        if (input.file) {
+          if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+          bytes = new Uint8Array(await input.file.arrayBuffer());
+          name = input.file.name;
+          mediaType = /\.m?cif$/i.test(name) ? 'chemical/x-mmcif' : 'chemical/x-pdb';
+          origin = { provider: 'local file', name };
+        } else {
+          const loaded = await loadAccession(input.accession, undefined);
+          ({ bytes, name } = loaded);
+          mediaType = loaded.mediaType ?? 'chemical/x-mmcif';
+          origin = loaded.source ?? { provider: 'RCSB PDB', accession: input.accession.toUpperCase() };
+        }
+        return { model: service.parse({ bytes, name, mediaType }, options), bytes, name, mediaType, source: origin };
+      },
+    },
+  });
+  elements['morph-load'].addEventListener('click', () => {
+    const accession = elements['morph-accession'].value.trim();
+    if (/^[0-9][A-Za-z0-9]{3}$/.test(accession)) stateMorph.load({ accession }, accession.toUpperCase());
+    else elements['morph-info'].textContent = '请输入第二个构象的 4 位 RCSB 编号（首位是数字），或选择文件。';
+  });
+  elements['morph-file-button'].addEventListener('click', () => elements['morph-file'].click());
+  elements['morph-file'].addEventListener('change', () => {
+    const [file] = elements['morph-file'].files;
+    elements['morph-file'].value = '';
+    if (file) stateMorph.load({ file }, file.name);
+  });
+  const objectSpin = createObjectSpin({
+    viewport,
+    elements: {
+      mode: elements['spin-mode'], from: elements['spin-from'], to: elements['spin-to'], pair: elements['spin-pair'], speed: elements['spin-speed'],
+      play: elements['spin-play'], reset: elements['spin-reset'], info: elements['spin-info'], partList: elements['structure-part-list'],
+    },
+    context: { model: () => active?.model, parts: computeStructureParts },
+  });
+  function selectSet(expression) {
+    const model = active?.model;
+    if (!model) return null;
+    const result = host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet });
+    const shown = showSelection(result);
+    // exactly one small molecule selected: it is the picked ligand (contacts, valence view), as if it had been tapped
+    if (!result.residues.length && result.ligands.length === 1) {
+      const key = structureObjectId('ligand', result.ligands[0].atom), target = [...active.structureTargets.values()].find((t) => t.kind === 'ligand' && structureObjectId('ligand', t.atom) === key);
+      if (target) { showStructurePick(target); active.selectionSet = { ...result, summary: shown.summary }; syncSequence(); }
+    } else if (active.structureSelection?.kind === 'ligand') showStructurePick();   // a different selection replaces the picked ligand
+    return shown;
+  }
+  /** Marks, dims around and reports a selection result ({ residues, ligands }); the one place that turns a selection into what the viewport shows. */
+  function showSelection(result, { markers = true } = {}) {
+    if (!active?.model) return null;
+    const summary = result.summary ?? describeSelection(result);
+    active.selectionSet = { ...result, summary };
+    const keys = new Set(result.residues.map(({ atom }) => structureObjectId('residue', atom)));
+    const ligandKeys = new Set(result.ligands.map((ligand) => structureObjectId('ligand', ligand.atom)));
+    const targets = new Set([...active.structureTargets.values()].filter((target) =>
+      (target.kind === 'ligand' ? ligandKeys : keys).has(structureObjectId(target.kind, target.atom))));
+    const marked = viewport.setPointSelections(targets, { dim: true, markers });
+    syncSequence();
+    return { residues: result.residues.length, ligands: result.ligands.length, marked, summary };
+  }
+  function clearSet() {
+    if (active) active.selectionSet = undefined;
+    viewport.setPointSelections();
+    viewport.setLinks([]);
+    syncSequence();
+    sequenceBar.setInfo('拖动选择一段；灰块是结构里缺失的残基');
   }
 
   elements['structure-contacts'].addEventListener('toggle', (event) => {
@@ -381,6 +664,15 @@ function boot() {
     if (typeof view?.selection === 'string') {
       showStructurePick(active.structureTargets?.get(view.selection));
     }
+    const saved = view?.morph, second = saved && active.scene.assets.find(({ id }) => id === saved.assetId);
+    if (second && active.models?.get(second.id) && active.resources.get(second.path)) {
+      const loaded = { model: active.models.get(second.id), bytes: active.resources.get(second.path), name: second.path, mediaType: second.mediaType, source: second.provenance?.source };
+      Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0, saved.config));
+    }
+    active.clipping = normalizeClipping(view?.clipping) ?? undefined;
+    if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
+    syncClipControls();
+    applyClipping();
   }
 
   function resetPreviewCamera() {
@@ -429,16 +721,24 @@ function boot() {
     return result.layers;
   }
 
+  /** Ids of the assets of the structure part nodes of one source (the layers a conformation morph has to move). */
+  function structureAssetIds(source) {
+    return new Set((active?.scene.nodes ?? []).filter((node) => node.assetId && node.extensions?.[STRUCTURE]?.sourceAssetId === source?.id).map((node) => node.assetId));
+  }
   function refreshStructureView(style) {
     if (!active?.model && !active?.representationSource) return;
     const camera = viewport.getCamera({ destination: true });
     const next = { ...active };
     const layers = structureLayers(next, style);
     active.player?.decorate(layers);
+    stateMorph.decorate(layers, structureAssetIds(next.representationSource));
     const prepared = viewport.prepare(active.store.getSnapshot(), layers,
       { overlayCapacity: active.overlayCapacity, ...playerViewportOptions(active.player) });
     viewport.commit(prepared);
     active.handles.current = prepared;
+    applyClipping();
+    stateMorph.reapply();
+    objectSpin.reapply();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -485,7 +785,8 @@ function boot() {
     summary.hidden = false;
   }
 
-  function showStructureParts() {
+  /** The scene's structure parts, grouped by (source, part name): Map(key -> nodes). */
+  function computeStructureParts() {
     const parts = new Map();
     for (const node of active?.scene.nodes ?? []) {
       const part = node.extensions?.[STRUCTURE];
@@ -494,6 +795,11 @@ function boot() {
       if (!parts.has(key)) parts.set(key, []);
       parts.get(key).push(node);
     }
+    return parts;
+  }
+
+  function showStructureParts() {
+    const parts = computeStructureParts();
     elements['structure-parts'].hidden = !parts.size;
     const list = elements['structure-part-list'];
     list.replaceChildren();
@@ -508,6 +814,23 @@ function boot() {
       input.indeterminate = !input.checked && nodes.some(({ visible }) => visible);
       label.append(input, ` ${nodes[0].name}`);
       item.append(label);
+      const clipLabel = document.createElement('label');
+      clipLabel.className = 'clip-part';
+      const clipInput = document.createElement('input');
+      clipInput.type = 'checkbox';
+      clipInput.dataset.clipPart = key;
+      clipInput.checked = Boolean(active.clipping?.wedgeParts.includes(key));
+      const spinLabel = document.createElement('label');
+      spinLabel.className = 'clip-part';
+      const spinInput = document.createElement('input');
+      spinInput.type = 'checkbox';
+      spinInput.dataset.spinPart = key;
+      spinInput.checked = objectSpin.marked.includes(key);
+      spinLabel.append(spinInput, ' 旋转');
+      spinLabel.title = '按“部件旋转”里选的轴转动这个部件（只是画面上的动作）';
+      clipLabel.append(clipInput, ' 剖开');
+      clipLabel.title = '“剖切范围”选“仅标为剖开的部件”时，从这个部件上切掉一个楔形';
+      item.append(clipLabel, spinLabel);
       if (active.models?.has(nodes[0].extensions[STRUCTURE].sourceAssetId)) {
         const select = document.createElement('select');
         select.dataset.structurePartStyle = key;
@@ -920,6 +1243,15 @@ function boot() {
     const examples = [...residues.values()].slice(0, 8);
     setStatus(`匹配 ${atoms.length} 个原子、${residues.size} 个残基：${examples.join('；')}${residues.size > examples.length ? '；…' : ''}`);
   });
+  elements['selection-help-text'].textContent = SELECTION_HELP;
+  elements['selection-expression-form'].addEventListener('submit', (event) => {
+    event.preventDefault();
+    try {
+      const result = selectSet(elements['selection-expression'].value);
+      if (result) setStatus(`选中 ${result.summary}${result.marked < result.residues + result.ligands ? '（部分对象在当前表示中没有标记点）' : ''}`);
+    } catch (error) { setStatus(error.message); }
+  });
+  elements['selection-clear'].addEventListener('click', () => { clearSet(); elements['selection-expression'].value = ''; setStatus('已清除选择。'); });
   elements.open.addEventListener('click', () => elements.file.click());
   for (const type of ['dragover', 'drop']) {
     elements.viewport.addEventListener(type, (event) => {
@@ -952,6 +1284,8 @@ function boot() {
       const camera = viewport.getCamera({ destination: true });
       source.provenance = { ...source.provenance, viewerState: {
         camera,
+        ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
+        ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {
@@ -963,13 +1297,30 @@ function boot() {
     }
     return scene;
   }
+  /** The scene and its files for saving: the loaded second conformation (if any) goes in as an ordinary structure file asset. */
+  async function exportBundle() {
+    const scene = sceneForExport(), state = stateMorph.save();
+    let resources = active.resources;
+    const source = scene.assets.find(({ id }) => id === active.representationSource?.id);
+    if (state && source) {
+      const path = `assets/conformation-b.${/\.m?cif$/i.test(state.name) ? 'cif' : 'pdb'}`;
+      const digest = await crypto.subtle.digest('SHA-256', state.bytes);
+      scene.assets.push({
+        id: 'conformation-b', kind: 'file', path, mediaType: state.mediaType, sha256: [...new Uint8Array(digest)].map((v) => v.toString(16).padStart(2, '0')).join(''),
+        provenance: { source: state.source, conformationOf: source.id },
+      });
+      source.provenance.viewerState = { ...source.provenance.viewerState, morph: { assetId: 'conformation-b', label: state.label, fraction: state.fraction, config: state.config } };
+      resources = new Map(resources).set(path, state.bytes);
+    }
+    return { scene, resources };
+  }
   elements.save.addEventListener('click', async () => {
     if (!active || saving) return;
-    const scene = sceneForExport();
+    const { scene, resources: files } = await exportBundle();
     saving = true;
     syncControls();
     try {
-      const bytes = await writeScenePackage(scene, active.resources);
+      const bytes = await writeScenePackage(scene, files);
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
       const link = document.createElement('a');
       link.href = url;
@@ -989,6 +1340,12 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    objectSpin.reset();
+    stateMorph.reset();
+    entryIntro.reset();
+    leaveTakeApart();
+    sequenceBar.setModel(null);
+    resetSiteChips();
     syncControls();
     showDiagnostics();
     showNavigation();
@@ -1148,12 +1505,14 @@ function boot() {
         residueName: atom.residueName, assemblyCopy: atom.assemblyCopy ?? null };
     },
     select: showStructurePick,
+    selectSet,
+    clearSet,
     selectAtoms: (model, spec) => host.getService(MODEL_SERVICE, '1.0.0').select(model, spec),
     represent: (style) => { refreshStructureView(style); syncControls(); showStructureParts(); },
     enableStructure: () => setStructureEnabled(true, { propagate: true }),
     open: (input) => openScene(input, { propagate: true }),
     snapshot: (width) => viewport.snapshot(width),
-    exportPack: () => writeScenePackage(sceneForExport(), active.resources),
+    exportPack: async () => { const { scene, resources: files } = await exportBundle(); return writeScenePackage(scene, files); },
     animate(value) {
       active.inspectionStep = undefined;
       const playing = active.player ? active.player.snapshot().playing : active.timeline.playing;
