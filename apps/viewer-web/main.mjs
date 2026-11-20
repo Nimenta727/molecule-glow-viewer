@@ -13,7 +13,8 @@ import { createViewerCommands } from './viewer-commands.mjs';
 import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
-import { defaultStyleFor } from './default-style.mjs';
+import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
@@ -31,7 +32,7 @@ const STRUCTURE = 'org.glow.structure';
 const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
-const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
+const STYLES = new Set(STRUCTURE_STYLES);
 // Mechanism cameras frame the step's participants but never closer than this fraction of the whole structure's radius.
 const MECHANISM_CONTEXT = 0.5;
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
@@ -409,50 +410,19 @@ function boot() {
     loaded.structureTargets = new Map();
     const representation = host.getRepresentation(REPRESENTATION);
     if (!representation || !loaded.model) return layers;
-    const sources = loaded.scene.assets.filter(({ kind, mediaType }) =>
-      kind === 'file' && ['chemical/x-mmcif', 'chemical/x-pdb'].includes(mediaType));
-    if (!sources.length) return layers;
-    loaded.models ??= new Map([[sources[0].id, loaded.model]]);
-    for (const source of sources) {
-      const model = loaded.models.get(source.id);
-      if (!model) continue;
-      const previews = loaded.scene.assets.filter(({ id, provenance }) =>
-        layers.has(id) && provenance?.sourceAssetId === source.id && provenance.style === 'cartoon');
-      if (!previews.length) continue;
-      loaded.representationSource ??= source;
-      const storedStyle = source.provenance?.viewerStyle;
-      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : defaultStyleFor(loaded.scene));
-      const builds = new Map();
-      const build = (mode) => {
-        if (!builds.has(mode)) {
-          const groups = representation.build(model, { style: mode, functionalRules: loaded.scene.legacy?.scene });
-          builds.set(mode, { groups, byKey: new Map(groups.map((group) => [group.key, group])) });
-        }
-        return builds.get(mode);
-      };
-      const nodesByAsset = new Map(loaded.scene.nodes.map((node) => [node.assetId, node]));
-      for (const [index, asset] of previews.entries()) {
-        const metadata = nodesByAsset.get(asset.id)?.extensions?.[STRUCTURE];
-        const effective = STYLES.has(asset.provenance.legacyStyle) ? asset.provenance.legacyStyle : style;
-        const { byKey, groups } = build(effective);
-        const group = metadata?.chainKey ? byKey.get(metadata.chainKey) : groups[index];
-        if (group && metadata?.sourceAssetId === source.id && metadata.chainId === group.chainId) {
-          for (const targets of group.pointTargets) {
-            for (const target of targets ?? []) {
-              target.sourceAssetId = source.id;
-              loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
-              if (source === sources[0]) loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
-            }
-          }
-          layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
-            ...layer, representationStyle: effective, ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core'
-              ? { color: asset.provenance.legacyColor } : {}),
-            pointTargets: group.pointTargets[layerIndex],
-          })));
-        }
-      }
-    }
-    return layers;
+    const [first] = structureSources(loaded.scene);
+    if (!first) return layers;
+    loaded.models ??= new Map([[first.id, loaded.model]]);
+    const result = buildStructureLayers({
+      scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
+      onTarget(target, source, primary) {
+        target.sourceAssetId = source.id;
+        loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
+        if (primary) loaded.structureTargets.set(structureObjectId(target.kind, target.atom), target);
+      },
+    });
+    loaded.representationSource = result.representationSource;
+    return result.layers;
   }
 
   function refreshStructureView(style) {

@@ -190,3 +190,5 @@ h2 { color: #2f3f86; font-size: 0.9rem; font-weight: 650; }
 .tool-bindings label { display: grid; gap: 0.25rem; margin: 0.3rem 0; color: var(--muted); font-size: 0.85rem; }
 .tool-bindings select[multiple] { width: 100%; max-width: none; font-size: 0.82rem; }
 .tool-bindings .button-row { margin-top: 0.3rem; }
+
+.toolbar-note { color: var(--muted); font-size: 0.82rem; }

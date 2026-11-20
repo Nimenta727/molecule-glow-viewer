@@ -1,5 +1,5 @@
 import { openSceneFile } from './scene-io.mjs';
-import { defaultStyleFor } from './default-style.mjs';
+import { defaultStyleFor } from '../../plugins/default-style.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value);

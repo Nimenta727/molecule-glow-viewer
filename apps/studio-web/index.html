@@ -66,6 +66,16 @@
                 <option value="rotate">旋转</option>
                 <option value="scale">缩放</option>
               </select>
+              <label for="representation-style" id="representation-label" hidden>结构表示</label>
+              <select id="representation-style" aria-label="结构表示" hidden>
+                <option value="">跟随作品</option>
+                <option value="blob">团块（墨线）</option>
+                <option value="cartoon">结构示意</option>
+                <option value="backbone">主链</option>
+                <option value="functional">功能分区（示意）</option>
+                <option value="surface">低分辨率表面</option>
+              </select>
+              <span id="representation-note" class="toolbar-note" role="status" aria-live="polite"></span>
             </div>
             <div class="primitive-tools" aria-label="添加对象">
               <button id="add-box" type="button">添加方盒</button>

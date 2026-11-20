@@ -11,6 +11,8 @@ import { createNavigationEditor } from './navigation-editor.mjs';
 import { createToolConfigPanel } from './tool-config.mjs';
 import { initTabs } from './panel-tabs.mjs';
 import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
+import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
+import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
@@ -126,7 +128,7 @@ function installProject(next, resources = new Map()) {
   refresh({ resetCamera: true, resetTime: true });
 }
 
-function geometryFor(current) {
+function previewLayers(current) {
   if (previews.has(current)) return previews.get(current);
   const layers = new Map();
   const resources = current.getResources();
@@ -135,6 +137,61 @@ function geometryFor(current) {
   }
   previews.set(current, layers);
   return layers;
+}
+
+// What the viewport draws: the structure in the same representation the Viewer shows (ink blobs, functional domains, ...), built
+// from the parsed structure model; until that model is ready, or when it cannot be built, the preview geometry stored in the scene.
+const structureViews = new WeakMap();   // session -> { models, built: Map(style -> layers), failed }
+const viewStyle = { value: '' };         // '' = follow the work (stored style, then the default for this kind of work)
+
+function geometryFor(current) {
+  const view = structureViews.get(current);
+  const style = viewStyle.value || '';
+  return view?.built.get(style) ?? previewLayers(current);
+}
+
+async function ensureStructureView(current) {
+  const scene = current.getScene();
+  if (!structureSources(scene).length) return false;
+  const view = structureViews.get(current) ?? { models: undefined, built: new Map(), failed: false };
+  structureViews.set(current, view);
+  const style = viewStyle.value || '';
+  if (view.failed || view.built.has(style)) return false;
+  await ensureStructurePlugin();
+  const service = host.getService('org.glow.structure.model', '1.0.0'), representation = host.getRepresentation('org.glow.structure.preview');
+  if (!service || !representation) { view.failed = true; return false; }
+  if (!view.models) {
+    view.models = new Map();
+    const resources = current.getResources();
+    for (const source of structureSources(scene)) {
+      try {
+        view.models.set(source.id, service.parse({ bytes: resources.get(source.path), name: source.path, mediaType: source.mediaType },
+          { assemblyId: source.provenance?.assemblyId, chains: source.provenance?.chains }));
+      } catch { /* a structure that cannot be parsed keeps its preview geometry */ }
+    }
+  }
+  const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
+    style: style || undefined, defaultStyle: defaultStyleFor(scene) });
+  view.built.set(style, layers);
+  return true;
+}
+
+let representationTicket = 0;
+function upgradeRepresentation() {
+  const current = session(), ticket = ++representationTicket;
+  const style = viewStyle.value || '';
+  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(style) || structureViews.get(current)?.failed) return;
+  // Progress goes to its own note next to the selector, never to the status line the author's last action reports on.
+  ui['representation-note'].textContent = '正在构建结构表示…';
+  ensureStructureView(current).then((built) => {
+    if (ticket !== representationTicket || session() !== current) return;
+    ui['representation-note'].textContent = '';
+    if (built) refresh();
+  }).catch((error) => {
+    const view = structureViews.get(current);
+    if (view) view.failed = true;
+    if (ticket === representationTicket) ui['representation-note'].textContent = `结构表示不可用，保留预览几何：${error.message}`;
+  });
 }
 
 function newProject() {
@@ -172,6 +229,10 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   if (!document.nodes.some(({ id }) => id === selection)) selection = null;
   renderPanels(scene, document);
   showPose();
+  const hasStructure = structureSources(scene).length > 0;
+  for (const id of ['representation-style', 'representation-label']) ui[id].hidden = !hasStructure;
+  if (!hasStructure) ui['representation-note'].textContent = '';
+  upgradeRepresentation();
 }
 
 function select(id) {
@@ -419,6 +480,11 @@ watchFile('project-file', async (file) => {
   if (ticket !== loading) return;
   installProject({ ...decoded.project, scenes }, decoded.resourcesByScene);
   status('工程已打开。');
+});
+
+ui['representation-style'].addEventListener('change', () => {
+  viewStyle.value = ui['representation-style'].value;
+  refresh();   // shows what is already built; builds the missing representation in the background
 });
 
 ui['scene-picker'].addEventListener('change', run(() => {
