@@ -1,7 +1,9 @@
-// The classic ribosome translation scheme (src/sim/processes/translation.js rates() and fire(), constants in src/sim/translation-constants.js) written as data for the
-// Markov engine, built from an amino-acid sequence: the codon of every position becomes tables (sense or stop, whether the residue is Ala / Ser / Thr, the share of
-// near-cognate residues that are), and the cycle itself is states + transitions with rate formulas. It is the acceptance evidence for sequence-driven stochastic
-// processes (tools/translation-parity.mjs compares its rates with the classic code); it is not a shipped work.
+/**
+ * The ribosome translation scheme (classic: src/sim/processes/translation.js rates() and fire(), constants in src/sim/translation-constants.js) as data for the Markov
+ * engine, built from an amino-acid sequence: the codon of every position becomes tables (sense or stop, whether the residue is Ala / Ser / Thr, the share of
+ * near-cognate residues that are), and the cycle itself is states + transitions with rate formulas. tools/translation-parity.mjs compares its rates with the classic code.
+ * This is the construction the translation tool runs; the declaration it returns is plain data and the generic engine knows nothing about ribosomes.
+ */
 const BASES = 'UCAG', AA = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
 export const GENCODE = (() => { const m = {}; let i = 0; for (const x of BASES) for (const y of BASES) for (const z of BASES) m[x + y + z] = AA[i++]; return m; })();
 export const PREF_CODON = { A: 'GCG', R: 'CGU', N: 'AAC', D: 'GAU', C: 'UGC', Q: 'CAG', E: 'GAA', G: 'GGC', H: 'CAU', I: 'AUU', L: 'CUG', K: 'AAA', M: 'AUG', F: 'UUU', P: 'CCG', S: 'AGC', T: 'ACC', W: 'UGG', Y: 'UAU', V: 'GUU' };

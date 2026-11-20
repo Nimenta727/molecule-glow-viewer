@@ -272,3 +272,9 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .particle-card { position: absolute; z-index: 5; pointer-events: none; padding: 0.15rem 0.45rem; border: 1px solid var(--ink, #2c3440); border-radius: 0.25rem; background: #f7f7f4; color: #2c3440; font-size: 0.8rem; white-space: nowrap; }
 .data-kinetics { margin-top: 0.4rem; }
 .data-kinetics .particle-list li canvas { width: 7.5rem; height: 1.5rem; flex: none; }
+.peptide-strip { display: flex; flex-wrap: wrap; gap: 1px; margin: 0.4rem 0; font: 0.78rem/1.3 ui-monospace, Menlo, Consolas, monospace; }
+.peptide-strip span { min-width: 0.9em; text-align: center; border-radius: 2px; }
+.peptide-strip .done { color: #2c3440; background: #e6eaf2; }
+.peptide-strip .error { color: #fff; background: #e5484d; }
+.peptide-strip .pending { color: #9aa3b2; }
+.peptide-strip .current { outline: 2px solid #4f8ff0; }

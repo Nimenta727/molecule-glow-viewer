@@ -8,7 +8,7 @@ import { compileMarkovModel, validateParameterSet, MARKOV_LIMITS } from './marko
  * potentials as they grow; Studio edits the parameters, the schedule and the seed through the generated tool panel. Nothing here names a protein.
  */
 export const PROCESS_TOOL = 'org.glow.tool.stochastic-process';
-const KINDS = ['counter', 'observable', 'clock', 'rate', 'current'];
+const KINDS = ['counter', 'observable', 'clock', 'rate', 'current', 'number'];
 export const PROCESS_LIMITS = Object.freeze({ schedule: 8, display: 8 });
 
 // A small two-state channel: a switch with a rate, so a newly added tool runs out of the box.
@@ -25,14 +25,9 @@ export const PROCESS_TEMPLATE = Object.freeze({
   display: Object.freeze([{ label: '打开次数', kind: 'counter', name: 'openings', digits: 0 }, { label: '开放比例', kind: 'observable', name: 'openFraction', digits: 2 }]),
 });
 
-/** The tool's own validator: the declaration must run, every schedule entry is a valid full parameter set, every display row names something that exists. */
-export function normalizeProcessConfig(raw) {
-  const source = raw && typeof raw === 'object' ? raw : {};
-  const { model, errors } = compileMarkovModel(source.process);
-  if (errors.length) throw new Error(`随机过程配置有误：${errors.join('；')}`);
-  let json; try { json = JSON.stringify(source.process); } catch { throw new Error('随机过程必须是纯数据。'); }
-  if (json.length > 200000) throw new Error('随机过程太大（最多 200 KB）。');
-  const entries = (Array.isArray(source.schedule) && source.schedule.length ? source.schedule : [{ time: 0 }]).slice(0, PROCESS_LIMITS.schedule), schedule = [];
+/** A parameter schedule: [{ time, ...parameters }] with time rising from 0, each entry a full valid set (a missing value keeps the one before it). */
+export function normalizeSchedule(model, rawSchedule) {
+  const entries = (Array.isArray(rawSchedule) && rawSchedule.length ? rawSchedule : [{ time: 0 }]).slice(0, PROCESS_LIMITS.schedule), schedule = [];
   entries.forEach((entry, i) => {
     const time = i === 0 ? 0 : Number(entry?.time);
     if (!Number.isFinite(time) || (i && !(time > schedule[i - 1].time))) throw new Error(`参数时间表第 ${i + 1} 项的时间必须大于前一项。`);
@@ -40,6 +35,17 @@ export function normalizeProcessConfig(raw) {
     for (const p of model.parameters) merged[p.id] = entry?.[p.id] ?? base[p.id] ?? p.default;
     schedule.push({ time, ...validateParameterSet(model, merged) });
   });
+  return schedule;
+}
+
+/** The tool's own validator: the declaration must run, every schedule entry is a valid full parameter set, every display row names something that exists. */
+export function normalizeProcessConfig(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const { model, errors } = compileMarkovModel(source.process);
+  if (errors.length) throw new Error(`随机过程配置有误：${errors.join('；')}`);
+  let json; try { json = JSON.stringify(source.process); } catch { throw new Error('随机过程必须是纯数据。'); }
+  if (json.length > 200000) throw new Error('随机过程太大（最多 200 KB）。');
+  const schedule = normalizeSchedule(model, source.schedule);
   const display = (Array.isArray(source.display) ? source.display : []).slice(0, PROCESS_LIMITS.display).map((row, i) => {
     const what = `第 ${i + 1} 条显示项`;
     if (!KINDS.includes(row?.kind)) throw new Error(`${what}的种类“${String(row?.kind)}”不对（${KINDS.join('、')}）。`);
@@ -48,6 +54,7 @@ export function normalizeProcessConfig(raw) {
     if (row.kind === 'counter' || row.kind === 'rate') out.name = need(model.counters, row.name);
     if (row.kind === 'observable') out.name = need(model.observables.map((o) => o.name), row.name);
     if (row.kind === 'clock') out.name = need(model.clocks.map((c) => c.name), row.name);
+    if (row.kind === 'number') out.name = need(Object.keys(model.numbers), row.name);
     if (row.kind === 'rate') out.window = Math.max(0.5, Math.min(60, Number.isFinite(row.window) ? row.window : 5));
     if (row.kind === 'current') { out.out = need(model.counters, row.out); out.inn = need(model.counters, row.inn); out.ns = need(model.clocks.map((c) => c.name), row.ns); out.unit ||= 'pA'; }
     return out;

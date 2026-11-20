@@ -169,7 +169,7 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
     if (!Number.isFinite(tau)) return { ...s, time: Infinity };
     let pick = random() * total, chosen = rates.at(-1)[1];
     for (const [r, t] of rates) { pick -= r; if (pick <= 0) { chosen = t; break; } }
-    const time = s.time + tau, result = { ...s, vars: { ...s.vars }, nums: { ...s.nums }, counters: { ...s.counters }, clocks: advance(s, time, params), time, id: chosen.id };
+    const time = s.time + tau, result = { ...s, vars: { ...s.vars }, nums: { ...s.nums }, counters: { ...s.counters }, clocks: advance(s, time, params), time, id: chosen.id, branch: -1 };
     const apply = (fx) => {
       Object.assign(result.vars, fx.set);
       for (const [k, v] of Object.entries(fx.count)) result.counters[k] += v;
@@ -183,7 +183,7 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
       if (!(sum > 0)) throw new Error(`转移“${chosen.id}”的分支权重之和必须为正。`);
       let u = random() * sum, branch = chosen.outcomes.length - 1;
       for (let j = 0; j < weights.length; j++) { u -= weights[j]; if (u <= 0) { branch = j; break; } }
-      apply(chosen.outcomes[branch]);
+      apply(chosen.outcomes[branch]); result.branch = branch;
     }
     return result;
   }
@@ -212,7 +212,22 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
       const state = { vars: { ...model.initial, ...vars }, nums: { ...model.initialNumbers, ...nums } };
       return ratesIn(scopeOf(state, { ...validateParameterSet(model, params ?? {}) })).map(([r, t]) => [r, t.id]);
     },
-    /** Every event up to `time` (for tests and plots). */
-    events(time) { this.at(time); return history.filter((s) => s.time <= time && s.id !== 'initial').map((s) => ({ time: s.time, id: s.id })); },
+    /** Every event up to `time` (for tests and plots): { time, id, branch } (branch = the outcome that was drawn, -1 when the transition has none). */
+    events(time) { this.at(time); return history.filter((s) => s.time <= time && s.id !== 'initial').map((s) => ({ time: s.time, id: s.id, branch: s.branch ?? -1 })); },
+    /** The time of the last event called `id` at or before `time`, or null (what a panel needs to find where the current chain began). */
+    lastEvent(id, time) {
+      this.at(time);
+      for (let i = history.length - 1; i > 0; i--) if (history[i].time <= time && history[i].id === id) return history[i].time;
+      return null;
+    },
+    /** The events in (from, to], in order, optionally only those called `ids`: [{ time, id, branch }]. Uses the history already made (call at(to) first). */
+    eventsBetween(from, to, ids) {
+      this.at(to);
+      let lo = 0, hi = history.length;
+      while (lo + 1 < hi) { const mid = (lo + hi) >>> 1; if (history[mid].time <= from) lo = mid; else hi = mid; }
+      const out = [];
+      for (let i = lo; i < history.length && history[i].time <= to; i++) if (history[i].time > from && history[i].id !== 'initial' && (!ids || ids.includes(history[i].id))) out.push({ time: history[i].time, id: history[i].id, branch: history[i].branch ?? -1 });
+      return out;
+    },
   };
 }

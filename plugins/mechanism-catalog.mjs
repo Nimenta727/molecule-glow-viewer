@@ -13,11 +13,12 @@ import { SOLUTION_TOOL } from './motion/solution-tool.mjs';
 import { simulationPlugin } from './simulation/index.mjs';
 import { DATA_TOOL, normalizeDataConfig } from './simulation/data-tool.mjs';
 import { PROCESS_TOOL } from './simulation/process-tool.mjs';
+import { TRANSLATION_TOOL } from './simulation/translation-tool.mjs';
 import { autoBindings } from '../packages/plugin-host/tool-model.mjs';
 export const mechanismPlugins = [atpSynthasePlugin, kcsaPlugin, adenylateKinasePlugin];
 /** Plugins that offer tools other than the mechanism players. They follow the structure plugin (both front ends activate them with it). */
 export const toolPlugins = [motionPlugin, simulationPlugin];
-export { SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL };
+export { SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL };
 export const mechanismPlayers = Object.freeze({ atpSynthase: ATP_PLAYER, kcsa: KCSA_PLAYER });
 
 export function resolveMechanism(scene) {
@@ -44,6 +45,7 @@ const TOOLS = {
 export function toolTitle(id) {
   if (id === SOLUTION_TOOL) return '溶液粒子与流';
   if (id === DATA_TOOL) return '数据反应动画';
+  if (id === TRANSLATION_TOOL) return '核糖体翻译（延伸、校对、终止、抗生素）';
   if (id === PROCESS_TOOL) return '随机状态过程（门控 / 渗透 / 阻断）';
   for (const [player, [toolId, describe]] of Object.entries(TOOLS)) if (id === toolId || id === player) return describe('1.0.0', player).title;
   return id;

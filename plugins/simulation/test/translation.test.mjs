@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMarkovRun } from '../markov-model.mjs';
-import { translationModel, translationTables, ORFS, TL_K as K, TL_DRUG } from './translation-model.mjs';
+import { translationModel, translationTables, ORFS, TL_K as K, TL_DRUG } from '../translation.mjs';
 
 const make = (aa, params = {}, seed = 3, opts = {}) => createMarkovRun(translationModel(aa, opts), seed, [{ time: 0, ...params }]);
 const long = (c, n) => 'M' + c.repeat(n - 1);

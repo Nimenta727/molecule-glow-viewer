@@ -12,6 +12,7 @@ const SAMPLE = 0.5, KEEP = 240;
 export function createProcessPanel({ elements }) {
   let config = null, run = null, schedule = null, t = 0, frame = null, last = 0, available = true, history = [], lastDraw = 0;
   const sliders = new Map();   // parameter id -> { input, out, unit }
+  let letters = [];   // the peptide strip: one span per residue of the template (and the stop)
 
   const show = (text) => { elements.info.textContent = text; };
   const model = () => run?.model;
@@ -28,6 +29,27 @@ export function createProcessPanel({ elements }) {
     if (history.length > KEEP) history.splice(0, history.length - KEEP);
   }
 
+  /** The strip under the numbers: the template's residues, those already added (errors in red), the A site, and the stop. Built once per run, only classes change. */
+  function buildStrip() {
+    const box = elements.strip; box.replaceChildren(); letters = [];
+    box.hidden = !config?.strip;
+    if (!config?.strip) return;
+    for (const [i, aa] of [...config.strip.sequence].entries()) { const span = document.createElement('span'); span.textContent = aa; span.dataset.index = i; letters.push(span); }
+    const stop = document.createElement('span'); stop.textContent = '■'; stop.title = '终止密码子'; letters.push(stop);
+    box.append(...letters);
+  }
+  function drawStrip(s) {
+    if (!config?.strip || !letters.length) return;
+    const n = config.strip.sequence.length, start = run.lastEvent('init', t) ?? 0, peps = run.eventsBetween(start, t, ['pep']);
+    const chainOver = ['term', 'init'].includes(s.vars.st), a = chainOver ? n : s.nums.k;   // the A site is at k while a chain is being built
+    letters.forEach((span, i) => {
+      const error = i >= 1 && i <= peps.length && peps[i - 1].branch === 0;
+      span.className = i === 0 || (i >= 1 && i <= peps.length) ? (error ? 'error' : 'done') : 'pending';
+      if (i === a && !chainOver) span.classList.add('current');
+      span.title = error ? `第 ${i + 1} 个残基：近同源 tRNA 掺入了错误的氨基酸（应为 ${config.strip.sequence[i]}）` : i === n ? '终止密码子' : `第 ${i + 1} 个残基 ${span.textContent}`;
+    });
+    elements.strip.setAttribute('aria-label', `肽链：已加入 ${Math.min(peps.length + 1, n)} / ${n} 个残基，其中 ${peps.filter((e) => e.branch === 0).length} 处错误`);
+  }
   function buildParams() {
     const box = elements.params; box.replaceChildren(); sliders.clear();
     if (!run) return;
@@ -67,6 +89,7 @@ export function createProcessPanel({ elements }) {
       series.forEach((v, n) => { const x = canvas.width - (series.length - 1 - n) * (canvas.width / (KEEP - 1)), y = canvas.height - 2 - ((Number.isFinite(v) ? v : lo) - lo) / (hi - lo) * (canvas.height - 4); n ? g.lineTo(x, y) : g.moveTo(x, y); });
       g.stroke(); li.append(name, canvas); return li;
     }));
+    drawStrip(s);
     elements.state.textContent = `t = ${t.toFixed(1)} 示意秒　${Object.entries(s.vars).map(([k, v]) => `${k}：${v}`).join('　')}`;
     elements.events.replaceChildren(...s.events.slice(-8).reverse().map((e) => { const li = document.createElement('li'); li.textContent = `${e.time.toFixed(2)} s　${e.label}`; return li; }));
     for (const [id, { input, out, unit }] of sliders) if (document.activeElement !== input && Number(input.value) !== s.parameters[id]) { input.value = s.parameters[id]; out.textContent = `${s.parameters[id]}${unit}`; }
@@ -86,7 +109,7 @@ export function createProcessPanel({ elements }) {
     stop(); t = 0; history = [];
     try { build(config.schedule); } catch (error) { run = null; show(`无法运行随机过程：${error.message}`); return; }
     elements.title.textContent = model().title || '随机状态过程';
-    buildParams(); draw(true);
+    buildStrip(); buildParams(); draw(true);
     show('这是随机过程：同一种子重放同一段历史；改滑块就是在此刻加一次参数变化。时间是示意秒。');
     if (elements.play.checked) start();
   }
@@ -110,7 +133,7 @@ export function createProcessPanel({ elements }) {
   return {
     load(next) { config = next; elements.play.checked = true; restart(); },
     setAvailable(on) { if (available === on) return; available = on; if (!on) stop(); else if (run && elements.play.checked) start(); },
-    reset() { stop(); run = null; config = null; schedule = null; history = []; t = 0; elements.play.checked = false; elements.params.replaceChildren(); elements.readout.replaceChildren(); elements.events.replaceChildren(); elements.state.textContent = ''; show(''); },
+    reset() { stop(); letters = []; elements.strip.replaceChildren(); elements.strip.hidden = true; run = null; config = null; schedule = null; history = []; t = 0; elements.play.checked = false; elements.params.replaceChildren(); elements.readout.replaceChildren(); elements.events.replaceChildren(); elements.state.textContent = ''; show(''); },
     get active() { return Boolean(run); },
     /** For tests and the command API: the state now. */
     summary: () => (run ? { time: t, ...run.at(t) } : null),

@@ -1,4 +1,4 @@
-// Differential test: the ribosome translation scheme written as data (plugins/simulation/test/translation-model.mjs, run by the generic Markov engine) against the
+// Differential test: the ribosome translation scheme written as data (plugins/simulation/translation.mjs, run by the generic Markov engine) against the
 // classic code: `rates()` of src/sim/processes/translation.js, run unchanged on a stand-in object, with the constants of src/sim/translation-constants.js. For
 // tens of thousands of random states (ribosome state, incoming tRNA class, drugs bound, E site, peptide length, A-site codon, penultimate residue, concentrations,
 // ORF) the list of possible next events must be the same: the same events in the same order with exactly the same rates. The sequence tables the data model reads
@@ -9,7 +9,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { createMarkovRun } from '../plugins/simulation/markov-model.mjs';
-import { translationModel, translationTables, ORFS, GENCODE, PREF_CODON, nearAA } from '../plugins/simulation/test/translation-model.mjs';
+import { translationModel, translationTables, ORFS, GENCODE, PREF_CODON, nearAA } from '../plugins/simulation/translation.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const out = process.argv.includes('--output') ? process.argv[process.argv.indexOf('--output') + 1] : null;

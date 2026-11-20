@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -35,6 +35,7 @@ import { prepareWorkScene, storePlayerState, toolEntryFor } from './work-scene.m
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
 import { normalizeProcessConfig } from '../../plugins/simulation/process-tool.mjs';
+import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
@@ -98,7 +99,7 @@ function syncControls() {
   const dataTool = Boolean(host.getTool(DATA_TOOL)) && Boolean(active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === DATA_TOOL));
   setDataAnimationAvailable(dataTool);
   elements['data-controls'].hidden = !structureEnabled || !active?.model || !dataTool;
-  const processTool = Boolean(host.getTool(PROCESS_TOOL)) && Boolean(active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === PROCESS_TOOL));
+  const processTool = [PROCESS_TOOL, TRANSLATION_TOOL].some((id) => host.getTool(id) && active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === id));
   setProcessAvailable(processTool);
   elements['process-controls'].hidden = !structureEnabled || !active?.model || !processTool;
   elements['particle-controls'].hidden = !structureEnabled || !active?.model || !particlesTool;
@@ -646,7 +647,7 @@ function boot() {
   });
   const processPanel = createProcessPanel({
     elements: { title: elements['process-title'], speed: elements['process-speed'], speedOut: elements['process-speed-out'], play: elements['process-play'], reset: elements['process-reset'], jump: elements['process-jump'], jumpGo: elements['process-jump-go'],
-      csv: elements['process-csv'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
+      csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
   setProcessAvailable = (on) => processPanel.setAvailable(on);
   setParticlesAvailable = (on) => particleFlow.setAvailable(on);
@@ -715,8 +716,9 @@ function boot() {
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
     if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
     const data = toolEntryFor(active.scene, DATA_TOOL, (id) => host.resolveToolId(id) ?? id);
-    const process = toolEntryFor(active.scene, PROCESS_TOOL, (id) => host.resolveToolId(id) ?? id);
-    if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
+    const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
+    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { processPanel.load(translationProcessConfig(normalizeTranslationConfig(translation.config))); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
+    else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config)); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
     applyClipping();
