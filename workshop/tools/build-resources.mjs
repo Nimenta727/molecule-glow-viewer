@@ -17,6 +17,9 @@ const ENTRIES = {
   '5VKE': { species: 'Streptomyces lividans', title: 'KcsA（深度失活态）', tags: ['钾通道', '离子通道', '失活'], description: 'KcsA 深度失活的开放构象。' },
   '2HVK': { species: 'Streptomyces lividans', title: 'KcsA 与 TBA（中央腔阻断剂）', tags: ['钾通道', '阻断剂'], description: '四丁基铵（TBA）结合在中央腔的 KcsA 结构。' },
   '2ITD': { species: 'Streptomyces lividans', title: 'KcsA 与 Ba²⁺（过滤器阻断剂）', tags: ['钾通道', '阻断剂'], description: 'Ba²⁺ 结合在选择性过滤器的 KcsA 结构。' },
+  '5GUP': { species: 'Bos taurus', title: '哺乳动物呼吸链超复合体 I1III2IV1（呼吸体）', tags: ['呼吸链', '膜蛋白', '冷冻电镜', '超复合体'], description: '复合体 I、III 二聚体和 IV 组成的呼吸体。呼吸链作品使用的主结构（与 ATP 合酶 6ZPO、细胞色素 c 1HRC 同场景）。' },
+  '3JCU': { species: 'Spinacia oleracea', title: '菠菜光系统 II–LHCII 超复合体', tags: ['光合作用', '膜蛋白', '冷冻电镜', '光系统'], description: '含天线蛋白 LHCII 的光系统 II 超复合体。叶绿体光反应作品使用的主结构。' },
+  '1HRC': { species: 'Equus caballus', title: '马心细胞色素 c', tags: ['细胞色素 c', '电子载体', '晶体结构'], description: '线粒体膜间隙里携带电子的小蛋白，在呼吸链作品里作为移动的载体。' },
   '4AKE': { title: '大肠杆菌腺苷酸激酶（张开态）', tags: ['腺苷酸激酶', '构象变化', '酶'], description: '底物结合前的张开构象，含 CORE、NMP、LID 三个域。' },
   '1AKE': { title: '大肠杆菌腺苷酸激酶与 Ap5A（闭合态）', tags: ['腺苷酸激酶', '构象变化', '酶', '抑制剂'], description: '与双底物类似物抑制剂 Ap5A 结合的闭合构象。' },
 };

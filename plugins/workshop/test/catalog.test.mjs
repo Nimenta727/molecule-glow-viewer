@@ -18,7 +18,7 @@ const base = 'https://example.test/workshop/';
 test('the real catalogues load: works and resources of the official source, with a missing community source reported, not thrown', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
   assert.equal(catalog.works.length, 15);
-  assert.equal(catalog.resources.length, 8);
+  assert.equal(catalog.resources.length, 11);
   assert.ok(catalog.works.every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
   assert.ok(catalog.resources.every((entry) => entry.kind === 'resource' && entry.delivery === 'reference' && entry.record.attribution.license === 'CC0-1.0'));
   assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources'], 'the community source has works (none yet) but no resource catalogue');

@@ -243,7 +243,9 @@
     "1HRC"
    ],
    "resources": [
-    "res.rcsb.6ZPO"
+    "res.rcsb.5GUP",
+    "res.rcsb.6ZPO",
+    "res.rcsb.1HRC"
    ],
    "tools": [],
    "animation": "builtin",
@@ -345,7 +347,9 @@
     "1A70",
     "1FNB"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.3JCU"
+   ],
    "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",

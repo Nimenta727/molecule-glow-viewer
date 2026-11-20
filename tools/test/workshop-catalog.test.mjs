@@ -32,7 +32,7 @@ test('the official resource catalogue holds valid, reproducible records that agr
     assert.ok(entry.title && entry.description && entry.tags.length > 0, `${record.id} has catalogue text`);
     assert.ok(record.card.species && record.card.method, `${record.id} keeps species and method in its card`);
   }
-  assert.equal(ids.size, 8);
+  assert.equal(ids.size, 11);
 });
 
 test('every work names resources the catalogue holds and tools the application registers', () => {

@@ -53,6 +53,51 @@
   },
   {
    "kind": "resource",
+   "title": "马心细胞色素 c",
+   "description": "线粒体膜间隙里携带电子的小蛋白，在呼吸链作品里作为移动的载体。",
+   "tags": [
+    "细胞色素 c",
+    "电子载体",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1HRC",
+    "version": "00ddc700",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1HRC.cif",
+      "sha256": "00ddc70047e8eb00d5acf2fa2ab5ab3ba6f942c75212ff2ebe3234130a16e17b",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 160446
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1HRC",
+     "url": "https://www.rcsb.org/structure/1HRC"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "HIGH-RESOLUTION THREE-DIMENSIONAL STRUCTURE OF HORSE HEART CYTOCHROME C",
+     "species": "Equus caballus",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "High-resolution three-dimensional structure of horse heart cytochrome c. (1990)",
+     "doi": "10.1016/0022-2836(90)90200-6"
+    }
+   }
+  },
+  {
+   "kind": "resource",
    "title": "KcsA 钾通道（关闭态）",
    "description": "链霉菌 KcsA 在高 K⁺ 下的结构（含抗体 Fab），选择性过滤器中有 K⁺ 位点。KcsA 作品的主结构。",
    "tags": [
@@ -186,6 +231,52 @@
   },
   {
    "kind": "resource",
+   "title": "菠菜光系统 II–LHCII 超复合体",
+   "description": "含天线蛋白 LHCII 的光系统 II 超复合体。叶绿体光反应作品使用的主结构。",
+   "tags": [
+    "光合作用",
+    "膜蛋白",
+    "冷冻电镜",
+    "光系统"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.3JCU",
+    "version": "7b9b99f5",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "3JCU.cif",
+      "sha256": "7b9b99f5173e0db4f9bb7839d04f0daf5c4b1648804b4354a0c09526a7e9f968",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 8670548
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "3JCU",
+     "url": "https://www.rcsb.org/structure/3JCU"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Cryo-EM structure of spinach PSII-LHCII supercomplex at 3.2 Angstrom resolution",
+     "species": "Spinacia oleracea",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure of spinach photosystem II-LHCII supercomplex at 3.2 A resolution (2016)",
+     "doi": "10.1038/nature18020"
+    }
+   }
+  },
+  {
+   "kind": "resource",
    "title": "大肠杆菌腺苷酸激酶（张开态）",
    "description": "底物结合前的张开构象，含 CORE、NMP、LID 三个域。",
    "tags": [
@@ -226,6 +317,52 @@
      "method": "X-RAY DIFFRACTION",
      "citation": "Adenylate kinase motions during catalysis: an energetic counterweight balancing substrate binding. (1996)",
      "doi": "10.1016/S0969-2126(96)00018-4"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "哺乳动物呼吸链超复合体 I1III2IV1（呼吸体）",
+   "description": "复合体 I、III 二聚体和 IV 组成的呼吸体。呼吸链作品使用的主结构（与 ATP 合酶 6ZPO、细胞色素 c 1HRC 同场景）。",
+   "tags": [
+    "呼吸链",
+    "膜蛋白",
+    "冷冻电镜",
+    "超复合体"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-20",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.5GUP",
+    "version": "2aa09c2a",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "5GUP.cif",
+      "sha256": "2aa09c2ad6e3b096412b8434057317f4cded1bee53868f384bc406202432d694",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 12351474
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "5GUP",
+     "url": "https://www.rcsb.org/structure/5GUP"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Cryo-EM structure of mammalian respiratory supercomplex I1III2IV1",
+     "species": "Bos taurus",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure of Mammalian Respiratory Supercomplex I1III2IV1 (2016)",
+     "doi": "10.1016/j.cell.2016.11.012"
     }
    }
   },
