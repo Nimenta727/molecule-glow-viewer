@@ -244,3 +244,4 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
   - **从资源建作品**：Studio 资源区的“用此资源新建作品”取回并核对结构后导入，作品的第一个资源就是该工坊记录（RCSB 来源、CC0、可嵌入）；Viewer 资源区的“打开结构”走同样的核对。作品区：Viewer“打开”（核对哈希后载入）；Studio“在 Viewer 中打开”（`?work=<id>`）。
   - **离线副本**：资源目前只有“仅引用”一种交付方式——需要时从来源取回并核对哈希；是否随作品嵌入由资源的 `embedAllowed` 标明（导出时按它过滤仍未实现，见上）。
   - **已知边界**：只有官方资源区；社区资源的投稿、审核、版本升级流程未做；Studio 不能直接导入官方的 v1 场景包（需先在 Viewer 打开并保存），所以作品区在 Studio 里只提供“在 Viewer 中打开”；资源区目前只有 RCSB 来源；工坊目录读取依赖网络（本地检出用本地目录）。
+- **4.4.0a 完整选择语言与选择集（2026-11-20，已完成第一版）**：`plugins/structure/selection.mjs` 承接经典语法（chain/asym/label_asym/label_seq/resn/resi 含插入码/ligand/entity/within/sele/and-or-not），结构服务新增 `selectExpression`，Viewer 一次标出整个匹配集合（`setPointSelections`）并提供表达式输入框。与经典代码在 8 个真实结构上 216/216 条逐项一致（`tools/selection-parity.mjs`）。**已知边界**：未选部分淡化、序列条联动、按选择换表示尚未做；`entity` 在无界面时无法与经典对比。

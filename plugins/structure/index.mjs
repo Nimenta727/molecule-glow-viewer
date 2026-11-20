@@ -1,6 +1,7 @@
 import { parseMmcif, parsePdb } from './parser.mjs';
 import { applyBiologicalAssembly, CoordinateAssemblyError } from './assembly.mjs';
 import { buildRepresentations, findLigandContacts, PRESENTATION_METERS_PER_ANGSTROM, selectStructure } from './representation.mjs';
+import { selectionSpace, evaluateSelection, describeSelection } from './selection.mjs';
 import { encodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 
 export const STRUCTURE_PLUGIN_ID = 'org.glow.structure';
@@ -18,9 +19,15 @@ export const structurePlugin = {
     context.registerImporter(STRUCTURE_IMPORTER_ID, { importScene: importStructureScene });
     context.registerRepresentation('org.glow.structure.preview', { build: buildRepresentations });
     context.registerService(STRUCTURE_SERVICE_ID, VERSION,
-      { parse: parseCoordinates, select: selectStructure, contacts: findLigandContacts });
+      { parse: parseCoordinates, select: selectStructure, contacts: findLigandContacts, selectExpression });
   },
 };
+
+/** Evaluates a selection-language expression; `previous` is the earlier result so that `sele` works. Returns atoms (one per residue / ligand) and a summary. */
+function selectExpression(model, expression, { previous } = {}) {
+  const result = evaluateSelection(expression, selectionSpace(model), { previous });
+  return { residues: result.residues, ligands: result.ligands, atoms: [...result.residues.map((r) => r.atom), ...result.ligands.map((l) => l.atom)], summary: describeSelection(result) };
+}
 
 async function hash(bytes) {
   const digest = await crypto.subtle.digest('SHA-256', bytes);

@@ -167,6 +167,35 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     return Boolean(pointSelection?.parent);
   }
 
+  /** Marks every point whose target belongs to `targets` (a Set) with a wireframe ring: the multi-object counterpart of setPointSelection. */
+  let setMarkers = [];
+  function setPointSelections(targets) {
+    for (const marker of setMarkers) { marker.removeFromParent(); marker.geometry.dispose(); marker.material.dispose(); }
+    setMarkers = [];
+    let count = 0;
+    if (targets?.size && active) {
+      for (const mesh of active.meshes) {
+        const indices = [];
+        (mesh.userData.pointTargets ?? []).forEach((target, index) => { if (target && targets.has(target)) indices.push(index); });
+        if (!indices.length || !isVisible(mesh)) continue;
+        const marker = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6),
+          new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }), indices.length);
+        marker.renderOrder = 10;
+        marker.frustumCulled = false;
+        const position = mesh.geometry.getAttribute('position'), matrix = new THREE.Matrix4(), radius = Math.max(mesh.material.size * 0.7, 0.04);
+        indices.forEach((index, slot) => {
+          matrix.makeScale(radius, radius, radius).setPosition(position.getX(index), position.getY(index), position.getZ(index));
+          marker.setMatrixAt(slot, matrix);
+        });
+        mesh.add(marker);
+        setMarkers.push(marker);
+        count += indices.length;
+      }
+    }
+    invalidate();
+    return count;
+  }
+
   function setNodeVisibility(ids, visible) {
     for (const id of ids) {
       const group = active?.groups.get(id);
@@ -715,6 +744,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

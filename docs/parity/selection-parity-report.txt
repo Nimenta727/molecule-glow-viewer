@@ -1,0 +1,218 @@
+ok   1AKE "all": 428r/2l
+ok   1AKE "none": 0r/0l
+ok   1AKE "protein": 428r/0l
+ok   1AKE "nucleic": 0r/0l
+ok   1AKE "ligands": 0r/2l
+ok   1AKE "chain A": 214r/1l
+ok   1AKE "chain A,B": 428r/2l
+ok   1AKE "chain B and protein": 214r/0l
+ok   1AKE "resi 1-50": 100r/0l
+ok   1AKE "resi 10,20,30-40": 26r/0l
+ok   1AKE "resi -3-5": 10r/0l
+ok   1AKE "resn HIS,CYS": 8r/0l
+ok   1AKE "resn GLY and chain A": 20r/0l
+ok   1AKE "not protein": 0r/2l
+ok   1AKE "not (chain A or chain B)": 0r/0l
+ok   1AKE "protein and not resn ALA,GLY": 350r/0l
+ok   1AKE "within 5 of ligands": 48r/0l
+ok   1AKE "within 4 of resn HIS": 12r/2l
+ok   1AKE "within 8 of (chain A and resi 1-20)": 43r/1l
+ok   1AKE "protein and within 6 of ligands": 74r/0l
+ok   1AKE "ligand ATP": 0r/0l
+ok   1AKE "ligand MG,ZN,K": 0r/0l
+ok   1AKE "label_seq 5-40": 72r/0l
+ok   1AKE "asym A": 214r/0l
+ok   1AKE "label_asym A": 214r/0l
+ok   1AKE "resi 52A": 0r/0l
+ok   1AKE "resi 1A-30": 58r/0l
+ok   1K4C "all": 534r/9l
+ok   1K4C "none": 0r/0l
+ok   1K4C "protein": 534r/0l
+ok   1K4C "nucleic": 0r/0l
+ok   1K4C "ligands": 0r/9l
+ok   1K4C "chain A": 219r/1l
+ok   1K4C "chain A,B": 431r/1l
+ok   1K4C "chain B and protein": 212r/0l
+ok   1K4C "resi 1-50": 129r/0l
+ok   1K4C "resi 10,20,30-40": 37r/0l
+ok   1K4C "resi -3-5": 10r/0l
+ok   1K4C "resn HIS,CYS": 18r/0l
+ok   1K4C "resn GLY and chain A": 16r/0l
+ok   1K4C "not protein": 0r/9l
+ok   1K4C "not (chain A or chain B)": 103r/8l
+ok   1K4C "protein and not resn ALA,GLY": 450r/0l
+ok   1K4C "within 5 of ligands": 9r/0l
+ok   1K4C "within 4 of resn HIS": 17r/0l
+ok   1K4C "within 8 of (chain A and resi 1-20)": 36r/0l
+ok   1K4C "protein and within 6 of ligands": 16r/0l
+ok   1K4C "ligand ATP": 0r/0l
+ok   1K4C "ligand MG,ZN,K": 0r/7l
+ok   1K4C "label_seq 5-40": 91r/0l
+ok   1K4C "asym A": 219r/0l
+ok   1K4C "label_asym A": 219r/0l
+ok   1K4C "resi 52A": 0r/0l
+ok   1K4C "resi 1A-30": 67r/0l
+ok   2HVK "all": 534r/9l
+ok   2HVK "none": 0r/0l
+ok   2HVK "protein": 534r/0l
+ok   2HVK "nucleic": 0r/0l
+ok   2HVK "ligands": 0r/9l
+ok   2HVK "chain A": 219r/1l
+ok   2HVK "chain A,B": 431r/1l
+ok   2HVK "chain B and protein": 212r/0l
+ok   2HVK "resi 1-50": 129r/0l
+ok   2HVK "resi 10,20,30-40": 37r/0l
+ok   2HVK "resi -3-5": 10r/0l
+ok   2HVK "resn HIS,CYS": 18r/0l
+ok   2HVK "resn GLY and chain A": 16r/0l
+ok   2HVK "not protein": 0r/9l
+ok   2HVK "not (chain A or chain B)": 103r/8l
+ok   2HVK "protein and not resn ALA,GLY": 450r/0l
+ok   2HVK "within 5 of ligands": 13r/0l
+ok   2HVK "within 4 of resn HIS": 17r/0l
+ok   2HVK "within 8 of (chain A and resi 1-20)": 36r/0l
+ok   2HVK "protein and within 6 of ligands": 20r/0l
+ok   2HVK "ligand ATP": 0r/0l
+ok   2HVK "ligand MG,ZN,K": 0r/6l
+ok   2HVK "label_seq 5-40": 91r/0l
+ok   2HVK "asym A": 219r/0l
+ok   2HVK "label_asym A": 219r/0l
+ok   2HVK "resi 52A": 0r/0l
+ok   2HVK "resi 1A-30": 67r/0l
+ok   2ITD "all": 534r/2l
+ok   2ITD "none": 0r/0l
+ok   2ITD "protein": 534r/0l
+ok   2ITD "nucleic": 0r/0l
+ok   2ITD "ligands": 0r/2l
+ok   2ITD "chain A": 219r/0l
+ok   2ITD "chain A,B": 431r/0l
+ok   2ITD "chain B and protein": 212r/0l
+ok   2ITD "resi 1-50": 129r/0l
+ok   2ITD "resi 10,20,30-40": 37r/0l
+ok   2ITD "resi -3-5": 10r/0l
+ok   2ITD "resn HIS,CYS": 18r/0l
+ok   2ITD "resn GLY and chain A": 16r/0l
+ok   2ITD "not protein": 0r/2l
+ok   2ITD "not (chain A or chain B)": 103r/2l
+ok   2ITD "protein and not resn ALA,GLY": 450r/0l
+ok   2ITD "within 5 of ligands": 4r/0l
+ok   2ITD "within 4 of resn HIS": 17r/0l
+ok   2ITD "within 8 of (chain A and resi 1-20)": 36r/0l
+ok   2ITD "protein and within 6 of ligands": 5r/0l
+ok   2ITD "ligand ATP": 0r/0l
+ok   2ITD "ligand MG,ZN,K": 0r/0l
+ok   2ITD "label_seq 5-40": 91r/0l
+ok   2ITD "asym A": 219r/0l
+ok   2ITD "label_asym A": 219r/0l
+ok   2ITD "resi 52A": 0r/0l
+ok   2ITD "resi 1A-30": 67r/0l
+ok   4AKE "all": 428r/0l
+ok   4AKE "none": 0r/0l
+ok   4AKE "protein": 428r/0l
+ok   4AKE "nucleic": 0r/0l
+ok   4AKE "ligands": 0r/0l
+ok   4AKE "chain A": 214r/0l
+ok   4AKE "chain A,B": 428r/0l
+ok   4AKE "chain B and protein": 214r/0l
+ok   4AKE "resi 1-50": 100r/0l
+ok   4AKE "resi 10,20,30-40": 26r/0l
+ok   4AKE "resi -3-5": 10r/0l
+ok   4AKE "resn HIS,CYS": 8r/0l
+ok   4AKE "resn GLY and chain A": 20r/0l
+ok   4AKE "not protein": 0r/0l
+ok   4AKE "not (chain A or chain B)": 0r/0l
+ok   4AKE "protein and not resn ALA,GLY": 350r/0l
+ok   4AKE "within 5 of ligands": 0r/0l
+ok   4AKE "within 4 of resn HIS": 12r/0l
+ok   4AKE "within 8 of (chain A and resi 1-20)": 35r/0l
+ok   4AKE "protein and within 6 of ligands": 0r/0l
+ok   4AKE "ligand ATP": 0r/0l
+ok   4AKE "ligand MG,ZN,K": 0r/0l
+ok   4AKE "label_seq 5-40": 72r/0l
+ok   4AKE "asym A": 214r/0l
+ok   4AKE "label_asym A": 214r/0l
+ok   4AKE "resi 52A": 0r/0l
+ok   4AKE "resi 1A-30": 58r/0l
+ok   5VK6 "all": 527r/9l
+ok   5VK6 "none": 0r/0l
+ok   5VK6 "protein": 527r/0l
+ok   5VK6 "nucleic": 0r/0l
+ok   5VK6 "ligands": 0r/9l
+ok   5VK6 "chain A": 219r/0l
+ok   5VK6 "chain A,B": 431r/0l
+ok   5VK6 "chain B and protein": 212r/0l
+ok   5VK6 "resi 1-50": 125r/0l
+ok   5VK6 "resi 10,20,30-40": 37r/0l
+ok   5VK6 "resi -3-5": 10r/0l
+ok   5VK6 "resn HIS,CYS": 18r/0l
+ok   5VK6 "resn GLY and chain A": 16r/0l
+ok   5VK6 "not protein": 0r/9l
+ok   5VK6 "not (chain A or chain B)": 96r/9l
+ok   5VK6 "protein and not resn ALA,GLY": 445r/0l
+ok   5VK6 "within 5 of ligands": 10r/0l
+ok   5VK6 "within 4 of resn HIS": 14r/0l
+ok   5VK6 "within 8 of (chain A and resi 1-20)": 35r/0l
+ok   5VK6 "protein and within 6 of ligands": 15r/0l
+ok   5VK6 "ligand ATP": 0r/0l
+ok   5VK6 "ligand MG,ZN,K": 0r/7l
+ok   5VK6 "label_seq 5-40": 108r/0l
+ok   5VK6 "asym A": 219r/0l
+ok   5VK6 "label_asym A": 219r/0l
+ok   5VK6 "resi 52A": 0r/0l
+ok   5VK6 "resi 1A-30": 63r/0l
+ok   5VKE "all": 527r/5l
+ok   5VKE "none": 0r/0l
+ok   5VKE "protein": 527r/0l
+ok   5VKE "nucleic": 0r/0l
+ok   5VKE "ligands": 0r/5l
+ok   5VKE "chain A": 219r/0l
+ok   5VKE "chain A,B": 431r/0l
+ok   5VKE "chain B and protein": 212r/0l
+ok   5VKE "resi 1-50": 125r/0l
+ok   5VKE "resi 10,20,30-40": 37r/0l
+ok   5VKE "resi -3-5": 10r/0l
+ok   5VKE "resn HIS,CYS": 18r/0l
+ok   5VKE "resn GLY and chain A": 16r/0l
+ok   5VKE "not protein": 0r/5l
+ok   5VKE "not (chain A or chain B)": 96r/5l
+ok   5VKE "protein and not resn ALA,GLY": 445r/0l
+ok   5VKE "within 5 of ligands": 8r/0l
+ok   5VKE "within 4 of resn HIS": 14r/0l
+ok   5VKE "within 8 of (chain A and resi 1-20)": 35r/0l
+ok   5VKE "protein and within 6 of ligands": 15r/0l
+ok   5VKE "ligand ATP": 0r/0l
+ok   5VKE "ligand MG,ZN,K": 0r/3l
+ok   5VKE "label_seq 5-40": 108r/0l
+ok   5VKE "asym A": 219r/0l
+ok   5VKE "label_asym A": 219r/0l
+ok   5VKE "resi 52A": 0r/0l
+ok   5VKE "resi 1A-30": 63r/0l
+ok   6ZPO "all": 5150r/16l
+ok   6ZPO "none": 0r/0l
+ok   6ZPO "protein": 5150r/0l
+ok   6ZPO "nucleic": 0r/0l
+ok   6ZPO "ligands": 0r/16l
+ok   6ZPO "chain A": 508r/2l
+ok   6ZPO "chain A,B": 985r/4l
+ok   6ZPO "chain B and protein": 477r/0l
+ok   6ZPO "resi 1-50": 1310r/0l
+ok   6ZPO "resi 10,20,30-40": 372r/0l
+ok   6ZPO "resi -3-5": 86r/0l
+ok   6ZPO "resn HIS,CYS": 86r/0l
+ok   6ZPO "resn GLY and chain A": 48r/0l
+ok   6ZPO "not protein": 0r/16l
+ok   6ZPO "not (chain A or chain B)": 4165r/12l
+ok   6ZPO "protein and not resn ALA,GLY": 4181r/0l
+ok   6ZPO "within 5 of ligands": 99r/0l
+ok   6ZPO "within 4 of resn HIS": 126r/0l
+ok   6ZPO "within 8 of (chain A and resi 1-20)": 26r/0l
+ok   6ZPO "protein and within 6 of ligands": 164r/0l
+ok   6ZPO "ligand ATP": 0r/3l
+ok   6ZPO "ligand MG,ZN,K": 0r/5l
+ok   6ZPO "label_seq 5-40": 966r/0l
+ok   6ZPO "asym A": 41r/0l
+ok   6ZPO "label_asym A": 41r/0l
+ok   6ZPO "resi 52A": 0r/0l
+ok   6ZPO "resi 1A-30": 740r/0l
+
+216/216 identical

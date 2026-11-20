@@ -95,7 +95,7 @@ function isWater(atom) {
   return WATER_NAMES.has(text(atom.residueName).toUpperCase());
 }
 
-function isPolymer(atom, format) {
+export function isPolymer(atom, format) {
   return atom.record === 'ATOM' || (format === 'mmcif' && Boolean(atom.labelSeqId)) || MODIFIED_RESIDUES.has(atom.residueName);
 }
 

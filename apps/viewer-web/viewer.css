@@ -199,3 +199,7 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
   #mode-panel .mode-steps li { margin: 0; }
   #mode-panel .mode-steps button { width: 100%; text-align: left; }
 }
+
+#selection-expression { flex: 1 1 10rem; width: auto; min-width: 8rem; }
+.selection-help { flex-basis: 100%; font-size: 0.78rem; color: var(--muted, #5b6270); }
+.selection-help p { margin: 0.3rem 0 0; line-height: 1.5; }

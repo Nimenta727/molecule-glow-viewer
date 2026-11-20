@@ -97,6 +97,13 @@
               <input id="residue-id" name="residue" type="text" maxlength="32">
               <button type="submit">选取</button>
             </form>
+            <form id="selection-expression-form" class="structure-form" hidden>
+              <label for="selection-expression">选择语言</label>
+              <input id="selection-expression" name="expression" type="text" maxlength="300" placeholder="chain A and resi 10-50" autocomplete="off" spellcheck="false">
+              <button type="submit">选择</button>
+              <button id="selection-clear" type="button">清除</button>
+              <details class="selection-help"><summary>语法</summary><p id="selection-help-text"></p></details>
+            </form>
             <p id="structure-summary" class="structure-summary" aria-live="polite" hidden></p>
             <details id="legacy-components" hidden>
               <summary>场景组件</summary>

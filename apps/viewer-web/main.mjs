@@ -14,6 +14,7 @@ import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { SELECTION_HELP } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -74,6 +75,7 @@ function syncControls() {
   elements['atp-enabled'].disabled = !structureEnabled;
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
+  elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
@@ -359,6 +361,20 @@ function boot() {
     card.textContent = `${STRUCTURE_LABELS[kind]} ${atom.residueName} · 作者编号 ${atom.authChainId || '—'}:${atom.authSeqId || '—'}${atom.insertionCode || ''} · 标签编号 ${atom.labelChainId || '—'}:${atom.labelSeqId || '—'}${copy}`;
     elements['structure-tools'].open = true;
   }
+
+  function selectSet(expression) {
+    const model = active?.model;
+    if (!model) return null;
+    const result = host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet });
+    active.selectionSet = result;
+    const keys = new Set(result.residues.map(({ atom }) => structureObjectId('residue', atom)));
+    const ligandKeys = new Set(result.ligands.map((ligand) => structureObjectId('ligand', ligand.atom)));
+    const targets = new Set([...active.structureTargets.values()].filter((target) =>
+      (target.kind === 'ligand' ? ligandKeys : keys).has(structureObjectId(target.kind, target.atom))));
+    const marked = viewport.setPointSelections(targets);
+    return { residues: result.residues.length, ligands: result.ligands.length, marked, summary: result.summary };
+  }
+  function clearSet() { if (active) active.selectionSet = undefined; viewport.setPointSelections(); }
 
   elements['structure-contacts'].addEventListener('toggle', (event) => {
     const ligand = active?.structureSelection;
@@ -920,6 +936,15 @@ function boot() {
     const examples = [...residues.values()].slice(0, 8);
     setStatus(`匹配 ${atoms.length} 个原子、${residues.size} 个残基：${examples.join('；')}${residues.size > examples.length ? '；…' : ''}`);
   });
+  elements['selection-help-text'].textContent = SELECTION_HELP;
+  elements['selection-expression-form'].addEventListener('submit', (event) => {
+    event.preventDefault();
+    try {
+      const result = selectSet(elements['selection-expression'].value);
+      if (result) setStatus(`选中 ${result.summary}${result.marked < result.residues + result.ligands ? '（部分对象在当前表示中没有标记点）' : ''}`);
+    } catch (error) { setStatus(error.message); }
+  });
+  elements['selection-clear'].addEventListener('click', () => { clearSet(); elements['selection-expression'].value = ''; setStatus('已清除选择。'); });
   elements.open.addEventListener('click', () => elements.file.click());
   for (const type of ['dragover', 'drop']) {
     elements.viewport.addEventListener(type, (event) => {
@@ -1148,6 +1173,8 @@ function boot() {
         residueName: atom.residueName, assemblyCopy: atom.assemblyCopy ?? null };
     },
     select: showStructurePick,
+    selectSet,
+    clearSet,
     selectAtoms: (model, spec) => host.getService(MODEL_SERVICE, '1.0.0').select(model, spec),
     represent: (style) => { refreshStructureView(style); syncControls(); showStructureParts(); },
     enableStructure: () => setStructureEnabled(true, { propagate: true }),
