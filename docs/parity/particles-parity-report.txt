@@ -1,0 +1,22 @@
+ok   Catmull-Rom curves: 1230 points on 30 paths of 3-8 points, largest difference 1.2e-13 Å, length 5.7e-13 Å
+ok   two-point paths are straight lines (largest departure 1.4e-14 Å); the classic curve bulges by up to 16.3 Å (three.js scratch-vector quirk, not reproduced)
+ok   6ZPO: occupancy of 5150 residue atoms, 800 probes (busy / clearance / push-away direction): 0 disagreements, largest difference 0.0e+0 Å, push 0.0e+0
+ok   6ZPO: 40 Brownian bridges through the structure (1000 points; four option sets): largest difference 4.5e-13 Å; 85% of the points clear every residue by 4 Å
+ok   6ZPO: bulk regions (compartment box and machine shell), 240 sampled spots plus inside / depth: 0 disagreements, largest difference 8.0e-14 Å
+ok   6ZPO: pool of 24 H⁺ (plain) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   6ZPO: pool of 24 H⁺ (tumbling) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   1K4C: occupancy of 534 residue atoms, 800 probes (busy / clearance / push-away direction): 0 disagreements, largest difference 0.0e+0 Å, push 0.0e+0
+ok   1K4C: 40 Brownian bridges through the structure (1000 points; four option sets): largest difference 3.3e-13 Å; 82% of the points clear every residue by 4 Å
+ok   1K4C: bulk regions (compartment box and machine shell), 240 sampled spots plus inside / depth: 0 disagreements, largest difference 5.9e-14 Å
+ok   1K4C: pool of 24 H⁺ (plain) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   1K4C: pool of 24 H⁺ (tumbling) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   4AKE: occupancy of 428 residue atoms, 800 probes (busy / clearance / push-away direction): 0 disagreements, largest difference 0.0e+0 Å, push 0.0e+0
+ok   4AKE: 40 Brownian bridges through the structure (1000 points; four option sets): largest difference 6.8e-12 Å; 85% of the points clear every residue by 4 Å
+ok   4AKE: bulk regions (compartment box and machine shell), 240 sampled spots plus inside / depth: 0 disagreements, largest difference 3.3e-14 Å
+ok   4AKE: pool of 24 H⁺ (plain) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   4AKE: pool of 24 H⁺ (tumbling) over 240 steps with 5 take/give and the count raised then lowered: 26 left; largest position difference 0.0e+0 Å, 0 count and 0 mode/alpha disagreements
+ok   flow of H⁺: 300 steps, up to 12 particles on 3 path(s): 57 emitted / 53 finished; largest position difference 3.9e-6 Å, scale 1.2e-7, 0 count disagreements
+ok   flow of K⁺: 300 steps, up to 11 particles on 1 path(s): 28 emitted / 25 finished; largest position difference 2.1e-6 Å, scale 1.2e-7, 0 count disagreements
+ok   unnamed pools and flows are refused: 4/4
+
+20/20 identical

@@ -333,6 +333,25 @@
       "scope": "Runner compares axes and spin placement with the classic code on real chains; playback, pause, reset, saving and unmarking were checked in a browser session, not by this runner."
     },
     {
+      "id": "classic.motion.particles-paths-flow",
+      "kind": "manual-contract",
+      "source": "src/sim/motion-kit.js",
+      "steps": [
+        "Seed the classic kit and the new module identically; fill pools in a compartment, diffuse, take and give particles, build Brownian paths through the structure and run flow streams."
+      ],
+      "expected": "Occupancy answers, Brownian bridge points, region samples, pool positions/modes/alpha and flow positions equal the classic ones to 1e-9 A (flow positions to the classic float32 matrix storage); free particles never sit inside protein; a pool or stream without a name is refused. Two-point travel paths are straight lines, a deliberate difference from the three.js scratch-vector curve."
+    },
+    {
+      "id": "new.motion.particles-paths-flow",
+      "kind": "partial-automation",
+      "runner": "tools/particles-parity.mjs",
+      "steps": [
+        "Seed the classic kit and the new module identically; fill pools in a compartment, diffuse, take and give particles, build Brownian paths through the structure and run flow streams."
+      ],
+      "expected": "Occupancy answers, Brownian bridge points, region samples, pool positions/modes/alpha and flow positions equal the classic ones to 1e-9 A (flow positions to the classic float32 matrix storage); free particles never sit inside protein; a pool or stream without a name is refused. Two-point travel paths are straight lines, a deliberate difference from the three.js scratch-vector curve.",
+      "scope": "Runner compares the pure logic with the classic code on real structures; drawing, travel animation, event tags and the Viewer/Studio wiring are not covered and not yet built."
+    },
+    {
       "id": "classic.animation.data-v1-adk-kcsa",
       "kind": "manual-contract",
       "source": "src/sim/data-anim.js",
