@@ -41,3 +41,21 @@ export function toCSV(series) {
   const cell = (v) => (typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toPrecision(10)) : /[",\n]/.test(String(v)) ? `"${String(v).replaceAll('"', '""')}"` : String(v));
   return [cols.map(([name]) => name).join(','), ...series.times.map((_, i) => cols.map(([, v]) => cell(v[i])).join(','))].join('\n') + '\n';
 }
+
+/** The kinds of display rows a work can ask for, and the name each needs. */
+export const DISPLAY_KINDS = Object.freeze({ counter: 'counter', observable: 'observable', clock: 'clock', rate: 'counter', current: null });
+
+/**
+ * One display row's value at `time` (display seconds). Row: { kind, name, unit?, digits?, window?, out?, inn?, ns? }
+ *   counter / observable / clock  the named number now                 rate  the counter's events per second over the last `window` s (default 5)
+ *   current                        the single-channel current (pA) estimated from the counts `out`, `inn` and the clock `ns` since the start
+ */
+export function readDisplay(run, row, time) {
+  const at = (t) => run.at(Math.max(0, t));
+  if (row.kind === 'counter') return at(time).counters[row.name];
+  if (row.kind === 'observable') return at(time).observables[row.name];
+  if (row.kind === 'clock') return at(time).clocks[row.name];
+  if (row.kind === 'rate') { const w = Math.min(row.window ?? 5, Math.max(time, 1e-9)), a = at(time - w), b = at(time); return (b.counters[row.name] - a.counters[row.name]) / w; }
+  if (row.kind === 'current') { const s = at(time); return currentFromCounts({ out: s.counters[row.out], inn: s.counters[row.inn], ns: s.clocks[row.ns] }); }
+  throw new Error(`没有这种显示项“${row.kind}”。`);
+}

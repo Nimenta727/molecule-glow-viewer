@@ -127,6 +127,17 @@
               <div class="take-apart-row"><label><input id="spin-play" type="checkbox"> 播放</label><button id="spin-reset" type="button">复位角度</button></div>
               <p id="spin-info" class="structure-summary" aria-live="polite">在“部件显隐”里给要旋转的部件勾上“旋转”。</p>
             </div>
+            <div id="process-controls" class="morph-controls" hidden>
+              <div class="structure-form"><strong id="process-title">随机状态过程</strong></div>
+              <label class="take-apart-row">速度 <input id="process-speed" type="range" min="0.1" max="20" step="0.1" value="2" aria-label="播放速度"> <output id="process-speed-out"></output> 示意秒/秒</label>
+              <div class="take-apart-row"><label><input id="process-play" type="checkbox"> 播放</label><button id="process-reset" type="button">从头开始</button></div>
+              <div class="take-apart-row"><input id="process-jump" type="number" min="0" max="3600" step="1" value="60" aria-label="跳到的时间（示意秒）"><button id="process-jump-go" type="button">跳到（示意秒）</button><button id="process-csv" type="button">下载 CSV</button></div>
+              <div id="process-params"></div>
+              <ul id="process-readout" class="particle-list" aria-label="读数与曲线"></ul>
+              <p id="process-state" class="structure-summary" aria-live="polite"></p>
+              <details open><summary>事件记录</summary><ol id="process-events" class="particle-list"></ol></details>
+              <p id="process-info" class="structure-summary"></p>
+            </div>
             <div id="data-controls" class="morph-controls" hidden>
               <div class="structure-form"><strong>数据反应动画</strong></div>
               <label class="take-apart-row">时间尺度

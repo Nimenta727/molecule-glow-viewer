@@ -368,7 +368,7 @@
         "Run the KcsA chain from data and from the plugin with the same seeds and parameter schedules; sample counters, clocks and the estimated current."
       ],
       "expected": "Same events at the same times and the same state, bit for bit; counted current within sampling error of the analytic steady-state current; deterministic replay for any partition of the times asked.",
-      "scope": "Node tests compare the data-defined chain with the extracted KcsA kinetics (not the classic engine, whose clocks block on animation by design) and the observer with the analytic current; a tool, a Viewer chart panel and the KcsA player using the data model are not built; full parity remains pending."
+      "scope": "Node tests compare the data-defined chain with the extracted KcsA kinetics (not the classic engine, whose clocks block on animation by design) and the observer with the analytic current; the Viewer panel (run, jump to a time, change a parameter mid-run, download CSV, save, close, reopen: same numbers at the same time, no page errors) and editing the schedule in Studio were checked in a software-rendered browser session, not by this runner; the KcsA player using the data model is not built; full parity remains pending."
     },
     {
       "id": "classic.animation.data-v1-adk-kcsa",
