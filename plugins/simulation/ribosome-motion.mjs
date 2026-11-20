@@ -28,9 +28,16 @@ const invert = (q) => [-q[0], -q[1], -q[2], q[3]];
 
 /** The sites of a ribosome from its residues (see above). Throws when there is no mRNA or fewer than three tRNAs. */
 export function ribosomeFrame(atoms) {
-  const mrna = atoms.filter((a) => /^MRNA$/i.test(a.part)).sort((x, y) => x.seq - y.seq);
-  const tAt = atoms.filter((a) => /TRNA/i.test(a.part));
-  const chains = [...new Set(tAt.map((a) => a.asym))].map((k) => tAt.filter((a) => a.asym === k).sort((x, y) => x.seq - y.seq)).filter((c) => c.length > 60);
+  const allMrna = atoms.filter((a) => /^MRNA$/i.test(a.part)), tAt = atoms.filter((a) => /TRNA/i.test(a.part));
+  const allChains = [...new Set(tAt.map((a) => a.asym))].map((k) => tAt.filter((a) => a.asym === k).sort((x, y) => x.seq - y.seq)).filter((c) => c.length > 60);
+  // An entry may hold more than one ribosome (the 70S crystals have two): the three tRNAs must be those of ONE ribosome, i.e. of one mRNA chain. Each tRNA belongs to the mRNA chain its anticodon
+  // (residue 35) is closest to; the mRNA chain with at least three tRNAs (the first, when several) is the one used. With a single ribosome this is the classic's choice exactly.
+  const resOf = (c, s) => c.find((a) => a.seq === s) || c[Math.min(c.length - 1, s - 1)];
+  const mrnaChains = [...new Set(allMrna.map((a) => a.asym))].map((k) => allMrna.filter((a) => a.asym === k));
+  const ownerOf = (c) => { const p = resOf(c, 35).p; let best = 0, bd = Infinity; mrnaChains.forEach((m, i) => { for (const a of m) { const d = d2(a.p, p); if (d < bd) { bd = d; best = i; } } }); return best; };
+  const owners = allChains.map(ownerOf), group = mrnaChains.length > 1 ? mrnaChains.findIndex((_, i) => owners.filter((o) => o === i).length >= 3) : 0;
+  const mrna = (mrnaChains.length > 1 ? mrnaChains[Math.max(0, group)] : allMrna).slice().sort((x, y) => x.seq - y.seq);
+  const chains = mrnaChains.length > 1 && group >= 0 ? allChains.filter((_, i) => owners[i] === group) : allChains;
   if (mrna.length < 12 || chains.length < 3) throw new Error('该结构里找不到 mRNA 和 3 个 tRNA');
   const res = (c, s) => c.find((a) => a.seq === s) || c[Math.min(c.length - 1, s - 1)];
   const nearM = (p) => { let bi = 0, bd = 1e18; mrna.forEach((m, i) => { const d = d2(m.p, p); if (d < bd) { bd = d; bi = i; } }); return bi; };
@@ -48,7 +55,9 @@ export function ribosomeFrame(atoms) {
   const sites = { E: poseFrom(sE.c), P: poseFrom(sP.c), A: poseFrom(sA.c) };
   if (!sites.E || !sites.P || !sites.A) throw new Error('tRNA 与模板残基对应太少，无法确定位姿');
   const rib = atoms.filter((a) => !/TRNA|^MRNA$/i.test(a.part)), C0 = centroid(rib.map((a) => a.p));
-  return { mPts, jP, T0, cT, acc: tpl.map((a) => accW(a.seq)), n: T0.length, sites, C0, poseOf: poseFrom, tplSeq: tpl.map((a) => a.seq) };
+  // which chains are which (the close-ups ask the structure for the atoms around the A-site anticodon and the 3' end of the A-site tRNA by chain and residue number)
+  const ids = { asymA: sA.c[0].asym, asymP: sP.c[0].asym, asymM: mrna[0].asym, seqAC: res(sA.c, 35).seq, seqA76: sA.c[sA.c.length - 1].seq, decoding: mrna[Math.min(mrna.length - 1, jP + 4)].p.slice() };
+  return { mPts, jP, T0, cT, acc: tpl.map((a) => accW(a.seq)), n: T0.length, sites, C0, poseOf: poseFrom, tplSeq: tpl.map((a) => a.seq), ids };
 }
 
 /** Where the template residue `x` goes under a pose. */

@@ -46,3 +46,11 @@ test('peptidoglycan and LPS: glycan segments of 30 Å (and 45 Å cross-links) in
   const radius = (p) => { const L = F.loc(p); return Math.hypot(L.y, L.w); };
   assert.ok(net.lps.every((s) => radius(s.a) > Rom + 15 && radius(s.b) > radius(s.a)), 'LPS sticks out of the outer leaflet');
 });
+
+test('the inner membrane has an opening where the atomic structure is: triangles whose centre is inside are left out, the rest stay', async () => {
+  const { capsuleSurface } = await import('../cell-geometry.mjs');
+  const whole = capsuleSurface(F, C.Rim, H, 40, 32), holed = capsuleSurface(F, C.Rim, H, 40, 32, { u: [C.uF - 500, C.uF + 500], w: [-500, 500], y: C.Rim * 0.5 });
+  assert.equal(holed.positions.length, whole.positions.length); assert.ok(holed.indices.length < whole.indices.length && holed.indices.length > whole.indices.length - 400, `${whole.indices.length - holed.indices.length} indices left out`);
+  for (let t = 0; t < holed.indices.length; t += 3) { const c = [0, 1, 2].map((k) => [0, 1, 2].reduce((s, n) => s + holed.positions[holed.indices[t + n] * 3 + k], 0) / 3), L = F.loc(c); assert.ok(!(L.u > C.uF - 500 && L.u < C.uF + 500 && L.w > -500 && L.w < 500 && L.y > C.Rim * 0.5)); }
+  assert.deepEqual(capsuleSurface(F, C.Rim, H, 40, 32, null).indices, whole.indices);
+});

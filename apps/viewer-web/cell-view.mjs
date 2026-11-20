@@ -20,7 +20,7 @@ export const MEMBRANE_TYPES = Object.freeze([
   { id: '6OQR', label: 'ATP 合酶', perCell: 3000, col: '#c9d7ee' }, { id: '1IWG', label: 'AcrB 外排泵', perCell: 500, col: '#d9cbe8' }, { id: '1PV6', label: 'LacY 乳糖通透酶', fill: 1, col: '#e6d0c8' },
   { id: '1RC2', label: 'AqpZ 水通道', fill: 1, col: '#c8e0e3' }, { id: '1U7G', label: 'AmtB 氨通道', fill: 1, col: '#d6e4c8' }, { id: '2OMF', label: 'OmpF 孔蛋白', perCell: 33000, col: '#e3d6b4', outer: true },
 ]);
-const MEMBRANE_CLOUD = 'cell-membrane-proteins', PARTS = ['cell-dna', 'cell-ribosomes-large', 'cell-ribosomes-small', 'cell-flagella'], LINES = ['cell-peptidoglycan', 'cell-lps'], CROWD = 'cell-crowd', INNER = 'cell-inner-membrane', OUTER = 'cell-outer-membrane', MEMBRANE_ABOVE_RIBOSOME = 60, FOV = 45;
+const LABEL_CLOUD = 'cell-labels', MEMBRANE_CLOUD = 'cell-membrane-proteins', PARTS = ['cell-dna', 'cell-ribosomes-large', 'cell-ribosomes-small', 'cell-flagella'], LINES = ['cell-peptidoglycan', 'cell-lps'], CROWD = 'cell-crowd', INNER = 'cell-inner-membrane', OUTER = 'cell-outer-membrane', MEMBRANE_ABOVE_RIBOSOME = 60, FOV = 45;
 const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
 const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -87,9 +87,11 @@ export function createCellView({ viewport, elements, context }) {
     const model = context.model(); if (!model) return;
     cell = cellAroundRibosome(context.residues());
     if (!cell) { elements.note.textContent = '这个结构里没有 16S / 23S RNA，定不出核糖体的朝向，画不出细胞。'; return; }
-    const make = (radius, rgb) => { const s = capsuleSurface(cell.frame, radius, cell.H, 96, 72), pos = new Float32Array(s.positions.length), colors = new Float32Array(s.positions.length);
+    // the opening in the inner membrane around the atomic structure (its own lipid strip is drawn there): the structure's footprint on the membrane plus 25 Å, on the corner side
+    const local = context.residues().map((r) => cell.frame.loc(r.position)), span = (key, f) => f(...local.map((p) => p[key])), hole = { u: [span('u', Math.min) - 25, span('u', Math.max) + 25], w: [span('w', Math.min) - 25, span('w', Math.max) + 25], y: cell.config.Rim * 0.5 };
+    const make = (radius, rgb, cut = null) => { const s = capsuleSurface(cell.frame, radius, cell.H, 96, 72, cut), pos = new Float32Array(s.positions.length), colors = new Float32Array(s.positions.length);
       for (let i = 0; i < pos.length; i += 3) { pos.set(toRoot([s.positions[i], s.positions[i + 1], s.positions[i + 2]], model), i); colors.set(rgb, i); } return { pos, idx: new Uint32Array(s.indices), colors }; };
-    viewport.setOverlayMesh(INNER, make(cell.config.Rim, [0.56, 0.72, 0.91]), { opacity: 0.12 });
+    viewport.setOverlayMesh(INNER, make(cell.config.Rim, [0.56, 0.72, 0.91], hole), { opacity: 0.12 });
     viewport.setOverlayMesh(OUTER, make(cell.Rom, [0.91, 0.73, 0.56]), { opacity: 0.08 });
     shown = true; elements.toggle.textContent = '隐藏细胞'; elements.levels.hidden = false; elements.crowd.hidden = false;
     elements.note.textContent = `大肠杆菌细胞：长 ${(cell.config.L / 10000).toFixed(0)} µm，内膜半径 ${cell.config.Rim / 10} nm，内外膜相距 ${cell.config.env / 10} nm；内膜在核糖体上方 ${MEMBRANE_ABOVE_RIBOSOME} Å。按真实尺寸画出；拥挤的细胞质请按“填充细胞质”；拟核、鞭毛、肽聚糖、膜蛋白没有画（仍是经典代码）。`;
@@ -127,6 +129,10 @@ export function createCellView({ viewport, elements, context }) {
     cloud(PARTS[3], tails);
     const net = envelopeNet(F, C, cell.Rom, random, { wCut: w0 }), seg = (list, color) => list.map((s) => ({ a: toRoot(s.a, model), b: toRoot(s.b, model), color }));
     viewport.setOverlayLines(LINES[0], seg(net.glycan, '#9cc283'), { dash: 1, gap: 0 }); viewport.setOverlayLines(LINES[1], seg(net.lps, '#c9ae7e'), { dash: 1, gap: 0 });
+    // the labels of the cell and region levels (classic cellTags / regionTags)
+    const at = (u, th, r) => F.at(u, th, r), tags = [['拟核：DNA（只画了一小部分，按比例 2 nm 粗看不见）', at(-cell.H * 0.3, Math.PI * 0.5, 600)], ['外膜 · 脂多糖', at(C.uF + C.reg * 0.8, 0, cell.Rom + 90)], ['周质 + 肽聚糖网', at(C.uF + C.reg * 0.8, 0, cell.Rom - 110)], ['内膜', at(C.uF + C.reg * 0.8, 0, C.Rim - 90)]];
+    if (fl.length) tags.push(['鞭毛（截到 3 µm；马达穿过整个包膜）', fl[0].path[60]]);
+    cloud(LABEL_CLOUD, tags.map(([label, position]) => ({ position, radius: 40, color: '#2c3440', alpha: 0.9, name: label, label })));
     return { dna: dna.length, ribosomes: rib.drawn, flagella: fl.length, glycan: net.glycan.length };
   }
   const shapeCache = new Map(), membraneCache = new Map();
@@ -151,7 +157,7 @@ export function createCellView({ viewport, elements, context }) {
     } finally { elements.crowd.disabled = false; }
   }
   elements.crowd.addEventListener('click', crowd);
-  function hide() { crowdToken++; for (const tag of PARTS) viewport.setParticleCloud(tag, []); for (const tag of LINES) viewport.setOverlayLines(tag, []); viewport.setParticleCloud(CROWD, []); viewport.setParticleCloud(MEMBRANE_CLOUD, []); shown = false; cancelAnimationFrame(timer); viewport.setOverlayMesh(INNER, null); viewport.setOverlayMesh(OUTER, null); elements.toggle.textContent = '画出整个细胞'; elements.levels.hidden = true; elements.crowd.hidden = true; elements.level.textContent = ''; }
+  function hide() { crowdToken++; for (const tag of [...PARTS, LABEL_CLOUD]) viewport.setParticleCloud(tag, []); for (const tag of LINES) viewport.setOverlayLines(tag, []); viewport.setParticleCloud(CROWD, []); viewport.setParticleCloud(MEMBRANE_CLOUD, []); shown = false; cancelAnimationFrame(timer); viewport.setOverlayMesh(INNER, null); viewport.setOverlayMesh(OUTER, null); elements.toggle.textContent = '画出整个细胞'; elements.levels.hidden = true; elements.crowd.hidden = true; elements.level.textContent = ''; }
   elements.toggle.addEventListener('click', () => (shown ? hide() : show()));
   for (const [level, button] of Object.entries(elements.fly)) button.addEventListener('click', () => flyTo(level));
   return { show, reset() { hide(); elements.note.textContent = ''; cell = null; } };

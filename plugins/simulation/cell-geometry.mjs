@@ -33,10 +33,15 @@ export function capsuleProfile(R, H, nP = 160) {
   return prof;
 }
 /** The surface as an indexed triangle mesh: { positions: Float32Array (x, y, z per vertex), indices }, (nP + 1) x (nT + 1) vertices. */
-export function capsuleSurface(F, R, H, nP = 160, nT = 128) {
+/**
+ * `hole` ({ u: [lo, hi], w: [lo, hi], y: min }, local coordinates of the frame) leaves out the triangles whose centre lies inside it: the opening in the inner membrane where the atomic structure
+ * (and its own lipid strip) takes over, as the classic cut one around the corner.
+ */
+export function capsuleSurface(F, R, H, nP = 160, nT = 128, hole = null) {
   const prof = capsuleProfile(R, H, nP), positions = new Float32Array((nP + 1) * (nT + 1) * 3), indices = []; let k = 0;
   for (let i = 0; i <= nP; i++) for (let j = 0; j <= nT; j++) { const th = 2 * Math.PI * j / nT, [u, r] = prof[i], p = F.at(u, th, r); positions[k++] = p[0]; positions[k++] = p[1]; positions[k++] = p[2]; }
-  for (let i = 0; i < nP; i++) for (let j = 0; j < nT; j++) { const a = i * (nT + 1) + j, b = a + nT + 1; indices.push(a, b, a + 1, b, b + 1, a + 1); }
+  const inHole = (...v) => { if (!hole) return false; const c = [0, 1, 2].map((k) => v.reduce((t, i) => t + positions[i * 3 + k], 0) / v.length), L = F.loc(c); return L.u > hole.u[0] && L.u < hole.u[1] && L.w > hole.w[0] && L.w < hole.w[1] && L.y > hole.y; };
+  for (let i = 0; i < nP; i++) for (let j = 0; j < nT; j++) { const a = i * (nT + 1) + j, b = a + nT + 1; if (!inHole(a, b, a + 1)) indices.push(a, b, a + 1); if (!inHole(b, b + 1, a + 1)) indices.push(b, b + 1, a + 1); }
   return { positions, indices };
 }
 export const capsuleVolume = (R, H) => Math.PI * R * R * 2 * H + (4 / 3) * Math.PI * R ** 3;

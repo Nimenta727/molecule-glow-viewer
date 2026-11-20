@@ -1,5 +1,5 @@
-4V6F: 21568 residues, 58 of mRNA, 6 tRNA chains
-ok   mRNA: 58 points, the codon position of the P site is point 32
+4V6F: 10600 residues, 29 of mRNA, 3 tRNA chains
+ok   mRNA: 29 points, the codon position of the P site is point 20
 ok   template tRNA (the P-site tRNA): 74 residues, same centre, same acceptor-arm weights
 ok   E site: same rotation and translation (within 1e-9)
 ok   E site: the acceptor end (last residue) lands on the same point
@@ -7,4 +7,7 @@ ok   P site: same rotation and translation (within 1e-9)
 ok   P site: the acceptor end (last residue) lands on the same point
 ok   A site: same rotation and translation (within 1e-9)
 ok   A site: the acceptor end (last residue) lands on the same point
-8/8 identical
+ok   two ribosomes in the entry: the A and P tRNAs belong to the same ribosome (the same mRNA chain)
+ok   the A-site tRNA's anticodon touches G530 (11.8 Å) more closely than C1400 (27.1 Å): the decoding centre
+ok   the P-site tRNA's anticodon touches C1400 (13.3 Å) more closely than G530 (32.9 Å)
+11/11 identical

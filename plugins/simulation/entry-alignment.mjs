@@ -33,8 +33,8 @@ export function fitToReference(refAtoms, rows) {
 
 const MODEL_SERVER = (id, q) => `https://models.rcsb.org/v1/${id.toLowerCase()}/atoms?${q}&encoding=cif&copy_all_categories=false`;
 const META = (id) => `{ entry(entry_id:"${id}"){ polymer_entities{ rcsb_polymer_entity{pdbx_description} rcsb_polymer_entity_container_identifiers{entity_id asym_ids} } assemblies{ rcsb_assembly_container_identifiers{assembly_id} pdbx_struct_assembly_gen{asym_id_list} } } }`;
-const atomsOf = (text) => parseMmcif(text).atoms.filter((a) => a.element !== 'H' && a.element !== 'D' && (!a.altLoc || ['.', '?', 'A'].includes(a.altLoc)));
-const rowOf = (a) => ({ p: [...a.position], seq: Number.parseInt(a.labelSeqId, 10), aseq: a.authSeqId, name: a.name, el: a.element, comp: a.residueName, asym: a.labelChainId, group: a.record });
+export const atomsOf = (text) => parseMmcif(text).atoms.filter((a) => a.element !== 'H' && a.element !== 'D' && (!a.altLoc || ['.', '?', 'A'].includes(a.altLoc)));
+export const rowOf = (a) => ({ p: [...a.position], seq: Number.parseInt(a.labelSeqId, 10), aseq: a.authSeqId, name: a.name, el: a.element, comp: a.residueName, asym: a.labelChainId, group: a.record });
 
 /**
  * opts = { ref: part name of the reference chain in the entry, refAtoms: the scene's atoms of it, refNa (false: CA instead of P), chains: [[name, keyword, full?]...], ligands: [codes], near: { code | all: point } }.

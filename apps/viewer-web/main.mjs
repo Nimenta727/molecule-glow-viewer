@@ -22,6 +22,7 @@ import { createParticleFlow } from './particle-flow.mjs';
 import { createDataAnimation } from './data-animation.mjs';
 import { createEnergyStrip } from './energy-strip.mjs';
 import { createRibosomeView } from './ribosome-view.mjs';
+import { createRibosomeCloseup } from './ribosome-closeup-view.mjs';
 import { createProcessPanel } from './process-panel.mjs';
 import { createCompositionPanel } from './composition-panel.mjs';
 import { createStateMorph } from './state-morph.mjs';
@@ -321,7 +322,7 @@ function boot() {
       objectSpin.reset();
       particleFlow.reset();
       dataAnimation.reset();
-      ribosomeView.stop();
+      ribosomeView.stop(); ribosomeCloseup.reset();
       processPanel.reset();
       compositionPanel.reset();
       stateMorph.reset();
@@ -735,12 +736,19 @@ function boot() {
       csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
   const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary() }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
+  const ribosomeCloseup = createRibosomeCloseup({
+    viewport, status: (text) => setStatus(text), process: { summary: () => processPanel.summary() },
+    elements: { box: elements['ribosome-closeup'], dc: elements['ribosome-closeup-dc'], ptc: elements['ribosome-closeup-ptc'], off: elements['ribosome-closeup-off'], info: elements['process-info'] },
+    context: { model: () => active?.model, residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], entity: r.entity, nucleic: r.nucleic, labelSeq: r.labelSeq, authSeq: r.authSeq })),
+      cameraDirection: () => { const c = viewport.getCamera(), d = c.position.map((v, i) => v - c.target[i]), l = Math.hypot(...d) || 1; return d.map((v) => v / l); } },
+  });
+  ribosomeCloseup.bind(() => ribosomeView.frame);
   const compositionPanel = createCompositionPanel({
     elements: { speed: elements['composition-speed'], speedOut: elements['composition-speed-out'], play: elements['composition-play'], reset: elements['composition-reset'], time: elements['composition-time'],
       jump: elements['composition-jump'], jumpGo: elements['composition-jump-go'], controls: elements['composition-shared'], members: elements['composition-members'], info: elements['composition-info'] },
   });
   setCompositionAvailable = (on) => compositionPanel.setAvailable(on);
-  setProcessAvailable = (on) => { processPanel.setAvailable(on); if (!on) ribosomeView.stop(); };
+  setProcessAvailable = (on) => { processPanel.setAvailable(on); if (!on) ribosomeView.stop(); ribosomeCloseup.reset(); };
   setParticlesAvailable = (on) => particleFlow.setAvailable(on);
   setDataAnimationAvailable = (on) => dataAnimation.setAvailable(on);
   function selectSet(expression) {
@@ -810,7 +818,7 @@ function boot() {
     const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
     const multi = toolEntryFor(active.scene, COMPOSITION_TOOL, resolve);
     if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
-    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); ribosomeView.start(tcfg.strip.sequence); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
+    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); ribosomeCloseup.show(ribosomeView.start(tcfg.strip.sequence)); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config), data.state); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
@@ -1520,7 +1528,7 @@ function boot() {
     objectSpin.reset();
     particleFlow.reset();
     dataAnimation.reset();
-    ribosomeView.stop();
+    ribosomeView.stop(); ribosomeCloseup.reset();
     processPanel.reset();
     compositionPanel.reset();
     stateMorph.reset();

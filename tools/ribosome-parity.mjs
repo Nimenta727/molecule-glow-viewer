@@ -1,12 +1,14 @@
 // Differential test: the site poses of plugins/simulation/ribosome-motion.mjs against the classic setup of src/sim/processes/translation.js (the block that finds the mRNA, the three tRNAs, orders
 // them E / P / A by their anticodons along the mRNA and fits the poses of the P-site template onto them), cut out of the source by its markers and run unchanged in a vm on the real 4V6F.
-// Usage: node tools/ribosome-parity.mjs <structures-dir> [--three <three.module.js>] [--output file]   (structures-dir holds 4V6F.cif)
+// The classic is compared on the first biological assembly (one ribosome: what its selection of the three tRNAs was made for); on the raw entry, which holds two ribosomes, the sites are checked
+// against the 16S contacts instead. Usage: node tools/ribosome-parity.mjs <structures-dir> [--three <three.module.js>] [--output file]   (structures-dir holds 4V6F.cif)
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { parseMmcif } from '../plugins/structure/parser.mjs';
 import { selectionSpace } from '../plugins/structure/selection.mjs';
+import { applyBiologicalAssembly } from '../plugins/structure/assembly.mjs';
 import { ribosomeFrame, applyPose } from '../plugins/simulation/ribosome-motion.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -19,7 +21,7 @@ const lines = []; let bad = 0, total = 0;
 const check = (what, same, detail) => { total++; if (!same) bad++; lines.push(`${same ? 'ok  ' : 'DIFF'} ${what}${same ? '' : ' — ' + detail}`); };
 const close = (a, b, tol = 1e-9) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) <= tol);
 
-const space = selectionSpace(parseMmcif(read === null ? '' : fs.readFileSync(path.join(dir, '4V6F.cif'), 'utf8')));
+const raw = parseMmcif(fs.readFileSync(path.join(dir, '4V6F.cif'), 'utf8')), space = selectionSpace(applyBiologicalAssembly(raw, '1'));
 const atoms = space.residues.map((r) => ({ p: r.position, part: r.entity, seq: r.labelSeq, asym: r.labelAsym }));
 lines.push(`4V6F: ${atoms.length} residues, ${atoms.filter((a) => /^mrna$/i.test(a.part)).length} of mRNA, ${new Set(atoms.filter((a) => /trna/i.test(a.part)).map((a) => a.asym)).size} tRNA chains`);
 
@@ -41,6 +43,16 @@ for (const k of ['E', 'P', 'A']) {
   check(`${k} site: same rotation and translation (within 1e-9)`, sameQ && close(arr(c.t), m.t, 1e-7), `${qc} / ${arr(c.t)} vs ${m.q} / ${m.t}`);
   const cEnd = arr(classic.R3(c, classic.T.ref[classic.T.n - 1])), mEnd = applyPose(mine, m, mine.T0[mine.n - 1]);
   check(`${k} site: the acceptor end (last residue) lands on the same point`, close(cEnd, mEnd, 1e-6), `${cEnd} vs ${mEnd}`);
+}
+// the raw entry holds two ribosomes: the sites must still be those of one ribosome, in the right order (E, P, A are told by what the anticodon touches in the 16S rRNA)
+{
+  const R = selectionSpace(raw).residues, atoms2 = R.map((r) => ({ p: r.position, part: r.entity, seq: r.labelSeq, asym: r.labelAsym })), f = ribosomeFrame(atoms2), d = (a, b) => Math.hypot(...a.map((v, i) => v - b[i]));
+  const ribosomeOf = (asym) => { const ac = R.find((r) => r.labelAsym === asym && r.labelSeq === 35).position; const m = R.filter((r) => /^mrna$/i.test(r.entity)); return m.reduce((b, r) => (d(r.position, ac) < b[1] ? [r.labelAsym, d(r.position, ac)] : b), ['', Infinity])[0]; };
+  const touch = (asym, n) => { const ac = R.find((r) => r.labelAsym === asym && r.labelSeq === 35).position, s16 = R.filter((r) => /16s/i.test(r.entity) && r.authSeq === n); return Math.min(...s16.map((r) => d(r.position, ac))); };
+  const E = Object.entries({ A: f.ids.asymA, P: f.ids.asymP }).map(([k, a]) => [k, a]), eAsym = [...new Set(R.filter((r) => /trna/i.test(r.entity)).map((r) => r.labelAsym))].filter((a) => ![f.ids.asymA, f.ids.asymP].includes(a) && ribosomeOf(a) === ribosomeOf(f.ids.asymA))[0];
+  check('two ribosomes in the entry: the A and P tRNAs belong to the same ribosome (the same mRNA chain)', ribosomeOf(f.ids.asymA) === ribosomeOf(f.ids.asymP), `${ribosomeOf(f.ids.asymA)} / ${ribosomeOf(f.ids.asymP)}`);
+  check(`the A-site tRNA's anticodon touches G530 (${touch(f.ids.asymA, 530).toFixed(1)} Å) more closely than C1400 (${touch(f.ids.asymA, 1400).toFixed(1)} Å): the decoding centre`, touch(f.ids.asymA, 530) < touch(f.ids.asymA, 1400), 'A and P mixed up');
+  check(`the P-site tRNA's anticodon touches C1400 (${touch(f.ids.asymP, 1400).toFixed(1)} Å) more closely than G530 (${touch(f.ids.asymP, 530).toFixed(1)} Å)`, touch(f.ids.asymP, 1400) < touch(f.ids.asymP, 530), 'P and A mixed up'); void E; void eAsym;
 }
 const report = `${lines.join('\n')}\n${total - bad}/${total} identical\n`;
 console.log(report); if (out) fs.writeFileSync(out, report);

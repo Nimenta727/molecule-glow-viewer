@@ -125,5 +125,7 @@ export function createRibosomeView({ viewport, context, process, speed = () => 0
     /** After the viewport was rebuilt: hide the static parts again and draw. */
     reapply() { if (running && motion) { hideStatic(); draw(); } },
     get active() { return running; },
+    /** The sites of the ribosome (for the close-ups), or null when the view is off. */
+    get frame() { return running && motion ? motion.frame : null; },
   };
 }
