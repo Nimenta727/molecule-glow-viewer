@@ -16,7 +16,7 @@ const records = await Promise.all(manifest.structures.map(async (entry) => {
   if (!response.ok) throw new Error(`${entry.id}: HTTP ${response.status}`);
   const reader = response.body.getReader(), chunks = []; let length = 0;
   try {
-    while (true) { const { done, value } = await reader.read(); if (done) break; length += value.length; if (length > 30 * 1024 * 1024) throw new Error(`${entry.id}: response too large`); chunks.push(value); }
+    while (true) { const { done, value } = await reader.read(); if (done) break; length += value.length; if (length > 64 * 1024 * 1024) throw new Error(`${entry.id}: response too large`); chunks.push(value); }
   } finally { await reader.cancel(); reader.releaseLock(); }
   const bytes = Buffer.concat(chunks);
   if (hash(bytes) !== entry.sha256 || bytes.length !== entry.bytes) throw new Error(`${entry.id}: RCSB bytes changed; review fixture before updating the pinned manifest`);

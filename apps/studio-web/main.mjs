@@ -448,7 +448,7 @@ async function importStructureAsWork(structure, { title, message }) {
 }
 
 watchFile('structure-file', async (file) => {
-  if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
   await importStructureAsWork({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }, { message: `已导入 ${file.name}。` });
 });
 

@@ -27,6 +27,7 @@ import { createLigandView } from './ligand-view.mjs';
 import { createSiteView } from './site-view.mjs';
 import { createMembraneView } from './membrane-view.mjs';
 import { createAnalysisPanel } from './analysis-panel.mjs';
+import { createCellView } from './cell-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
@@ -117,6 +118,7 @@ function syncControls() {
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['membrane-controls'].hidden = !structureEnabled || !active?.model;
   elements['analysis-controls'].hidden = !structureEnabled || !active?.model;
+  elements['cell-controls'].hidden = !structureEnabled || !active?.model || !['wholeCell', 'cellCorner', 'translation'].includes(active?.scene.legacy?.scene?.process);
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
@@ -249,7 +251,7 @@ function boot() {
         } else if (input.accession) {
           structure = await loadAccession(input.accession, combined);
         } else {
-          if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+          if (input.file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
           structure = {
             name: input.file.name,
             bytes: new Uint8Array(await input.file.arrayBuffer()),
@@ -318,6 +320,7 @@ function boot() {
       entryIntro.reset();
       membraneView.reset();
       analysisPanel.reset();
+      cellView.reset();
       leaveTakeApart();
       sequenceBar.setModel(active.model);
       resetSiteChips();
@@ -593,6 +596,12 @@ function boot() {
       template: loadChemicalComponent,
     },
   });
+  const cellView = createCellView({
+    viewport,
+    elements: { toggle: elements['cell-toggle'], levels: elements['cell-levels'], level: elements['cell-level'], note: elements['cell-note'], view: elements.viewport ?? document.body,
+      fly: { cell: elements['cell-fly-cell'], region: elements['cell-fly-region'], machine: elements['cell-fly-machine'] } },
+    context: { model: () => active?.model, residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], entity: r.entity })) },
+  });
   const analysisPanel = createAnalysisPanel({
     viewport,
     elements: { a: elements['measure-a'], b: elements['measure-b'], c: elements['measure-c'], measure: elements['measure-go'], measureClear: elements['measure-clear'], measureOut: elements['measure-out'],
@@ -634,7 +643,7 @@ function boot() {
         const source = active.representationSource, options = { assemblyId: source?.provenance?.assemblyId, chains: source?.provenance?.chains };
         let bytes, name, mediaType, origin;
         if (input.file) {
-          if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+          if (input.file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
           bytes = new Uint8Array(await input.file.arrayBuffer());
           name = input.file.name;
           mediaType = /\.m?cif$/i.test(name) ? 'chemical/x-mmcif' : 'chemical/x-pdb';
@@ -1468,6 +1477,7 @@ function boot() {
     entryIntro.reset();
     membraneView.reset();
     analysisPanel.reset();
+    cellView.reset();
     leaveTakeApart();
     sequenceBar.setModel(null);
     resetSiteChips();

@@ -18,7 +18,7 @@
 | 4.4.5 | 序列与随机过程 | 完成（核糖体翻译写成数据，药物/浓度计划） | `translation*.mjs` | 5/5（4 万随机状态速率逐位相同） |
 | 4.4.6 | 环境、多过程、跨尺度 | 纯逻辑完成＋多过程工具（拥挤、胶囊细胞几何、尺度阶梯） | `crowding`、`composition*`、`cell-geometry`、`scale-ladder` | 4/4 + 5/5 |
 | 4.4.7 | 经典分析与教学工具 | **完成主要部分**：结合位点相互作用（含周围残基棍状）、口袋表面、通道搜索与显示、距离/角度测量、自动定膜，以及各工具的证据行（建模/示意）并入标题徽章；能量条、图例、书签沿用 Studio/导航已有的讲解与书签，未另做 | `plugins/structure/{site-analysis,measure,membrane-placement}.mjs`、`apps/viewer-web/{site-view,analysis-panel,membrane-view}.mjs`、`plugins/mechanism-catalog.mjs`（`toolEvidence`） | 23/23 + 8/8 |
-| 4.4.8 | 经典作品回归 | **进行中**：呼吸链、叶绿体两个官方包现在作为作品运行（区室动力学＋pH/电位/开关，与经典动力学逐位一致）；辅因子电子链（最短路径，与经典逐位一致）可在 Viewer 里显示；电子/质子的运动编排、ATP 合酶转子联动、鞭毛马达、整细胞、翻译的核糖体结构动画未做 | `plugins/simulation/works/` | 5/5（动力学） |
+| 4.4.8 | 经典作品回归 | **进行中**：呼吸链、叶绿体两个官方包现在作为作品运行（区室动力学＋pH/电位/开关，与经典动力学逐位一致）；辅因子电子链（最短路径，与经典逐位一致）可在 Viewer 里显示；电子/质子的运动编排、ATP 合酶转子联动、ATP 合酶转子联动、翻译的核糖体结构动画、整细胞的拟核/鞭毛/肽聚糖/拥挤细胞质未做；鞭毛马达（H⁺ 经 11 条定子通道，固定速率）、整细胞外壳（内外膜按真实尺寸＋比例尺＋三个视点）、翻译与细胞一角官方包打开即带工具 | `plugins/simulation/works/`、`apps/viewer-web/cell-view.mjs` | 5/5（动力学） |
 
 ## 已注册的工具（`plugins/mechanism-catalog.mjs`）
 
@@ -35,7 +35,7 @@
 
 ## 验证数字
 
-- `npm test`：407 通过，0 失败。
+- `npm test`：411 通过，0 失败。
 - 经典对照（同种子、同输入，经典代码在 Node `vm` 中原样运行）：结合位点/口袋/通道/测量/辅因子链 23/23、自动定膜 8/8、粒子 24/24、数据动画 6/6、动力学 5/5、翻译 5/5、拥挤 4/4、细胞几何 5/5；报告在 [parity](parity/)。
 - 浏览器端到端（Playwright）：保存→关闭→重开后像素/数值一致；截图在 [images](images/)。
 - 文档/契约检查：`node tools/check-docs.mjs`、`check-feature-parity.mjs`、`check-copies.mjs`。

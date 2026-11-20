@@ -229,6 +229,12 @@
               </div>
               <p id="chain-out" class="structure-summary" aria-live="polite"></p>
             </details>
+            <div id="cell-controls" class="structure-form" hidden>
+              <button id="cell-toggle" type="button" title="按真实尺寸画出包着这个核糖体的大肠杆菌细胞（内膜、外膜）">画出整个细胞</button>
+              <span id="cell-levels" hidden><button id="cell-fly-cell" type="button">细胞</button><button id="cell-fly-region" type="button">一角</button><button id="cell-fly-machine" type="button">机器</button></span>
+              <span id="cell-level" class="intro-source" aria-live="polite"></span>
+              <span id="cell-note" class="intro-source" aria-live="polite"></span>
+            </div>
             <div id="membrane-controls" class="structure-form" hidden>
               <button id="membrane-toggle" type="button" title="从 RCSB（OPM / PDBTM / MemProtMD）读取跨膜片段，或扫描疏水带，画出膜的两个面">寻找细胞膜</button>
               <span id="membrane-note" class="intro-source" aria-live="polite"></span>

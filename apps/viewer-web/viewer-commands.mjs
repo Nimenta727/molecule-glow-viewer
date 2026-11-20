@@ -74,7 +74,7 @@ export function createViewerCommands(host) {
           while (true) {
             const { done, value } = await reader.read(); if (done) break;
             size += value.length;
-            if (size > 30 * 1024 * 1024) throw new Error('远程文件超过 30 MiB。');
+            if (size > 64 * 1024 * 1024) throw new Error('远程文件超过 64 MiB。');
             chunks.push(value);
           }
         } finally { await reader.cancel(); reader.releaseLock(); }
