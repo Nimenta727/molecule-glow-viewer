@@ -196,3 +196,25 @@ export function describeChannel(path, residues, { count = 4 } = {}) {
   const lining = residues.map((r) => ({ residue: r, distance: dist(r.position, narrow.p) })).sort((a, b) => a.distance - b.distance).slice(0, count);
   return { length: pathLength(path), points: path.length, narrowest: narrow.r, narrowestAt: narrow.p, lining };
 }
+
+/**
+ * The electron-transfer chain through a set of cofactors (classic: the shortest path through the Fe–S clusters of respiratory complex I, in respiratory-chain.js): the path from the
+ * cofactor farthest along `direction` to the one farthest against it that minimises the sum of squared hop lengths, hops at most `maxHop` Å (electron tunnelling is steep in distance, so
+ * many short hops beat few long ones). `cofactors`: [{ position: [x, y, z], ...anything }]. Returns the cofactors on the path in order, or the two end cofactors when no path exists,
+ * or null with fewer than two cofactors. `from` / `to` ([x, y, z]) pick the start and end cofactors as the nearest to those points. With `direction` [0, 1, 0] the points are the classic's (axis vertical, y from the matrix side down to the membrane).
+ */
+export function cofactorChain(cofactors, { direction = [0, 1, 0], maxHop = 20, from, to } = {}) {
+  if (!cofactors || cofactors.length < 2) return null;
+  const along = (c) => c.position[0] * direction[0] + c.position[1] * direction[1] + c.position[2] * direction[2];
+  const n = cofactors.length, distance = Array(n).fill(Infinity), previous = Array(n).fill(-1), done = Array(n).fill(false);
+  const nearest = (p) => cofactors.indexOf(cofactors.reduce((a, b) => (dist(b.position, p) < dist(a.position, p) ? b : a)));   // from / to: the cofactors nearest these points, instead of the two ends along `direction`
+  const s0 = from ? nearest(from) : cofactors.indexOf(cofactors.reduce((a, b) => (along(b) > along(a) ? b : a))), t0 = to ? nearest(to) : cofactors.indexOf(cofactors.reduce((a, b) => (along(b) < along(a) ? b : a)));
+  distance[s0] = 0;
+  for (;;) {
+    let u = -1; for (let i = 0; i < n; i++) if (!done[i] && distance[i] < Infinity && (u < 0 || distance[i] < distance[u])) u = i;
+    if (u < 0 || u === t0) break; done[u] = true;
+    for (let v = 0; v < n; v++) { const d = dist(cofactors[u].position, cofactors[v].position); if (v !== u && d < maxHop && distance[u] + d * d < distance[v]) { distance[v] = distance[u] + d * d; previous[v] = u; } }
+  }
+  const chain = []; for (let v = t0; v >= 0; v = previous[v]) chain.unshift(cofactors[v]);
+  return chain.length < 2 ? [cofactors[s0], cofactors[t0]] : chain;
+}

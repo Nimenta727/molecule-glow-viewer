@@ -1,5 +1,5 @@
 import { measure, MeasureError } from '../../plugins/structure/measure.mjs';
-import { findChannel, describeChannel } from '../../plugins/structure/site-analysis.mjs';
+import { findChannel, describeChannel, cofactorChain } from '../../plugins/structure/site-analysis.mjs';
 import { evaluateSelection } from '../../plugins/structure/selection.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
@@ -9,7 +9,7 @@ import { displayCenter } from '../../plugins/motion/state-pair.mjs';
  * line and written out; and the path of maximal clearance through the structure from a start (a selection, or the middle of the structure), drawn as a string of balls coloured by how
  * wide the way is, with its length, narrowest point and the residues lining it. The numbers come from plugins/structure/measure.mjs and site-analysis.mjs (equal to the classic).
  */
-const LINE = 'measure', PATH = 'channel';
+const LINE = 'measure', PATH = 'channel', CHAIN = 'cofactors', CHAIN_DOTS = 'cofactor-sites';
 const colourOf = (clearance) => (clearance < 3 ? '#e5484d' : clearance < 5 ? '#e6a23c' : '#3b9ae6');
 
 export function createAnalysisPanel({ viewport, elements, context }) {
@@ -54,5 +54,24 @@ export function createAnalysisPanel({ viewport, elements, context }) {
   });
   elements.channelClear.addEventListener('click', clearChannel);
 
-  return { reset() { clearMeasure(); clearChannel(); } };
+  const clearChain = () => { viewport.setOverlayLines(CHAIN, []); viewport.setParticleCloud(CHAIN_DOTS, []); elements.chainOut.textContent = ''; };
+  const centre = (ligand) => ligand.atoms.reduce((t, a) => t.map((v, k) => v + a.position[k] / ligand.atoms.length), [0, 0, 0]);
+  elements.chain.addEventListener('click', () => {
+    clearChain();
+    const model = context.model(); if (!model) return;
+    const space = context.space(), comps = elements.chainComps.value.split(/[\s,;、]+/).map((x) => x.trim().toUpperCase()).filter(Boolean);
+    const sites = space.ligands.filter((l) => comps.includes(l.comp)).map((l) => ({ comp: l.comp, position: centre(l) }));
+    if (sites.length < 2) { elements.chainOut.textContent = `结构里只有 ${sites.length} 个“${comps.join('、')}”辅因子，连不成链。`; return; }
+    const point = (expression) => { if (!expression.trim()) return undefined; const f = evaluateSelection(expression, space), list = [...f.residues.map((r) => r.position), ...f.ligands.map(centre)]; if (!list.length) throw new Error(`“${expression}” 没有选中任何东西。`); return list.reduce((t, p) => t.map((v, k) => v + p[k] / list.length), [0, 0, 0]); };
+    let chain;
+    try { chain = cofactorChain(sites, { from: point(elements.chainFrom.value), to: point(elements.chainTo.value) }); } catch (error) { elements.chainOut.textContent = error.message; return; }
+    const convert = toRoot(model), k = PRESENTATION_METERS_PER_ANGSTROM;
+    viewport.setOverlayLines(CHAIN, chain.slice(1).map((c, i) => ({ a: convert(chain[i].position), b: convert(c.position), color: '#d9488a' })), { dash: 0.01, gap: 0.006 });
+    viewport.setParticleCloud(CHAIN_DOTS, chain.map((c, i) => ({ position: convert(c.position), radius: 1.6 * k, color: '#d9488a', name: `${i + 1}. ${c.comp}` })), { overlay: true });
+    const hops = chain.slice(1).map((c, i) => Math.hypot(...c.position.map((v, j) => v - chain[i].position[j])));
+    elements.chainOut.textContent = `${chain.length} 个辅因子（${chain.map((c) => c.comp).join(' → ')}），相邻 ${Math.min(...hops).toFixed(1)}–${Math.max(...hops).toFixed(1)} Å，总长 ${hops.reduce((a, b) => a + b, 0).toFixed(1)} Å。规则：跳跃不超过 20 Å，总平方距离最小；两端没有 20 Å 内的通路时只连两端。电子隧穿速率随距离指数下降，这里只是几何路径，不是转移速率。`;
+  });
+  elements.chainClear.addEventListener('click', clearChain);
+
+  return { reset() { clearMeasure(); clearChannel(); clearChain(); } };
 }

@@ -221,6 +221,13 @@
                 <button id="channel-go" type="button" title="沿净空最大的路径穿过结构">搜索通道</button><button id="channel-clear" type="button">清除</button>
               </div>
               <p id="channel-out" class="structure-summary" aria-live="polite"></p>
+              <div class="structure-form">
+                <input id="chain-comps" type="text" value="SF4, FES, HEM, HEC, HEA, CU" maxlength="80" spellcheck="false" title="要连起来的辅因子（化学组件编号）">
+                <input id="chain-from" type="text" placeholder="起点附近（选择；空 = 一端）" maxlength="200" spellcheck="false">
+                <input id="chain-to" type="text" placeholder="终点附近（选择；空 = 另一端）" maxlength="200" spellcheck="false">
+                <button id="chain-go" type="button" title="辅因子之间跳跃距离平方和最小的路径">辅因子链</button><button id="chain-clear" type="button">清除</button>
+              </div>
+              <p id="chain-out" class="structure-summary" aria-live="polite"></p>
             </details>
             <div id="membrane-controls" class="structure-form" hidden>
               <button id="membrane-toggle" type="button" title="从 RCSB（OPM / PDBTM / MemProtMD）读取跨膜片段，或扫描疏水带，画出膜的两个面">寻找细胞膜</button>

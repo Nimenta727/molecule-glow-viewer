@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { siteInteractions, pocketSurface, findChannel, alongPath, pathLength, INTERACTION_TYPES } from '../site-analysis.mjs';
+import { siteInteractions, pocketSurface, findChannel, alongPath, pathLength, cofactorChain, INTERACTION_TYPES } from '../site-analysis.mjs';
 
 const atom = (el, an, comp, asym, position) => ({ el, an, comp, asym, position });
 const residue = (asym, seq, comp, atoms) => ({ asym, seq, comp, atoms });
@@ -58,4 +58,15 @@ test('alongPath walks the polyline, clamps at the start and continues straight p
   assert.deepEqual(alongPath(path, 2.5), [1.5, 2, 0]);
   assert.deepEqual(alongPath(path, 10), [3, 4, 5]);
   assert.deepEqual(alongPath([[0, 0, 0], [0, 0, 2]], 5), [0, 0, 5]);
+});
+
+test('the electron chain takes the path of the smallest summed squared hops between the two ends, hops under 20 Å, and says when there is none', () => {
+  const c = (x, y, z, name) => ({ position: [x, y, z], name });
+  // a straight line of clusters 12 Å apart, plus a shortcut candidate that is too far to hop (22 Å) and a near-by side cluster
+  const line = [c(0, 60, 0, 'A'), c(0, 48, 0, 'B'), c(0, 36, 0, 'C'), c(0, 24, 0, 'D'), c(0, 12, 0, 'E'), c(0, 0, 0, 'F'), c(9, 42, 0, 'side')];
+  assert.deepEqual(cofactorChain(line).map((x) => x.name), ['A', 'B', 'C', 'D', 'E', 'F'], 'many short hops beat one long one; the side cluster is not on the way');
+  assert.deepEqual(cofactorChain(line, { from: [0, 25, 0], to: [0, 0, 0] }).map((x) => x.name), ['D', 'E', 'F'], 'start and end can be chosen by points');
+  assert.deepEqual(cofactorChain([c(0, 60, 0, 'A'), c(0, 20, 0, 'B')]).map((x) => x.name), ['A', 'B'], 'no way within 20 Å: just the two ends');
+  assert.equal(cofactorChain([c(0, 0, 0, 'A')]), null);
+  assert.deepEqual(cofactorChain(line, { direction: [0, -1, 0] }).map((x) => x.name), ['F', 'E', 'D', 'C', 'B', 'A'], 'the direction decides which end starts');
 });

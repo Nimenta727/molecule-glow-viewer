@@ -596,7 +596,7 @@ function boot() {
   const analysisPanel = createAnalysisPanel({
     viewport,
     elements: { a: elements['measure-a'], b: elements['measure-b'], c: elements['measure-c'], measure: elements['measure-go'], measureClear: elements['measure-clear'], measureOut: elements['measure-out'],
-      start: elements['channel-start'], minClear: elements['channel-min'], channel: elements['channel-go'], channelClear: elements['channel-clear'], channelOut: elements['channel-out'] },
+      start: elements['channel-start'], minClear: elements['channel-min'], chain: elements['chain-go'], chainClear: elements['chain-clear'], chainComps: elements['chain-comps'], chainFrom: elements['chain-from'], chainTo: elements['chain-to'], chainOut: elements['chain-out'], channel: elements['channel-go'], channelClear: elements['channel-clear'], channelOut: elements['channel-out'] },
     context: { model: () => active?.model, space: () => selectionSpace(active.model) },
   });
   const membraneView = createMembraneView({

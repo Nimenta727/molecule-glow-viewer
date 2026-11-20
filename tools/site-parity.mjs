@@ -7,8 +7,9 @@ import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { parseMmcif } from '../plugins/structure/parser.mjs';
 import { selectionSpace } from '../plugins/structure/selection.mjs';
+import { orientedFrame } from '../plugins/simulation/structure-frame.mjs';
 import { measure, distance, angle } from '../plugins/structure/measure.mjs';
-import { siteInteractions, siteAround, pocketSurface, findChannel, alongPath, pathLength } from '../plugins/structure/site-analysis.mjs';
+import { siteInteractions, siteAround, cofactorChain, pocketSurface, findChannel, alongPath, pathLength } from '../plugins/structure/site-analysis.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const dir = process.argv[2], out = process.argv.includes('--output') ? process.argv[process.argv.indexOf('--output') + 1] : null;
@@ -97,6 +98,29 @@ const run = (code) => vm.runInContext(code, ctx);
       for (const s of [-5, 0, 7.3, L / 3, L / 2, L, L + 11]) { const c = run(`(() => { const v = alongPath(__path, ${s}); return [v.x, v.y, v.z]; })()`), m = alongPath(mine, s); alongWorst = Math.max(alongWorst, ...c.map((v, i) => Math.abs(v - m[i]))); }
     }
     check(`${id} ${label}: ${mine ? `${mine.length} points, length ${pathLength(mine).toFixed(1)} Å, narrowest ${Math.min(...mine.map((x) => x.r)).toFixed(2)} Å` : 'no way out (the classic finds none either)'}: path equal point by point to the last bit; points along the path differ by ${alongWorst.toExponential(1)}`, eq && lenSame && alongWorst === 0, `${classic?.length}/${mine?.length}`);
+  }
+}
+
+// 5. electron-transfer chain through cofactors ----------------------------------------------------------------------------------------------------------------------------------
+{
+  // the classic shortest path through the Fe-S clusters (the block of respiratory-chain.js `setup`, cut out by its markers), run unchanged on the real cluster centres of 5GUP and 6ZPO
+  const src = read('src/sim/processes/respiratory-chain.js'), a = src.indexOf('const s0 = fe.indexOf'), endMark = 'if (chain.length < 2) chain = [fe[s0].p, fe[t0].p];', b = src.indexOf(endMark) + endMark.length;
+  if (a < 0 || b < endMark.length) throw new Error('classic cofactor chain block not found');
+  vm.runInContext(`function classicChain(fe) { let chain = []; ${src.slice(a, b)}; return chain.map((p) => [p.x, p.y, p.z]); }`, ctx);
+  for (const id of ['5GUP', '6ZPO', '3JCU']) {
+    const space = selectionSpace(model(id)), centre = (l) => l.atoms.reduce((s, x) => s.map((v, k) => v + x.position[k]), [0, 0, 0]).map((v) => v * (1 / l.atoms.length));
+    for (const comps of [['SF4', 'FES'], ['SF4'], ['HEM', 'HEC', 'HEA']]) {
+      // in the frame the work uses (membrane normal vertical, as the classic scene), so the chain runs from the matrix side to the membrane
+      const config = id === '5GUP' ? { axis: 'short', axisFit: ['NADH-ubiquinone oxidoreductase chain', '/^Cytochrome b$/', 'Cytochrome c oxidase subunit 1', 'Cytochrome c oxidase subunit 3'], up: 'flavoprotein 1' } : id === '3JCU' ? { axis: 'short', axisFit: ['Photosystem II protein D1', 'D2 protein', 'CP47', 'CP43'], down: 'Oxygen-evolving enhancer protein 1' } : { axis: 'sym' };
+      const frame = orientedFrame({ residues: space.residues.map((r) => ({ position: r.position, entity: r.entity, authSeq: r.authSeq, insertion: r.insertion, labelSeq: r.labelSeq, chain: r.chain, labelAsym: r.labelAsym })), ligands: space.ligands, config });
+      const inPart = (l) => { if (id !== '5GUP' || comps[0] !== 'SF4') return true; const c = centre(l); let best = null, bd = Infinity; for (const r of space.residues) { const d = (r.position[0] - c[0]) ** 2 + (r.position[1] - c[1]) ** 2 + (r.position[2] - c[2]) ** 2; if (d < bd) { bd = d; best = r; } } return /NADH|flavoprotein|iron-sulfur protein/i.test(best?.entity ?? ''); };   // complex I's own clusters, as the classic's part membership
+      const all = space.ligands.filter((l) => comps.includes(l.comp) && inPart(l)).map((l) => ({ comp: l.comp, position: frame.fromNative(centre(l)) }));
+      if (all.length < 2) { lines.push(`--   ${id} ${comps.join('/')}: fewer than two cofactors, skipped`); continue; }
+      // a vertical axis as in the classic frame: the long axis of the structure would do; here the native y, which is as good for comparing the algorithm
+      ctx.__fe = all.map((c) => ({ comp: c.comp, p: new THREE.Vector3(...c.position) }));
+      const classic = run('classicChain(__fe)'), mine = cofactorChain(all).map((c) => c.position);
+      check(`${id} ${comps.join('/')}: ${all.length} cofactor centres → chain of ${mine.length}: same path, same points to the last bit as the classic`, mine.length >= 2 && same(classic.flat(), mine.flat()), `${classic.length}/${mine.length}`);
+    }
   }
 }
 
