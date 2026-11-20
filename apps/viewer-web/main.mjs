@@ -14,6 +14,7 @@ import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
@@ -267,6 +268,7 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      sequenceBar.setModel(active.model);
       elements['chain-id'].value = '';
       elements['residue-id'].value = '';
       showNavigation();
@@ -350,6 +352,8 @@ function boot() {
   function showStructurePick(selection) {
     if (active) active.structureSelection = selection;
     viewport.setPointSelection(selection);
+    if (selection && active) active.selectionSet = undefined;
+    syncSequence();
     const card = elements['structure-pick'];
     card.hidden = !selection;
     const contacts = elements['structure-contacts'];
@@ -362,6 +366,31 @@ function boot() {
     elements['structure-tools'].open = true;
   }
 
+  const sequenceBar = createSequenceBar({
+    root: elements['sequence-bar'], rowsBox: elements['sequence-rows'], info: elements['sequence-info'],
+    onSelect(expression) {
+      try {
+        const result = selectSet(expression);
+        elements['selection-expression'].value = expression;
+        if (result) sequenceBar.setInfo(`已选 ${result.summary}（glow.select('${expression}')）`);
+      } catch (error) { sequenceBar.setInfo(error.message); }
+    },
+  });
+  /** Lights up what is selected: the whole expression set if there is one, otherwise the single picked residue. */
+  function syncSequence() {
+    if (!sequenceBar.visible) return;
+    const set = active?.selectionSet;
+    const picked = active?.structureSelection?.kind === 'residue' ? structureObjectId('residue', active.structureSelection.atom) : null;
+    const chosen = set ? new Set(set.residues) : null;
+    sequenceBar.highlight((residue) => chosen ? chosen.has(residue) : picked != null && structureObjectId('residue', residue.atom) === picked);
+  }
+  elements['sequence-toggle'].addEventListener('click', () => {
+    const on = sequenceBar.setVisible();
+    elements['sequence-toggle'].setAttribute('aria-pressed', String(on));
+    if (on) { sequenceBar.setModel(active?.model); syncSequence(); }
+  });
+  elements['sequence-close'].addEventListener('click', () => { sequenceBar.setVisible(false); elements['sequence-toggle'].setAttribute('aria-pressed', 'false'); });
+
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -372,9 +401,15 @@ function boot() {
     const targets = new Set([...active.structureTargets.values()].filter((target) =>
       (target.kind === 'ligand' ? ligandKeys : keys).has(structureObjectId(target.kind, target.atom))));
     const marked = viewport.setPointSelections(targets);
+    syncSequence();
     return { residues: result.residues.length, ligands: result.ligands.length, marked, summary: result.summary };
   }
-  function clearSet() { if (active) active.selectionSet = undefined; viewport.setPointSelections(); }
+  function clearSet() {
+    if (active) active.selectionSet = undefined;
+    viewport.setPointSelections();
+    syncSequence();
+    sequenceBar.setInfo('拖动选择一段；灰块是结构里缺失的残基');
+  }
 
   elements['structure-contacts'].addEventListener('toggle', (event) => {
     const ligand = active?.structureSelection;
@@ -1014,6 +1049,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    sequenceBar.setModel(null);
     syncControls();
     showDiagnostics();
     showNavigation();

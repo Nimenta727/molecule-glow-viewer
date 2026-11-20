@@ -114,7 +114,7 @@ function mappedResidueId(atom, numbering) {
   return numbering === 'label' ? atom.labelSeqId : atom.authSeqId;
 }
 
-function rangeTypeFor(atom, ranges) {
+export function rangeTypeFor(atom, ranges) {
   for (const range of ranges) {
     const rangeChain = text(range.chainId);
     const chain = text(range.numbering === 'label'

@@ -1,0 +1,10 @@
+ok   1AKE: 2 chains
+ok   1K4C: 3 chains
+ok   2HVK: 3 chains
+ok   2ITD: 3 chains
+ok   4AKE: 2 chains
+ok   5VK6: 3 chains
+ok   5VKE: 3 chains
+ok   6ZPO: 29 chains
+
+8/8 identical

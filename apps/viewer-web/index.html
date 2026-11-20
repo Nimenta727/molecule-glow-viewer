@@ -46,6 +46,10 @@
             <button id="reset-camera" type="button" disabled>重置视角</button>
           </div>
         </section>
+        <section id="sequence-bar" class="sequence-bar" aria-label="序列条" hidden>
+          <header><b>序列</b><span id="sequence-info" aria-live="polite">拖动选择一段；灰块是结构里缺失的残基</span><button id="sequence-close" type="button" aria-label="关闭序列条">×</button></header>
+          <div id="sequence-rows" class="sequence-rows"></div>
+        </section>
         <aside id="info-panel" class="info-panel" aria-label="场景信息与结构工具">
           <p id="empty-hint" class="empty-hint">打开 .glow 场景或结构文件（.cif / .pdb），或展开「结构插件」输入 RCSB 编号。</p>
           <nav id="scene-navigation" aria-label="场景导航" hidden>
@@ -102,6 +106,7 @@
               <input id="selection-expression" name="expression" type="text" maxlength="300" placeholder="chain A and resi 10-50" autocomplete="off" spellcheck="false">
               <button type="submit">选择</button>
               <button id="selection-clear" type="button">清除</button>
+              <button id="sequence-toggle" type="button" aria-pressed="false">序列条</button>
               <details class="selection-help"><summary>语法</summary><p id="selection-help-text"></p></details>
             </form>
             <p id="structure-summary" class="structure-summary" aria-live="polite" hidden></p>
