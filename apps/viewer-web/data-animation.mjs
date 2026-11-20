@@ -13,7 +13,7 @@ import { displayCenter } from '../../plugins/motion/state-pair.mjs';
  */
 const POOL = 'data-pool', MOVING = 'data-moving', STREAM = 'data-stream';
 
-export function createDataAnimation({ viewport, elements, context }) {
+export function createDataAnimation({ viewport, elements, context, strip = null }) {
   let engine = null, frame = null, config = null, runFrame = null, last = 0, available = true, lastKey = '';
 
   const show = (text) => { elements.info.textContent = text; };
@@ -96,13 +96,13 @@ export function createDataAnimation({ viewport, elements, context }) {
     if (!available || !engine || !elements.play.checked) { runFrame = null; last = 0; return; }
     const dt = Math.min(0.25, last ? (now - last) / 1000 : 0.016);
     last = now;
-    if (engine.advance(dt)) { draw(); describe(); }
+    if (engine.advance(dt)) { draw(); describe(); strip?.update(engine.time); }
     runFrame = requestAnimationFrame(tick);
   };
   function start() { if (runFrame == null) { last = 0; runFrame = requestAnimationFrame(tick); } }
   function stop() { if (runFrame != null) cancelAnimationFrame(runFrame); runFrame = null; last = 0; }
 
-  function rebuild() { stop(); engine?.dispose(); engine = null; try { build(); } catch (error) { engine = null; show(`无法运行数据动画：${error.message}`); } buildKineticControls(); draw(); describe(); if (engine && elements.play.checked) start(); }
+  function rebuild() { stop(); engine?.dispose(); engine = null; try { build(); } catch (error) { engine = null; show(`无法运行数据动画：${error.message}`); } buildKineticControls(); draw(); describe(); strip?.load(engine ? config.energy : null); if (engine && elements.play.checked) start(); }
 
   elements.play.addEventListener('change', () => { if (elements.play.checked) { if (!engine) rebuild(); else start(); } });
   elements.reset.addEventListener('click', () => rebuild());
@@ -113,11 +113,11 @@ export function createDataAnimation({ viewport, elements, context }) {
     load(next) { config = next; elements.scale.value = next.scale === 'fast' ? 'fast' : 'slow'; elements.play.checked = true; rebuild(); },
     /** After the viewport was rebuilt: draw again. */
     reapply() { if (engine) draw(); },
-    setAvailable(on) { if (available === on) return; available = on; if (!on) stop(); else if (engine && elements.play.checked) start(); draw(); },
-    reset() { stop(); engine?.dispose(); engine = null; frame = null; config = null; elements.play.checked = false; elements.kinetics.replaceChildren(); elements.kinetics.hidden = true; elements.counters.replaceChildren(); elements.events.replaceChildren(); show(''); draw(); },
+    setAvailable(on) { if (available === on) return; available = on; strip?.setAvailable(on); if (!on) stop(); else if (engine && elements.play.checked) start(); draw(); },
+    reset() { stop(); engine?.dispose(); engine = null; frame = null; config = null; elements.play.checked = false; elements.kinetics.replaceChildren(); elements.kinetics.hidden = true; strip?.reset(); elements.counters.replaceChildren(); elements.events.replaceChildren(); show(''); draw(); },
     get active() { return Boolean(engine); },
     /** For tests and the command API: the engine's current summary. */
     summary: () => engine?.summary() ?? null,
-    step: (n = 1) => { if (engine) { engine.run(n); draw(); describe(); } },
+    step: (n = 1) => { if (engine) { engine.run(n); draw(); describe(); strip?.update(engine.time); } },
   };
 }

@@ -5,7 +5,7 @@ import { selectCoordinateAtoms, isPolymer } from './representation.mjs';
  * (src/derived/selection-language.js), evaluated on the parsed structure model of the new platform.
  *
  *   all | none | protein | nucleic | ligands | sele      sele = the previous selection
- *   chain A[,B]  asym C_2  label_asym A  resn HIS[,CYS]  ligand HEM[,ATP]  entity "part of a name"
+ *   chain A[,B]  asym C_2  label_asym A  resn HIS[,CYS]  ligand HEM[,ATP]  entity "part of a name"  entity "/regex/" (exact: "/^name$/")
  *   resi 10-50,60  resi -3  resi 52A (exactly that insertion)  resi 52A-60      author numbering
  *   label_seq 10-50                                        label (sequence) numbering
  *   within 5 of <selection>                                 residues / ligands near, not in, the selection
@@ -14,7 +14,7 @@ import { selectCoordinateAtoms, isPolymer } from './representation.mjs';
  * A residue is one entry per polymer residue (its C-alpha, or P for nucleotides); a ligand is one HETATM molecule that is not
  * water or unknown. The result is the *whole* matching set, in model order.
  */
-export const SELECTION_HELP = 'all | none | protein | nucleic | ligands | sele（上一次的选择）| chain A[,B] | resi 10-50[,60] | resn HIS[,CYS] | entity "名字的一部分" | ligand HEM[,ATP] | within 5 of <选择>；用 and / or / not 组合，括号可嵌套';
+export const SELECTION_HELP = 'all | none | protein | nucleic | ligands | sele（上一次的选择）| chain A[,B] | resi 10-50[,60] | resn HIS[,CYS] | entity "名字的一部分"（或 "/^正则$/"）| ligand HEM[,ATP] | within 5 of <选择>；用 and / or / not 组合，括号可嵌套';
 
 export class SelectionError extends Error {
   constructor(message) { super(message); this.name = 'SelectionError'; }
@@ -66,7 +66,11 @@ export function parseSelection(source) {
     }
     if (word === 'resn') return { op: 'resn', v: list('残基名').map((item) => item.toUpperCase()) };
     if (word === 'ligand') return { op: 'ligand', v: list('小分子代码').map((item) => item.toUpperCase()) };
-    if (word === 'entity') return { op: 'entity', v: next('实体名').toLowerCase() };
+    if (word === 'entity') {
+      const raw = next('实体名'), pattern = /^\/(.{1,198})\/$/s.exec(raw);   // entity "/^复合体 I$/" is a regular expression (case-insensitive, at most 198 characters), as in the classic
+      if (!pattern) return { op: 'entity', v: raw.toLowerCase() };
+      try { return { op: 'entity', re: new RegExp(pattern[1], 'i') }; } catch { throw new SelectionError(`实体名的正则写错了：${raw}`); }
+    }
     if (word === 'resi' || word === 'resid') {
       // author numbers: 10-50, 0, -3, 52A (an insertion code: exactly that residue), 52A-60
       return { op: 'resi', v: list('残基编号').map((item) => {
@@ -147,7 +151,7 @@ export function evaluateSelection(expression, space, { previous } = {}) {
       case 'label_seq': return { r: pick(R, (a) => n.v.some(([u, v]) => a.labelSeq >= u && a.labelSeq <= v)), l: new Set() };
       case 'resn': return { r: pick(R, (a) => n.v.includes(a.resn)), l: new Set() };
       case 'resi': return { r: pick(R, (a) => n.v.some((r) => inResidueRange(a, r))), l: new Set() };
-      case 'entity': return { r: pick(R, (a) => a.entity.includes(n.v)), l: new Set() };
+      case 'entity': return { r: pick(R, (a) => (n.re ? n.re.test(a.entity) : a.entity.includes(n.v))), l: new Set() };
       case 'ligand': return { r: new Set(), l: pick(L, (x) => n.v.includes(x.comp)) };
       case 'and': { const a = evaluate(n.a), b = evaluate(n.b); return { r: new Set([...a.r].filter((x) => b.r.has(x))), l: new Set([...a.l].filter((x) => b.l.has(x))) }; }
       case 'or': { const a = evaluate(n.a), b = evaluate(n.b); return { r: new Set([...a.r, ...b.r]), l: new Set([...a.l, ...b.l]) }; }

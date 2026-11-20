@@ -283,3 +283,20 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 
 .site-list { list-style: none; margin: 0.4rem 0 0; padding: 0; max-height: 14rem; overflow-y: auto; font-size: 0.82rem; }
 .site-list li { margin: 2px 0; }
+
+/* ---- energy-conversion strip (top centre of the viewport) ---- */
+.energy-strip:not([hidden]) {
+  position: absolute; z-index: 4; top: 4.1rem; left: 50%; transform: translateX(-50%); width: max-content; max-width: min(60rem, calc(100% - 2 * var(--gap) - var(--panel-w)));
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.2rem 0.5rem; padding: 0.25rem 0.55rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); font-size: 0.8rem;
+}
+.energy-strip b { color: var(--acc-ink, #8a5a00); white-space: nowrap; }
+.energy-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.1rem; margin: 0; padding: 0; list-style: none; }
+.energy-steps li:not(:last-child)::after { content: "→"; margin: 0 0.15rem; color: var(--dim); }
+.energy-steps li:last-child::after, .energy-steps li:has(.energy-follow)::after { content: none; }
+.energy-steps button { padding: 0.05rem 0.5rem; border-radius: 0.5rem; font-size: inherit; }
+.energy-steps button.lit { background: var(--acc); color: #fff; font-weight: 650; }
+.energy-steps button[aria-expanded="true"] { outline: 2px solid var(--acc); }
+.energy-follow[aria-pressed="true"] { background: var(--acc-soft); border-color: var(--acc); color: var(--acc-ink); }
+.energy-detail { flex-basis: 100%; margin: 0.2rem 0 0; max-height: 9rem; overflow-y: auto; line-height: 1.55; color: var(--ink, #2c3440); }
+@media (max-width: 760px) { .energy-strip:not([hidden]) { top: 5.6rem; max-width: calc(100% - 2 * var(--gap)); font-size: 0.74rem; } }

@@ -1,4 +1,5 @@
 import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS } from './mechanism-kinetics.mjs';
+import { MECHANISM_ENERGY } from './mechanism-energy.mjs';
 
 /**
  * The configuration of the classic works that are compartment kinetics around a membrane complex (classic processes `respiratoryChain` and `chloroplast`), as data-animation tool
@@ -7,7 +8,7 @@ import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS } from './mechanism-ki
  * keywords of the classic scenes; the same configuration works for any structure that has such parts.
  *
  *   top = the first compartment of the classic model (matrix / stroma), bot = the second (intermembrane space / thylakoid lumen).
- * Not included (still the classic's own code): the electron paths through the real cofactors, the proton pumping and ATP synthase rotor choreography, and the energy strip.
+ * The energy strips come from mechanism-energy.mjs. Not included (still the classic's own code): the electron paths through the real cofactors and the proton pumping and ATP synthase rotor choreography.
  */
 const COMPARTMENTS = Object.freeze({ top: Object.freeze({ side: 'above', membrane: 0, gap: 30 }), bot: Object.freeze({ side: 'below', membrane: 0, gap: 30 }) });
 const WORKS = Object.freeze({
@@ -39,7 +40,7 @@ export function mechanismWorkConfig(legacy) {
   const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined);
   if (legacy?.process === 'flagellarMotor') {
     return { animation: flagellarAnimation(), axis: ['sym', 'long', 'short', 'native'].includes(legacy.axis) ? legacy.axis : 'long', ...(text(legacy.up) ? { up: text(legacy.up) } : text(legacy.down) ? { down: text(legacy.down) } : {}),
-      membranes: Array.isArray(legacy.membranes) && legacy.membranes.length ? legacy.membranes.slice(0, 2).map((m) => ({ at: String(m.at ?? ''), offset: Number(m.offset) || 0 })) : [{ at: 'M-ring', offset: 18 }], seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7, scale: 'slow' };
+      membranes: Array.isArray(legacy.membranes) && legacy.membranes.length ? legacy.membranes.slice(0, 2).map((m) => ({ at: String(m.at ?? ''), offset: Number(m.offset) || 0 })) : [{ at: 'M-ring', offset: 18 }], seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7, scale: 'slow', energy: structuredClone(MECHANISM_ENERGY.flagellarMotor) };
   }
   const work = WORKS[legacy?.process];
   if (!work) return undefined;
@@ -50,6 +51,6 @@ export function mechanismWorkConfig(legacy) {
     ...(text(legacy.up) ? { up: text(legacy.up) } : text(legacy.down) ? { down: text(legacy.down) } : {}),
     membranes: Array.isArray(legacy.membranes) && legacy.membranes.length ? legacy.membranes.slice(0, 2).map((m) => ({ at: String(m.at ?? ''), offset: Number(m.offset) || 0 })) : [{ at: '', offset: 0 }],
     seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7, scale: 'slow',
-    kinetics: JSON.parse(JSON.stringify(work.kinetics)),
+    kinetics: JSON.parse(JSON.stringify(work.kinetics)), energy: structuredClone(MECHANISM_ENERGY[legacy.process]),
   };
 }

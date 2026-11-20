@@ -20,6 +20,7 @@ import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render
 import { createObjectSpin } from './object-spin.mjs';
 import { createParticleFlow } from './particle-flow.mjs';
 import { createDataAnimation } from './data-animation.mjs';
+import { createEnergyStrip } from './energy-strip.mjs';
 import { createProcessPanel } from './process-panel.mjs';
 import { createCompositionPanel } from './composition-panel.mjs';
 import { createStateMorph } from './state-morph.mjs';
@@ -712,8 +713,9 @@ function boot() {
     },
     context: { model: () => active?.model },
   });
+  const energyStrip = createEnergyStrip({ root: elements['energy-strip'], context: { select: (expression) => selectSet(expression), clear: () => clearSet(), selection: () => active?.selectionSet, report: (message) => setStatus(message) } });
   const dataAnimation = createDataAnimation({
-    viewport,
+    viewport, strip: energyStrip,
     elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'], kinetics: elements['data-kinetics'] },
     context: { model: () => active?.model },
   });

@@ -17,7 +17,7 @@
 | id | config 形状（摘要） | 要点 |
 |---|---|---|
 | `org.glow.tool.solution-particles` | `{ seed, scale: 'slow'\|'fast', pools:[{species,n}], flows:[{species,from,to,cps}] }` | `from/to` 是用选择语言写的残基组；每个粒子都有名称（H⁺、K⁺、ATP…），不能有无名粒子；`slow`=可看清的示意速度，`fast`=更接近真实尺度 |
-| `org.glow.tool.data-animation` | `{ animation:{version:1,compartments,pools,flows,reactions,conserved?}, axis, membranes, seed, scale, kinetics? }` | 读取时检查每个引用（写了不存在的区室就报错）；`conserved` 声明守恒量，违反会记入 `violations`；台账 `ledger` 要平衡；`kinetics` 可加 pH/浓度/膜电位 |
+| `org.glow.tool.data-animation` | `{ animation:{version:1,compartments,pools,flows,reactions,conserved?}, axis, membranes, seed, scale, kinetics?, energy? }` | 读取时检查每个引用（写了不存在的区室就报错）；`conserved` 声明守恒量，违反会记入 `violations`；台账 `ledger` 要平衡；`kinetics` 可加 pH/浓度/膜电位；`energy` 是能量转化条（见下） |
 | `org.glow.tool.stochastic-process` | `{ process:<Markov 声明>, schedule:[{time,...参数}], seed, display:[曲线] }` | 精确 Gillespie 抽样；滑块改参数＝用同一种子从头重放；`display` 的 kind：计数/时钟/电流等 |
 | `org.glow.tool.translation` | `{ template:'ubq'\|'ermcl'\|'polyu'\|'custom', sequence, schedule:[{time,...浓度µM}], seed }` | 序列→密码子→核糖体速率表；药物（四环素等）和因子浓度可随时间变 |
 | `org.glow.tool.multi-process` | `{ members:[{id,label?,kind:'translation'\|'process',timeScale?,...成员配置}], controls }` | 成员各有引擎/种子/时钟/计数；共享控件只作用到被指定的成员 |
@@ -53,3 +53,22 @@
 ## 6. 现在做不到（别承诺给用户）
 
 Studio 内粒子预览、细胞一角空间布局/拥挤绘制、70S 核糖体结构动画与原子特写、pH 体积着色、回退/干预界面、GPU 与桌面 EXE 实测。遇到这些，婉转告知“目前还在计划中”，并指向 `docs/STATUS.md`。
+
+## 能量转化条（`energy`，数据动画工具的可选字段）
+
+作品顶部的一排步骤：动画播放时按顺序轮流点亮，点一步看讲解并标出这一步涉及的结构，“◎ 跟随”可在播放时自动标出。
+
+```json
+"energy": {
+  "steps": [
+    { "label": "NADH 交出电子", "text": "点开后显示的讲解（纯文字，最多 1600 字）", "select": "entity \"/^复合体 I$/\"" },
+    { "label": "泛醌池", "text": "没有 select 的步骤只显示讲解" }
+  ],
+  "stage": { "mode": "cycle", "period": 28 }
+}
+```
+
+- `steps`：1–12 步；`label` ≤ 40 字；`select` 是[选择表达式](../../plugins/structure/selection.mjs)，写错只在点击时报告，不影响其它步骤。
+- `entity "名字片段"` 是包含匹配（会同时命中“复合体 I / II / III”）；要精确匹配写成正则：`entity "/^复合体 I$/"`（不分大小写，≤ 198 字符）。
+- `stage.mode`：`manual`（读者点哪步看哪步）或 `cycle`（按动画时钟轮流，`period` 为轮流一圈的动画秒数，2–120）。轮流只是顺序示意，不表示分子真的走到了哪一步。
+- Studio 的工具页签会为每一步生成名称、讲解、涉及结构三个编辑框。

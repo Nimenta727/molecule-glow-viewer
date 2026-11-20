@@ -58,3 +58,13 @@ test('errors are Chinese and specific', () => {
   assert.match(describeSelection(pick('chain A')), /4 个残基/);
   assert.equal(describeSelection(pick('none')), '没有选中任何对象');
 });
+
+test('entity: a substring, or a regular expression written between slashes', () => {
+  const named = parsePdb(PDB); named.chainNames = { A: '复合体 I', B: '复合体 III', C: '复合体 II' };
+  const named_space = selectionSpace(named), on = (e) => evaluateSelection(e, named_space).residues.length;
+  assert.equal(on('entity "复合体 I"'), 6);              // substring: I matches I, II and III alike
+  assert.equal(on('entity "/^复合体 I$/"'), 4);           // anchored: only complex I (chain A)
+  assert.equal(on('entity "/^复合体 (II|III)$/"'), 2);
+  assert.throws(() => parseSelection('entity "/(/"'), SelectionError);
+  assert.equal(on('entity "/^复合体 i$/"'), 4);           // case-insensitive, as the substring form
+});

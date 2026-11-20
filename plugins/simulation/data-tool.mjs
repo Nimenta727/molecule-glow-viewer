@@ -1,10 +1,12 @@
 import { normalizeDataAnimation, DATA_LIMITS } from './data-spec.mjs';
 import { compileKineticModel } from './kinetic-model.mjs';
+import { normalizeEnergy, ENERGY_LIMITS } from './energy-strip.mjs';
 
 /**
  * The "data animation" tool (4.4.3b): the authored form of plugins/simulation/data-animation.mjs. Its configuration, stored in `scene.tools[].config`:
- *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', axisFit?: [part keywords], up?: keyword, down?: keyword, membranes: [{ at, offset }], seed, scale, kinetics?: <kinetic model v1> }
+ *   { animation: <data v1 declaration>, axis: 'sym' | 'long' | 'short' | 'native', axisFit?: [part keywords], up?: keyword, down?: keyword, membranes: [{ at, offset }], seed, scale, kinetics?: <kinetic model v1>, energy?: <energy strip> }
  * `kinetics` is an optional compartment model (concentrations, pH, membrane potential; plugins/simulation/kinetic-model.mjs) whose pools follow the animation's.
+ * `energy` is the optional energy-conversion strip (plugins/simulation/energy-strip.mjs): named steps with explanations and the structures they involve, one lit as the animation runs.
  * `axisFit` (membrane complexes: the flattest direction of these parts is the membrane normal, as the classic) and `up` / `down` (which part ends above / below) refine the orientation; `axis` and `membranes` are the classic scene's orientation and membrane placement (the engine runs with the structure's axis vertical, see structure-frame.mjs).
  * The Viewer runs it (`runtime: 'layer-v1'`); Studio edits it through the generated tool panel. Nothing here names a protein or a pack.
  */
@@ -30,9 +32,11 @@ export function normalizeDataConfig(raw) {
     if (errors.length) throw new Error(`动力学模型有误：${errors.join('；')}`);
     kinetics = JSON.parse(json);
   }
+  const { energy, errors: energyErrors } = normalizeEnergy(source.energy);
+  if (energyErrors.length) throw new Error(`能量转化条有误：${energyErrors.join('；')}`);
   const words = (v) => (Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 120)).slice(0, 8);
   const one = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined), fit = words(source.axisFit), up = one(source.up), down = up ? undefined : one(source.down);
-  return { animation: spec, ...(kinetics ? { kinetics } : {}), axis: AXES.includes(source.axis) ? source.axis : 'sym', ...(fit.length ? { axisFit: fit } : {}), ...(up ? { up } : {}), ...(down ? { down } : {}), membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
+  return { animation: spec, ...(kinetics ? { kinetics } : {}), ...(energy ? { energy } : {}), axis: AXES.includes(source.axis) ? source.axis : 'sym', ...(fit.length ? { axisFit: fit } : {}), ...(up ? { up } : {}), ...(down ? { down } : {}), membranes, seed: Number.isSafeInteger(source.seed) ? source.seed : 7, scale: source.scale === 'fast' ? 'fast' : 'slow' };
 }
 
 /** Editable fields: the run settings, then every pool, flow and reaction of the declaration (add or remove them in the declaration itself). */
@@ -50,6 +54,13 @@ export function dataAuthorFields(config) {
     { path: `animation.pools.${i}.n`, type: 'number', integer: true, min: 0, max: DATA_LIMITS.pool, step: 1, label: `第 ${i + 1} 个池的个数`, group: '分子池' }));
   (a.flows ?? []).forEach((f, i) => fields.push(text(`animation.flows.${i}.name`, `第 ${i + 1} 条流的名称`, '流', 60), text(`animation.flows.${i}.species`, `第 ${i + 1} 条流的分子`, '流', 40),
     { path: `animation.flows.${i}.rate`, type: 'number', min: 0, max: 20, step: 0.05, label: `第 ${i + 1} 条流的速率（次/秒）`, group: '流' }));
+  const strip = cfg.energy;
+  if (strip) {
+    fields.push({ path: 'energy.stage.mode', type: 'select', label: '能量转化条：哪一步亮', group: '能量转化条', options: [{ value: 'manual', label: '不自动亮，点哪步看哪步' }, { value: 'cycle', label: '随动画按顺序轮流亮（示意）' }] });
+    if (strip.stage?.mode === 'cycle') fields.push({ path: 'energy.stage.period', type: 'number', min: ENERGY_LIMITS.minPeriod, max: ENERGY_LIMITS.maxPeriod, step: 1, label: '轮流一圈的动画秒数', group: '能量转化条' });
+    strip.steps.forEach((step, i) => fields.push(text(`energy.steps.${i}.label`, `第 ${i + 1} 步的名称`, '能量转化条', ENERGY_LIMITS.label), { path: `energy.steps.${i}.text`, type: 'text', label: `第 ${i + 1} 步的讲解`, group: '能量转化条', maxLength: ENERGY_LIMITS.text },
+      text(`energy.steps.${i}.select`, `第 ${i + 1} 步涉及的结构（选择表达式，可留空）`, '能量转化条', ENERGY_LIMITS.select)));
+  }
   const k = cfg.kinetics;
   for (const [name, value] of Object.entries(k?.constants ?? {})) fields.push({ path: `kinetics.constants.${name}`, type: 'number', min: -1e6, max: 1e6, step: 0.001, label: `动力学常量 ${name}`, group: '区室动力学', default: value });
   for (const [name, value] of Object.entries(k?.state ?? {})) fields.push({ path: `kinetics.state.${name}`, type: 'number', min: -1e6, max: 1e6, step: 0.001, label: `动力学初值 ${name}`, group: '区室动力学', default: value });
