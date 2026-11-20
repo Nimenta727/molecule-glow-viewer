@@ -28,11 +28,11 @@ export function legAlpha(u, a0, { fadeIn = 0, fadeOut = 0 }) {
  * `step(dt)` returns true when the journey is finished.
  */
 export class Journey {
-  constructor(item, legs, { onDone, remove = false } = {}) {
+  constructor(item, legs, { onDone, remove = false, defer } = {}) {
     if (!item || !Array.isArray(item.position)) throw new Error('行进需要一个带 position 的粒子');
     if (!item.name) throw new Error('行进的粒子必须有名字');
     if (!Array.isArray(legs) || !legs.length) throw new Error('行进至少需要一段');
-    Object.assign(this, { item, legs, onDone, remove, index: -1, curve: null, t: 0, finished: false, cancelled: false });
+    Object.assign(this, { item, legs, onDone, remove, defer, index: -1, curve: null, t: 0, finished: false, cancelled: false, waiting: false });
     this.#start();
   }
   #start() {
@@ -44,29 +44,60 @@ export class Journey {
     this.curve = catmullRom(path); this.dur = Math.max(0.05, leg.dur ?? 1); this.a0 = this.item.alpha ?? 1;
   }
   step(dt) {
-    if (this.finished || this.cancelled) return true;
+    if (this.cancelled) return true;
+    if (this.finished) return true;
+    if (this.waiting) return false;   // the leg ended; the next one starts when the scene's deferred work runs
     const leg = this.legs[this.index], it = this.item; this.t += dt;
     const u = Math.min(1, this.t / this.dur);
     this.curve.point(leg.ease ? ease(u) : u, it.position);
     const a = legAlpha(u, this.a0, leg); if (a !== undefined) it.alpha = a;
     if (leg.tumble) { it.rotation ??= [0, 0, 0]; it.rotation[0] += dt * 1.8; it.rotation[1] += dt * 1.2; }
-    if (u >= 1) { leg.onEnd?.(it); this.#start(); }
+    if (u >= 1) {
+      leg.onEnd?.(it);
+      if (this.defer) {   // continue after everything else of this tick, as a promise continuation does
+        const last = this.index === this.legs.length - 1;
+        this.waiting = true;
+        this.defer(() => { this.waiting = false; if (!this.cancelled) this.#start(); });
+        return last;
+      }
+      this.#start();
+    }
     return this.finished;
   }
   cancel() { this.cancelled = true; }
 }
 
-/** Ticks the journeys of a scene. `clear()` cancels them all (the scene was cleared): nothing is left running and nothing is called. */
+/**
+ * Ticks the journeys (and timers) of a scene, last started first like the classic runner. `clear()` cancels everything (the scene was cleared): nothing is
+ * left running and nothing is called. With `deferred: true` the work that follows a finished leg or timer runs in `flush()` - call it after the tick's other
+ * work - which is where a promise continuation of the classic runs; the random numbers then come in the classic order even with several things running.
+ */
 export class Motion {
-  constructor() { this.journeys = []; this.clock = 0; }
+  constructor({ deferred = false } = {}) { this.journeys = []; this.clock = 0; this.deferred = deferred; this.queue = []; }
   /** Start a journey for `item` along `legs`; returns it. */
-  go(item, legs, options) { const j = new Journey(item, legs, options); if (!j.finished) this.journeys.push(j); return j; }
+  go(item, legs, options = {}) {
+    const j = new Journey(item, legs, { ...options, ...(this.deferred ? { defer: (fn) => this.queue.push(fn) } : {}) });
+    if (!j.finished) this.journeys.push(j);
+    return j;
+  }
+  /** Call `fn` after `seconds` of scene time (in tick order with the journeys); returns a handle with cancel(). */
+  wait(seconds, fn) {
+    const timer = { t: 0, dur: seconds, cancelled: false, step: (dt) => {
+      if (timer.cancelled) return true;
+      timer.t += dt;
+      if (timer.t / timer.dur >= 1) { if (this.deferred) this.queue.push(fn); else fn(); return true; }
+      return false;
+    }, cancel: () => { timer.cancelled = true; } };
+    this.journeys.push(timer); return timer;
+  }
   tick(dt) {
     this.clock += dt;
     for (let i = this.journeys.length - 1; i >= 0; i--) { const j = this.journeys[i]; if (j.step(dt)) this.journeys.splice(i, 1); }
   }
+  /** Run the deferred continuations (they may queue more). */
+  flush() { while (this.queue.length) this.queue.shift()(); }
   get running() { return this.journeys.length; }
-  clear() { const n = this.journeys.length; for (const j of this.journeys) j.cancel(); this.journeys = []; return n; }
+  clear() { const n = this.journeys.length; for (const j of this.journeys) j.cancel(); this.journeys = []; this.queue = []; return n; }
 }
 
 /**

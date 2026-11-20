@@ -363,12 +363,12 @@
     {
       "id": "new.animation.data-v1-adk-kcsa",
       "kind": "partial-automation",
-      "runner": "packages/legacy-compat/test/migrate.test.mjs",
+      "runner": "tools/data-anim-parity.mjs",
       "steps": [
         "Open AdK and KcsA pure-data official packs; play, intervene, rewind and export."
       ],
       "expected": "Compartment/species names and stoichiometry preserved; events follow declared flows/reactions; no code from pack; quantities recover after reopen.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "Runner compares the engine with the classic data animation step by step on real structures (pools, molecules on a journey, counters, event log, fast streams); opening, playing, intervening, rewinding, exporting and reopening in a front end are not built yet; full parity remains pending."
     },
     {
       "id": "classic.mechanism.respiratory-chain",

@@ -1,0 +1,8 @@
+ok   AdK reaction pack on 4AKE: 900 steps (slow, seed 7); 12394 pool-molecule comparisons, up to 4 on a journey; counters {"ADP 生成":8}, 8 events: position difference 3.2e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements
+ok   KcsA data pack on 1K4C: 1200 steps (slow, seed 7); 26058 pool-molecule comparisons, up to 3 on a journey; counters {"K⁺ 外流":19}, 39 events: position difference 7.0e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements
+ok   KcsA data pack on 6ZPO: 600 steps (slow, seed 3); 12945 pool-molecule comparisons, up to 3 on a journey; counters {"K⁺ 外流":9}, 18 events: position difference 8.0e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements
+ok   KcsA data pack, fast scale: 500 steps (fast, seed 7); 10500 pool-molecule comparisons, up to 0 on a journey; counters {"K⁺ 外流":13}, 0 events: position difference 4.3e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements, streams 1.1e-5 Å / 0 count disagreements
+ok   AdK reaction pack, fast scale: 500 steps (fast, seed 7); 6500 pool-molecule comparisons, up to 0 on a journey; counters {"ADP 生成":5}, 0 events: position difference 2.0e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements, streams 3.7e-6 Å / 0 count disagreements
+ok   source-less flow (molecules created and removed): 500 steps (slow, seed 7); 2000 pool-molecule comparisons, up to 3 on a journey; counters {"电子":11}, 24 events: position difference 4.0e-14 Å, 0 mode/alpha, 0 pool-count, 0 journey, 0 counter and 0 event-log disagreements
+
+6/6 identical

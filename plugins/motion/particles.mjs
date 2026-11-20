@@ -208,6 +208,7 @@ export class ParticlePool {
     if (!spec.region || typeof spec.region.sample !== 'function') throw new Error(`粒子池“${spec.name || spec.label || '?'}”缺少区域`);
     Object.assign(this, { n: 0, clear: 7.5, kick: 16, maxTags: 2, tumble: false }, spec, { items: [] });
     this.name = makeName(spec); this.random = makeRng(rng); this.occupancy = occupancy;
+    this.drift = { in: 0, out: 0 };   // molecules that drifted in from / out to the edge of the bulk: the pool is an open boundary, the ledger counts it
   }
   add(position, mode, alpha) {
     const item = { id: nextId++, name: this.name, position: position.slice(), velocity: [0, 0, 0], mode, alpha, rotation: [0, 0, 0], labelled: false };
@@ -221,17 +222,17 @@ export class ParticlePool {
   take(near) {
     let best = null, bd = Infinity;
     for (const it of this.items) if (it.mode === 'free' || it.mode === 'in') { const d = sq(it.position, near); if (d < bd) { bd = d; best = it; } }
-    if (!best) best = this.add(this.region.sample(true) || near.slice(), 'in', 0.05);
+    if (!best) { best = this.add(this.region.sample(true) || near.slice(), 'in', 0.05); this.drift.in++; }
     this.items = this.items.filter((x) => x !== best); this.retag(); best.labelled = true; return best;
   }
   /** A particle that finished its job joins this pool (the compartment it ended up in). */
   give(item) { item.alpha = 1; item.mode = 'free'; item.velocity = [0, 0, 0]; this.items.push(item); this.retag(); }
   update(dt) {
     const R = this.region, sim = this.random.sim, live = this.items.filter((i) => i.mode !== 'out').length, want = Math.round(this.n);
-    if (live < want && sim() < dt * 6) { const p = R.sample(true); if (p) this.add(p, 'in', 0); }
+    if (live < want && sim() < dt * 6) { const p = R.sample(true); if (p) { this.add(p, 'in', 0); this.drift.in++; } }
     if (live > want && sim() < dt * 6) {
       let w = null; for (const it of this.items) if (it.mode === 'free' && (!w || R.depth(it.position) < R.depth(w.position))) w = it;
-      if (w) { w.mode = 'out'; this.retag(); }
+      if (w) { w.mode = 'out'; this.drift.out++; this.retag(); }
     }
     for (let i = this.items.length - 1; i >= 0; i--) {
       const it = this.items[i], p = it.position, v = it.velocity, damp = Math.exp(-dt * 1.5), kick = this.kick * Math.sqrt(dt);
