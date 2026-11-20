@@ -1,6 +1,6 @@
 # 经典与新版重复实现清单
 
-更新：2026-11-19，当前结构核对基线 `759102f`。本表保留经典/新版位置与差异，不表示已完成合并或等价验证。执行顺序见当前 [路线图](ROADMAP.md)；详细功能提取矩阵见 [结构与拆分方案](ARCHITECTURE.md)。先制作基底，再经典功能插件，后新增科研插件；历史位置比较仍有效。
+更新：2026-11-20（4.4.2–4.4.6 行已更新，其余为 11-19 状态），当前结构核对基线 `759102f`。本表保留经典/新版位置与差异，不表示已完成合并或等价验证。执行顺序见当前 [路线图](ROADMAP.md)；详细功能提取矩阵见 [结构与拆分方案](ARCHITECTURE.md)。先制作基底，再经典功能插件，后新增科研插件；历史位置比较仍有效。
 
 Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/新版两套实现与差异，避免第三份实现；必要的模块拆分随功能交付。全面合并两套前端的状态/渲染及最终去重按交接由 Claude 收尾，安全缺陷和发布阻断立即修复。
 
@@ -19,7 +19,10 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 | ATP 合酶 | `src/sim/processes/atp-synthase.js` | `plugins/atp-synthase/index.mjs` | 主要教学机制接入；计量、坐标和确定性有实测，完整经典参数/事件/交互对照仍待补 |
 | KcsA 模型、孔道与显示 | `src/sim/processes/kcsa.js`、`src/derived/tunnel.js` | `plugins/kcsa/{index,kinetics,structure}.mjs` | 不完全等价；速率移植，但新版粒子插值不阻塞时钟；补经典数值表、区室、水合与曲线 |
 | AdK 两态开合与域角度 | `src/core/load-scene.js`、`src/view/frame-loop.js`、`src/ui/ligand-focus.js`、`src/data/presets.js` | `plugins/adenylate-kinase/{index,playback,structure}.mjs` | 部分接入；CORE 对齐、三域表示和两态控制已做；纯数据催化反应与通用分析未迁移 |
-| 纯数据动画、区室动力学 | `src/sim/data-anim.js`、`src/sim/cell-kinetics.js` | 尚无等价通用插件 | 待迁移；复用共享时钟/场景/资源接口，避免给每个包再写独立播放器 |
+| 纯数据动画、区室动力学 | `src/sim/data-anim.js`、`src/sim/cell-kinetics.js` | `plugins/simulation/{data-animation,kinetic-model,expression}.mjs` | 已迁（4.4.3）：ADK/KcsA 数据动画 6/6、动力学 5/5 与经典一致；pH 体积着色器未做 |
+| 粒子/路径/流、溶液 | `src/sim/` 粒子池、旅程 | `plugins/motion/` | 已迁（4.4.2）：24/24 一致；视觉时间尺度已保留 |
+| 随机门控、翻译 | `src/sim/processes/{kcsa,translation}.js` | `plugins/simulation/{markov-model,translation}.mjs` | 已迁（4.4.4/4.4.5）：翻译速率 4 万随机状态逐位相同；KcsA 播放器尚未并入通用引擎 |
+| 拥挤、细胞几何、多过程 | `src/repr/crowding.js`、细胞一角 | `plugins/simulation/{crowding,cell-geometry,composition,scale-ladder}.mjs` | 纯逻辑已迁并一致（4.4.6）；空间绘制待做 |
 | 场景包与状态持久化 | `src/pack/`、`src/api/run.js` | `packages/legacy-compat/`、`packages/schema/`、`packages/core/` | 格式及状态模型不同；v1 保留＋v2 ZIP 校验已实现，完整行为及状态恢复逐项对照 |
 | 命令和嵌入桥 | `src/api/` | `apps/viewer-web/command-api.mjs`、`apps/viewer-web/viewer-commands.mjs` | 部分兼容；4.1 两代共用分级授权且控制回包脱敏，完整命令参数/回包及工作台适配仍待做 |
 
