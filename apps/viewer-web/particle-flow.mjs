@@ -12,7 +12,7 @@ import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 const TAG = 'solution', FLOW_TAG = 'solution-flow';
 
 export function createParticleFlow({ viewport, elements, context }) {
-  let solution = null, modelOf = null, frame = null, last = 0;
+  let solution = null, modelOf = null, frame = null, last = 0, available = true;
 
   const show = (text) => { elements.info.textContent = text; };
 
@@ -33,9 +33,9 @@ export function createParticleFlow({ viewport, elements, context }) {
   }
 
   function draw() {
-    if (!solution || !context.model()) { viewport.setParticleCloud(TAG, []); viewport.setParticleCloud(FLOW_TAG, []); return; }
+    if (!available || !solution || !context.model()) { viewport.setParticleCloud(TAG, []); viewport.setParticleCloud(FLOW_TAG, []); return; }
     const center = displayCenter(context.model()), k = PRESENTATION_METERS_PER_ANGSTROM, items = solution.frame();
-    const convert = (item) => ({ position: item.position.map((v, i) => (v - center[i]) * k), radius: item.radius * k, color: item.color, alpha: item.alpha, label: item.label });
+    const convert = (item) => ({ position: item.position.map((v, i) => (v - center[i]) * k), radius: item.radius * k, color: item.color, alpha: item.alpha, label: item.label, name: item.name });
     viewport.setParticleCloud(TAG, items.filter((i) => i.kind === 'pool').map(convert));
     viewport.setParticleCloud(FLOW_TAG, items.filter((i) => i.kind === 'flow').map(convert), { overlay: true });   // a stream stays visible inside channels
   }
@@ -66,7 +66,7 @@ export function createParticleFlow({ viewport, elements, context }) {
   function refresh() { renderList(); describe(); draw(); }
 
   const tick = (now) => {
-    if (!solution || !elements.play.checked) { frame = null; last = 0; return; }
+    if (!available || !solution || !elements.play.checked) { frame = null; last = 0; return; }
     const dt = Math.min(0.25, last ? (now - last) / 1000 : 0.016);
     last = now;
     if (solution.advance(dt)) { draw(); describe(); }
@@ -74,6 +74,25 @@ export function createParticleFlow({ viewport, elements, context }) {
   };
   function start() { if (frame == null) { last = 0; frame = requestAnimationFrame(tick); } }
   function stop() { if (frame != null) cancelAnimationFrame(frame); frame = null; last = 0; }
+
+  // The name card: hover (mouse) or tap (touch / pen) a particle to see what it is. Text only.
+  let hoverFrame = null, shown = false;
+  const hideCard = () => { if (shown) { elements.card.hidden = true; shown = false; } };
+  function cardAt(event) {
+    const hit = available && solution ? viewport.pickParticle(event) : null;
+    if (!hit) { hideCard(); return; }
+    const kind = hit.tag === FLOW_TAG ? '粒子流' : '溶液中的分子';
+    elements.card.textContent = `${hit.name} · ${kind}`;
+    const box = elements.card.parentElement.getBoundingClientRect();
+    elements.card.style.left = `${Math.min(event.clientX - box.left + 12, box.width - 150)}px`; elements.card.style.top = `${Math.max(0, event.clientY - box.top - 28)}px`;
+    elements.card.hidden = false; shown = true;
+  }
+  elements.stage.addEventListener('pointermove', (event) => {
+    if (event.pointerType === 'touch' || hoverFrame != null) return;
+    hoverFrame = requestAnimationFrame(() => { hoverFrame = null; cardAt(event); });
+  });
+  elements.stage.addEventListener('pointerleave', hideCard);
+  elements.stage.addEventListener('pointerdown', (event) => { if (event.pointerType !== 'mouse') cardAt(event); else hideCard(); });
 
   for (const name of SPECIES_NAMES) { const option = document.createElement('option'); option.value = option.textContent = name; elements.species.append(option); }
 
@@ -102,8 +121,11 @@ export function createParticleFlow({ viewport, elements, context }) {
   return {
     /** After the viewport was rebuilt: draw the particles again. */
     reapply() { if (solution) draw(); },
-    reset() { stop(); solution = null; modelOf = null; elements.play.checked = false; elements.scale.value = 'slow'; viewport.setParticleCloud(TAG, []); viewport.setParticleCloud(FLOW_TAG, []); elements.list.replaceChildren(); show(''); },
-    save: () => (solution && (solution.spec.pools.length || solution.spec.flows.length) ? { ...solution.spec } : null),
+    /** The motion plugin (the tool behind this panel) came or went: without it nothing is drawn and nothing runs, but the set is kept for when it returns. */
+    setAvailable(on) { if (available === on) return; available = on; if (!on) stop(); else if (elements.play.checked) start(); draw(); },
+    reset() { hideCard(); stop(); solution = null; modelOf = null; elements.play.checked = false; elements.scale.value = 'slow'; viewport.setParticleCloud(TAG, []); viewport.setParticleCloud(FLOW_TAG, []); elements.list.replaceChildren(); show(''); },
+    /** The current set (also when empty, once the panel was used), or null when it never was. */
+    save: () => (solution ? JSON.parse(JSON.stringify(solution.spec)) : null),
     restore(saved) {
       const spec = normalizeSolutionSpec(saved);
       if (!spec.pools.length && !spec.flows.length) return;

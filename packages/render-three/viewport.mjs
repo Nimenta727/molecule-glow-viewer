@@ -497,7 +497,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       const mesh = new THREE.InstancedMesh(cloudGeometry, material, capacity);
       mesh.frustumCulled = false; mesh.userData.selectionMarker = true; mesh.userData.particleCloud = tag; mesh.renderOrder = overlay ? 20 : 5;
       active.root.add(mesh);
-      cloud = { mesh, capacity, material, labels: [], parent: active.root };
+      cloud = { mesh, capacity, material, labels: [], parent: active.root, overlay, names: [] };
       clouds.set(tag, cloud);
     }
     const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), size = new THREE.Vector3(), color = new THREE.Color(), at = new THREE.Vector3();
@@ -508,6 +508,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       cloud.mesh.setColorAt(i, color.set(item.color));
     });
     cloud.mesh.count = items.length;
+    cloud.names = items.map((item) => item.name ?? item.label ?? null);
+    cloud.mesh.boundingSphere = null;   // the instances moved: let the ray test measure them again
     cloud.mesh.instanceMatrix.needsUpdate = true;
     if (cloud.mesh.instanceColor) cloud.mesh.instanceColor.needsUpdate = true;
     const labelled = items.filter((item) => item.label);
@@ -520,6 +522,26 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     });
     invalidate();
     return items.length;
+  }
+  /**
+   * The particle under a pointer event: { tag, index, name, point } or null. A set drawn behind protein (not an overlay) cannot be hit through it; an overlay
+   * set (flows) can. Used for the hover / tap name card.
+   */
+  function pickParticle(event) {
+    if (!active || disposed || !clouds.size) return null;
+    const rect = renderer.domElement.getBoundingClientRect(), ndc = new THREE.Vector2(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+    camera.updateMatrixWorld(); active.root.updateMatrixWorld(true);
+    raycaster.setFromCamera(ndc, camera);
+    const bodies = raycaster.intersectObjects(active.meshes, false).filter(({ object, point }) => isVisible(object) && !clippedAt(object, point ?? new THREE.Vector3()));
+    const wall = bodies.length ? bodies[0].distance : Infinity;
+    for (const [tag, cloud] of clouds) {
+      if (!cloud.mesh.visible) continue;
+      const hit = raycaster.intersectObject(cloud.mesh, false)[0];
+      if (!hit || !Number.isInteger(hit.instanceId) || !cloud.names[hit.instanceId]) continue;
+      if (!cloud.overlay && hit.distance > wall) continue;
+      return { tag, index: hit.instanceId, name: cloud.names[hit.instanceId], point: hit.point.toArray(), distance: hit.distance };
+    }
+    return null;
   }
   function clearParticleClouds() {
     for (const tag of [...clouds.keys()]) removeCloud(tag);
@@ -1108,6 +1130,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

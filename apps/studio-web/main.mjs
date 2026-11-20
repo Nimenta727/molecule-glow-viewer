@@ -58,9 +58,9 @@ let toolPluginsReady;
 function ensureToolPlugins() {
   toolPluginsReady ??= (async () => {
     await ensureStructurePlugin();
-    const { mechanismPlugins } = await import('../../plugins/mechanism-catalog.mjs');
+    const { mechanismPlugins, toolPlugins } = await import('../../plugins/mechanism-catalog.mjs');
     const active = new Set(host.listActive().map(({ id }) => id));
-    for (const plugin of mechanismPlugins) if (!active.has(plugin.manifest.id)) await host.activate(plugin);
+    for (const plugin of [...toolPlugins, ...mechanismPlugins]) if (!active.has(plugin.manifest.id)) await host.activate(plugin);
   })().catch((error) => { toolPluginsReady = undefined; throw error; });
   return toolPluginsReady;
 }

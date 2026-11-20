@@ -18,3 +18,4 @@
 - 经典里“拿一个粒子去做事”的 `travel`（沿路径动画、淡入淡出）、事件标签 `eventTag`、`protonAcross`/`atpFromPools` 这类机器专用流程属于渲染与具体机制，不在本模块；随 Viewer 接线与 4.4.3/4.4.4 处理。
 - `journey.mjs` 有两处有意差别：翻滚按“每秒”算（经典每帧加 0.03/0.02 弧度，60 fps 时就是 1.8/1.2 弧度/秒，两者一致）；多条行进同时跑时，随机数按 tick 顺序取（经典按微任务顺序），单条行进逐位一致。
 - `solution.mjs`（4.4.2c）把池与流组成可保存的一套（`Solution`：池 = 某种分子 N 个在结构周围的溶液里扩散；流 = 两组残基之间的粒子流；时间尺度 慢/快；种子）。固定 1/30 秒一步，同一种子同样步数画面相同，与帧率无关；`normalizeSolutionSpec` 清理保存/输入的配置。使用者：Viewer“溶液粒子”面板（`apps/viewer-web/particle-flow.mjs`）。
+- `index.mjs` / `solution-tool.mjs`（4.4.2d）：`org.glow.motion` 插件注册第一个工具 `org.glow.tool.solution-particles`（`runtime: 'layer-v1'`——画在结构上的一层，没有自己的播放时钟；`audience: view + author`）。配置 `{seed, scale, pools[], flows[]}` 存在 `scene.tools[].config`；工具自己的校验器保留写了一半的流、去掉被移除的物种；作者字段由 `solutionAuthorFields` 给出（每个池和流各一组，外加一个空位，选了分子种类就填上），所以 Studio 的工具页不需要任何专门代码。Viewer 的“溶液粒子”面板是这个工具的运行端。它跟随结构插件一起启用（`mechanism-catalog.mjs` 的 `toolPlugins`）。

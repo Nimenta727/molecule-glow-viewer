@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -29,7 +29,8 @@ import { SELECTION_HELP, describeSelection, selectionSpace } from '../../plugins
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
-import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
+import { prepareWorkScene, storePlayerState, toolEntryFor } from './work-scene.mjs';
+import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
@@ -65,6 +66,7 @@ function setStatus(message) {
   elements.status.textContent = message;
 }
 
+let setParticlesAvailable = () => {};   // set once the particle panel exists (it lives in the inner scope)
 function syncControls() {
   const playback = active?.player?.snapshot();
   const timeline = playback ? { ...playback, duration: active.player.duration } : active?.timeline;
@@ -87,7 +89,9 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
-  elements['particle-controls'].hidden = !structureEnabled || !active?.model;
+  const particlesTool = Boolean(host.getTool(SOLUTION_TOOL));   // the layer is the motion plugin's tool: without the plugin nothing is drawn and the config is kept
+  setParticlesAvailable(particlesTool);
+  elements['particle-controls'].hidden = !structureEnabled || !active?.model || !particlesTool;
   elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
@@ -619,9 +623,11 @@ function boot() {
       species: elements['particle-species'], count: elements['particle-count'], add: elements['particle-add'], from: elements['particle-from'], to: elements['particle-to'],
       flowAdd: elements['particle-flow-add'], rate: elements['particle-rate'], scale: elements['particle-scale'], play: elements['particle-play'],
       reset: elements['particle-reset'], clear: elements['particle-clear'], list: elements['particle-list'], info: elements['particle-info'],
+      card: elements['particle-card'], stage: elements.viewport,
     },
     context: { model: () => active?.model },
   });
+  setParticlesAvailable = (on) => particleFlow.setAvailable(on);
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -683,7 +689,8 @@ function boot() {
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
-    if (view?.particles) Promise.resolve().then(() => particleFlow.restore(view.particles));
+    const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
+    if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
     syncClipControls();
     applyClipping();
   }
@@ -1153,6 +1160,7 @@ function boot() {
       if (checkbox.checked) {
         const { structurePlugin } = await import('../../plugins/structure/index.mjs');
         await host.activate(structurePlugin);
+        for (const plugin of toolPlugins) await host.activate(plugin);
         for (const plugin of mechanismPlugins) await host.activate(plugin);
         elements['atp-enabled'].checked = true;
         structureLifetime = new AbortController();
@@ -1173,6 +1181,7 @@ function boot() {
         if (active) { active.player = undefined; active.handles.player = undefined; }
         for (const plugin of mechanismPlugins) await host.deactivate(plugin.manifest.id);
         elements['atp-enabled'].checked = false;
+        for (const plugin of toolPlugins) await host.deactivate(plugin.manifest.id);
         await host.deactivate(STRUCTURE);
         if (active) {
           active.model = undefined;
@@ -1282,6 +1291,19 @@ function boot() {
     elements.file.value = '';
     if (file) openScene({ file, assembly: elements['structure-assembly'].checked });
   });
+  /** The particle set goes into the work as the tool's entry (config), replacing the configuration it was opened with; a set nobody touched leaves the work alone. */
+  function storeParticles(scene) {
+    const spec = particleFlow.save(), tool = host.getTool(SOLUTION_TOOL);
+    if (!spec || !tool) return;
+    const resolve = (id) => host.resolveToolId(id) ?? id, entry = toolEntryFor(scene, SOLUTION_TOOL, resolve);
+    const config = normalizeSolutionConfig(spec);
+    if (entry) entry.config = config;
+    else if (config.pools.length || config.flows.length) {
+      let id = 'solution-particles', n = 1;
+      while (scene.tools.some((item) => item.id === id)) id = `solution-particles-${++n}`;
+      scene.tools.push({ id, tool: { id: SOLUTION_TOOL, version: tool.version }, config });
+    }
+  }
   function sceneForExport() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
@@ -1293,6 +1315,7 @@ function boot() {
         scene.evidence.push({ type: 'modelled', ...ATP_6ZPO_TEMPLATE.sceneEvidence });   // wording lives in the work configuration
       }
     }
+    storeParticles(scene);
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });
@@ -1300,7 +1323,6 @@ function boot() {
         camera,
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
-        ...(particleFlow.save() ? { particles: particleFlow.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {

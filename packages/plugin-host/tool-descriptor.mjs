@@ -3,7 +3,7 @@
  * `context.registerTool(id, descriptor)`. The descriptor is data plus two plugin-owned functions for authoring
  * (`author.fields`, `author.validate`); front ends build their controls from it instead of knowing the tool.
  *
- *   { version, title, audience: ['view'|'author'...], runtime: 'player-v1',
+ *   { version, title, audience: ['view'|'author'...], runtime: 'player-v1' (runs on a clock) | 'layer-v1' (drawn over the structure by the front end),
  *     parameters?: { key: { type, label, default, audience?, ...type details } },   // runtime controls
  *     author?: { template, fields(config) -> field specs, validate(config) -> normalised config },  // edits scene.tools[].config
  *     model?: { kind, assumptions: [text] } }
@@ -13,7 +13,7 @@ const KEY = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 const COLOR = /^#[0-9a-fA-F]{6}$/;
 export const AUDIENCES = Object.freeze(['view', 'author']);
 export const PARAMETER_TYPES = Object.freeze(['number', 'boolean', 'select', 'text', 'color']);
-const RUNTIMES = new Set(['player-v1']);
+const RUNTIMES = new Set(['player-v1', 'layer-v1']);   // a player runs on a clock; a layer is drawn over the structure by the front end
 const TOOL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const MAX_ROLES = 16;
 

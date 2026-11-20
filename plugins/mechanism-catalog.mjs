@@ -8,8 +8,13 @@ import { KCSA_1K4C_TEMPLATE } from './kcsa/config.mjs';
 import { atpToolDescriptor, ATP_TOOL } from './atp-synthase/tool.mjs';
 import { adkToolDescriptor, ADK_TOOL } from './adenylate-kinase/tool.mjs';
 import { kcsaToolDescriptor, KCSA_TOOL } from './kcsa/tool.mjs';
+import { motionPlugin } from './motion/index.mjs';
+import { SOLUTION_TOOL } from './motion/solution-tool.mjs';
 import { autoBindings } from '../packages/plugin-host/tool-model.mjs';
 export const mechanismPlugins = [atpSynthasePlugin, kcsaPlugin, adenylateKinasePlugin];
+/** Plugins that offer tools other than the mechanism players. They follow the structure plugin (both front ends activate them with it). */
+export const toolPlugins = [motionPlugin];
+export { SOLUTION_TOOL };
 export const mechanismPlayers = Object.freeze({ atpSynthase: ATP_PLAYER, kcsa: KCSA_PLAYER });
 
 export function resolveMechanism(scene) {
@@ -34,6 +39,7 @@ const TOOLS = {
  */
 /** Display name of one of the built-in tools by id (new id or old player id), without needing its plugin to be active. */
 export function toolTitle(id) {
+  if (id === SOLUTION_TOOL) return '溶液粒子与流';
   for (const [player, [toolId, describe]] of Object.entries(TOOLS)) if (id === toolId || id === player) return describe('1.0.0', player).title;
   return id;
 }
