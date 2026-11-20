@@ -157,6 +157,11 @@
               </label>
               <label class="take-apart-row">快慢 <input id="data-pace" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="动画快慢"></label>
               <div class="take-apart-row"><label><input id="data-play" type="checkbox"> 播放</label><button id="data-reset" type="button">从头开始</button></div>
+              <div class="data-timeline" aria-label="回退与干预">
+                <label class="take-apart-row">时间 <input id="data-seek" type="range" min="0" max="0" step="1" value="0" aria-label="回到某个时刻"> <output id="data-time">0.0 / 0.0 s</output></label>
+                <div class="take-apart-row"><button id="data-back" type="button" disabled>后退 5 秒</button><button id="data-forward" type="button" disabled>前进 5 秒</button></div>
+                <details><summary>干预记录（回退后重放会在同一刻重复这些改动）</summary><ol id="data-interventions" class="particle-list"></ol></details>
+              </div>
               <div id="data-kinetics" class="data-kinetics" hidden></div>
               <ul id="data-counters" class="particle-list" aria-label="计数器"></ul>
               <details open><summary>事件记录</summary><ol id="data-events" class="particle-list"></ol></details>

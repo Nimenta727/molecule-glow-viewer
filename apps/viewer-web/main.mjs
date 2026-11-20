@@ -716,7 +716,8 @@ function boot() {
   const energyStrip = createEnergyStrip({ root: elements['energy-strip'], context: { select: (expression) => selectSet(expression), clear: () => clearSet(), selection: () => active?.selectionSet, report: (message) => setStatus(message) } });
   const dataAnimation = createDataAnimation({
     viewport, strip: energyStrip,
-    elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'], kinetics: elements['data-kinetics'] },
+    elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'], kinetics: elements['data-kinetics'],
+      seek: elements['data-seek'], time: elements['data-time'], back: elements['data-back'], forward: elements['data-forward'], interventions: elements['data-interventions'] },
     context: { model: () => active?.model },
   });
   const processPanel = createProcessPanel({
@@ -800,7 +801,7 @@ function boot() {
     if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
     if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { processPanel.load(translationProcessConfig(normalizeTranslationConfig(translation.config))); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
-    if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config)); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
+    if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config), data.state); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
     applyClipping();
   }
@@ -1422,6 +1423,13 @@ function boot() {
     const state = compositionPanel.save(), entry = toolEntryFor(scene, COMPOSITION_TOOL, (id) => host.resolveToolId(id) ?? id);
     if (state && entry) entry.state = state;
   }
+  /** The data animation's interventions and where it was go into its tool entry (nothing is stored for a plain run: it always starts again from its seed). */
+  function storeDataAnimation(scene) {
+    const entry = toolEntryFor(scene, DATA_TOOL, (id) => host.resolveToolId(id) ?? id);
+    if (!entry) return;
+    const state = dataAnimation.save();
+    if (state) entry.state = state; else if (dataAnimation.active) delete entry.state;   // a run that failed to load must not erase what the work saved
+  }
   function sceneForExport() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
@@ -1435,6 +1443,7 @@ function boot() {
     }
     storeParticles(scene);
     storeComposition(scene);
+    storeDataAnimation(scene);
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });
