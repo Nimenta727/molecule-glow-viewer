@@ -14,6 +14,7 @@ import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
 import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
 import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
@@ -152,6 +153,21 @@ function geometryFor(current) {
   return view?.built.get(style) ?? previewLayers(current);
 }
 
+// The particle preview: the engines of the solution-particles and data-animation tools run on the primary structure while the author edits them (see particle-preview.mjs).
+let particlePreview;
+const previewer = () => particlePreview ??= createParticlePreview({
+  viewport, getScene: () => session().getScene(), resolveToolId: (id) => host.resolveToolId(id) ?? id,
+  getModel: () => { const models = structureViews.get(session())?.models; return models ? [...models.values()][0] : undefined; },
+  note: (text) => { ui['particle-preview-note'].textContent = text; },
+});
+function syncParticlePreview() {
+  const can = previewer().available().length > 0;
+  ui['particle-preview-block'].hidden = !can;
+  if (!can && ui['particle-preview'].checked) ui['particle-preview'].checked = false;
+  if (!can) previewer().stop(); else previewer().sync();
+}
+ui['particle-preview'].addEventListener('change', () => { if (ui['particle-preview'].checked) previewer().start(); else previewer().stop(); });
+
 async function ensureStructureView(current) {
   const scene = current.getScene();
   if (!structureSources(scene).length) return false;
@@ -231,6 +247,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   if (!document.nodes.some(({ id }) => id === selection)) selection = null;
   renderPanels(scene, document);
   showPose();
+  syncParticlePreview();
   const hasStructure = structureSources(scene).length > 0;
   for (const id of ['representation-style', 'representation-label']) ui[id].hidden = !hasStructure;
   if (!hasStructure) ui['representation-note'].textContent = '';

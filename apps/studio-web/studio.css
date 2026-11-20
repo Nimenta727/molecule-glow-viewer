@@ -192,3 +192,5 @@ h2 { color: #2f3f86; font-size: 0.9rem; font-weight: 650; }
 .tool-bindings .button-row { margin-top: 0.3rem; }
 
 .toolbar-note { color: var(--muted); font-size: 0.82rem; }
+
+#particle-preview-note { display: block; margin-top: 0.2rem; }

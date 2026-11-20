@@ -10,7 +10,7 @@ function visit(directory) {
     else if (/\.test\.(?:mjs|cjs)$/.test(item.name)) files.push(file);
   }
 }
-visit(path.join(root, 'apps/viewer-web/test')); visit(path.join(root, 'tools/test'));
+visit(path.join(root, 'apps/viewer-web/test')); visit(path.join(root, 'apps/studio-web/test')); visit(path.join(root, 'tools/test'));
 for (const parent of ['packages', 'plugins']) for (const entry of fs.readdirSync(path.join(root, parent), { withFileTypes: true })) {
   if (entry.isDirectory()) visit(path.join(root, parent, entry.name, 'test'));
 }
