@@ -10,7 +10,7 @@ import { parseMmcif } from '../plugins/structure/parser.mjs';
 import { selectionSpace } from '../plugins/structure/selection.mjs';
 import { orientedFrame, kwMatch } from '../plugins/simulation/structure-frame.mjs';
 import { DataAnimation } from '../plugins/simulation/data-animation.mjs';
-import { RESPIRATORY_ANCHORS } from '../plugins/simulation/works/respiratory-relay.mjs';
+import { RESPIRATORY_ANCHORS, ATP_SYNTHASE_ANCHORS } from '../plugins/simulation/works/respiratory-relay.mjs';
 import { mechanismWorkConfig } from '../plugins/simulation/works/mechanism-works.mjs';
 import { normalizeDataConfig } from '../plugins/simulation/data-tool.mjs';
 import { seededRng } from '../plugins/motion/particles.mjs';
@@ -68,13 +68,27 @@ check('no anchor fell back to the middle of the model', fallbacks.length === 0, 
   const config = normalizeDataConfig(mechanismWorkConfig({ process: 'respiratoryChain', ...SCENE }));
   const run = new DataAnimation(config.animation, S, { rng: seededRng(7), kinetics: config.kinetics }), stages = new Set();
   for (let i = 0; i < 30 * 300; i++) { if (i === 30 * 120) run.relays[0].rate = 0; run.step(1 / 30); if (run.stage !== null) stages.add(run.stage); }
-  const n = run.relays[0].n, c = run.summary().counters, bad2 = run.warnings.filter((w) => w.includes('改用模型中心') || w.includes('沿用它的中心'));
-  check(`the shipped work on 5GUP: no anchor fell back (${bad2.length})`, bad2.length === 0, bad2.join('；'));
+  // the ATP synthase is the pack's second component (6ZPO, checked below): its two anchors are expected to be missing in this file alone
+  const n = run.relays[0].n, c = run.summary().counters, bad2 = run.warnings.filter((w) => (w.includes('改用模型中心') || w.includes('沿用它的中心')) && !/subunit a\$|subunit beta/.test(w));
+  check(`the shipped work on 5GUP: no anchor fell back (${bad2.length}; the ATP synthase is another component)`, bad2.length === 0, bad2.join('；'));
   check(`${n} NADH cycles: ${c['H⁺ 泵出（复合体 I / IV）']} H⁺ pumped (6 per NADH), ${c['H⁺ 释放到膜间隙（Q 循环）']} released by the Q cycle (4 per NADH), ${c['O₂ → H₂O']} O₂ → 2 H₂O (1 per 2 NADH)`,
     n >= 3 && run.relays[0].busy === 0 && c['H⁺ 泵出（复合体 I / IV）'] === 6 * n && c['H⁺ 释放到膜间隙（Q 循环）'] === 4 * n && c['O₂ → H₂O'] === Math.floor(n / 2), JSON.stringify(c));
   check(`steps of the energy strip reached: ${[...stages].sort().join(' ')}`, [...stages].sort().join('') === '0123456', [...stages].join(' '));
   const bal = Object.entries(run.balance()).filter(([, v]) => v.expected !== v.actual);
   check('the metering of every species balances', bal.length === 0, JSON.stringify(bal));
+}
+
+// the ATP synthase anchors on the real 6ZPO (the work's second component)
+if (fs.existsSync(path.join(dir, '6ZPO.cif'))) {
+  const sp = selectionSpace(parseMmcif(fs.readFileSync(path.join(dir, '6ZPO.cif'), 'utf8')));
+  const rs = sp.residues.map((r) => ({ position: r.position, entity: r.entity, authSeq: r.authSeq, insertion: r.insertion, labelSeq: r.labelSeq, chain: r.chain, labelAsym: r.labelAsym }));
+  const f = orientedFrame({ residues: rs, ligands: sp.ligands, config: { axis: 'sym', membranes: [{ at: 'subunit c1', offset: 0 }] } });
+  const atp = new DataAnimation({ ...raw, anchors: ATP_SYNTHASE_ANCHORS }, f.structure);
+  for (const name of ['atpH0', 'atpH1', 'atpH2', 'atpH3', 'atpOut']) atp.anchor({ ref: name });
+  const missing = atp.warnings.filter((w) => w.includes('改用模型中心'));
+  check(`6ZPO: the five ATP synthase anchors (a-subunit proton path, F1 exit) are found by part name (${f.structure.partPoints('/subunit a$/').length} residues in a, ${f.structure.partPoints('/subunit beta/').length} in beta)`, missing.length === 0, missing.join('；'));
+  const h = ['atpH0', 'atpH1', 'atpH2', 'atpH3'].map((name) => atp.anchor({ ref: name })[0][1]);
+  check('the proton path runs from the intermembrane side up to the matrix side through the membrane (heights rise by 68 Å over four points, −34 to +34 Å about the membrane)', h.every((y, i) => i === 0 || y > h[i - 1]) && Math.abs(h[3] - h[0] - 68) < 1e-9, h.join(','));
 }
 
 const report = `${lines.join('\n')}\n${total - bad}/${total} identical\n`;

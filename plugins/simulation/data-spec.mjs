@@ -10,9 +10,11 @@
  *     the electron-transfer path through all of them (the least sum of squared hops of at most 20 Å, from the top to the bottom or the reverse).
  *   - `{ between: [A, B], t }` a point between two anchors;  `{ arm: 'part', fractions: [...], halfHeight }` points along the long horizontal axis of the part's residues near the membrane;
  *   - `onMembrane: { index, dy, blend }` on any anchor: the height moves `blend` of the way to that membrane plus `dy`;  `{ ref: 'name' }` an anchor named in `anchors`.
+ * `rotor` (an addition): { parts: [part names], mode, turnsPerSecond, by?, stock? } a part that turns with the animation clock (its angle is a function of the clock, so a replay is exact); a flow with
+ *   `perTurn: n` (and `phase`, in turns) sends one molecule every 1/n turn of it instead of at a rate; `derived: [{ name, terms: { counter: weight }, scale?, floor?, per?, round? }]` counters computed from others.
  * `relays` (an addition): a cycle made of phases; the actions of a phase run side by side (each is a flow-shaped journey) and the next phase starts when the waiting ones are done.
  */
-export const DATA_LIMITS = Object.freeze({ species: 32, compartments: 16, pools: 32, pool: 200, flows: 16, reactions: 16, via: 64, events: 16, partners: 8, text: 200, name: 60, anchors: 64, relays: 8, phases: 24, actions: 16, relayActions: 120 });
+export const DATA_LIMITS = Object.freeze({ species: 32, compartments: 16, pools: 32, pool: 200, flows: 16, reactions: 16, via: 64, events: 16, partners: 8, text: 200, name: 60, anchors: 64, relays: 8, phases: 24, actions: 16, relayActions: 120, derived: 16, rotorParts: 12 });
 const ANCHOR_KEYS = ['ligand', 'ligands', 'residue', 'label_seq', 'part', 'membrane'];
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
 const num = (v, fallback) => (Number.isFinite(Number(v)) && v !== '' && v !== null && v !== true && v !== false ? Number(v) : fallback);
@@ -108,8 +110,10 @@ export function normalizeDataAnimation(raw) {
     const what = `第 ${i + 1} 条流`;
     const via = (Array.isArray(f?.via) ? f.via : []).slice(0, DATA_LIMITS.via).map(normalizeAnchor);
     if (!via.length || via.some((a) => a === null)) errors.push(`${what}的路径（via）必须是至少一个有效锚点。`);
-    const flow = { name: str(f?.name, DATA_LIMITS.name) || undefined, species: species(f?.species, what), via: via.filter(Boolean), rate: rate(f?.rate, what),
+    const perTurn = Number.isFinite(Number(f?.perTurn)) && Number(f.perTurn) >= 1 ? Math.min(200, Math.round(Number(f.perTurn))) : 0;
+    const flow = { name: str(f?.name, DATA_LIMITS.name) || undefined, species: species(f?.species, what), via: via.filter(Boolean), rate: perTurn ? 0.5 : rate(f?.rate, what),
       ...timing(f, ['free', 'tIn', 'tVia', 'tOut', 'max', 'stoich']), ...(f?.tumble ? { tumble: true } : {}), ...(f?.by === 'rotor' || f?.by === 'rate' ? { by: f.by } : {}) };
+    if (perTurn) { flow.perTurn = perTurn; flow.phase = Math.max(0, Math.min(1, num(f?.phase, 0))); }
     if (f?.from != null) flow.from = where(f.from, what); if (f?.to != null) flow.to = where(f.to, what);
     if (typeof f?.labelVia === 'string') flow.labelVia = str(f.labelVia, DATA_LIMITS.name);
     if (typeof f?.counter === 'string' && f.counter) flow.counter = str(f.counter, DATA_LIMITS.name);
@@ -176,6 +180,22 @@ export function normalizeDataAnimation(raw) {
       return relay;
     });
     if (total > DATA_LIMITS.relayActions) errors.push(`接力的动作太多（最多 ${DATA_LIMITS.relayActions} 个）。`);
+  }
+
+  // the rotor and the counters computed from others
+  if (raw.rotor !== undefined) {
+    const r = isObject(raw.rotor) ? raw.rotor : {}, parts = (Array.isArray(r.parts) ? r.parts : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => str(x.trim(), 80)).slice(0, DATA_LIMITS.rotorParts);
+    if (!parts.length) errors.push('rotor 至少要写一个转动的部件名（parts）。');
+    spec.rotor = { parts, mode: ['sym', 'long', 'short', 'x', 'y', 'z'].includes(r.mode) ? r.mode : 'sym', turnsPerSecond: Math.max(-2, Math.min(2, num(r.turnsPerSecond, 0.1))) };
+    if (r.by === 'rotor' || r.by === 'rate') spec.rotor.by = r.by;
+    if (typeof r.stock === 'string' && r.stock) spec.rotor.stock = str(r.stock, DATA_LIMITS.name);
+  }
+  if (raw.derived !== undefined) {
+    spec.derived = (Array.isArray(raw.derived) ? raw.derived : []).slice(0, DATA_LIMITS.derived).flatMap((d, i) => {
+      const terms = Object.fromEntries(Object.entries(isObject(d?.terms) ? d.terms : {}).filter(([, w]) => Number.isFinite(Number(w))).map(([k, w]) => [str(k, DATA_LIMITS.name), Number(w)]));
+      if (typeof d?.name !== 'string' || !d.name || !Object.keys(terms).length) { warnings.push(`第 ${i + 1} 个派生计数器没有名称或项，已忽略。`); return []; }
+      return [{ name: str(d.name, DATA_LIMITS.name), terms, ...(Number.isFinite(Number(d.scale)) ? { scale: Number(d.scale) } : {}), ...(d.floor ? { floor: true } : {}), ...(typeof d.per === 'string' && d.per ? { per: str(d.per, DATA_LIMITS.name) } : {}), ...(Number.isInteger(d.round) && d.round >= 0 && d.round <= 6 ? { round: d.round } : {}) }];
+    });
   }
 
   // every `ref` must name an anchor

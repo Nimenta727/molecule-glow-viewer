@@ -198,6 +198,10 @@ export class DataAnimation {
     const walk = (a) => [a, ...(a.then ?? []).flatMap(walk)];
     for (const x of [...this.flows, ...this.reacts, ...this.relays, ...this.relays.flatMap((r) => r.phases.flat().flatMap(walk))]) if (x.counter) this.counters[x.counter] = 0;
     this.stage = null;
+    this.rotor = spec.rotor ? { ...spec.rotor, travelled: 0, angle: 0 } : null;   // `travelled` = whole turns made (never negative), `angle` = the signed angle in radians
+    this.derived = spec.derived ?? [];
+    for (const f of this.flows) if (f.perTurn) f.fired = 0;
+    for (const d of this.derived) this.counters[d.name] = 0;
     this.hotPoints = hot;
     this.initialInventory = this.inventory();
   }
@@ -277,6 +281,31 @@ export class DataAnimation {
       after();
     } });
   }
+  /* ---------------- the rotor: a part that turns with the clock, and flows that follow its turns ---------------- */
+  /** The rotor's speed follows the compartment model's flux (`by`) and, with `stock`, the stock of the proton ledger: no protons to return, no turn (the classic rotorRate). */
+  #turnRotor(dt, pace) {
+    const r = this.rotor;
+    let factor = r.by && this.kinetics ? this.kinetics.flux[r.by] ?? 1 : 1;
+    if (r.stock) { const stock = this.counters[r.stock] ?? 0; factor *= stock >= 1 ? Math.min(1, 0.3 + stock / 12) : 0; }
+    const turns = r.turnsPerSecond * factor * pace * dt;
+    r.travelled += Math.abs(turns); r.angle += 2 * Math.PI * turns;
+    for (const f of this.flows) {
+      if (!f.perTurn) continue;
+      const due = r.travelled >= f.phase ? Math.floor((r.travelled - f.phase) * f.perTurn + 1e-9) + 1 : 0;
+      for (; f.fired < due; f.fired++) {
+        if (this.scale() === 'fast') { if (f.counter) this.counters[f.counter]++; } else this.#runFlow(f, () => {});   // the fast scale shows no journeys: the counters keep the stoichiometry
+      }
+    }
+  }
+  #derive() {
+    for (const d of this.derived) {
+      let v = Object.entries(d.terms).reduce((sum, [name, w]) => sum + w * (this.counters[name] ?? 0), 0) * (d.scale ?? 1);
+      if (d.floor) v = Math.floor(v + 1e-9);
+      if (d.per) v = this.counters[d.per] ? v / this.counters[d.per] : 0;
+      this.counters[d.name] = d.round !== undefined ? +v.toFixed(d.round) : v;
+    }
+  }
+
   /* ---------------- relays: a cycle of phases (an addition to the classic) ---------------- */
   /** A relay that needs the compartment model's flux starts no cycle while the flux is (nearly) zero, as the classic did. */
   #relayOpen(r) { return !r.gate || !this.kinetics || this.kinetics.flux.rate > 0.08; }
@@ -342,6 +371,7 @@ export class DataAnimation {
     const defs = [], look = (n) => speciesOf(n, this.pools.species), smp = (c, near) => this.comp[c]?.sample(false) || add(near, [0, 40, 0]), ctx = this.#ctx();
     const paths = (make) => [0, 1, 2].map(make), mk = (label, species, per, v, ps) => defs.push({ label, col: look(species).col, r: look(species).r, per, v, paths: ps });
     for (const f of this.flows) {
+      if (f.perTurn) continue;   // these follow the rotor, not a rate
       mk(f.name || f.species, f.species, f.rate * (f.stoich || 1), 70, paths(() => {
         const a = f.from ? brownPath(smp(f.from, f.pts[0]), f.pts[0], { free1: 6, keep: this.keepF[f.from] }, ctx) : [f.pts[0]];
         const e = f.pts[f.pts.length - 1], b = f.to ? brownPath(e, smp(f.to, e), { free0: 6, free1: 0, keep: this.keepF[f.to] }, ctx) : [e];
@@ -361,16 +391,18 @@ export class DataAnimation {
     this.time += dt;
     if (this.kinetics) { this.kinetics.update(dt); this.#followKinetics(); }
     const pace = this.pace();
+    if (this.rotor) this.#turnRotor(dt, pace);
     if (this.scale() === 'fast') {
       this.layer ||= this.#buildLayer();
       for (const { stream } of this.layer) stream.update(dt, pace);
-      for (const x of [...this.flows, ...this.reacts]) if (x.counter) { x.acc = (x.acc || 0) + dt * pace * x.rate; while (x.acc >= 1) { x.acc--; this.counters[x.counter]++; } }
+      for (const x of [...this.flows, ...this.reacts]) if (x.counter && !x.perTurn) { x.acc = (x.acc || 0) + dt * pace * x.rate; while (x.acc >= 1) { x.acc--; this.counters[x.counter]++; } }
       for (const r of this.relays) if (this.#relayOpen(r)) { r.acc += dt * pace * r.rate; while (r.acc >= 1) { r.acc--; this.#countRelay(r); } }   // fast: the counters keep the stoichiometry
     } else {
-      for (const f of this.flows) { f.t += dt * f.rate * pace * (f.by && this.kinetics ? this.kinetics.flux[f.by] ?? 1 : 1); if (f.t >= 1 && f.busy < (f.max ?? 3)) { f.t = 0; f.busy++; this.#runFlow(f); } else if (f.t > 1) f.t = 1; }
+      for (const f of this.flows) if (!f.perTurn) { f.t += dt * f.rate * pace * (f.by && this.kinetics ? this.kinetics.flux[f.by] ?? 1 : 1); if (f.t >= 1 && f.busy < (f.max ?? 3)) { f.t = 0; f.busy++; this.#runFlow(f); } else if (f.t > 1) f.t = 1; }
       for (const r of this.reacts) { r.t += dt * r.rate * pace; if (r.t >= 1 && r.busy < (r.max ?? 2)) { r.t = 0; r.busy++; this.#runReaction(r); } else if (r.t > 1) r.t = 1; }
       for (const r of this.relays) { r.t += dt * r.rate * pace; if (r.t >= 1 && r.busy < r.max && this.#relayOpen(r)) { r.t = 0; r.busy++; this.#runRelay(r); } else if (r.t > 1) r.t = 1; }
     }
+    this.#derive();
     this.motion.tick(dt);
     this.pools.update(dt);
     this.motion.flush();
@@ -395,7 +427,7 @@ export class DataAnimation {
     return { items, tags: this.events.tags.map((t) => ({ ...t })) };
   }
   /** Counters, events and metering for the panels and for tests. */
-  summary() { return { stage: this.stage, kinetics: this.kinetics ? { readout: this.kinetics.readout(), compartments: this.kinetics.compartments(), explain: this.kinetics.explain(), diverged: this.kinetics.diverged } : null, time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
+  summary() { return { stage: this.stage, rotor: this.rotor ? { angle: this.rotor.angle, turns: this.rotor.travelled } : null, kinetics: this.kinetics ? { readout: this.kinetics.readout(), compartments: this.kinetics.compartments(), explain: this.kinetics.explain(), diverged: this.kinetics.diverged } : null, time: this.time, counters: { ...this.counters }, events: this.events.list(), inventory: this.inventory(), ledger: JSON.parse(JSON.stringify(this.ledger)), quantities: this.quantities(), violations: this.violations.slice(), warnings: this.warnings.slice() }; }
   /** Stop everything (the scene closed): nothing keeps running, nothing is called. */
   dispose() { this.kinetics = null; this.motion.clear(); this.flying.clear(); this.pools.clear(); this.layer = null; }
 }

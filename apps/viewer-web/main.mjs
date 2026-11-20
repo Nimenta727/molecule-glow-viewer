@@ -715,7 +715,7 @@ function boot() {
   });
   const energyStrip = createEnergyStrip({ root: elements['energy-strip'], context: { select: (expression) => selectSet(expression), clear: () => clearSet(), selection: () => active?.selectionSet, report: (message) => setStatus(message) } });
   const dataAnimation = createDataAnimation({
-    viewport, strip: energyStrip,
+    viewport, strip: energyStrip, drive: (info) => objectSpin.drive(info),
     elements: { scale: elements['data-scale'], pace: elements['data-pace'], play: elements['data-play'], reset: elements['data-reset'], counters: elements['data-counters'], events: elements['data-events'], info: elements['data-info'], kinetics: elements['data-kinetics'],
       seek: elements['data-seek'], time: elements['data-time'], back: elements['data-back'], forward: elements['data-forward'], interventions: elements['data-interventions'] },
     context: { model: () => active?.model },

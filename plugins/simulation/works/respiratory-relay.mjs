@@ -78,3 +78,26 @@ export const RESPIRATORY_RELAY = Object.freeze({
     [{ pause: 1.2, stage: 6 }],
   ],
 });
+
+/**
+ * The ATP synthase of the work (classic: the rotor angle `theta` and the `update` that returned 8 H⁺ per turn of the c8 ring and made 3 ATP per turn): the rotor is the parts the scene
+ * names in `spin` (the γ stalk and the c ring), turning with the animation clock at the speed of the compartment model's ATP flux and only while the intermembrane space holds protons;
+ * every 1/8 turn one H⁺ goes back through the a-subunit / c-ring interface, every 1/3 turn one ATP leaves the F1 head. The proton ledger and the ATP made are derived from the counters:
+ * ATP = H⁺ returned × 3/8 (the bovine c8 ring), exactly as the classic counted it.
+ */
+const ATP_A = '/subunit a$/', ATP_BETA = '/subunit beta/';
+export const ATP_SYNTHASE_ANCHORS = Object.freeze({
+  atpH0: { part: ATP_A, onMembrane: mem(-34) }, atpH1: { part: ATP_A, onMembrane: mem(-6) }, atpH2: { part: ATP_A, onMembrane: mem(6) }, atpH3: { part: ATP_A, onMembrane: mem(34) },
+  atpOut: { part: ATP_BETA, offset: [0, 18, 0] },
+});
+export const ATP_SYNTHASE_FLOWS = Object.freeze([
+  { name: 'H⁺ 经 ATP 合酶回流', species: 'H⁺', from: 'bot', to: 'top', via: ['atpH0', 'atpH1', 'atpH2', 'atpH3'].map((n) => ref(n)), perTurn: 8, labelVia: 'H⁺（ATP 合酶 a 亚基 / c 环）', counter: 'H⁺ 回流（ATP 合酶）' },
+  { name: 'ATP 离开 F1', species: 'ATP', to: 'top', via: [ref('atpOut')], perTurn: 3, labelVia: 'ATP（从 F1 头部离开）', tOut: 2.4 },
+]);
+export const RESPIRATORY_LEDGER = Object.freeze([
+  { name: 'H⁺ 膜间隙存量', terms: { 'H⁺ 泵出（复合体 I / IV）': 1, 'H⁺ 释放到膜间隙（Q 循环）': 1, 'H⁺ 回流（ATP 合酶）': -1 } },
+  { name: 'ATP（合酶产出）', terms: { 'H⁺ 回流（ATP 合酶）': 1 }, scale: 3 / 8, floor: true },
+  { name: 'ATP / NADH', terms: { 'ATP（合酶产出）': 1 }, per: 'NADH', round: 2 },
+]);
+/** The rotor: the named parts of the scene, 0.25 turn/s at full ATP flux. */
+export const respiratoryRotor = (parts) => ({ parts, mode: 'sym', turnsPerSecond: 0.25, by: 'rotor', stock: 'H⁺ 膜间隙存量' });

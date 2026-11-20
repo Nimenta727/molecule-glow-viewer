@@ -49,7 +49,9 @@ test('the flagellar motor: eleven stator channels on a ring, protons flow from t
   const config = normalizeDataConfig(mechanismWorkConfig({ process: 'flagellarMotor', axis: 'long', up: 'hook protein', membranes: [{ at: 'M-ring', offset: 18 }, { at: 'L-ring', offset: 0 }] }));
   assert.equal(config.animation.flows.length, 11); assert.equal(config.kinetics, undefined);
   assert.deepEqual([config.axis, config.up], ['long', 'hook protein']);
-  const total = config.animation.flows.reduce((t, f) => t + f.rate, 0); assert.ok(Math.abs(total - 4.4) < 0.01, `${total}`);
+  assert.ok(config.animation.flows.every((f) => f.perTurn === 4), 'each stator passes 4 protons per turn: 44 in all');
+  assert.deepEqual(config.animation.flows.map((f) => f.phase), Array.from({ length: 11 }, (_, k) => +(k / 44).toFixed(6)), 'the stators take turns, 1/44 turn apart');
+  assert.equal(config.animation.rotor, undefined, 'no rotor without the parts the scene spins');
   const radii = config.animation.flows.map((f) => Math.hypot(f.via[0].offset[0], f.via[0].offset[2])); assert.ok(radii.every((r) => Math.abs(r - 215) < 0.01));
   assert.ok(config.animation.flows.every((f) => f.via[0].offset[1] > f.via[1].offset[1] && f.from === 'top' && f.to === 'bot'));
   assert.equal(new Set(config.animation.flows.map((f) => f.counter)).size, 1, 'one shared proton counter');

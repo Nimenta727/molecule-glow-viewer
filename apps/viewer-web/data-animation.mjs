@@ -15,7 +15,7 @@ import { Replay, STEP, REPLAY_LIMITS } from '../../plugins/simulation/replay.mjs
  */
 const POOL = 'data-pool', MOVING = 'data-moving', STREAM = 'data-stream';
 
-export function createDataAnimation({ viewport, elements, context, strip = null }) {
+export function createDataAnimation({ viewport, elements, context, strip = null, drive = null }) {
   let replay = null, frame = null, config = null, runFrame = null, last = 0, carry = 0, available = true, lastKey = '', syncers = [], savedState = null;
   const engineOf = () => replay?.engine ?? null;
 
@@ -110,7 +110,9 @@ export function createDataAnimation({ viewport, elements, context, strip = null 
     const notes = [...s.warnings, ...s.violations.map((v) => `${v.reaction} 不守恒（${v.quantity}：${v.before} → ${v.after}）`), ...replay.warnings];
     show(`${frame.flipped ? '已按声明把结构翻转使“上”朝上；' : ''}粒子只是画面上的示意，不改变作品里的坐标。${replay.step < replay.furthest ? ' 现在在过去的某一刻：改动开关会结束原来的未来。' : ''}${notes.length ? ' ' + notes.join('；') : ''}`);
   }
-  const refresh = () => { lastKey = ''; draw(); describe(); strip?.update(replay.time, engineOf()?.stage); };
+  /** The rotor of the animation (if it declares one) turns its parts in the viewport: the angle is the engine's, so a replay shows the same picture. */
+  const turn = () => { const r = engineOf()?.rotor; if (r && drive) drive({ parts: r.parts, mode: r.mode, angle: r.angle }); };
+  const refresh = () => { lastKey = ''; draw(); describe(); turn(); strip?.update(replay.time, engineOf()?.stage); };
 
   /** Change a switch, slider, the pace or the time scale at the current moment: it is applied now and logged, so a replay makes the same change at the same step. */
   function intervene(change) {
@@ -135,13 +137,13 @@ export function createDataAnimation({ viewport, elements, context, strip = null 
     let n = 0;   // fixed 1/30 s steps, at most 4 a frame; the logged interventions are applied exactly at their steps
     while (carry >= STEP && n < 4 && replay.step < REPLAY_LIMITS.steps) { replay.advance(1); carry -= STEP; n++; }
     if (carry > STEP) carry = STEP;
-    if (n) { draw(); describe(); strip?.update(replay.time, engineOf()?.stage); }
+    if (n) { draw(); describe(); turn(); strip?.update(replay.time, engineOf()?.stage); }
     runFrame = requestAnimationFrame(tick);
   };
   function start() { if (runFrame == null) { last = 0; runFrame = requestAnimationFrame(tick); } }
   function stop() { if (runFrame != null) cancelAnimationFrame(runFrame); runFrame = null; last = 0; }
 
-  function rebuild() { stop(); replay?.dispose(); replay = null; try { build(); } catch (error) { replay = null; show(`无法运行数据动画：${error.message}`); } buildKineticControls(); draw(); describe(); strip?.load(replay ? config.energy : null); strip?.update(replay?.time ?? 0, engineOf()?.stage); if (replay && elements.play.checked) start(); }
+  function rebuild() { stop(); replay?.dispose(); replay = null; try { build(); } catch (error) { replay = null; show(`无法运行数据动画：${error.message}`); } buildKineticControls(); draw(); describe(); turn(); if (!engineOf()?.rotor) drive?.(null); strip?.load(replay ? config.energy : null); strip?.update(replay?.time ?? 0, engineOf()?.stage); if (replay && elements.play.checked) start(); }
 
   elements.play.addEventListener('change', () => { if (elements.play.checked) { if (!replay) rebuild(); else start(); } });
   elements.reset.addEventListener('click', () => rebuild());
@@ -156,9 +158,9 @@ export function createDataAnimation({ viewport, elements, context, strip = null 
     /** The work's tool configuration (after the structure model is ready): start the animation from its seed. `state` is what the work saved: its interventions and where it was. */
     load(next, state = null) { config = next; savedState = state && typeof state === 'object' ? state : null; elements.scale.value = next.scale === 'fast' ? 'fast' : 'slow'; elements.pace.value = 1; elements.play.checked = true; rebuild(); },
     /** After the viewport was rebuilt: draw again. */
-    reapply() { if (replay) draw(); },
+    reapply() { if (replay) { draw(); turn(); } },
     setAvailable(on) { if (available === on) return; available = on; strip?.setAvailable(on); if (!on) stop(); else if (replay && elements.play.checked) start(); draw(); },
-    reset() { stop(); replay?.dispose(); replay = null; frame = null; config = null; savedState = null; syncers = []; elements.play.checked = false; elements.kinetics.replaceChildren(); elements.kinetics.hidden = true; strip?.reset(); elements.counters.replaceChildren(); elements.events.replaceChildren(); elements.interventions?.replaceChildren(); show(''); draw(); },
+    reset() { stop(); replay?.dispose(); replay = null; frame = null; config = null; savedState = null; syncers = []; elements.play.checked = false; elements.kinetics.replaceChildren(); elements.kinetics.hidden = true; strip?.reset(); drive?.(null); elements.counters.replaceChildren(); elements.events.replaceChildren(); elements.interventions?.replaceChildren(); show(''); draw(); },
     get active() { return Boolean(replay); },
     /** What a saved work keeps (only when the author or reader made interventions): the log and where the animation was; null otherwise. */
     save() { return replay?.log.length ? replay.save() : null; },

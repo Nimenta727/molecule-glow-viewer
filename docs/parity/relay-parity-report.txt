@@ -19,8 +19,10 @@ ok   pump2: same point as the classic (within 1e-9 Å: the centre of the residue
 ok   pump3: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
 ok   pump4: same point as the classic (within 1e-9 Å: the centre of the residues is summed in another order)
 ok   no anchor fell back to the middle of the model
-ok   the shipped work on 5GUP: no anchor fell back (0)
+ok   the shipped work on 5GUP: no anchor fell back (0; the ATP synthase is another component)
 ok   4 NADH cycles: 24 H⁺ pumped (6 per NADH), 16 released by the Q cycle (4 per NADH), 2 O₂ → 2 H₂O (1 per 2 NADH)
 ok   steps of the energy strip reached: 0 1 2 3 4 5 6
 ok   the metering of every species balances
-24/24 identical
+ok   6ZPO: the five ATP synthase anchors (a-subunit proton path, F1 exit) are found by part name (226 residues in a, 1403 in beta)
+ok   the proton path runs from the intermembrane side up to the matrix side through the membrane (heights rise by 68 Å over four points, −34 to +34 Å about the membrane)
+26/26 identical

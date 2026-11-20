@@ -2,6 +2,7 @@ import { chooseAxis, spinAngle, AxisError } from '../../plugins/motion/rotation.
 import { evaluateSelection, selectionSpace, SelectionError } from '../../plugins/structure/selection.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/structure/representation.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
+import { kwMatch } from '../../plugins/simulation/structure-frame.mjs';
 
 /**
  * Rotating parts (classic: the per-part "spin" switch). Mark parts in the part list, choose the axis (the symmetry / long / short axis of the marked
@@ -81,7 +82,22 @@ export function createObjectSpin({ viewport, elements, context }) {
     reapply() { if (state) { for (const key of state.parts) { const box = elements.partList.querySelector(`[data-spin-part="${CSS.escape(key)}"]`); if (box) box.checked = true; } place(); } },
     reset() { stop(); state = null; elements.play.checked = false; elements.pair.hidden = true; elements.mode.value = 'sym'; show(''); },
     get marked() { return state?.parts ?? []; },
-    save: () => (state ? { parts: state.parts, mode: state.settings.mode, from: state.settings.from, to: state.settings.to, speed: state.settings.speed, angle: state.angle } : null),
+    /**
+     * An animation turns these parts (a data animation's rotor): `info` = { parts: [name or /regex/ of a part], mode, angle (radians) }, or null when it stops. The angle comes from the
+     * animation's clock, so it is the same on a replay; the reader's own marks are replaced while it drives. Returns false when none of the named parts is in the scene.
+     */
+    drive(info) {
+      if (!info) { if (state?.driven) { state = null; place(); } return true; }
+      const key = JSON.stringify([info.parts, info.mode]);
+      if (!state?.driven || state.key !== key) {
+        const parts = [...context.parts().keys()].filter((k) => info.parts.some((name) => kwMatch(String(JSON.parse(k)[1] ?? ''), name)));
+        if (!parts.length) return false;
+        try { state = { parts, settings: { mode: info.mode, from: '', to: '', speed: 0 }, axis: computeAxis(parts, { mode: info.mode, from: '', to: '' }), angle: 0, driven: true, key }; }
+        catch (error) { show(error.message); return false; }
+      }
+      state.angle = info.angle; place(); return true;
+    },
+    save: () => (state && !state.driven ? { parts: state.parts, mode: state.settings.mode, from: state.settings.from, to: state.settings.to, speed: state.settings.speed, angle: state.angle } : null),
     restore(saved) {
       if (!saved || !Array.isArray(saved.parts)) return;
       elements.mode.value = MODE_NAMES[saved.mode] ? saved.mode : 'sym';
