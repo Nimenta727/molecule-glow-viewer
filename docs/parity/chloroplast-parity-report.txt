@@ -1,0 +1,28 @@
+3JCU: 7648 residues, 322 small molecules, membrane at y = 20.417 in the work's frame
+ok   3JCU oex: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU pheo: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU P680: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU tyrZ: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU fe2: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU QA: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU QB: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   3JCU antenna chlorophylls around P680 (25–70 Å): same set
+6RQF: 1944 residues, 29 small molecules, membrane at y = 0.033 in the work's frame
+ok   6RQF f: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF bL: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF bH: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF cn: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF isp: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF Qo: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   6RQF Qi: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+5L8R: 3230 residues, 242 small molecules, membrane at y = 6.366 in the work's frame
+ok   5L8R P700: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   5L8R A1: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   5L8R A0: the classic finds none, and so does the relay (the path skips it)
+ok   5L8R FX: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   5L8R FA: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   5L8R FB: same point as the classic (within 1e-9 Å: ring centres are summed in another order)
+ok   5L8R antenna chlorophylls of PSI (> 25 Å from P700): the classic's 133, of which 124 are found (the 9 left are those of the protein named like the PSII's LHCII), none extra
+ok   1FNB: the FAD is found in the FNR (ring-atom centre) and lies inside the protein
+ok   6FKF: the five CF1Fo anchors (a-subunit proton path, CF1 exit) are found by part name
+24/24 identical

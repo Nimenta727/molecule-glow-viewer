@@ -118,8 +118,7 @@ export const MECHANISM_ENERGY = Object.freeze(Object.fromEntries(Object.entries(
    }
   ],
   "stage": {
-   "mode": "cycle",
-   "period": 28
+   "mode": "relay"
   }
  }
 }).map(([k, v]) => [k, Object.freeze(v)])));

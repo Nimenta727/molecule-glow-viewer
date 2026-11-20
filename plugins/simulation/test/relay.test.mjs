@@ -81,3 +81,35 @@ test('fast time scale: the counters keep the same stoichiometry without journeys
   const c = engine.summary().counters, n = c.NADH;
   assert.ok(n > 5); assert.equal(c['H⁺ 泵出（复合体 I / IV）'], 6 * n); assert.equal(c['H⁺ 释放到膜间隙（Q 循环）'], 4 * n); assert.equal(c['O₂ → H₂O'], Math.floor(n / 2));
 });
+
+test('anchors: ring centres, near filters, closest pair, mirror, along, else / optional, pick by cycle, nearest residue', () => {
+  const ring = (comp, part, ringAt, x = ringAt[0], y = ringAt[1], z = ringAt[2]) => ({ comp, part, ringPart: part, centre: [x, y, z], ring: ringAt });
+  const s = { points, membraneY: [0], partPoints: () => [], part: () => null, residue: () => [9, 9, 9], residues: () => [[0, 0, 1], [0, 0, 8], [0, 0, 5]],
+    ligands: [ring('CLA', 'ps2', [0, 0, 0], 1, 1, 1), ring('CLA', 'ps2', [2, 0, 0], 2, 0, 0), ring('CLA', 'ps2', [40, 0, 0]), ring('CLA', 'ps2', [80, 0, 0]), ring('FE2', 'ps2', [10, 10, 0]), ring('CLA', 'ps1', [0, 50, 0])] };
+  const warnings = [], at = (a, env, named) => resolveAnchor(normalizeAnchor(a), s, [0, 0, 0], (w) => warnings.push(w), named, [], env);
+  assert.deepEqual(at({ ligands: 'CLA', part: 'ps2', ring: true, pick: 'nearest', to: [0, 0, 0] }), [[0, 0, 0]], 'with `ring` the ring centre is used');
+  assert.deepEqual(at({ ligands: 'CLA', part: 'ps2', pick: 'nearest', to: [0, 0, 0] }), [[1, 1, 1]], 'without it the centre of all atoms');
+  assert.deepEqual(at({ ligands: 'CLA', part: 'ps2', ring: true, near: { to: [0, 0, 0], min: 10, max: 60 } }), [[40, 0, 0]]);
+  assert.deepEqual(at({ pairMid: { ligands: 'CLA', part: 'ps2', ring: true }, maxGap: 5, else: [7, 7, 7] }), [[1, 0, 0]], 'the middle of the two closest, 2 Å apart');
+  assert.deepEqual(at({ pairMid: { ligands: 'CLA', part: 'ps1', ring: true }, maxGap: 5, else: [7, 7, 7] }), [[7, 7, 7]], 'a lone one has no pair: the fallback');
+  assert.deepEqual(at({ mirror: { point: [1, 2, 3], about: [2, 2, 2] } }), [[3, 2, 1]]);
+  assert.deepEqual(at({ along: { from: [0, 0, 0], to: [0, 10, 0], distance: 3 } }), [[0, 3, 0]]);
+  assert.deepEqual(at({ ligands: 'ZZZ', else: [5, 5, 5] }), [[5, 5, 5]]); assert.deepEqual(at({ ligands: 'ZZZ', optional: true }), []); assert.equal(warnings.length, 0);
+  const cycle = (n) => at({ ligands: 'CLA', part: 'ps2', ring: true, near: { to: [0, 0, 0], min: -1 }, pick: 'cycle' }, { cycle: n })[0];
+  assert.deepEqual([0, 1, 2, 3, 4].map(cycle), [[0, 0, 0], [2, 0, 0], [40, 0, 0], [80, 0, 0], [0, 0, 0]], 'one after the other, then round again');
+  assert.deepEqual(at({ residue: '161', part: 'x', nearest: [0, 0, 6] }), [[0, 0, 5]], 'of the residues with that number, the closest to the reference');
+});
+
+test('chloroplast relay: per NADPH 4 photons and 6 H⁺ into the lumen, one O₂ per two; the stages 0–6; the metering balances; ATP synthase turns on the model flux', () => {
+  const config = normalizeDataConfig(mechanismWorkConfig({ process: 'chloroplast', axisFit: ['x'], down: 'y', spin: ['gamma chain'], membranes: [{ at: 'z', offset: 0 }] }));
+  const engine = new DataAnimation(config.animation, structure({ ligands: cofactors }), { rng: seededRng(7), kinetics: config.kinetics });
+  const stages = new Set();
+  for (let i = 0; i < 30 * 400; i++) { if (i === 30 * 200) engine.relays[0].rate = 0; engine.step(1 / 30); if (engine.stage !== null) stages.add(engine.stage); }
+  const n = engine.relays[0].n, c = engine.summary().counters;
+  assert.ok(n >= 3, `cycles ${n}`); assert.equal(engine.relays[0].busy, 0);
+  assert.equal(c.NADPH, n); assert.equal(c['光子'], 4 * n, '2 photons at PSII + 2 at PSI'); assert.equal(c['H⁺ 入腔'], 6 * n, '2 from water splitting + 4 from the Q cycle');
+  assert.equal(c['O₂'], Math.floor(n / 2), 'one O₂ per 4 electrons = 2 NADPH');
+  assert.deepEqual([...stages].sort(), [0, 1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(Object.values(engine.balance()).filter((v) => v.expected !== v.actual), []);
+  assert.ok(engine.rotor.travelled > 0 && c['H⁺ 回流（ATP 合酶）'] >= 14 * Math.floor(engine.rotor.travelled) - 0, '14 H⁺ per turn of the c14 ring');
+});

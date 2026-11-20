@@ -37,20 +37,32 @@ const dist3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
  * Where an anchor is in `structure`, as a list of points; `centre` is where a missing one falls back to, `warn(text)` hears about it, `named` holds the anchors a `{ ref }` names.
  * The structure may also supply `partPoints(name)` (the positions of a part's residues, for `arm` anchors); its ligands may carry the `part` they sit in.
  */
-export function resolveAnchor(a, s, centre, warn = () => {}, named = {}, trail = []) {
+export function resolveAnchor(a, s, centre, warn = () => {}, named = {}, trail = [], env = {}) {
   if (Array.isArray(a)) return [a.slice(0, 3)];
-  const sub = (x, name) => resolveAnchor(x, s, centre, warn, named, name ? [...trail, name] : trail), first = (x) => sub(x)[0];
+  const sub = (x, name) => resolveAnchor(x, s, centre, warn, named, name ? [...trail, name] : trail, env), first = (x) => sub(x)[0];
   const off = a.offset ?? [0, 0, 0], one = (p) => [add(p, off)];
   let points;
   if (a.ref != null) {
     if (!named[a.ref]) { warn(`没有命名锚点“${a.ref}”：改用模型中心。`); points = one(centre); }
     else if (trail.includes(a.ref)) { warn(`命名锚点“${a.ref}”引用了它自己（${[...trail, a.ref].join(' → ')}）：改用模型中心。`); points = one(centre); }
     else points = sub(named[a.ref], a.ref).map((p) => add(p, off));
+  } else if (a.pairMid != null) {
+    const list = sub(a.pairMid); let best = null, gap = Infinity;
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) { const d = dist3(list[i], list[j]); if (d < gap) { gap = d; best = [list[i], list[j]]; } }
+    points = best && gap < a.maxGap ? [[0, 1, 2].map((k) => (best[0][k] + best[1][k]) / 2)] : a.else ? sub(a.else) : one(centre);
+  } else if (a.mirror != null) {
+    const p = first(a.mirror.point), q = first(a.mirror.about);
+    points = one([0, 1, 2].map((k) => 2 * q[k] - p[k]));
+  } else if (a.along != null) {
+    const p = first(a.along.from), q = first(a.along.to), d = dist3(p, q) || 1;
+    points = one([0, 1, 2].map((k) => p[k] + (q[k] - p[k]) / d * a.along.distance));
   } else if (a.between != null) { const [p, q] = [first(a.between[0]), first(a.between[1])]; points = one([0, 1, 2].map((k) => p[k] + (q[k] - p[k]) * a.t)); }
   else if (a.arm != null) points = armPoints(a, s, centre, warn).map((p) => add(p, off));
-  else if (a.ligand != null || a.ligands != null) points = ligandPoints(a, s, centre, warn, sub, first).map((p) => add(p, off));
+  else if (a.ligand != null || a.ligands != null) points = ligandPoints(a, s, centre, warn, sub, first, env).map((p) => add(p, off));
   else if (a.residue != null) {
-    const m = /^(-?\d+)([A-Za-z]?)$/.exec(String(a.residue).trim()), p = m ? s.residue?.({ number: +m[1], ins: m[2].toUpperCase(), part: a.part, chain: a.chain }) : null;
+    const m = /^(-?\d+)([A-Za-z]?)$/.exec(String(a.residue).trim()), query = m ? { number: +m[1], ins: m[2].toUpperCase(), part: a.part, chain: a.chain } : null;
+    let p = query ? s.residue?.(query) : null;
+    if (p && a.nearest && s.residues) { const ref = first(a.nearest), all = s.residues(query); if (all.length) p = all.reduce((best, q) => (dist3(q, ref) < dist3(best, ref) ? q : best)); }   // among the residues of that number, the one closest to the reference
     if (!p) warn(`没有找到残基 ${JSON.stringify(a)}：改用模型中心。`);
     points = one(p ?? centre);
   } else if (a.label_seq != null) {
@@ -69,16 +81,19 @@ export function resolveAnchor(a, s, centre, warn = () => {}, named = {}, trail =
 }
 
 /** The cofactors an anchor names, narrowed, picked or chained as it says (see data-spec.mjs). */
-function ligandPoints(a, s, centre, warn, sub, first) {   // (`sub` and `first` resolve the anchors inside it)
+function ligandPoints(a, s, centre, warn, sub, first, env = {}) {   // (`sub` and `first` resolve the anchors inside it)
   const comps = String(a.ligand ?? a.ligands).toUpperCase().split(',').map((x) => x.trim()).filter(Boolean);
   let L = (s.ligands ?? []).filter((x) => comps.includes(x.comp));
-  if (a.part != null) L = L.filter((x) => matchPart(x.part ?? '', a.part));
-  if (!L.length) { warn(`没有找到小分子 ${comps.join('/')}${a.part != null ? `（部件 ${a.part}）` : ''}：改用模型中心。`); return [centre.slice()]; }
-  if (a.ligand != null && !a.pick && !a.chain) return [L[Math.min(L.length - 1, a.index || 0)].centre.slice()];
-  let P = []; for (const x of L) if (!P.some((q) => dist3(q, x.centre) < 1)) P.push(x.centre.slice());   // symmetry copies coincide
+  if (a.part != null) L = L.filter((x) => matchPart((a.ring && x.ringPart !== undefined ? x.ringPart : x.part) ?? '', a.part));   // with `ring` the protein is the one nearest the ring centre, as the classic judged it
+  const missing = (what) => { if (a.else) return sub(a.else); if (a.optional) return []; warn(`${what}：改用模型中心。`); return [centre.slice()]; };
+  if (!L.length) return missing(`没有找到小分子 ${comps.join('/')}${a.part != null ? `（部件 ${a.part}）` : ''}`);
+  if (a.ligand != null && !a.pick && !a.chain) return [(a.ring && L[Math.min(L.length - 1, a.index || 0)].ring ? L[Math.min(L.length - 1, a.index || 0)].ring : L[Math.min(L.length - 1, a.index || 0)].centre).slice()];
+  const at = (x) => (a.ring && x.ring ? x.ring : x.centre);
+  let P = []; for (const x of L) if (!P.some((q) => dist3(q, at(x)) < 1)) P.push(at(x).slice());   // symmetry copies coincide
+  for (const n of a.near ?? []) { const ref = first(n.to); P = P.filter((p) => { const d = dist3(p, ref); return (n.min === undefined || d > n.min) && (n.max === undefined || d < n.max); }); }
   if (a.above) { const y = first(a.above)[1] + (a.margin ?? 0); P = P.filter((p) => p[1] > y); }
   if (a.below) { const y = first(a.below)[1] - (a.margin ?? 0); P = P.filter((p) => p[1] < y); }
-  if (!P.length) { warn(`筛选后没有剩下小分子 ${comps.join('/')}：改用模型中心。`); return [centre.slice()]; }
+  if (!P.length) return missing(`筛选后没有剩下小分子 ${comps.join('/')}`);
   if (a.chain) {
     const chain = cofactorChain(P.map((position) => ({ position })), { direction: a.chain === 'up' ? [0, -1, 0] : [0, 1, 0] });
     const path = chain ? chain.map((c) => c.position) : P.slice(0, 1);
@@ -87,14 +102,15 @@ function ligandPoints(a, s, centre, warn, sub, first) {   // (`sub` and `first` 
   if (a.pick) {
     const near = (p, q) => dist3(p, q) < 3.5, rank = a.rank ?? 0;
     let order;
-    if (a.pick === 'top') order = [...P].sort((p, q) => q[1] - p[1]);
+    if (a.pick === 'cycle') order = P;   // the n-th of them in the n-th cycle (see `cycle` in the relay)
+    else if (a.pick === 'top') order = [...P].sort((p, q) => q[1] - p[1]);
     else if (a.pick === 'bottom') order = [...P].sort((p, q) => p[1] - q[1]);
     else if (a.pick === 'nearest') { const ref = first(a.to); order = [...P].sort((p, q) => dist3(p, ref) - dist3(q, ref)); }
     else {   // a binuclear centre (CuA): members with a partner within 3.5 Å; or the lone ones (CuB)
       const paired = P.filter((p) => P.some((q) => q !== p && near(p, q))), lone = P.filter((p) => !paired.includes(p));
       order = a.pick === 'paired' ? (paired.length ? paired : [...P].sort((p, q) => p[1] - q[1])) : (lone.length ? lone : [...P].sort((p, q) => q[1] - p[1]));
     }
-    return [order[Math.min(rank, order.length - 1)]];
+    return [a.pick === 'cycle' ? order[((env.cycle ?? 0) + rank) % order.length] : order[Math.min(rank, order.length - 1)]];
   }
   if (a.order === 'up') P.sort((p, q) => p[1] - q[1]); if (a.order === 'down') P.sort((p, q) => q[1] - p[1]);
   return P;
@@ -189,10 +205,11 @@ export class DataAnimation {
       return { ...f, pts: via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])], t: sim(), busy: 0 };
     });
     this.reacts = spec.reactions.flatMap((r) => this.anchor(r.site).map((site) => { hot.push(site); return { ...r, site, t: sim(), busy: 0 }; }));
+    const dynamic = (x) => JSON.stringify(x).includes('"pick":"cycle"');   // resolved again for each cycle
     const prepare = (a) => {
-      if (a.pause !== undefined) return a;
+      if (a.pause !== undefined) return a.at ? { ...a, pt: this.anchor(a.at)[0] } : a;
       const via = a.via.flatMap((x) => this.anchor(x)); hot.push(...via);
-      return { ...a, pts: via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])], ...(a.then ? { then: a.then.map(prepare) } : {}) };
+      return { ...a, pts: via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])], ...(dynamic(a.via) ? { dynamic: true } : {}), ...(a.then ? { then: a.then.map(prepare) } : {}) };
     };
     this.relays = (spec.relays ?? []).map((r) => ({ ...r, t: sim(), acc: 0, busy: 0, n: 0, phases: r.phases.map((phase) => phase.map(prepare)) }));
     const walk = (a) => [a, ...(a.then ?? []).flatMap(walk)];
@@ -208,7 +225,7 @@ export class DataAnimation {
   #pool(species, comp, n = 0) { return this.pools.speciesPool(species, comp, this.comp[comp], n); }
 
   /** Where an anchor is, as a list of points (a `ligands` anchor expands to every copy; none found: the middle of the model, with a warning). */
-  anchor(a) { return resolveAnchor(a, this.structure, this.c, (text) => this.#warn(text), this.spec.anchors ?? {}); }
+  anchor(a, env = {}) { return resolveAnchor(a, this.structure, this.c, (text) => this.#warn(text), this.spec.anchors ?? {}, [], env); }
 
   /* ---------------- metering ---------------- */
   #count(kind, species) { this.ledger[kind][species] = (this.ledger[kind][species] ?? 0) + 1; }
@@ -328,8 +345,9 @@ export class DataAnimation {
   /** One action of a relay: a flow-shaped journey. `hop` paces it per 20 Å hop (electrons between cofactors); `brown` joins its points by wandering paths. */
   #launch(a, done, cycle = 0) {
     const k = this.pace(), ctx = this.#ctx();
-    if (a.pause !== undefined) { this.motion.wait(Math.max(0.001, a.pause) / k, () => { if (a.stage !== undefined) this.stage = a.stage; done(); }); return; }
+    if (a.pause !== undefined) { this.motion.wait(Math.max(0.001, a.pause) / k, () => { if (a.stage !== undefined) this.stage = a.stage; if (a.text && a.pt) this.events.add(a.text, add(a.pt, [0, 7, 0]), 2.2); done(); }); return; }
     let pts = a.pts;
+    if (a.dynamic) { const via = a.via.flatMap((x) => this.anchor(x, { cycle })); pts = via.length > 1 ? via : [via[0], add(via[0], [0, 0.01, 0])]; }
     if (a.brown) { const keep = a.inside ? this.keepF[a.inside] : undefined; pts = pts.slice(0, 1); for (let i = 1; i < a.pts.length; i++) pts.push(...brownPath(a.pts[i - 1], a.pts[i], { n: 14, clear: a.clear ?? 12, free0: a.free ?? 14, free1: a.free ?? 14, wander: 0.25, keep }, ctx).slice(1)); }
     const tVia = a.tVia ?? (a.hop ? pts.slice(1).reduce((sum, p, i) => sum + a.hop * (0.35 + dist3(pts[i], p) / 20), 0) : undefined);
     const flow = { species: a.species, pts, from: a.from, to: a.to, free: a.free, tIn: a.tIn, tOut: a.tOut, tVia, labelVia: a.labelVia, counter: a.counter, tumble: a.tumble, events: [] };

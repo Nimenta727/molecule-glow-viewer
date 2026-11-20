@@ -1,5 +1,6 @@
 import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS } from './mechanism-kinetics.mjs';
 import { MECHANISM_ENERGY } from './mechanism-energy.mjs';
+import { CHLOROPLAST_ANCHORS, CHLOROPLAST_RELAY, CHLOROPLAST_ATP_FLOWS, chloroplastRotor } from './chloroplast-relay.mjs';
 import { RESPIRATORY_ANCHORS, RESPIRATORY_RELAY, ATP_SYNTHASE_ANCHORS, ATP_SYNTHASE_FLOWS, RESPIRATORY_LEDGER, respiratoryRotor } from './respiratory-relay.mjs';
 
 /**
@@ -9,12 +10,13 @@ import { RESPIRATORY_ANCHORS, RESPIRATORY_RELAY, ATP_SYNTHASE_ANCHORS, ATP_SYNTH
  * keywords of the classic scenes; the same configuration works for any structure that has such parts.
  *
  *   top = the first compartment of the classic model (matrix / stroma), bot = the second (intermembrane space / thylakoid lumen).
- * The energy strips come from mechanism-energy.mjs. The respiratory chain's electron and proton choreography is a relay (respiratory-relay.mjs); not included yet: the ATP synthase rotor coupling.
+ * The energy strips come from mechanism-energy.mjs. The electron and proton choreography of the respiratory chain and the light reactions are relays (respiratory-relay.mjs, chloroplast-relay.mjs); the ATP synthase and
+ * flagellar rotors turn with the animation clock.
  */
 const COMPARTMENTS = Object.freeze({ top: Object.freeze({ side: 'above', membrane: 0, gap: 30 }), bot: Object.freeze({ side: 'below', membrane: 0, gap: 30 }) });
 const WORKS = Object.freeze({
   respiratoryChain: Object.freeze({ kinetics: RESPIRATORY_CHAIN_KINETICS, title: '线粒体呼吸链', relay: Object.freeze({ species: { 'cyt c': { col: '#ff7040', r: 3.4 } }, pools: [{ species: 'O₂', in: 'top', n: 3 }], anchors: { ...RESPIRATORY_ANCHORS, ...ATP_SYNTHASE_ANCHORS }, relays: [RESPIRATORY_RELAY], flows: ATP_SYNTHASE_FLOWS, derived: RESPIRATORY_LEDGER }), rotor: respiratoryRotor }),
-  chloroplast: Object.freeze({ kinetics: CHLOROPLAST_KINETICS, title: '叶绿体光反应' }),
+  chloroplast: Object.freeze({ kinetics: CHLOROPLAST_KINETICS, title: '叶绿体光反应', relay: Object.freeze({ species: { PC: { col: '#4ad6ff', r: 3.4 }, Fd: { col: '#ff8a5a', r: 3.4 } }, pools: [{ species: 'H₂O', in: 'bot', n: 6 }, { species: 'NADP⁺', in: 'top', n: 3 }], anchors: CHLOROPLAST_ANCHORS, relays: [CHLOROPLAST_RELAY], flows: CHLOROPLAST_ATP_FLOWS }), rotor: chloroplastRotor }),
 });
 // The flagellar motor (classic process `flagellarMotor`): H+ from the periplasm flow through the stator channels into the cytoplasm. The classic puts 11 stators on a ring of
 // 215 Å, 10 Å above the M ring, and sends a proton through a random one for every 1/44 turn of the rotor. Here the ring is written as 11 flows (each through its own stator channel,

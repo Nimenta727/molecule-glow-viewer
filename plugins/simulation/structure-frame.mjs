@@ -44,7 +44,8 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
   }
   // the part a small molecule sits in = the entity of the nearest residue (the classic partAt)
   const partOf = (c) => { let best = '', bd = Infinity; for (const r of residues) { const d = (r.position[0] - c[0]) ** 2 + (r.position[1] - c[1]) ** 2 + (r.position[2] - c[2]) ** 2; if (d < bd) { bd = d; best = r.entity ?? ''; } } return best; };
-  const ligandInfo = ligands.map((l) => { const native = mean(l.atoms.map((a) => a.position)); return { comp: String(l.comp).toUpperCase(), native, part: partOf(native) }; });
+  // `ring` = the centre of the ring atoms (Mg and the four N of a chlorophyll or heme; all atoms when there are none), the classic's `ring()`
+  const ligandInfo = ligands.map((l) => { const native = mean(l.atoms.map((a) => a.position)), ringAtoms = l.atoms.filter((a) => ['MG', 'NA', 'NB', 'NC', 'ND'].includes(a.name)); return { comp: String(l.comp).toUpperCase(), native, ring: ringAtoms.length ? mean(ringAtoms.map((a) => a.position)) : native, part: partOf(native), ringPart: partOf(ringAtoms.length ? mean(ringAtoms.map((a) => a.position)) : native) }; });
   const toOriented = (p) => apply(R, [p[0] - g[0], p[1] - g[1], p[2] - g[2]]);
   let oriented = native.map(toOriented), flipAbout = null;
   // up / down: the named part ends above (below) the middle; the axis sign is arbitrary, so turn the model half a turn about a horizontal axis if it is the wrong way up
@@ -60,11 +61,13 @@ export function orientedFrame({ residues, ligands = [], config = {}, animation }
     const byEntity = (name) => residues.map((r, i) => ({ r, p: pts[i] })).filter(({ r }) => kwMatch(r.entity ?? '', name));
     const structure = {
       points: pts,
-      ligands: ligandInfo.map(({ comp, native, part }) => ({ comp, centre: place(toOriented(native)), part })),
+      ligands: ligandInfo.map(({ comp, native, ring, part, ringPart }) => ({ comp, centre: place(toOriented(native)), ring: place(toOriented(ring)), part, ringPart })),
       residue: ({ number, ins = '', part, chain, labelSeq, labelAsym }) => {
         const hit = residues.findIndex((r) => (labelSeq != null ? r.labelSeq === labelSeq && (!labelAsym || r.labelAsym === labelAsym) : r.authSeq === number && (r.insertion ?? '').toUpperCase() === ins && (!chain || r.chain === chain)) && (!part || kwMatch(r.entity ?? '', part)));
         return hit < 0 ? null : pts[hit];
       },
+      // every residue that matches (a number occurs once in each copy of a chain)
+      residues: ({ number, ins = '', part, chain }) => residues.flatMap((r, i) => (r.authSeq === number && (r.insertion ?? '').toUpperCase() === ins && (!chain || r.chain === chain) && (!part || kwMatch(r.entity ?? '', part)) ? [pts[i]] : [])),
       part: (name) => { const list = byEntity(name); return list.length ? mean(list.map(({ p }) => p)) : null; },
       partPoints: (name) => byEntity(name).map(({ p }) => p),
       membraneY: [],

@@ -8,6 +8,11 @@
  *   - `ligands: 'SF4,FES'` may list several component codes and be narrowed by `part` (the part the cofactor sits in), then picked: `pick` 'top' | 'bottom' | 'nearest' (to `to`) |
  *     'paired' | 'unpaired' (with / without another of the set within 3.5 Å), `rank` (0 = first), `above` / `below` (an anchor, `margin` Å) as filters, or `chain: 'down' | 'up'`:
  *     the electron-transfer path through all of them (the least sum of squared hops of at most 20 Å, from the top to the bottom or the reverse).
+ *     `ring: true` uses the centre of the ring atoms (Mg and the four N of a chlorophyll or heme, as the classic) instead of all atoms; `near: { to, min, max }` (or a list) keeps those within that
+ *     distance of an anchor; `pick: 'cycle'` takes the n-th of them in the n-th cycle of a relay (a deterministic stand-in for the classic's random choice).
+ *     `else: anchor` is used when none is found, `optional: true` makes it no point at all (a path simply skips it);  `{ mirror: { point, about } }` is `point` reflected through `about`.
+ *   - `{ pairMid: <ligands anchor>, maxGap, else }` the middle of the two closest of them (when closer than maxGap Å, else the `else` anchor);  `{ along: { from, to, distance } }` the point `distance` Å
+ *     from `from` towards `to`;  a residue anchor may add `nearest: anchor` to take the matching residue closest to it;
  *   - `{ between: [A, B], t }` a point between two anchors;  `{ arm: 'part', fractions: [...], halfHeight }` points along the long horizontal axis of the part's residues near the membrane;
  *   - `onMembrane: { index, dy, blend }` on any anchor: the height moves `blend` of the way to that membrane plus `dy`;  `{ ref: 'name' }` an anchor named in `anchors`.
  * `rotor` (an addition): { parts: [part names], mode, turnsPerSecond, by?, stock? } a part that turns with the animation clock (its angle is a function of the clock, so a replay is exact); a flow with
@@ -31,14 +36,32 @@ export function normalizeAnchor(a, depth = 0) {
   else if (a.ligand != null || a.ligands != null) {
     if (a.ligand != null) { out.ligand = str(String(a.ligand), 40); out.index = Math.max(0, Math.round(num(a.index, 0))); }
     else { out.ligands = str(String(a.ligands), 40); if (a.order === 'up' || a.order === 'down') out.order = a.order; }
-    if (a.part != null) out.part = str(String(a.part), 80);
-    if (['top', 'bottom', 'nearest', 'paired', 'unpaired'].includes(a.pick)) out.pick = a.pick;
+    if (a.part != null) out.part = str(String(a.part), 240);
+    if (['top', 'bottom', 'nearest', 'paired', 'unpaired', 'cycle'].includes(a.pick)) out.pick = a.pick;
+    if (a.ring) out.ring = true;
+    if (a.optional) out.optional = true;
+    if (a.else !== undefined) { const e = sub(a.else); if (!e) return null; out.else = e; }
+    if (a.near !== undefined) {
+      const list = (Array.isArray(a.near) ? a.near : [a.near]).slice(0, 4).map((n) => { const to = sub(n?.to); return to ? { to, ...(Number.isFinite(Number(n.min)) ? { min: Number(n.min) } : {}), ...(Number.isFinite(Number(n.max)) ? { max: Number(n.max) } : {}) } : null; });
+      if (list.some((n) => !n)) return null; out.near = list;
+    }
     if (a.chain === 'down' || a.chain === 'up') out.chain = a.chain;
     if (a.take === 'first' || a.take === 'last') out.take = a.take;
     if (a.rank !== undefined) out.rank = Math.max(0, Math.min(63, Math.round(num(a.rank, 0))));
     for (const key of ['to', 'above', 'below']) if (a[key] !== undefined) { const v = sub(a[key]); if (!v) return null; out[key] = v; }
     if (a.margin !== undefined) out.margin = num(a.margin, 0);
     if (out.pick === 'nearest' && !out.to) return null;
+  }
+  else if (a.pairMid != null) {
+    const inner = sub(a.pairMid); if (!inner) return null;
+    out.pairMid = inner; out.maxGap = Math.max(0, num(a.maxGap, 12)); if (a.else !== undefined) { const e = sub(a.else); if (!e) return null; out.else = e; }
+  }
+  else if (a.mirror != null) {
+    const point = sub(a.mirror?.point), about = sub(a.mirror?.about); if (!point || !about) return null; out.mirror = { point, about };
+  }
+  else if (a.along != null) {
+    const from = sub(a.along?.from), to = sub(a.along?.to); if (!from || !to) return null;
+    out.along = { from, to, distance: num(a.along.distance, 0) };
   }
   else if (a.between != null) {
     const pair = Array.isArray(a.between) && a.between.length === 2 ? a.between.map(sub) : [];
@@ -49,9 +72,9 @@ export function normalizeAnchor(a, depth = 0) {
     out.arm = str(String(a.arm), 80); if (!out.arm) return null;
     out.fractions = (Array.isArray(a.fractions) && a.fractions.length ? a.fractions : [0.5]).slice(0, 8).map((f) => Math.max(0, Math.min(1, num(f, 0.5)))); out.halfHeight = Math.max(1, Math.min(200, num(a.halfHeight, 18)));
   }
-  else if (a.residue != null) { out.residue = str(String(a.residue), 12); if (a.part != null) out.part = str(String(a.part), 80); if (a.chain != null) out.chain = str(String(a.chain), 8); }
-  else if (a.label_seq != null) { out.label_seq = Math.round(num(a.label_seq, NaN)); if (!Number.isFinite(out.label_seq)) return null; if (a.part != null) out.part = str(String(a.part), 80); if (a.label_asym != null) out.label_asym = str(String(a.label_asym), 8); }
-  else if (a.part != null) out.part = str(String(a.part), 80);
+  else if (a.residue != null) { out.residue = str(String(a.residue), 12); if (a.part != null) out.part = str(String(a.part), 240); if (a.chain != null) out.chain = str(String(a.chain), 8); if (a.nearest !== undefined) { const n = sub(a.nearest); if (!n) return null; out.nearest = n; } }
+  else if (a.label_seq != null) { out.label_seq = Math.round(num(a.label_seq, NaN)); if (!Number.isFinite(out.label_seq)) return null; if (a.part != null) out.part = str(String(a.part), 240); if (a.label_asym != null) out.label_asym = str(String(a.label_asym), 8); }
+  else if (a.part != null) out.part = str(String(a.part), 240);
   else if (a.membrane != null) out.membrane = Math.max(0, Math.min(1, Math.round(num(a.membrane, 0))));
   else if (!a.centre && !Object.keys(a).every((k) => k === 'offset' || k === 'onMembrane')) return null;
   if (offset) out.offset = offset;
@@ -63,8 +86,11 @@ export function normalizeAnchor(a, depth = 0) {
 export function anchorRefs(a, out = []) {
   if (!isObject(a)) return out;
   if (a.ref) out.push(a.ref);
-  for (const key of ['to', 'above', 'below']) if (a[key]) anchorRefs(a[key], out);
+  for (const key of ['to', 'above', 'below', 'pairMid', 'else', 'nearest']) if (a[key]) anchorRefs(a[key], out);
+  if (a.mirror) { anchorRefs(a.mirror.point, out); anchorRefs(a.mirror.about, out); }
+  for (const n of a.near ?? []) anchorRefs(n.to, out);
   for (const x of a.between ?? []) anchorRefs(x, out);
+  if (a.along) { anchorRefs(a.along.from, out); anchorRefs(a.along.to, out); }
   return out;
 }
 
@@ -148,6 +174,7 @@ export function normalizeDataAnimation(raw) {
         const pause = { pause: Math.max(0, Math.min(60, num(x.pause, 0))) };
         if (x.stage !== undefined) pause.stage = clampInt(x.stage, 0, 99, 0);
         if (x.wait === false) pause.wait = false;
+        if (typeof x.text === 'string' && x.text) { const at = normalizeAnchor(x.at); if (!at) errors.push(`${where2}的文字需要位置（at）。`); else { pause.text = str(x.text); pause.at = at; } }
         return pause;
       }
       const via = (Array.isArray(x?.via) ? x.via : []).slice(0, DATA_LIMITS.via).map((a) => normalizeAnchor(a));
@@ -201,7 +228,7 @@ export function normalizeDataAnimation(raw) {
   // every `ref` must name an anchor
   {
     const names = new Set(Object.keys(spec.anchors ?? {})), used = [...anchorRefs(spec.orient?.up), ...spec.flows.flatMap((f) => f.via.flatMap((a) => anchorRefs(a))), ...spec.reactions.flatMap((r) => anchorRefs(r.site)),
-      ...(spec.relays ?? []).flatMap((r) => r.phases.flatMap((ph) => ph.flatMap(function walk(x) { return [...(x.via ?? []).flatMap((a) => anchorRefs(a)), ...(x.then ?? []).flatMap(walk)]; }))), ...Object.values(spec.anchors ?? {}).flatMap((a) => anchorRefs(a))];
+      ...(spec.relays ?? []).flatMap((r) => r.phases.flatMap((ph) => ph.flatMap(function walk(x) { return [...(x.via ?? []).flatMap((a) => anchorRefs(a)), ...(x.at ? anchorRefs(x.at) : []), ...(x.then ?? []).flatMap(walk)]; }))), ...Object.values(spec.anchors ?? {}).flatMap((a) => anchorRefs(a))];
     for (const name of new Set(used)) if (!names.has(name)) errors.push(`引用了不存在的命名锚点“${name}”（可用：${[...names].join('、') || '无'}）。`);
   }
 
