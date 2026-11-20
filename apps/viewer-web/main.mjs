@@ -15,6 +15,8 @@ import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
+import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
+import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
@@ -80,6 +82,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
@@ -486,6 +489,50 @@ function boot() {
       select: (expression) => { elements['selection-expression'].value = expression; selectSet(expression); },
     },
   });
+  /** Clipping: a slab through the model, or a wedge on marked parts (classic 剖面 / 剖开). State lives in active.clipping and is saved with the work. */
+  function applyClipping() {
+    const state = active?.clipping, frame = viewport.clipFrame();
+    if (!frame || !state?.enabled) { viewport.setClipping({}); return; }
+    if (state.scope === 'parts') {
+      const planes = wedgePlanes({ toViewer: state.direction, center: frame.center, margin: 4 * PRESENTATION_METERS_PER_ANGSTROM });
+      const parts = computeStructureParts(), nodeIds = new Set(state.wedgeParts.flatMap((key) => (parts.get(key) ?? []).map(({ id }) => id)));
+      viewport.setClipping(planes && nodeIds.size ? { wedge: { planes, nodeIds } } : {});
+    } else viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
+  }
+  function clipState() {
+    if (!active) return null;
+    active.clipping ??= normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1], depth: 0 });
+    return active.clipping;
+  }
+  function syncClipControls() {
+    const state = active?.clipping;
+    elements['clip-enabled'].checked = Boolean(state?.enabled);
+    elements['clip-depth'].value = String(state?.depth ?? 0);
+    elements['clip-scope'].value = state?.scope ?? 'all';
+    elements['clip-depth'].disabled = state?.scope === 'parts';
+  }
+  elements['clip-enabled'].addEventListener('change', () => {
+    const state = clipState();
+    if (!state) return;
+    state.enabled = elements['clip-enabled'].checked;
+    if (state.enabled) state.direction = normalizeClipping({ direction: viewport.clipFrame().toViewer }).direction;   // aim at the current view when switched on
+    applyClipping();
+  });
+  elements['clip-depth'].addEventListener('input', () => { const state = clipState(); if (state) { state.depth = +elements['clip-depth'].value; applyClipping(); } });
+  elements['clip-scope'].addEventListener('change', () => { const state = clipState(); if (state) { state.scope = elements['clip-scope'].value; syncClipControls(); applyClipping(); } });
+  elements['clip-aim'].addEventListener('click', () => {
+    const state = clipState();
+    if (!state) return;
+    state.direction = normalizeClipping({ direction: viewport.clipFrame().toViewer }).direction;
+    applyClipping();
+  });
+  elements['structure-part-list'].addEventListener('change', (event) => {
+    const key = event.target.dataset?.clipPart, state = key && clipState();
+    if (!state) return;
+    state.wedgeParts = event.target.checked ? [...new Set([...state.wedgeParts, key])] : state.wedgeParts.filter((value) => value !== key);
+    applyClipping();
+  });
+
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -533,6 +580,9 @@ function boot() {
     if (typeof view?.selection === 'string') {
       showStructurePick(active.structureTargets?.get(view.selection));
     }
+    active.clipping = normalizeClipping(view?.clipping) ?? undefined;
+    syncClipControls();
+    applyClipping();
   }
 
   function resetPreviewCamera() {
@@ -591,6 +641,7 @@ function boot() {
       { overlayCapacity: active.overlayCapacity, ...playerViewportOptions(active.player) });
     viewport.commit(prepared);
     active.handles.current = prepared;
+    applyClipping();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -637,7 +688,8 @@ function boot() {
     summary.hidden = false;
   }
 
-  function showStructureParts() {
+  /** The scene's structure parts, grouped by (source, part name): Map(key -> nodes). */
+  function computeStructureParts() {
     const parts = new Map();
     for (const node of active?.scene.nodes ?? []) {
       const part = node.extensions?.[STRUCTURE];
@@ -646,6 +698,11 @@ function boot() {
       if (!parts.has(key)) parts.set(key, []);
       parts.get(key).push(node);
     }
+    return parts;
+  }
+
+  function showStructureParts() {
+    const parts = computeStructureParts();
     elements['structure-parts'].hidden = !parts.size;
     const list = elements['structure-part-list'];
     list.replaceChildren();
@@ -660,6 +717,15 @@ function boot() {
       input.indeterminate = !input.checked && nodes.some(({ visible }) => visible);
       label.append(input, ` ${nodes[0].name}`);
       item.append(label);
+      const clipLabel = document.createElement('label');
+      clipLabel.className = 'clip-part';
+      const clipInput = document.createElement('input');
+      clipInput.type = 'checkbox';
+      clipInput.dataset.clipPart = key;
+      clipInput.checked = Boolean(active.clipping?.wedgeParts.includes(key));
+      clipLabel.append(clipInput, ' 剖开');
+      clipLabel.title = '“剖切范围”选“仅标为剖开的部件”时，从这个部件上切掉一个楔形';
+      item.append(clipLabel);
       if (active.models?.has(nodes[0].extensions[STRUCTURE].sourceAssetId)) {
         const select = document.createElement('select');
         select.dataset.structurePartStyle = key;
@@ -1113,6 +1179,7 @@ function boot() {
       const camera = viewport.getCamera({ destination: true });
       source.provenance = { ...source.provenance, viewerState: {
         camera,
+        ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {

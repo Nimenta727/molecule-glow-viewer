@@ -250,3 +250,9 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .intro-list { margin: 0.2rem 0 0; padding-left: 1.1rem; }
 .intro-chips button { margin: 0 0.2rem 0.2rem 0; padding: 0 0.4rem; font-size: 0.72rem; }
 .entry-intro a { color: var(--acc-ink); }
+
+/* ---- clipping ---- */
+.clip-controls:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.3rem 0.75rem 0.2rem; font-size: 0.8rem; }
+.clip-controls input[type="range"] { flex: 1; min-width: 5rem; accent-color: var(--acc); }
+.clip-controls select { max-width: 100%; }
+.clip-part { margin-left: 0.5rem; font-size: 0.72rem; white-space: nowrap; }

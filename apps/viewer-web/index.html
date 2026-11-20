@@ -114,6 +114,15 @@
               <button id="entry-intro-load" type="button" title="从 RCSB 与 UniProt 读取：物种、方法、分辨率、突变、文献、功能">自动简介</button>
             </div>
             <div id="entry-intro" class="entry-intro" hidden aria-live="polite"></div>
+            <div id="clip-controls" class="clip-controls" hidden>
+              <label><input id="clip-enabled" type="checkbox"> 剖切</label>
+              <input id="clip-depth" type="range" min="-1" max="1" step="0.01" value="0" aria-label="剖切深度">
+              <select id="clip-scope" aria-label="剖切范围">
+                <option value="all">全部部件（切片）</option>
+                <option value="parts">仅标为“剖开”的部件（楔形）</option>
+              </select>
+              <button id="clip-aim" type="button" title="让剖面朝向现在的观察方向">对准当前视角</button>
+            </div>
             <div id="take-apart-controls" class="structure-form" hidden>
               <button id="take-apart-toggle" type="button" aria-pressed="false" title="把每条链当作一块零件：拆开、取下、装回，并查看它们的接触界面">拆装</button>
             </div>

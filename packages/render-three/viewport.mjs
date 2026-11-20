@@ -110,6 +110,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
   camera.position.set(4, 3, 5);
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.localClippingEnabled = true;   // per-material clipping planes (setClipping)
   renderer.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setSize(Math.max(container.clientWidth, 1), Math.max(container.clientHeight, 1), false);
@@ -314,6 +315,45 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     position.needsUpdate = true;
   }
 
+  /**
+   * Clipping (see clipping.mjs). `slab` (a plane) is removed from every part; `wedge` ({ planes: [two], nodeIds }) from the listed parts only, where
+   * both planes clip. A part with a wedge uses it instead of the slab. Markers and links are not clipped. setClipping() removes everything.
+   */
+  const toPlane = ({ normal, constant }) => new THREE.Plane(new THREE.Vector3(...normal), constant);
+  function setClipping({ slab = null, wedge = null } = {}) {
+    if (!active) return;
+    const slabPlanes = slab ? [toPlane(slab)] : null, wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
+    for (const [id, group] of active.groups) {
+      const planes = wedgePlanes && wedge.nodeIds.has(id) ? wedgePlanes : slabPlanes, intersection = planes === wedgePlanes && Boolean(planes);
+      group.traverse((object) => {
+        const material = object.material;
+        if (!material || Array.isArray(material) || object.userData.selectionMarker) return;
+        const before = `${material.clippingPlanes?.length ?? 0}|${material.clipIntersection}|${material.side}`;
+        material.clippingPlanes = planes;
+        material.clipIntersection = intersection;
+        // a cut-open solid shows its inside in its own colour, not the dark outline shell behind it
+        if (material.isMeshStandardMaterial) {
+          if (planes && material.side === THREE.FrontSide) { material.userData.sideBeforeClip = THREE.FrontSide; material.side = THREE.DoubleSide; }
+          else if (!planes && material.userData.sideBeforeClip !== undefined) { material.side = material.userData.sideBeforeClip; material.userData.sideBeforeClip = undefined; }
+        }
+        if (before !== `${planes?.length ?? 0}|${intersection}|${material.side}`) material.needsUpdate = true;
+      });
+    }
+    invalidate();
+  }
+  /** Is this object's point removed by its material's clipping planes (a clipped residue cannot be picked)? */
+  function clippedAt(object, point) {
+    const planes = object.material?.clippingPlanes;
+    if (!planes?.length) return false;
+    const outside = planes.map((plane) => plane.distanceToPoint(point) < 0);
+    return object.material.clipIntersection ? outside.every(Boolean) : outside.some(Boolean);
+  }
+  /** What the clipping UI needs to place planes: the model's centre and radius in viewport units, and the direction towards the camera. */
+  function clipFrame() {
+    if (!active) return null;
+    return { center: active.center.toArray(), radius: active.radius, toViewer: camera.position.clone().sub(controls.target).toArray() };
+  }
+
   function setNodeVisibility(ids, visible) {
     for (const id of ids) {
       const group = active?.groups.get(id);
@@ -390,7 +430,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.updateMatrixWorld();
     raycaster.setFromCamera(pointer, camera);
     active.root.updateMatrixWorld(true);
-    const hits = raycaster.intersectObjects(active.meshes, false).filter(({ object }) => isVisible(object));
+    const hits = raycaster.intersectObjects(active.meshes, false).filter(({ object, index, point }) =>
+      isVisible(object) && !clippedAt(object, point ?? new THREE.Vector3()));
     const hit = hits.find(({ object, index }) => object.userData.pointTargets?.[index]) ?? hits[0];
     const target = hit?.object.userData.pointTargets?.[hit.index];
     const point = target && new THREE.Vector3()
@@ -868,6 +909,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }
