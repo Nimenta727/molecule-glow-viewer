@@ -14,7 +14,7 @@ The rates and four-state knock-on cycle are ported from `src/sim/processes/kcsa.
 
 Current uses the four-state steady-state solution; the voltage factors obey detailed balance and reverse at `25.69 ln(Ko/Ki)` mV. Counters count stochastic transitions. The displayed open-channel current is conditional on an open, unblocked channel; instantaneous conducting current is zero when closed, inactivated or blocked. Open probability is measured in gate-clock time. These are teaching kinetics, not an atomistic MD trajectory or fitted experimental predictions. The open coordinate template is E71A even when the wild-type inactivation option is enabled.
 
-Bulk compartment particles, hydration-shell rendering, extracellular sodium controls, and plotted time series from the classic station are not included in this batch. Cell-level station composition remains a later phase-four task.
+Since 4.4.8 `player.extras()` adds, without touching the snapshot (the golden trace), the free K⁺ and Na⁺ in the two baths (count = min(60, 0.4 × mM) as the classic; extracellular Na⁺ fixed at 140 mM, there is no control for it), the hydration shells (six waters around every ion in solution, gone in the filter) and the waters in the empty filter sites, and the curves of the last ten seconds (single-channel current, whether the channel conducts, E_K). The Viewer draws them. The bath ions do not exchange with the ions that enter or leave the pore (the classic takes an entering ion from the bath and gives a leaving one back), and they are placed by height and radius around the axis without a clearance test against the protein or the Fab. Cell-level station composition remains a later phase-four task.
 
 ## Verification
 

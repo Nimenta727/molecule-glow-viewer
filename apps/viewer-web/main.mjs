@@ -397,6 +397,7 @@ function boot() {
     elements['mechanism-caption'].textContent = player.steps[stage].caption;
     for (const input of elements['mechanism-parameters'].querySelectorAll('input, select')) if (input !== document.activeElement) writeControl(input, snapshot.parameters?.[input.dataset.parameter]);
     elements['mechanism-metrics'].textContent = snapshot.metrics ?? '';
+    drawMechanismExtras(player.extras?.());
     elements['mechanism-counters'].textContent = `${Object.entries(snapshot.counters).map(([name, value]) => `${name} ${value}`).join(' · ')} · ${snapshot.time.toFixed(2)} 示意秒`;
     const eventKey = JSON.stringify(snapshot.events);
     if (active.mechanismEventCount !== eventKey) {
@@ -406,6 +407,24 @@ function boot() {
         li.textContent = `${time.toFixed(2)} s · ${label}${ATP == null ? '' : ` · ATP ${ATP}`}`;
         return li;
       }));
+    }
+  }
+
+  /** What a player adds to the picture besides its snapshot (player.extras()): sets of free particles (baths, hydration shells) drawn through the particle layer, and curves drawn as small plots. */
+  const EXTRA_CLOUDS = new Set();
+  function drawMechanismExtras(extras) {
+    for (const tag of EXTRA_CLOUDS) if (!extras?.clouds?.[tag]) { viewport.setParticleCloud(tag, []); EXTRA_CLOUDS.delete(tag); }
+    for (const [tag, items] of Object.entries(extras?.clouds ?? {})) { viewport.setParticleCloud(tag, items, { overlay: true }); EXTRA_CLOUDS.add(tag); }
+    const list = elements['mechanism-series'], series = extras?.series ?? [], key = JSON.stringify(series);
+    if (list.dataset.key === key) return;
+    list.dataset.key = key; list.hidden = !series.length; list.replaceChildren();
+    for (const row of series) {
+      const li = document.createElement('li'), label = document.createElement('span'), canvas = document.createElement('canvas'), last = row.values.at(-1) ?? 0;
+      label.textContent = `${row.label}：${row.unit ? `${last.toFixed(Math.abs(last) < 10 ? 2 : 0)} ${row.unit}` : last ? '导电' : '不导电'}（最近 ${extras.window.toFixed(0)} 秒）`;
+      canvas.width = 120; canvas.height = 24; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `${row.label}的变化曲线`);
+      const g = canvas.getContext('2d'), [lo, hi] = row.range; g.strokeStyle = row.color; g.lineWidth = 1.6; g.beginPath();
+      row.values.forEach((v, i) => { const x = i / Math.max(1, row.values.length - 1) * canvas.width, y = canvas.height - 2 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * (canvas.height - 4); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+      g.stroke(); li.append(label, canvas); list.append(li);
     }
   }
 

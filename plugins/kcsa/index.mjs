@@ -2,7 +2,8 @@ import { kcsaToolDescriptor, KCSA_TOOL, kcsaSourceId, kcsaChannelTest } from './
 import { nodesOfSource, boundOrMatched } from '../shared/bindings.mjs';
 import { DEFAULTS, PARAMETERS, validateParameters, createKinetics, singleChannelCurrent, reversalPotential, conducting } from './kinetics.mjs';
 import { buildKcsaStructure } from './structure.mjs';
-import { lerp } from '../motion/vectors.mjs';
+import { lerp, sub, dot, cross, normalize } from '../motion/vectors.mjs';
+import { PRESENTATION_METERS_PER_ANGSTROM as SCALE } from '../structure/representation.mjs';
 import { walkPath } from '../motion/path.mjs';
 import { KCSA_1K4C_TEMPLATE, normalizeKcsaConfig, numeral } from './config.mjs';
 export const KCSA_PLAYER = 'org.glow.legacy-process.kcsa';
@@ -135,6 +136,57 @@ export function createKcsaPlayer({ model, scene, state = {}, states, config, bin
       gateSeconds: s.gateSeconds, permeationNs: s.ns, openProbability: s.gateSeconds ? s.openSeconds / s.gateSeconds : 0,
       particles, transforms: new Map(), conformation: { weights: s.weights }, events: s.events };
   }
+  // ---- what the player adds to the picture without changing its snapshot (the golden trace): free ions in the two baths, hydration shells, waters in the empty filter sites,
+  // and the curves. The Viewer draws `clouds` through its particle sets and `series` as small plots. Everything is a function of the time and the seed, so seeking and replaying
+  // show the same picture.
+  const hash = (i, salt) => { let n = Math.imul((i + 1) * 0x9e3779b1 ^ salt * 0x85ebca6b, 0xc2b2ae35) >>> 0; n ^= n >>> 15; n = Math.imul(n, 0x2c1b3c6d) >>> 0; n ^= n >>> 12; return (n >>> 0) / 4294967296; };
+  const axisVec = structure.axis, perpendicular = (() => { const w = Math.abs(axisVec[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0], u = normalize(cross(axisVec, w)); return [u, cross(axisVec, u)]; })();
+  const height = (p) => dot(sub(p, structure.sites.S2), axisVec), onAxis = (h) => structure.sites.S2.map((v, k) => v + axisVec[k] * h);
+  const hOut = height(structure.sites.S0), hCav = height(structure.sites.cav);
+  const baths = [
+    { key: 'Ko', species: 'K⁺', where: '胞外', color: cfg.particles.potassium.color, r: 1.9, h: [hOut + 24, hOut + 80], salt: 11, count: (c) => Math.min(60, Math.round(c.Ko * 0.4)) },
+    { key: 'Ki', species: 'K⁺', where: '胞内', color: cfg.particles.potassium.color, r: 1.9, h: [hCav - 85, hCav - 50], salt: 23, count: (c) => Math.min(60, Math.round(c.Ki * 0.4)) },
+    { key: 'Nao', species: 'Na⁺', where: '胞外', color: cfg.particles.sodium.color, r: 1.6, h: [hOut + 24, hOut + 80], salt: 37, count: () => Math.min(60, Math.round(140 * 0.4)) },   // extracellular Na⁺ is not a parameter here (140 mM)
+    { key: 'Nai', species: 'Na⁺', where: '胞内', color: cfg.particles.sodium.color, r: 1.6, h: [hCav - 85, hCav - 50], salt: 41, count: (c) => Math.min(60, Math.round(c.Nai * 0.4)) },
+  ];
+  let extrasKey = '', extrasValue = null;
+  function extras() {
+    ensureLive();
+    const key = `${time}|${kinetics.at(time).configIndex}`;
+    if (key === extrasKey) return extrasValue;
+    const s = kinetics.at(time), c = s.parameters, bulk = [];
+    for (const bath of baths) for (let i = 0, n = bath.count(c); i < n; i++) {
+      const radius = 12 + hash(i, bath.salt) * 58, angle = hash(i, bath.salt + 1) * 6.2832, h = bath.h[0] + hash(i, bath.salt + 2) * (bath.h[1] - bath.h[0]);
+      const sway = [0, 1, 2].map((k) => 2.2 * Math.sin(time * (0.7 + 0.3 * k) + hash(i, bath.salt + 3 + k) * 6.2832));
+      const offset = [0, 1, 2].map((k) => axisVec[k] * (h + sway[2]) + perpendicular[0][k] * (radius * Math.cos(angle) + sway[0]) + perpendicular[1][k] * (radius * Math.sin(angle) + sway[1]));
+      bulk.push({ position: structure.point(structure.sites.S2.map((v, k) => v + offset[k])), radius: bath.r * SCALE, color: bath.color, name: `${bath.species}（${bath.where}溶液，自由离子）` });
+    }
+    // the hydration shell of every ion on its way through the pore: six waters circling it, present in solution, gone inside the filter
+    const hydration = (site) => (/^(inside|outside|cav)$/.test(site) ? 1 : site === 'S0' ? 0.4 : 0);
+    const f = Math.min(1, Math.max(0, (time - s.permTime) / 0.2)), moving = conducting(s) && f < 1 && transitions[s.lastPermId], shells = [];
+    const ionNative = ([a, b]) => (a === 'inside' && b === 'cav' ? walk(structure.paths.inside, f) : a === 'cav' && b === 'inside' ? walk(structure.paths.inside, 1 - f)
+      : a === 'S0' && b === 'outside' ? walk(structure.paths.outside, f) : a === 'outside' && b === 'S0' ? walk(structure.paths.outside, 1 - f) : lerp(positions[a], positions[b], f));
+    (moving || occupancy[s.perm].map((site) => [site, site])).slice(0, 3).forEach((move, index) => {
+      const hyd = moving ? hydration(move[0]) * (1 - f) + hydration(move[1]) * f : hydration(move[0]);
+      if (hyd < 0.05) return;
+      const centre = ionNative(move);
+      for (let k = 0; k < 6; k++) {
+        const angle = time * 3 + index + k * Math.PI / 3, r = 3.4 * hyd;
+        shells.push({ position: structure.point(centre.map((v, j) => v + perpendicular[0][j] * r * Math.cos(angle) + perpendicular[1][j] * r * Math.sin(angle) + axisVec[j] * 2.2 * Math.sin(angle * 1.7 + k))), radius: 0.85 * hyd * SCALE, color: '#dfe8f5', name: 'H₂O（K⁺ 的水合层，进过滤器前脱去）' });
+      }
+    });
+    // waters in the empty filter sites (ions and water alternate)
+    const occupied = new Set(occupancy[s.perm]);
+    if (s.perm !== 'X') for (const site of ['S1', 'S2', 'S3', 'S4']) if (!occupied.has(site) && !(s.ba && site === 'S4')) shells.push({ position: structure.point(positions[site]), radius: 1.0 * SCALE, color: '#dfe8f5', name: 'H₂O（过滤器里的水）' });
+    // curves over the last 10 display seconds: the single-channel current, whether the channel conducts, and the potassium reversal potential
+    const window = Math.min(10, time), points = 40, series = [{ label: '单通道电流', unit: 'pA', color: '#8a5cf0', range: [-12, 12], values: [] }, { label: '导电', unit: '', color: '#2fb39c', range: [0, 1], values: [] }, { label: 'E_K', unit: 'mV', color: '#e4572e', range: [-150, 50], values: [] }];
+    for (let i = 0; i < points; i++) {
+      const t = time - window + window * i / (points - 1), at = kinetics.at(Math.max(0, t));
+      series[0].values.push(conducting(at) ? singleChannelCurrent(at.parameters) : 0); series[1].values.push(conducting(at) ? 1 : 0); series[2].values.push(reversalPotential(at.parameters));
+    }
+    extrasKey = key; extrasValue = { clouds: { 'kcsa-bulk': bulk, 'kcsa-water': shells }, series, window };
+    return extrasValue;
+  }
   function setParameters(parameters) {
     const validated = validateParameters(parameters);
     change(validated);
@@ -147,7 +199,7 @@ export function createKcsaPlayer({ model, scene, state = {}, states, config, bin
     kinetics = createKinetics(seed, schedule);
   }
   return {
-    duration: 120, steps, navigation, snapshot, setParameters, validateParameters,
+    duration: 120, steps, navigation, snapshot, extras, setParameters, validateParameters,
     decorate: (layers) => { ensureLive(); return structure.decorate(layers, nodes); },
     particleParentId: nodes[0].parentId,
     membrane: { center: structure.center, axis: structure.axis, radius: cfg.membrane.radius },
