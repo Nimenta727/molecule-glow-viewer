@@ -95,8 +95,10 @@ async function pageProbe(config) {
       await wait(() => document.querySelector('#status').textContent === 'release-reopened.glow', 'ZIP reopened');
       const after = await glow.info();
       for (const field of ['time', 'counters', 'parameters', 'selection']) assert(JSON.stringify(before[field]) === JSON.stringify(after[field]), 'restored ' + field);
-      assert(JSON.stringify(before.camera.position) === JSON.stringify(after.camera.position), 'camera position');
-      assert(JSON.stringify(before.camera.target) === JSON.stringify(after.camera.target), 'camera target');
+      // Restored camera vectors may differ in the last floating-point bit after the reopen recomputes them; 1e-9 is far below any visible change.
+      const near = (a, b) => a.length === b.length && a.every((value, i) => Math.abs(value - b[i]) <= 1e-9 * Math.max(1, Math.abs(value)));
+      assert(near(before.camera.position, after.camera.position), 'camera position ' + JSON.stringify([before.camera.position, after.camera.position]));
+      assert(near(before.camera.target, after.camera.target), 'camera target ' + JSON.stringify([before.camera.target, after.camera.target]));
       if (config.kind !== 'local') {
         document.querySelector('#atp-enabled').click(); await wait(() => document.querySelector('#mechanism-controls').hidden, 'plugin disabled');
         document.querySelector('#atp-enabled').click(); await wait(() => !document.querySelector('#mechanism-controls').hidden, 'plugin reenabled');
