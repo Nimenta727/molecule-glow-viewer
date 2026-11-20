@@ -12,7 +12,7 @@
 - 文档：`skill/references/tools.md` 增加 `energy` 格式；`docs/feature-parity.json` 三个作品的 `remaining` 去掉“能量条”并说明新做法。
 
 ## 验证
-- `npm test`：425/425（+1 选择语言、+4 能量条纯逻辑与作品配置、+5 组件逻辑；此前 420）。组件逻辑用最小假 DOM 在 Node 里测：点击→讲解与标记、再点关闭、坏表达式只上报、跟随不覆盖读者选择、无结构表达式时不出现跟随按钮。
+- `npm test`：430/430（+1 选择语言、+4 能量条纯逻辑与作品配置、+5 组件逻辑；此前 420）。第一次提交时有 1 个失败（Skill 包校验：`tools.md` 里的相对链接指向包外），随后修复；教训：提交前以退出码而不是 grep 输出判断测试结果。组件逻辑用最小假 DOM 在 Node 里测：点击→讲解与标记、再点关闭、坏表达式只上报、跟随不覆盖读者选择、无结构表达式时不出现跟随按钮。
 - `check-docs`、`check-copies`、`check-feature-parity`、`parity-numerics`：通过。
 - 环境问题：容器没装依赖，先 `npm ci`（`@cfworker/json-schema`），之后 viewer 的三个测试文件才能跑；与本次改动无关。
 
