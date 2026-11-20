@@ -247,6 +247,15 @@
               <summary>邻近残基（4 Å）</summary>
               <p id="structure-contact-list" class="structure-summary" aria-live="polite"></p>
             </details>
+            <details id="site-analysis" hidden>
+              <summary>结合位点相互作用</summary>
+              <div class="structure-form">
+                <button id="site-lines-toggle" type="button" data-on="1" title="氢键、盐桥、金属/离子配位的虚线">隐藏相互作用线</button>
+                <button id="site-pocket-toggle" type="button" disabled title="按残基化学性质着色的半透明口袋表面">显示口袋表面</button>
+              </div>
+              <p id="site-summary" class="structure-summary" aria-live="polite"></p>
+              <ul id="site-list" class="structure-summary site-list"></ul>
+            </details>
           </details>
           <section id="mechanism-controls" class="mechanism-controls" hidden aria-label="机制播放">
             <h2 id="mechanism-title"></h2>

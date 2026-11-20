@@ -24,6 +24,7 @@ import { createProcessPanel } from './process-panel.mjs';
 import { createCompositionPanel } from './composition-panel.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
+import { createSiteView } from './site-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
@@ -400,6 +401,7 @@ function boot() {
     if (selection && active) active.selectionSet = undefined;
     syncSequence();
     ligandView.onSelection(selection);
+    siteView.onSelection(selection);
     const card = elements['structure-pick'];
     card.hidden = !selection;
     const contacts = elements['structure-contacts'];
@@ -583,6 +585,14 @@ function boot() {
       selection: () => active?.structureSelection,
       ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
       template: loadChemicalComponent,
+    },
+  });
+  const siteView = createSiteView({
+    viewport,
+    elements: { details: elements['site-analysis'], lines: elements['site-lines-toggle'], pocket: elements['site-pocket-toggle'], summary: elements['site-summary'], list: elements['site-list'] },
+    context: {
+      model: (selection) => active?.models?.get(selection.sourceAssetId) ?? active?.model,
+      ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
     },
   });
   const stateMorph = createStateMorph({

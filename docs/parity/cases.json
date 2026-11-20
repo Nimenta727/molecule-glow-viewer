@@ -154,12 +154,12 @@
     {
       "id": "new.structure.ligand-analysis",
       "kind": "partial-automation",
-      "runner": "plugins/structure/test/representation.test.mjs",
+      "runner": "tools/site-parity.mjs",
       "steps": [
         "Select same ligand; load CCD, focus site, measure contacts and pocket."
       ],
       "expected": "CCD bond orders match source; distances in Angstrom within 0.01 A for same atoms; pocket and contact labels identify source atoms.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "tools/site-parity.mjs runs the classic interaction rules of the binding-site view, the pocket surface (pocketSurfaceJob) and the pore search (findChannel, alongPath, pathLength) unchanged on real ligands and structures and compares lists, distances, surface vertices and paths to the last bit (12/12); tools/chemcomp-parity.mjs and the Node tests cover the dictionary and bonds. The Viewer's binding-site panel (interaction list with distances, dashed lines by type, pocket surface coloured by residue chemistry; checked in a software-rendered browser session on 1AKE/AP5: 22 hydrogen bonds, 17 salt bridges) is not covered by the runner; residue sticks, distance/measure tools and the pore display are not built; full parity remains pending."
     },
     {
       "id": "classic.structure.disassembly-interfaces",

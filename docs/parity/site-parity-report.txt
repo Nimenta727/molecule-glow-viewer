@@ -1,0 +1,20 @@
+ok   1AKE AP5 read from the loaded structure (siteAround): 57 ligand atoms, 45 residues, 0 other hetero atoms → 39 interactions, same as the classic rules on the same atoms
+ok   1AKE AP5 (57 atoms, 36 residues in 5 Å, 0 other hetero atoms): 34 interactions (17 hbond, 17 salt, 0 metal), 7 hydrophobic residues, 3 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   6ZPO ATP read from the loaded structure (siteAround): 31 ligand atoms, 22 residues, 1 other hetero atoms → 19 interactions, same as the classic rules on the same atoms
+ok   6ZPO ATP (31 atoms, 22 residues in 5 Å, 1 other hetero atoms): 19 interactions (14 hbond, 2 salt, 3 metal), 4 hydrophobic residues, 0 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   6ZPO ADP read from the loaded structure (siteAround): 27 ligand atoms, 21 residues, 1 other hetero atoms → 16 interactions, same as the classic rules on the same atoms
+ok   6ZPO ADP (27 atoms, 21 residues in 5 Å, 1 other hetero atoms): 16 interactions (9 hbond, 5 salt, 2 metal), 5 hydrophobic residues, 0 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   1K4C K read from the loaded structure (siteAround): 1 ligand atoms, 3 residues, 2 other hetero atoms → 3 interactions, same as the classic rules on the same atoms
+ok   1K4C K (1 atoms, 3 residues in 5 Å, 5 other hetero atoms): 3 interactions (0 hbond, 0 salt, 3 metal), 0 hydrophobic residues, 0 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   2HVK TBA read from the loaded structure (siteAround): 17 ligand atoms, 6 residues, 1 other hetero atoms → 1 interactions, same as the classic rules on the same atoms
+ok   2HVK TBA (17 atoms, 6 residues in 5 Å, 3 other hetero atoms): 2 interactions (0 hbond, 0 salt, 2 metal), 2 hydrophobic residues, 0 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   2HVK L2C read from the loaded structure (siteAround): 29 ligand atoms, 6 residues, 0 other hetero atoms → 3 interactions, same as the classic rules on the same atoms
+ok   2HVK L2C (29 atoms, 6 residues in 5 Å, 0 other hetero atoms): 3 interactions (3 hbond, 0 salt, 0 metal), 3 hydrophobic residues, 0 skipped clashes: same list, same order, same distances to the last bit as the classic
+ok   1AKE AP5 pocket: 115 site atoms → 9639 surface vertices, 19400 triangles: vertices, indices and residue classes identical to the classic
+ok   6ZPO ATP pocket: 100 site atoms → 9170 surface vertices, 18376 triangles: vertices, indices and residue classes identical to the classic
+ok   1K4C KcsA pore, from the filter centre outwards: 9 points, length 26.1 Å, narrowest 2.23 Å: path equal point by point to the last bit; points along the path differ by 0.0e+0
+ok   2HVK KcsA pore (closed-state fixture): 9 points, length 26.7 Å, narrowest 2.19 Å: path equal point by point to the last bit; points along the path differ by 0.0e+0
+ok   6ZPO ATP synthase, from the c-ring centre: 11 points, length 42.4 Å, narrowest 5.97 Å: path equal point by point to the last bit; points along the path differ by 0.0e+0
+ok   1K4C KcsA pore with the classic defaults (2 Å grid, 120 Å box): no way out (the classic finds none either): path equal point by point to the last bit; points along the path differ by 0.0e+0
+
+18/18 identical

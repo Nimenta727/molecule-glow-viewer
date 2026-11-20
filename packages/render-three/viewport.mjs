@@ -464,6 +464,37 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
    * dimmed or clipped with the parts, and dropped when the scene is cleared. `setParticleCloud(tag, [])` removes a set. `{ overlay: true }` draws the set over the protein (the classic
    * overlay: a particle at work stays visible inside channels); otherwise the set is hidden behind protein like everything else.
    */
+  const overlays = new Map();   // tag -> Object3D hung on the active root (dashed line sets, translucent surfaces); gone with the scene
+  function removeOverlay(tag) {
+    const object = overlays.get(tag);
+    if (!object) return;
+    object.removeFromParent(); object.geometry?.dispose(); object.material?.dispose(); overlays.delete(tag);
+  }
+  /** Dashed lines between points of the structure (root units): segments = [{ a: [x,y,z], b: [x,y,z], color }]; an empty list removes the set. */
+  function setOverlayLines(tag, segments = [], { dash = 0.012, gap = 0.009 } = {}) {
+    removeOverlay(tag);
+    if (!active || !segments.length) { invalidate(); return 0; }
+    const geometry = new THREE.BufferGeometry(), position = new Float32Array(segments.length * 6), color = new Float32Array(segments.length * 6), shade = new THREE.Color();
+    segments.forEach((segment, i) => { position.set([...segment.a, ...segment.b], i * 6); shade.set(segment.color ?? '#2f9bff'); color.set([shade.r, shade.g, shade.b, shade.r, shade.g, shade.b], i * 6); });
+    geometry.setAttribute('position', new THREE.BufferAttribute(position, 3)); geometry.setAttribute('color', new THREE.BufferAttribute(color, 3));
+    const object = new THREE.LineSegments(geometry, new THREE.LineDashedMaterial({ vertexColors: true, dashSize: dash, gapSize: gap, depthTest: false, transparent: true, opacity: 0.95 }));
+    object.computeLineDistances(); object.renderOrder = 12; object.frustumCulled = false; object.userData.selectionMarker = true;
+    active.root.add(object); overlays.set(tag, object); invalidate();
+    return segments.length;
+  }
+  /** A translucent triangle surface (root units): { pos: Float32Array xyz, idx: Uint32Array, colors?: Float32Array rgb per vertex }; null removes it. */
+  function setOverlayMesh(tag, surface, { opacity = 0.3, visible = true } = {}) {
+    removeOverlay(tag);
+    if (!active || !surface?.idx?.length) { invalidate(); return 0; }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(surface.pos, 3)); geometry.setIndex(new THREE.BufferAttribute(surface.idx, 1)); geometry.computeVertexNormals();
+    if (surface.colors) geometry.setAttribute('color', new THREE.BufferAttribute(surface.colors, 3));
+    const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
+    object.renderOrder = 4; object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
+    active.root.add(object); overlays.set(tag, object); invalidate();
+    return surface.idx.length / 3;
+  }
+  function setOverlayVisible(tag, visible) { const object = overlays.get(tag); if (object) { object.visible = Boolean(visible); invalidate(); } }
   const clouds = new Map();   // tag -> { mesh, capacity, material, labels: Sprite[] }
   const cloudLabelTextures = new Map();   // "name|color" -> { texture, material }
   const cloudGeometry = new THREE.SphereGeometry(1, 10, 8);
@@ -588,6 +619,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
   function clearParticleClouds() {
     clearEventTags();
+    for (const tag of [...overlays.keys()]) removeOverlay(tag);
     for (const tag of [...clouds.keys()]) removeCloud(tag);
     for (const { texture, material } of cloudLabelTextures.values()) { texture.dispose(); material.dispose(); }
     cloudLabelTextures.clear();
@@ -1174,6 +1206,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }
