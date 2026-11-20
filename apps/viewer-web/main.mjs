@@ -28,6 +28,7 @@ import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { createSiteView } from './site-view.mjs';
 import { createMembraneView } from './membrane-view.mjs';
+import { loadMembraneInfo } from '../../plugins/structure/membrane-placement.mjs';
 import { createAnalysisPanel } from './analysis-panel.mjs';
 import { createCellView } from './cell-view.mjs';
 import { parseMmcif } from '../../plugins/structure/parser.mjs';
@@ -628,6 +629,13 @@ function boot() {
     elements: { crowd: elements['cell-crowd'], toggle: elements['cell-toggle'], levels: elements['cell-levels'], level: elements['cell-level'], note: elements['cell-note'], view: elements.viewport ?? document.body,
       fly: { cell: elements['cell-fly-cell'], region: elements['cell-fly-region'], machine: elements['cell-fly-machine'] } },
     context: { model: () => active?.model, residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], entity: r.entity })),
+      async loadMembraneProtein(id) {
+        const response = await fetch(`https://files.rcsb.org/download/${id}.cif`); if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const atoms = selectionSpace(parseMmcif(await response.text())).residues.map((r) => ({ position: [...r.position], asym: r.asym, seq: r.labelSeq, nucleic: r.nucleic, resn: r.resn, entity: r.entity }));
+        let info = { segs: [], segSrc: null, memAnn: true, topo: [] };
+        try { info = (await loadMembraneInfo(id, { async fetchJson(url, init) { const r = await fetch(url, init); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); } })) ?? info; } catch { /* no annotation: the hydrophobic belt scan */ }
+        return { atoms, info };
+      },
       async loadPoints(id) { const response = await fetch(`https://files.rcsb.org/download/${id}.cif`); if (!response.ok) throw new Error(`HTTP ${response.status}`); return selectionSpace(parseMmcif(await response.text())).residues.map((r) => [...r.position]); } },
   });
   const analysisPanel = createAnalysisPanel({
