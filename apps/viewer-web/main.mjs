@@ -17,6 +17,7 @@ import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM, chainGroupKey } from '../../plugins/structure/representation.mjs';
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
+import { createObjectSpin } from './object-spin.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
@@ -85,6 +86,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
@@ -280,6 +282,7 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      objectSpin.reset();
       stateMorph.reset();
       entryIntro.reset();
       leaveTakeApart();
@@ -599,6 +602,14 @@ function boot() {
     elements['morph-file'].value = '';
     if (file) stateMorph.load({ file }, file.name);
   });
+  const objectSpin = createObjectSpin({
+    viewport,
+    elements: {
+      mode: elements['spin-mode'], from: elements['spin-from'], to: elements['spin-to'], pair: elements['spin-pair'], speed: elements['spin-speed'],
+      play: elements['spin-play'], reset: elements['spin-reset'], info: elements['spin-info'], partList: elements['structure-part-list'],
+    },
+    context: { model: () => active?.model, parts: computeStructureParts },
+  });
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -659,6 +670,7 @@ function boot() {
       Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0, saved.config));
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
+    if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     syncClipControls();
     applyClipping();
   }
@@ -726,6 +738,7 @@ function boot() {
     active.handles.current = prepared;
     applyClipping();
     stateMorph.reapply();
+    objectSpin.reapply();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -807,9 +820,17 @@ function boot() {
       clipInput.type = 'checkbox';
       clipInput.dataset.clipPart = key;
       clipInput.checked = Boolean(active.clipping?.wedgeParts.includes(key));
+      const spinLabel = document.createElement('label');
+      spinLabel.className = 'clip-part';
+      const spinInput = document.createElement('input');
+      spinInput.type = 'checkbox';
+      spinInput.dataset.spinPart = key;
+      spinInput.checked = objectSpin.marked.includes(key);
+      spinLabel.append(spinInput, ' 旋转');
+      spinLabel.title = '按“部件旋转”里选的轴转动这个部件（只是画面上的动作）';
       clipLabel.append(clipInput, ' 剖开');
       clipLabel.title = '“剖切范围”选“仅标为剖开的部件”时，从这个部件上切掉一个楔形';
-      item.append(clipLabel);
+      item.append(clipLabel, spinLabel);
       if (active.models?.has(nodes[0].extensions[STRUCTURE].sourceAssetId)) {
         const select = document.createElement('select');
         select.dataset.structurePartStyle = key;
@@ -1264,6 +1285,7 @@ function boot() {
       source.provenance = { ...source.provenance, viewerState: {
         camera,
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
+        ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
       if (source.provenance.viewerStyle === 'functional') {
@@ -1318,6 +1340,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    objectSpin.reset();
     stateMorph.reset();
     entryIntro.reset();
     leaveTakeApart();

@@ -314,6 +314,25 @@
       "scope": "Runner compares matching, fit, targets and state-B ligands on five real pairs; pixel behaviour (fraction 0, removal, automatic motion) was checked in a browser session, not by this runner."
     },
     {
+      "id": "classic.structure.part-spin",
+      "kind": "manual-contract",
+      "source": "src/repr/rebuild.js",
+      "steps": [
+        "Mark parts as spinning, choose the long, short or symmetry axis of those parts (and a line between two residue groups), set the speed, play, pause, reset the angle, save and reopen."
+      ],
+      "expected": "Axis directions and centres equal the classic orientTransform modes to 1e-9; a spinning part is placed exactly as the classic spinPose places a mesh about its pivot; the spin is display-only (coordinates unchanged), unmarking restores the original picture pixel for pixel, and the marked parts, axis settings and angle persist in the saved work."
+    },
+    {
+      "id": "new.structure.part-spin",
+      "kind": "partial-automation",
+      "runner": "tools/rotation-parity.mjs",
+      "steps": [
+        "Mark parts as spinning, choose the long, short or symmetry axis of those parts (and a line between two residue groups), set the speed, play, pause, reset the angle, save and reopen."
+      ],
+      "expected": "Axis directions and centres equal the classic orientTransform modes to 1e-9; a spinning part is placed exactly as the classic spinPose places a mesh about its pivot; the spin is display-only (coordinates unchanged), unmarking restores the original picture pixel for pixel, and the marked parts, axis settings and angle persist in the saved work.",
+      "scope": "Runner compares axes and spin placement with the classic code on real chains; playback, pause, reset, saving and unmarking were checked in a browser session, not by this runner."
+    },
+    {
       "id": "classic.animation.data-v1-adk-kcsa",
       "kind": "manual-contract",
       "source": "src/sim/data-anim.js",

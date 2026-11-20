@@ -244,24 +244,47 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
 
   /**
-   * Temporary offsets of nodes in their parent's space (viewport units), on top of whatever pose is applied: used to pull parts of a structure
-   * apart without touching the document. An empty/absent offset restores the node exactly. Links follow the nodes.
+   * Temporary placement of nodes on top of whatever pose is applied, without touching the document: an offset (translation, viewport units, in the parent's
+   * space) and/or a spin (a rotation by `angle` radians about the axis { point, direction } given in the same space). The pose a node had is remembered, so
+   * clearing the extras puts it back exactly. setNodeOffsets / setNodeSpins each replace their own kind of extra for every node.
    */
-  function setNodeOffsets(offsets) {
+  const spinQuaternion = new THREE.Quaternion(), spinAxis = new THREE.Vector3(), spinPivot = new THREE.Vector3();
+  function placeGroup(group) {
+    const extras = group.userData.extras;
+    if (!extras?.offset && !extras?.spin) {
+      if (group.userData.base) { group.position.copy(group.userData.base.position); group.quaternion.copy(group.userData.base.quaternion); group.userData.base = undefined; }
+      group.userData.extras = undefined;
+      return;
+    }
+    group.userData.base ??= { position: group.position.clone(), quaternion: group.quaternion.clone() };
+    const { position, quaternion } = group.userData.base;
+    group.position.copy(position);
+    group.quaternion.copy(quaternion);
+    if (extras.spin) {
+      const { axis, angle } = extras.spin;
+      spinPivot.fromArray(axis.point);
+      spinQuaternion.setFromAxisAngle(spinAxis.fromArray(axis.direction).normalize(), angle);
+      group.position.sub(spinPivot).applyQuaternion(spinQuaternion).add(spinPivot);   // rotate the node's place about the pivot ...
+      group.quaternion.premultiply(spinQuaternion);                                    // ... and its orientation with it
+    }
+    if (extras.offset) group.position.add(spinPivot.fromArray(extras.offset));
+  }
+  function setExtra(kind, values) {
     if (!active) return;
     for (const [id, group] of active.groups) {
-      const next = offsets?.get(id) ?? [0, 0, 0], moved = next.some((value) => value !== 0);
-      // the rest position is remembered, so putting a node back is exact (no accumulated rounding)
-      if (moved && !group.userData.rest) group.userData.rest = group.position.clone();
-      const rest = group.userData.rest;
-      if (rest) group.position.set(rest.x + next[0], rest.y + next[1], rest.z + next[2]);
-      if (!moved) { if (rest) group.position.copy(rest); group.userData.rest = undefined; group.userData.offset = undefined; }
-      else group.userData.offset = next;
+      const next = values?.get(id), extras = group.userData.extras ?? {};
+      const empty = !next || (kind === 'offset' && next.every((v) => v === 0)) || (kind === 'spin' && !next.angle);
+      if (empty) delete extras[kind]; else extras[kind] = next;
+      group.userData.extras = extras;
+      placeGroup(group);
     }
     updateLinks();
     updatePresentationOverlay();
     invalidate();
   }
+  const setNodeOffsets = (offsets) => setExtra('offset', offsets);
+  /** `spins`: Map(nodeId -> { axis: { point, direction }, angle }). */
+  const setNodeSpins = (spins) => setExtra('spin', spins);
 
   /**
    * Lines between pairs of picked points ({ a, b } are point targets of the structure); they follow the nodes when these move.
@@ -675,10 +698,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     if (!active) return;
     for (const [id, group] of active.groups) {
       applyTransform(group, pose?.get(id) ?? active.pose.get(id));
-      if (group.userData.offset) {
-        group.userData.rest = group.position.clone();
-        group.position.set(group.position.x + group.userData.offset[0], group.position.y + group.userData.offset[1], group.position.z + group.userData.offset[2]);
-      }
+      group.userData.base = undefined;   // the pose was just reset: the extras go on top of it again
+      if (group.userData.extras) placeGroup(group);
     }
     updateLinks();
     updatePresentationOverlay();
@@ -1015,6 +1036,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, showMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

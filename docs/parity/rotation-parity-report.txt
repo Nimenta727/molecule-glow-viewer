@@ -1,0 +1,6 @@
+ok   6ZPO: 27 axes (long / short / symmetry of 9 point sets): direction off by 6.7e-16, centre off by 8.0e-14 Å
+ok   1K4C: 9 axes (long / short / symmetry of 3 point sets): direction off by 0.0e+0, centre off by 2.8e-14 Å
+ok   4AKE: 6 axes (long / short / symmetry of 2 point sets): direction off by 1.1e-16, centre off by 2.6e-15 Å
+ok   spin placement about a vertical pivot: 48 points, largest difference 1.5e-14 Å
+
+4/4 identical

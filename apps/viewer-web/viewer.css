@@ -264,3 +264,5 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .morph-settings { margin-top: 0.4rem; font-size: 0.78rem; }
 .morph-settings label { display: block; margin-top: 0.3rem; color: var(--dim); }
 .morph-settings input[type="text"], .morph-settings textarea { width: 100%; box-sizing: border-box; font: inherit; }
+
+#spin-pair input { width: 100%; box-sizing: border-box; margin-top: 0.3rem; }
