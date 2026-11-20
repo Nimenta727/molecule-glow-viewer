@@ -26,3 +26,21 @@ test('without 16S and 23S RNA there is no ribosome axis and no cell', () => {
   assert.equal(cellAroundRibosome(residues.filter((r) => r.entity.startsWith('16S'))), null);
   assert.equal(cellAroundRibosome([]), null);
 });
+
+import { placeCellCrowd, CROWD_TYPES } from '../../../apps/viewer-web/cell-view.mjs';
+
+test('the crowd fills the cytoplasm below the membrane, on the half behind the cut plane, outside the ribosome, with every blob named', () => {
+  const cell = cellAroundRibosome(residues);
+  const rng = (() => { let a = 5; return () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; })();
+  const blob = (n, r) => Array.from({ length: n }, () => [(rng() - 0.5) * 2 * r, (rng() - 0.5) * 2 * r, (rng() - 0.5) * 2 * r]);
+  const shapes = Object.fromEntries(CROWD_TYPES.map((t) => [t.id, blob(60, t.id === '1TIM' ? 14 : 30)]));
+  const result = placeCellCrowd(cell, residues.map((r) => r.position), shapes, { seed: 3, phi: 0.05 });
+  assert.ok(result.copies > 5 && result.items.length > result.copies, `${result.copies} copies, ${result.items.length} blobs`);
+  assert.ok(result.items.every((i) => i.name && /^#[0-9a-f]{6}$/.test(i.colour) && i.radius > 0));
+  const local = (p) => { const q = p.map((v, k) => v - cell.centre[k]); return [q[0] * cell.e1[0] + q[1] * cell.e1[1] + q[2] * cell.e1[2], q[0] * cell.ey[0] + q[1] * cell.ey[1] + q[2] * cell.ey[2], q[0] * cell.e3[0] + q[1] * cell.e3[1] + q[2] * cell.e3[2]]; };
+  const ym = local(cell.top)[1];
+  assert.ok(result.items.every((i) => local(i.position)[1] < ym), 'all below the membrane');
+  const again = placeCellCrowd(cell, residues.map((r) => r.position), shapes, { seed: 3, phi: 0.05 });
+  assert.deepEqual(again.items.slice(0, 5), result.items.slice(0, 5), 'the same seed gives the same crowd');
+  assert.equal(placeCellCrowd(cell, residues.map((r) => r.position), {}, {}).copies, 0, 'no structures, no crowd');
+});

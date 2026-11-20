@@ -28,6 +28,7 @@ import { createSiteView } from './site-view.mjs';
 import { createMembraneView } from './membrane-view.mjs';
 import { createAnalysisPanel } from './analysis-panel.mjs';
 import { createCellView } from './cell-view.mjs';
+import { parseMmcif } from '../../plugins/structure/parser.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
@@ -598,9 +599,10 @@ function boot() {
   });
   const cellView = createCellView({
     viewport,
-    elements: { toggle: elements['cell-toggle'], levels: elements['cell-levels'], level: elements['cell-level'], note: elements['cell-note'], view: elements.viewport ?? document.body,
+    elements: { crowd: elements['cell-crowd'], toggle: elements['cell-toggle'], levels: elements['cell-levels'], level: elements['cell-level'], note: elements['cell-note'], view: elements.viewport ?? document.body,
       fly: { cell: elements['cell-fly-cell'], region: elements['cell-fly-region'], machine: elements['cell-fly-machine'] } },
-    context: { model: () => active?.model, residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], entity: r.entity })) },
+    context: { model: () => active?.model, residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], entity: r.entity })),
+      async loadPoints(id) { const response = await fetch(`https://files.rcsb.org/download/${id}.cif`); if (!response.ok) throw new Error(`HTTP ${response.status}`); return selectionSpace(parseMmcif(await response.text())).residues.map((r) => [...r.position]); } },
   });
   const analysisPanel = createAnalysisPanel({
     viewport,

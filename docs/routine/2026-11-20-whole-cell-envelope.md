@@ -14,3 +14,6 @@
 
 ## 下一步
 拥挤细胞质的绘制（`placeCrowd` 已就绪，需要下载背景蛋白结构）；翻译的 tRNA/mRNA 运动；ATP/KcsA/AdK 并入通用引擎。
+
+## 补充：拥挤的细胞质
+`cell-view.mjs` 加“填充细胞质”：下载 EF-Tu、RNA 聚合酶、GroEL/GroES、GAPDH、丙酮酸激酶、TIM、腺苷酸激酶的结构（核糖体用已加载的这个），`placeCellCrowd`（`placeCrowd` 的细胞坐标版，与经典 buildCrowd 摆放方式一致）在膜下方、镜头后面的一半放满粗略球（每 ~20 个残基一个球），避开核糖体；同种子同结果。测试 +1，`npm test` 412。浏览器里（缩减核糖体）放了 79 个背景蛋白，占体积 16 %，截图 `docs/images/cell-crowd.png`。运动、膜蛋白、拟核、鞭毛、肽聚糖、LPS 仍未画。
