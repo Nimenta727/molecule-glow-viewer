@@ -879,7 +879,7 @@ function boot() {
         }
       } else {
         if (active?.player) {
-          storePlayerState(active.scene, active.playerId, active.player.save());
+          storePlayerState(active.scene, active.playerId, active.player.save(), (id) => host.resolveToolId(id) ?? id);
           active.player.dispose();
           active.player = undefined;
         }
@@ -945,7 +945,7 @@ function boot() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
     if (active.player) {
-      storePlayerState(scene, active.playerId, active.player.save());
+      storePlayerState(scene, active.playerId, active.player.save(), (id) => host.resolveToolId(id) ?? id);
       if (active.player.evidence) {
         if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
       } else if (!scene.evidence.some(({ citation }) => citation === ATP_6ZPO_TEMPLATE.sceneEvidence.citation)) {

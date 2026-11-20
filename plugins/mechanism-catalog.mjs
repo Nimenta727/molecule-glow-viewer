@@ -5,6 +5,10 @@ import { adenylateKinasePlugin, ADK_PLAYER } from './adenylate-kinase/index.mjs'
 import { ADK_4AKE_TEMPLATE } from './adenylate-kinase/config.mjs';
 import { ATP_6ZPO_TEMPLATE } from './atp-synthase/config.mjs';
 import { KCSA_1K4C_TEMPLATE } from './kcsa/config.mjs';
+import { atpToolDescriptor, ATP_TOOL } from './atp-synthase/tool.mjs';
+import { adkToolDescriptor, ADK_TOOL } from './adenylate-kinase/tool.mjs';
+import { kcsaToolDescriptor, KCSA_TOOL } from './kcsa/tool.mjs';
+import { autoBindings } from '../packages/plugin-host/tool-model.mjs';
 export const mechanismPlugins = [atpSynthasePlugin, kcsaPlugin, adenylateKinasePlugin];
 export const mechanismPlayers = Object.freeze({ atpSynthase: ATP_PLAYER, kcsa: KCSA_PLAYER });
 
@@ -18,6 +22,10 @@ export function resolveMechanism(scene) {
 
 // The work configuration each built-in player starts from, keyed by player id (legacy declaration -> template).
 const TEMPLATES = { [ATP_PLAYER]: ATP_6ZPO_TEMPLATE, [KCSA_PLAYER]: KCSA_1K4C_TEMPLATE, [ADK_PLAYER]: ADK_4AKE_TEMPLATE };
+// A player's tool id (what new works name) and descriptor (for applicability and bindings).
+const TOOLS = {
+  [ATP_PLAYER]: [ATP_TOOL, atpToolDescriptor], [KCSA_PLAYER]: [KCSA_TOOL, kcsaToolDescriptor], [ADK_PLAYER]: [ADK_TOOL, adkToolDescriptor],
+};
 
 /**
  * The `tools` entries a scene should carry. For a scene that declares one of the built-in mechanisms (legacy `process`,
@@ -28,5 +36,9 @@ export function toolEntriesForScene(scene) {
   const id = resolveMechanism(scene);
   const plugin = mechanismPlugins.find(({ manifest }) => manifest.id === id);
   if (!plugin || !TEMPLATES[id]) return [];
-  return [{ id: TEMPLATES[id].id, tool: { id, version: plugin.manifest.version }, config: JSON.parse(JSON.stringify(TEMPLATES[id])) }];
+  const [toolId, describe] = TOOLS[id], version = plugin.manifest.version;
+  const entry = { id: TEMPLATES[id].id, tool: { id: toolId, version }, config: JSON.parse(JSON.stringify(TEMPLATES[id])) };
+  // The tool's own proposal for which nodes it works on is written into the work, so reopening never depends on name matching.
+  const bindings = autoBindings(describe(version, id), scene, entry);
+  return [Object.keys(bindings).length ? { ...entry, bindings } : entry];
 }

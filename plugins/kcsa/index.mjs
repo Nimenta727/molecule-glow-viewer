@@ -1,4 +1,5 @@
-import { kcsaToolDescriptor } from './tool.mjs';
+import { kcsaToolDescriptor, KCSA_TOOL, kcsaSourceId, kcsaChannelTest } from './tool.mjs';
+import { nodesOfSource, boundOrMatched } from '../shared/bindings.mjs';
 import { DEFAULTS, PARAMETERS, validateParameters, createKinetics, singleChannelCurrent, reversalPotential, conducting } from './kinetics.mjs';
 import { buildKcsaStructure } from './structure.mjs';
 import { lerp } from '../motion/vectors.mjs';
@@ -24,7 +25,7 @@ export const kcsaPlugin = {
         instances.add(player); return player;
       },
     });
-    context.registerTool(KCSA_PLAYER, kcsaToolDescriptor(this.manifest.version));
+    context.registerTool(KCSA_TOOL, kcsaToolDescriptor(this.manifest.version, KCSA_PLAYER));
     const { panel } = KCSA_1K4C_TEMPLATE;
     context.registerPanel(KCSA_PLAYER, {
       title: panel.title, parametersTitle: panel.parametersTitle, speed: { label: panel.speedLabel, min: 0.05, max: 3, step: 0.05 },
@@ -62,12 +63,11 @@ export async function prepareKcsa({ loaded, parse, loadAccession, signal, config
   loaded.kcsaModels = states;
 }
 /** `config` must be the same configuration that was given to prepareKcsa. */
-export function createKcsaPlayer({ model, scene, state = {}, states, config }) {
+export function createKcsaPlayer({ model, scene, state = {}, states, config, bindings }) {
   const cfg = normalizeKcsaConfig(config);
   const structure = buildKcsaStructure(model, states, cfg);
   const sourceId = scene.assets.find((asset) => asset.provenance?.parserVersion)?.id;
-  const namePattern = new RegExp(cfg.protein.namePattern, 'i');
-  const nodes = scene.nodes.filter((node) => node.extensions?.['org.glow.structure']?.sourceAssetId === sourceId && namePattern.test(node.extensions['org.glow.structure'].partName));
+  const nodes = boundOrMatched(nodesOfSource(scene, sourceId), bindings, 'channel', kcsaChannelTest(cfg));   // the saved binding, else the configured chain name
   if (nodes.length !== cfg.protein.chains) throw new Error(`KcsA 预览需要${numeral(cfg.protein.chains)}个通道链节点。`);
   const steps = cfg.steps.map(({ title, caption }) => ({ title, caption, nodeIds: nodes.map(({ id }) => id) }));
   const base = { nodeId: nodes[0].parentId ?? nodes[0].id, bookmarkId: null, labelIds: [] };

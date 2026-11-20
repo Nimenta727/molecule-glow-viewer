@@ -182,6 +182,7 @@ const TOOL_ENTRY = {
     id: ID,
     tool: { type: 'object', additionalProperties: false, required: ['id', 'version'], properties: { id: ID, version: SEMVER } },
     config: JSON_OBJECT,   // validated by the tool that owns it
+    bindings: { type: 'object', additionalProperties: { type: 'array', uniqueItems: true, maxItems: 512, items: ID } },   // role -> node ids the tool works on
     state: JSON_OBJECT,    // the tool's save() output (seed, parameter history, playback)
   },
 };
@@ -298,9 +299,14 @@ function checkSceneReferences(scene) {
 function checkWorkReferences(scene) {
   const fail = (message) => { throw new SchemaValidationError(message); };
   const toolIds = new Set();
+  const nodeIds = new Set(scene.nodes.map(({ id }) => id));
   for (const entry of scene.tools) {
     if (toolIds.has(entry.id)) fail(`duplicate tool entry ID "${entry.id}"`);
     toolIds.add(entry.id);
+    for (const [role, ids] of Object.entries(entry.bindings ?? {})) {
+      const unknown = ids.find((id) => !nodeIds.has(id));
+      if (unknown !== undefined) fail(`tool "${entry.id}" binds role "${role}" to unknown node "${unknown}"`);
+    }
   }
   const records = new Map();
   for (const input of scene.resources) {

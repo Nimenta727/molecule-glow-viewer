@@ -1,5 +1,19 @@
 import { ADK_4AKE_TEMPLATE, normalizeAdkConfig } from './config.mjs';
 import { PARAMETERS } from './playback.mjs';
+import { nodesOfSource, partNameOf } from '../shared/bindings.mjs';
+
+export const ADK_TOOL = 'org.glow.tool.conformation-pair';
+
+export const adkSourceId = (scene) => scene.assets.find((asset) => asset.provenance?.parserVersion)?.id;
+export const adkProteinTest = (cfg) => { const pattern = new RegExp(cfg.protein.namePattern, 'i'); return (node) => pattern.test(partNameOf(node)); };
+
+/** Applicability: exactly one node of the configured protein chain; candidates are the nodes whose part name matches. */
+export function adkCheck(scene, config) {
+  const cfg = normalizeAdkConfig(config), found = nodesOfSource(scene, adkSourceId(scene)).filter(adkProteinTest(cfg));
+  const problems = [];
+  if (found.length !== 1) problems.push(`需要 1 个 ${cfg.protein.chain} 链节点（名称含“${cfg.protein.namePattern}”），找到 ${found.length} 个。`);
+  return { problems, candidates: { protein: found.map(({ id }) => id) } };
+}
 
 export function adkAuthorFields(config) {
   const text = (path, label, group, maxLength = 120) => ({ path, type: 'text', label, group, maxLength });
@@ -16,13 +30,15 @@ export function adkAuthorFields(config) {
   ];
 }
 
-export function adkToolDescriptor(version) {
+export function adkToolDescriptor(version, playerId) {
   const parameters = Object.fromEntries(Object.entries(PARAMETERS).map(([key, field]) => [key, {
     type: 'number', label: field.label, min: field.min, max: field.max, step: field.step, default: field.value,
     ...(key !== 'morph' ? { integer: true } : {}), ...(field.control ? { control: field.control } : {}),
   }]));
   return {
     version, title: ADK_4AKE_TEMPLATE.panel.title, audience: ['view', 'author'], runtime: 'player-v1', parameters,
+    aliases: [playerId], player: playerId,
+    inputs: { roles: { protein: { label: '运动的蛋白链', min: 1, max: 1 } }, check: adkCheck },
     author: { template: ADK_4AKE_TEMPLATE, fields: adkAuthorFields, validate: normalizeAdkConfig },
     model: { kind: '两态构象播放器（域拟合 + 按残基位移插值）', assumptions: [
       '中间构象是两套实测坐标的教学插值，不是动力学轨迹。', '不计算反应速率或产物计数；两态开合不等于催化动力学。', '域配色与时间为示意。'] },

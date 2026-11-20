@@ -163,6 +163,15 @@ function applyMetadata(scene, command) {
       entry.config = clone(command.config);
       break;
     }
+    case 'setToolBindings': {
+      if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
+      const entry = next.tools.find(({ id }) => id === command.id);
+      if (!entry) throw new TypeError(`作品里没有工具条目 ${String(command.id)}。`);
+      if (command.bindings === null) delete entry.bindings;   // back to the tool's own proposal
+      else if (!command.bindings || typeof command.bindings !== 'object' || Array.isArray(command.bindings)) throw new TypeError('setToolBindings requires a bindings object or null');
+      else entry.bindings = clone(command.bindings);
+      break;
+    }
     case 'addToolEntry': {
       if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
       const entry = command.entry;
@@ -210,7 +219,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig', 'addToolEntry', 'removeToolEntry'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 

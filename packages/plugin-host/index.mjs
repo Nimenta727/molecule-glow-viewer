@@ -90,7 +90,12 @@ export function createPluginHost({ getScene, dispatch }) {
         registerRepresentation(name, representation) { register('representations', name, representation); },
         registerPlayer(name, player) { register('players', name, player); },
         registerPanel(name, definition) { register('panels', name, definition); },
-        registerTool(name, descriptor) { register('tools', name, validateToolDescriptor(name, descriptor)); },
+        registerTool(name, descriptor) {
+          const tool = validateToolDescriptor(name, descriptor);
+          register('tools', name, tool);
+          // Earlier ids and the player id resolve to this tool; they are markers, not tools of their own.
+          for (const alias of new Set([...(tool.aliases ?? []), ...(tool.player ? [tool.player] : [])])) if (alias !== name) register('tools', alias, Object.freeze({ alias: name }));
+        },
         registerService(name, version, service) { register('services', name, service, version); },
         getService(name, version) {
           ensureUsable();
@@ -149,10 +154,18 @@ export function createPluginHost({ getScene, dispatch }) {
     getRepresentation(id) { return lookup(registries.representations, registryKey('representations', id)); },
     getPlayer(id) { return lookup(registries.players, registryKey('players', id)); },
     getPanel(id) { return lookup(registries.panels, registryKey('panels', id)); },
-    getTool(id) { return lookup(registries.tools, registryKey('tools', id)); },
+    getTool(id) {
+      const found = lookup(registries.tools, registryKey('tools', id));
+      return found?.alias ? lookup(registries.tools, registryKey('tools', found.alias)) : found;
+    },
+    /** The registered tool id behind a tool id, an earlier alias or a player id; undefined when nothing is registered under it. */
+    resolveToolId(id) {
+      const found = lookup(registries.tools, registryKey('tools', id));
+      return found?.alias ?? (found ? id : undefined);
+    },
     /** Registered tools for a front end (`view` or `author`), sorted by id. Tools the front end must not mount are not listed. */
     listTools({ audience } = {}) {
-      return [...registries.tools.values()].map(({ key, value }) => ({ id: key.slice('tools:'.length), ...value }))
+      return [...registries.tools.values()].filter(({ value }) => !value.alias).map(({ key, value }) => ({ id: key.slice('tools:'.length), ...value }))
         .filter((tool) => !audience || tool.audience.includes(audience)).sort((a, b) => a.id.localeCompare(b.id));
     },
     getService(id, version) { return lookup(registries.services, registryKey('services', `${id}@${version}`)); },

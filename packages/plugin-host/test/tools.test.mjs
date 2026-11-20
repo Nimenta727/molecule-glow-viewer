@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPluginHost } from '../index.mjs';
 import { validateToolDescriptor } from '../tool-descriptor.mjs';
-import { toolControls, defaultValues, validateToolValues, getPath, setPath, authorFields, coerceField, editAuthorField } from '../tool-model.mjs';
+import { toolControls, defaultValues, validateToolValues, getPath, setPath, authorFields, coerceField, editAuthorField, toolRoles, checkApplicability, autoBindings } from '../tool-model.mjs';
 
 const number = (extra = {}) => ({ type: 'number', label: '速度', min: 0, max: 10, step: 0.5, default: 1, ...extra });
 const authorBlock = () => ({
@@ -126,4 +126,85 @@ test('author edits are coerced to the field type, then accepted or refused by th
   assert.equal(coerceField({ type: 'boolean', label: 'b' }, 'true'), true);
   assert.equal(coerceField({ type: 'select', label: 's', options: [{ value: 'a', label: 'A' }] }, 'a'), 'a');
   assert.throws(() => coerceField({ type: 'select', label: 's', options: [{ value: 'a', label: 'A' }] }, 'z'), /不是可选项/);
+});
+
+// ---- aliases, player ids, inputs (roles and applicability) ----------------------------------------------------
+
+const roleCheck = (scene) => {
+  const matching = scene.nodes.filter((node) => /ring/i.test(node.name)).map(({ id }) => id);
+  return { problems: matching.length ? [] : ['没有环部件'], candidates: { ring: matching, hub: scene.nodes.filter((node) => /hub/i.test(node.name)).map(({ id }) => id) } };
+};
+const withInputs = (extra = {}) => descriptor({ inputs: { roles: { ring: { label: '环', min: 2, max: 4 }, hub: { label: '轴', min: 1, max: 1 } }, check: roleCheck }, ...extra });
+const sceneWith = (names) => ({ nodes: names.map((name, i) => ({ id: `n${i}`, name })) });
+
+test('aliases, the player id and inputs are validated and frozen', () => {
+  const tool = validateToolDescriptor('t', withInputs({ aliases: ['old.id'], player: 'old.player' }));
+  assert.deepEqual(tool.aliases, ['old.id']);
+  assert.equal(tool.player, 'old.player');
+  assert.deepEqual(Object.keys(tool.inputs.roles), ['ring', 'hub']);
+  assert.deepEqual([tool.inputs.roles.ring.min, tool.inputs.roles.ring.max, tool.inputs.roles.hub.max], [2, 4, 1]);
+  assert.ok(Object.isFrozen(tool.inputs.roles.ring));
+  const bad = (change, pattern) => assert.throws(() => validateToolDescriptor('t', withInputs(change)), pattern);
+  bad({ aliases: ['t'] }, /aliases/);
+  bad({ aliases: ['a', 'a'] }, /aliases/);
+  bad({ aliases: ['bad id'] }, /aliases/);
+  bad({ player: 3 }, /player/);
+  bad({ inputs: { roles: {}, check: roleCheck } }, /inputs needs/);
+  bad({ inputs: { roles: { ring: { label: 'r' } } } }, /check\(\)/);
+  bad({ inputs: { roles: { 'bad role': { label: 'r' } }, check: roleCheck } }, /role name/);
+  bad({ inputs: { roles: { ring: { label: 'r', min: 3, max: 2 } }, check: roleCheck } }, /min >= 0 and max >= min/);
+  bad({ inputs: { roles: { ring: { label: '' } }, check: roleCheck } }, /label/);
+});
+
+test('a tool answers to its aliases and its player id; those markers are not tools of their own', async () => {
+  const h = host();
+  const named = { manifest: { id: 'demo.alias', version: '1.0.0', apiVersion: 1, dependencies: [], capabilities: ['tools'] },
+    activate(context) { context.registerTool('org.glow.tool.demo', descriptor({ aliases: ['old.demo'], player: 'old.demo.player' })); } };
+  await h.activate(named);
+  const tool = h.getTool('org.glow.tool.demo');
+  assert.equal(h.getTool('old.demo'), tool);
+  assert.equal(h.getTool('old.demo.player'), tool);
+  assert.deepEqual([h.resolveToolId('old.demo'), h.resolveToolId('old.demo.player'), h.resolveToolId('org.glow.tool.demo'), h.resolveToolId('nothing')],
+    ['org.glow.tool.demo', 'org.glow.tool.demo', 'org.glow.tool.demo', undefined]);
+  assert.deepEqual(h.listTools().map(({ id }) => id), ['org.glow.tool.demo'], 'listed once, under its own id');
+  assert.deepEqual(h.listTools({ audience: 'view' }).map(({ id }) => id), ['org.glow.tool.demo']);
+  await h.deactivate('demo.alias');
+  assert.deepEqual([h.getTool('old.demo'), h.getTool('org.glow.tool.demo'), h.resolveToolId('old.demo.player')], [undefined, undefined, undefined]);
+});
+
+test('an alias cannot shadow another tool or alias', async () => {
+  const h = host();
+  await h.activate(plugin('demo.first', descriptor({ aliases: ['shared.old'] })));
+  await assert.rejects(h.activate(plugin('demo.second', descriptor({ aliases: ['shared.old'] }))), /Registration collision/);
+  await assert.rejects(h.activate(plugin('demo.third', descriptor({ aliases: ['demo.first.tool'] }))), /Registration collision/);
+  assert.equal(h.listTools().length, 1, 'the failed activations left nothing behind');
+});
+
+test('applicability: the tool proposes candidates and problems, saved bindings win, counts are checked against each role', () => {
+  const tool = validateToolDescriptor('t', withInputs());
+  assert.deepEqual(toolRoles(tool).map(({ role, label, min, max }) => [role, label, min, max]), [['ring', '环', 2, 4], ['hub', '轴', 1, 1]]);
+  const scene = sceneWith(['ring 1', 'ring 2', 'ring 3', 'hub', 'other']);
+  const ok = checkApplicability(tool, scene, { config: {} });
+  assert.equal(ok.applicable, true);
+  assert.deepEqual(ok.bindings, { ring: ['n0', 'n1', 'n2'], hub: ['n3'] });
+  assert.deepEqual(autoBindings(tool, scene, {}), { ring: ['n0', 'n1', 'n2'], hub: ['n3'] });
+  // saved bindings win over the proposal
+  assert.deepEqual(checkApplicability(tool, scene, { bindings: { ring: ['n1', 'n2'], hub: ['n4'] } }).bindings, { ring: ['n1', 'n2'], hub: ['n4'] });
+  // too few, too many, and bindings that name nodes the scene no longer has
+  const few = checkApplicability(tool, sceneWith(['ring 1', 'hub']), {});
+  assert.equal(few.applicable, false);
+  assert.match(few.problems.join('|'), /环：需要至少 2 个对象，当前 1 个/);
+  assert.deepEqual(few.unbound, ['ring']);
+  assert.match(checkApplicability(tool, sceneWith(['ring 1', 'ring 2', 'ring 3', 'ring 4', 'ring 5', 'hub']), {}).problems.join('|'), /环：最多 4 个对象，当前 5 个/);
+  const stale = checkApplicability(tool, scene, { bindings: { ring: ['n0', 'gone'], hub: ['n3'] } });
+  assert.match(stale.problems.join('|'), /环：绑定的对象已不在场景中（1 个）/);
+  assert.deepEqual(stale.bindings.ring, ['n0'], 'only existing nodes are used');
+  // the tool's own problems are reported as they are
+  assert.match(checkApplicability(tool, sceneWith(['hub']), {}).problems.join('|'), /没有环部件/);
+  // a tool without roles is always applicable
+  const plain = validateToolDescriptor('t', descriptor());
+  assert.deepEqual(checkApplicability(plain, scene, {}), { applicable: true, problems: [], candidates: {}, bindings: {}, unbound: [] });
+  assert.deepEqual(autoBindings(plain, scene, {}), {});
+  // autoBindings respects each role's maximum and leaves out roles with no candidates
+  assert.deepEqual(autoBindings(tool, sceneWith(['ring 1', 'ring 2', 'ring 3', 'ring 4', 'ring 5']), {}), { ring: ['n0', 'n1', 'n2', 'n3'] });
 });

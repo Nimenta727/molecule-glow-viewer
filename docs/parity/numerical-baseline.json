@@ -10,15 +10,16 @@
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
     "plugins/kcsa/kinetics.mjs": "eb65b1290a160493f7e2a21f4933c6748ad20bf55bca524be783e9529c33a31c",
     "plugins/kcsa/config.mjs": "b11f1a3c1724135025acda5ffc15f19350befd544a8ff7dc4470a721b880fcae",
-    "plugins/atp-synthase/index.mjs": "fd493880f8629fb746b40913f3fbff6cc69b41a3facd5fc8913f734dacb47d15",
+    "plugins/atp-synthase/index.mjs": "ca119ff5c272205251903be7121e0c880ad39b0f634d64a667c44ac64ecd046b",
     "plugins/atp-synthase/config.mjs": "81e63d4f8fe7b67760df5bfa813bbbe06d43212ed0d0e787d11ca67d607edefa",
     "plugins/adenylate-kinase/playback.mjs": "2ff7eedf32c44c5139c0a42e55a2404d38b594fe0d098b361c4f9f552cf35e6b",
     "plugins/adenylate-kinase/structure.mjs": "dddb4ef360f5e49055876fb6d71f257e54b54dd79bb862ba84d1029f8c22e7dc",
     "plugins/adenylate-kinase/config.mjs": "d920f94894ba55add2c27cf21013fad7608517aa3049ef816d9c2dd052d457c3",
     "plugins/shared/work-config.mjs": "cedfe70b8d658215fbf4505c3fe15ce9ba4be5942a4e447b033f66d4a63dab94",
-    "plugins/atp-synthase/tool.mjs": "498ab6348f3221aee9b88d053eeedab7121ae5196fc648a918cddd1d204f6022",
-    "plugins/adenylate-kinase/tool.mjs": "5bee907292ab7c2e26a8c82c7d17c837f8cdc4ae00ed0700f16c6be9a11add2e",
-    "plugins/kcsa/tool.mjs": "a1dc234a89dc03a4a40bed3631f60a0f98438397046832ec7d3ca18d2417a300",
+    "plugins/shared/bindings.mjs": "07bf45163c0520ea7aa70b88f68d1845833d694bdbdd765e76ddcfbf0d893398",
+    "plugins/atp-synthase/tool.mjs": "2793ae81f557bbac9ded4252f81f3f2e80b2b26506701905a8787f5df84f6472",
+    "plugins/adenylate-kinase/tool.mjs": "2d6077cd4e88eb61d310a2738cc86eb498cffcf8afce026ca79b283a43dd9580",
+    "plugins/kcsa/tool.mjs": "532946d2bc533599efce4c8e1ba4177f0ca89f819881db00418f212f84d56a0b",
     "plugins/motion/conformation.mjs": "62474ba677e8cf0d3983c3e269631dfa3725b819c3e6350b396b474a0fccf996",
     "plugins/motion/path.mjs": "2ebd65e53aa401069e3c562fe330aa87eef45e22e0297c1459dc878641ed4b4b",
     "plugins/motion/vectors.mjs": "7d005d7115b9e177064cedc91291182318431ae7d1050901865b57f3c4cb25d4",
@@ -29,7 +30,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "9a0cf9bdbd3fbb63e7158a4c0135e481cc94a448fed5b532792cde30cce9a9b1",
-    "tools/parity-numerics.mjs": "15de11ab0846eda1c64867ef32add0839597043250afff21c79b4cabcd775039"
+    "tools/parity-numerics.mjs": "a7847cfe229907ac9ff8724e5a3911810e07d40055ff8af160c5122ec16f09d6"
   },
   "rows": [
     {

@@ -90,3 +90,42 @@ export function editAuthorField(descriptor, config, path, raw) {
   const next = setPath(config, path, coerceField(field, raw));
   return JSON.parse(JSON.stringify(descriptor.author.validate(next)));
 }
+
+// ---- applicability and role bindings -----------------------------------------------------------------------------
+
+/** The roles a tool works on, as [{ role, label, min, max }]. */
+export const toolRoles = (descriptor) => Object.entries(descriptor?.inputs?.roles ?? {}).map(([role, spec]) => ({ role, ...spec }));
+
+/**
+ * Does this tool fit this scene, and which objects does it work on? The tool's own `check` proposes candidates and reports
+ * problems; the entry's saved bindings win over the proposal. Counts are checked against each role's min/max.
+ * Returns { applicable, problems, candidates, bindings, unbound } — `bindings` is what the tool will use.
+ */
+export function checkApplicability(descriptor, scene, entry) {
+  const roles = toolRoles(descriptor);
+  if (!roles.length) return { applicable: true, problems: [], candidates: {}, bindings: {}, unbound: [] };
+  const sceneNodes = new Set(scene.nodes.map(({ id }) => id));
+  const proposal = descriptor.inputs.check(scene, entry.config ?? {});
+  const problems = [...(proposal.problems ?? [])], candidates = proposal.candidates ?? {}, bindings = {}, unbound = [];
+  for (const { role, label, min, max } of roles) {
+    const saved = entry.bindings?.[role];
+    let ids = saved ?? candidates[role] ?? [];
+    const missing = ids.filter((id) => !sceneNodes.has(id));
+    if (missing.length) { problems.push(`${label}：绑定的对象已不在场景中（${missing.length} 个）。`); ids = ids.filter((id) => sceneNodes.has(id)); }
+    if (ids.length < min) { problems.push(`${label}：需要至少 ${min} 个对象，当前 ${ids.length} 个。`); unbound.push(role); }
+    else if (max !== null && ids.length > max) problems.push(`${label}：最多 ${max} 个对象，当前 ${ids.length} 个。`);
+    bindings[role] = ids;
+  }
+  return { applicable: problems.length === 0, problems, candidates, bindings, unbound };
+}
+
+/** The bindings the tool proposes for this scene, limited to each role's maximum; roles with no candidates are left out. */
+export function autoBindings(descriptor, scene, entry) {
+  const { candidates } = checkApplicability(descriptor, scene, { ...entry, bindings: undefined });
+  const result = {};
+  for (const { role, max } of toolRoles(descriptor)) {
+    const ids = (candidates[role] ?? []).slice(0, max ?? undefined);
+    if (ids.length) result[role] = ids;
+  }
+  return result;
+}

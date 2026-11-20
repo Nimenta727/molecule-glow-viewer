@@ -6,13 +6,14 @@ import { toolEntriesForScene } from '../../../plugins/mechanism-catalog.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../../plugins/atp-synthase/config.mjs';
 import { ADK_4AKE_TEMPLATE } from '../../../plugins/adenylate-kinase/config.mjs';
 import { KCSA_1K4C_TEMPLATE } from '../../../plugins/kcsa/config.mjs';
+import { ATP_TOOL } from '../../../plugins/atp-synthase/tool.mjs';
 
 const v2 = (legacy, extra = {}) => ({ format: 'glow-scene', schemaVersion: 2, id: 'w', title: 'W', units: { length: 'meter', time: 'second' },
   assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], ...(legacy ? { legacy: { scene: legacy } } : {}), ...extra });
 
 test('each declared built-in mechanism gets its player with the full default configuration', () => {
   const atp = toolEntriesForScene(v2({ process: 'atpSynthase' }));
-  assert.deepEqual(atp.map(({ id, tool }) => [id, tool.id, tool.version]), [['atp-synthase-6ZPO', 'org.glow.legacy-process.atp-synthase', '1.0.0']]);
+  assert.deepEqual(atp.map(({ id, tool }) => [id, tool.id, tool.version]), [['atp-synthase-6ZPO', ATP_TOOL, '1.0.0']], 'new works name the tool by its own id, not by the old player id');
   assert.deepEqual(atp[0].config, JSON.parse(JSON.stringify(ATP_6ZPO_TEMPLATE)));
   assert.equal(toolEntriesForScene(v2({ process: 'kcsa' }))[0].config.id, KCSA_1K4C_TEMPLATE.id);
   const adk = toolEntriesForScene(v2({ id: '4AKE', states: ['4AKE', '1AKE'] }));

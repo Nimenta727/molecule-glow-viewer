@@ -10,6 +10,7 @@ import { decodeProject, encodeProject } from '../../packages/studio-editor/proje
 import { createNavigationEditor } from './navigation-editor.mjs';
 import { createToolConfigPanel } from './tool-config.mjs';
 import { initTabs } from './panel-tabs.mjs';
+import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
@@ -66,10 +67,12 @@ const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
   report: (message) => status(message),
   listTools: () => host.listTools({ audience: 'author' }),
   addTool: (toolId) => {
-    const tool = host.getTool(toolId);
-    edit({ type: 'addToolEntry', entry: { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) } }, '已添加工具。');
+    const tool = host.getTool(toolId), entry = { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) };
+    const bindings = autoBindings(tool, session().getScene(), entry);   // the tool proposes the objects it works on in this scene
+    edit({ type: 'addToolEntry', entry: Object.keys(bindings).length ? { ...entry, bindings } : entry }, Object.keys(bindings).length ? '已添加工具，并按建议绑定对象。' : '已添加工具（场景里没有可绑定的对象）。');
   },
   removeTool: (id) => edit({ type: 'removeToolEntry', id }, '已移除工具条目。'),
+  setBindings: (id, bindings) => edit({ type: 'setToolBindings', id, bindings }, '已更新对象绑定。'),
 });
 // Tabs: properties / tools / story. Opening the tools tab activates the tool plugins so the tool list is complete.
 initTabs(document.querySelector('.tabs'), {

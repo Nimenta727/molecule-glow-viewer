@@ -187,3 +187,26 @@ test('addToolEntry and removeToolEntry manage the tool list: unique ids, undoabl
   const { tools, resources, ...v2 } = base;
   assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'addToolEntry', entry }), /v3/);
 });
+
+test('setToolBindings saves which nodes a tool works on, refuses unknown nodes, and null returns to the tool\'s proposal', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const node = (id) => ({ id, name: id, parentId: null, assetId: null, visible: true, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } });
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' }, assets: [], nodes: [node('a'), node('b'), node('c')],
+    timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [], tools: [{ id: 't', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 1 } }] };
+  const session = createStudioSession(base);
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'b'], hub: ['c'] } }), true);
+  assert.deepEqual(session.getScene().tools[0].bindings, { ring: ['a', 'b'], hub: ['c'] });
+  assert.deepEqual(session.getScene().tools[0].config, { n: 1 }, 'the configuration is untouched');
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'b'], hub: ['c'] } }), false, 'no change, no history entry');
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 't', bindings: { ring: ['a', 'ghost'] } }), /unknown node "ghost"/);
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 't', bindings: [] }), /bindings object or null/);
+  assert.throws(() => session.dispatch({ type: 'setToolBindings', id: 'nope', bindings: {} }), /没有工具条目/);
+  assert.deepEqual(session.getScene().tools[0].bindings, { ring: ['a', 'b'], hub: ['c'] }, 'a refused command changes nothing');
+  assert.equal(session.dispatch({ type: 'setToolBindings', id: 't', bindings: null }), true);
+  assert.equal(session.getScene().tools[0].bindings, undefined);
+  session.undo(); assert.deepEqual(session.getScene().tools[0].bindings.ring, ['a', 'b']);
+  // a tool entry can be added together with bindings
+  const added = createStudioSession(base);
+  added.dispatch({ type: 'addToolEntry', entry: { tool: { id: 'x.z', version: '1.0.0' }, config: {}, bindings: { ring: ['b'] } } });
+  assert.deepEqual(added.getScene().tools[1].bindings, { ring: ['b'] });
+});

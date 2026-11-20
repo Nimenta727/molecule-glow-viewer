@@ -181,3 +181,12 @@ h2 { color: #2f3f86; font-size: 0.9rem; font-weight: 650; }
 #scene-tree li.outline-row button { border-color: transparent; background: transparent; padding: 0.12rem 0.4rem; font-size: 0.86rem; line-height: 1.3; }
 #scene-tree li.outline-row button:hover:enabled { background: #eef0f6; }
 #scene-tree li.outline-row button[aria-pressed="true"] { background: #eceffa; border-color: #a6b1de; }
+
+/* tool applicability and role bindings */
+.tool-bindings { margin: 0.2rem 0 0.6rem; }
+.tool-status { margin: 0.3rem 0; padding: 0.3rem 0.5rem; border-radius: 0.3rem; font-size: 0.85rem; }
+.tool-status.ok { color: #2f6b44; background: #eaf5ee; }
+.tool-status.warn { color: #8a4b12; background: #fbf0e2; }
+.tool-bindings label { display: grid; gap: 0.25rem; margin: 0.3rem 0; color: var(--muted); font-size: 0.85rem; }
+.tool-bindings select[multiple] { width: 100%; max-width: none; font-size: 0.82rem; }
+.tool-bindings .button-row { margin-top: 0.3rem; }

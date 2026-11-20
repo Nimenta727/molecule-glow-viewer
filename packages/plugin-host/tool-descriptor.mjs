@@ -14,6 +14,8 @@ const COLOR = /^#[0-9a-fA-F]{6}$/;
 export const AUDIENCES = Object.freeze(['view', 'author']);
 export const PARAMETER_TYPES = Object.freeze(['number', 'boolean', 'select', 'text', 'color']);
 const RUNTIMES = new Set(['player-v1']);
+const TOOL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const MAX_ROLES = 16;
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const fail = (id, message) => { throw new TypeError(`Tool ${id}: ${message}`); };
@@ -72,6 +74,32 @@ export function validateToolDescriptor(id, descriptor) {
   const audience = audienceOf(descriptor.audience, id, 'audience');
   if (!RUNTIMES.has(descriptor.runtime)) fail(id, `runtime must be one of ${[...RUNTIMES].join(', ')}`);
   const result = { version: descriptor.version, title: text(id, descriptor.title, 'title', 80), audience: Object.freeze(audience), runtime: descriptor.runtime };
+
+  // Other names the tool answers to (earlier ids saved in existing works) and the id its player factory is registered under.
+  if (descriptor.aliases !== undefined) {
+    if (!Array.isArray(descriptor.aliases) || descriptor.aliases.length > 8 || descriptor.aliases.some((alias) => typeof alias !== 'string' || !TOOL_ID.test(alias)) ||
+      new Set(descriptor.aliases).size !== descriptor.aliases.length || descriptor.aliases.includes(id)) fail(id, 'aliases must be at most 8 distinct valid ids other than the tool\'s own');
+    result.aliases = Object.freeze([...descriptor.aliases]);
+  }
+  if (descriptor.player !== undefined) {
+    if (typeof descriptor.player !== 'string' || !TOOL_ID.test(descriptor.player)) fail(id, 'player must be a valid id');
+    result.player = descriptor.player;
+  }
+
+  // Applicability and role bindings: which objects of a scene the tool works on. `check(scene, config)` is the tool's own
+  // test and returns { problems: [text], candidates: { role: [nodeId] } }.
+  if (descriptor.inputs !== undefined) {
+    const { roles, check } = descriptor.inputs ?? {};
+    if (!isObject(roles) || !Object.keys(roles).length || Object.keys(roles).length > MAX_ROLES || typeof check !== 'function') fail(id, 'inputs needs 1-16 roles and a check() function');
+    const normal = {};
+    for (const [role, spec] of Object.entries(roles)) {
+      if (!KEY.test(role) || !isObject(spec)) fail(id, `role name "${role}" is not valid`);
+      const min = spec.min ?? 1, max = spec.max ?? null;
+      if (!Number.isInteger(min) || min < 0 || (max !== null && (!Number.isInteger(max) || max < Math.max(1, min)))) fail(id, `${role} needs integer min >= 0 and max >= min`);
+      normal[role] = Object.freeze({ label: text(id, spec.label, `${role}.label`, 120), min, max });
+    }
+    result.inputs = Object.freeze({ roles: Object.freeze(normal), check });
+  }
 
   if (descriptor.parameters !== undefined) {
     if (!isObject(descriptor.parameters) || Object.keys(descriptor.parameters).length > 64) fail(id, 'parameters must be an object of at most 64 entries');
