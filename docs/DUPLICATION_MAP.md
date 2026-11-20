@@ -6,7 +6,7 @@ Codex 迁移时优先复用新平台已有服务，记录必须暂存的经典/�
 
 | 功能 | 经典位置 | 新位置 | 是否等价 / 后续动作 |
 |---|---|---|---|
-| RCSB 下载、缓存、错误处理 | `src/data/rcsb.js`、`desktop/main.js` | `plugins/rcsb/index.mjs` | 不等价；插件有限流/容量保护，4.1 Shell 已改为 30 MiB 限量流式缓存和原子提交；浏览器插件与 Shell 各承担请求/缓存层，统一策略仍需按环境对照 |
+| RCSB 下载、缓存、错误处理 | `src/data/rcsb.js`、`desktop/main.js` | `plugins/rcsb/index.mjs` | 不等价；插件有限流/容量保护，4.1 Shell 已改为 64 MiB（4.4.8 由 30 MiB 提高） 限量流式缓存和原子提交；浏览器插件与 Shell 各承担请求/缓存层，统一策略仍需按环境对照 |
 | PDB/mmCIF 解析与身份 | `src/data/parse.js` | `plugins/structure/parser.mjs` | 部分覆盖；当前有 auth/label、插入码、模型及 altLoc 测试，需经典同文件对照 |
 | 生物组装体展开 | `src/data/rcsb.js` | `plugins/structure/assembly.mjs` | 部分覆盖；操作符、链与副本已有测试，需完整经典样例对照 |
 | 构象叠合 | `src/derived/geometry.js` | `plugins/structure/alignment.mjs` | 同类 Horn 方法；已用于 ATP/KcsA/AdK，不意味着所有拟合策略相同；AdK 改以 CORE 作显示参考 |

@@ -73,7 +73,7 @@
       "steps": [
         "Download chunked, oversized, aborted and concurrent responses; navigate external URLs."
       ],
-      "expected": "30 MiB resource bound and 2 GiB committed body budget; no partial successful cache; only http/https reach OS."
+      "expected": "64 MiB resource bound (raised from 30 MiB in 4.4.8 for the 36 MiB official entries) and 2 GiB committed body budget; no partial successful cache; only http/https reach OS."
     },
     {
       "id": "new.security.desktop-network-protocol",
@@ -82,7 +82,7 @@
       "steps": [
         "Download chunked, oversized, aborted and concurrent responses; navigate external URLs."
       ],
-      "expected": "30 MiB resource bound and 2 GiB committed body budget; no partial successful cache; only http/https reach OS.",
+      "expected": "64 MiB resource bound (raised from 30 MiB in 4.4.8 for the 36 MiB official entries) and 2 GiB committed body budget; no partial successful cache; only http/https reach OS.",
       "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
     },
     {

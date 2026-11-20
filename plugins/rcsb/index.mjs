@@ -1,5 +1,5 @@
 const ACCESSION = /^[0-9][A-Z0-9]{3}$/;
-const MAX_BYTES = 30 * 1024 * 1024;
+const MAX_BYTES = 64 * 1024 * 1024;   // raised from 30 MiB in 4.4.8: the official 70S ribosome (4V6F, 36 MiB) and flagellar motor (7CGO, 35 MiB) entries are larger than 30 MiB
 const CACHE_ENTRIES = 4;
 const mediaType = 'chemical/x-mmcif';
 
@@ -29,7 +29,7 @@ async function responseBytes(response, signal) {
       const { done, value } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 30 MiB');
+      if (length > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 64 MiB');
       chunks.push(value);
     }
   } catch (error) {
@@ -61,11 +61,11 @@ export function createRcsbSource({ fetchImpl = globalThis.fetch, cache } = {}) {
     const declared = Number(response.headers?.get?.('content-length'));
     if (Number.isFinite(declared) && declared > MAX_BYTES) {
       try { await response.body?.cancel(); } catch { /* The declared size remains the failure. */ }
-      throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 30 MiB');
+      throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 64 MiB');
     }
     const bytes = await responseBytes(response, signal);
     signal?.throwIfAborted();
-    if (bytes.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 30 MiB');
+    if (bytes.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 64 MiB');
     return bytes;
   }
 
@@ -81,7 +81,7 @@ export function createRcsbSource({ fetchImpl = globalThis.fetch, cache } = {}) {
       const cached = cache.get(normalized);
       if (cached != null) {
         const bytes = copyBytes(cached);
-        if (bytes.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('Cached RCSB coordinate file exceeds 30 MiB');
+        if (bytes.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('Cached RCSB coordinate file exceeds 64 MiB');
         if (signal?.aborted) throw signal.reason ?? new DOMException('The operation was aborted', 'AbortError');
         return { name: `${normalized}.cif`, bytes, source: { provider: 'RCSB PDB', accession: normalized }, mediaType };
       }
@@ -99,7 +99,7 @@ export function createRcsbSource({ fetchImpl = globalThis.fetch, cache } = {}) {
       queries.push(`https://files.rcsb.org/header/${normalized}.cif`);
       const cached = cache.get(key);
       let bytes = cached == null ? undefined : copyBytes(cached);
-      if (bytes?.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('Cached RCSB coordinate file exceeds 30 MiB');
+      if (bytes?.byteLength > MAX_BYTES) throw new RcsbCoordinateLimitError('Cached RCSB coordinate file exceeds 64 MiB');
       if (!bytes) {
         const request = new AbortController();
         const fetchSignal = signal ? AbortSignal.any([signal, request.signal]) : request.signal;
@@ -116,7 +116,7 @@ export function createRcsbSource({ fetchImpl = globalThis.fetch, cache } = {}) {
           request.abort();
         }
         const length = parts.reduce((sum, part) => sum + part.length + 1, 0);
-        if (length > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 30 MiB');
+        if (length > MAX_BYTES) throw new RcsbCoordinateLimitError('RCSB coordinate file exceeds 64 MiB');
         bytes = new Uint8Array(length);
         let offset = 0;
         for (const part of parts) {

@@ -58,13 +58,13 @@ test('checks HTTP status and both declared and actual size before caching', asyn
   await assert.rejects(source.load('1ABC'), /HTTP 503/);
   assert.equal(cache.size, 0);
 
-  source = createRcsbSource({ cache, fetchImpl: async () => response([], { contentLength: 30 * 1024 * 1024 + 1 }) });
-  await assert.rejects(source.load('1ABC'), /exceeds 30 MiB/);
+  source = createRcsbSource({ cache, fetchImpl: async () => response([], { contentLength: 64 * 1024 * 1024 + 1 }) });
+  await assert.rejects(source.load('1ABC'), /exceeds 64 MiB/);
   assert.equal(cache.size, 0);
 
-  const huge = new Uint8Array(30 * 1024 * 1024 + 1);
+  const huge = new Uint8Array(64 * 1024 * 1024 + 1);
   source = createRcsbSource({ cache, fetchImpl: async () => response(huge) });
-  await assert.rejects(source.load('1ABC'), /exceeds 30 MiB/);
+  await assert.rejects(source.load('1ABC'), /exceeds 64 MiB/);
   assert.equal(cache.size, 0);
 });
 

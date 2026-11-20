@@ -8,7 +8,7 @@ export const STRUCTURE_PLUGIN_ID = 'org.glow.structure';
 export const STRUCTURE_IMPORTER_ID = 'org.glow.structure.coordinates';
 export const STRUCTURE_SERVICE_ID = 'org.glow.structure.model';
 const VERSION = '1.0.0';
-const MAX_INPUT = 30 * 1024 * 1024;
+const MAX_INPUT = 64 * 1024 * 1024;
 
 export const structurePlugin = {
   manifest: {
@@ -66,7 +66,7 @@ function filterChains(model, chains) {
 }
 
 function parseCoordinates({ bytes, name, mediaType }, { assemblyId, chains } = {}) {
-  if (!(bytes instanceof Uint8Array) || bytes.byteLength > MAX_INPUT) throw new TypeError('结构文件超过 30 MiB 或格式无效。');
+  if (!(bytes instanceof Uint8Array) || bytes.byteLength > MAX_INPUT) throw new TypeError('结构文件超过 64 MiB 或格式无效。');
   const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   const model = mediaType === 'chemical/x-mmcif' || /\.m?cif$/i.test(name) ? parseMmcif(text) : parsePdb(text);
   return filterChains(assemblyId ? applyBiologicalAssembly(model, assemblyId) : model, chains);
@@ -83,7 +83,7 @@ function createNode(id, name, assetId, extensions) {
 export async function importStructureScene(input, { signal, previewGroupLimit = 253, chains, includeLayout = false, assembly = false } = {}) {
   signal?.throwIfAborted();
   if (!(input.bytes instanceof Uint8Array) || input.bytes.byteLength > MAX_INPUT) {
-    throw new TypeError('结构文件超过 30 MiB 或格式无效。');
+    throw new TypeError('结构文件超过 64 MiB 或格式无效。');
   }
   const bytes = new Uint8Array(input.bytes);
   const original = parseCoordinates({ ...input, bytes });

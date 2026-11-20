@@ -8,7 +8,7 @@ class CacheLimitError extends Error { constructor(message) { super(message); thi
 
 // Bodies go to unique temporary files with bounded concurrency, never to arrayBuffer().
 // Metadata is the atomic commit marker. Each generation owns a distinct payload file.
-function createResponseCache(directory, { maxResource = 30 * 1024 ** 2, maxTotal = 2 * 1024 ** 3,
+function createResponseCache(directory, { maxResource = 64 * 1024 ** 2, maxTotal = 2 * 1024 ** 3,
   maxConcurrent = 8, timeoutMs = 30000 } = {}) {
   fs.mkdirSync(directory, { recursive: true });
   const active = new Set(); let serial = Promise.resolve(), epoch = 0;
