@@ -256,3 +256,8 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .clip-controls input[type="range"] { flex: 1; min-width: 5rem; accent-color: var(--acc); }
 .clip-controls select { max-width: 100%; }
 .clip-part { margin-left: 0.5rem; font-size: 0.72rem; white-space: nowrap; }
+
+/* ---- conformation morph ---- */
+.morph-controls { padding: 0 0.75rem; }
+.morph-controls .structure-form { margin-top: 0.4rem; }
+#morph-accession { width: 7rem; }

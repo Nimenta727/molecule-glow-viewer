@@ -110,6 +110,20 @@
               <button id="sequence-toggle" type="button" aria-pressed="false">序列条</button>
               <details class="selection-help"><summary>语法</summary><p id="selection-help-text"></p></details>
             </form>
+            <div id="morph-controls" class="morph-controls" hidden>
+              <div class="structure-form">
+                <label for="morph-accession">构象变形</label>
+                <input id="morph-accession" type="text" maxlength="4" placeholder="第二构象 RCSB 编号" aria-label="第二个构象的 RCSB 编号">
+                <button id="morph-load" type="button">载入</button>
+                <button id="morph-file-button" type="button">文件…</button>
+                <input id="morph-file" type="file" accept=".cif,.mmcif,.pdb,.ent" hidden>
+              </div>
+              <div id="morph-panel" hidden>
+                <label class="take-apart-row">第一构象 <input id="morph-fraction" type="range" min="0" max="1" step="0.01" value="0" aria-label="构象变形进度"> 第二构象</label>
+                <div class="take-apart-row"><label><input id="morph-auto" type="checkbox"> 自动往复</label><button id="morph-remove" type="button">移除第二构象</button></div>
+              </div>
+              <p id="morph-info" class="structure-summary" aria-live="polite"></p>
+            </div>
             <div id="entry-intro-controls" class="structure-form" hidden>
               <button id="entry-intro-load" type="button" title="从 RCSB 与 UniProt 读取：物种、方法、分辨率、突变、文献、功能">自动简介</button>
             </div>

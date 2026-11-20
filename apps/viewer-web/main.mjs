@@ -17,6 +17,7 @@ import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 import { slabPlane, wedgePlanes, normalizeClipping } from '../../packages/render-three/clipping.mjs';
+import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
@@ -84,6 +85,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
@@ -278,6 +280,7 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      stateMorph.reset();
       entryIntro.reset();
       leaveTakeApart();
       sequenceBar.setModel(active.model);
@@ -550,6 +553,39 @@ function boot() {
       }),
     },
   });
+  const stateMorph = createStateMorph({
+    viewport,
+    elements: {
+      panel: elements['morph-panel'], fraction: elements['morph-fraction'], auto: elements['morph-auto'], remove: elements['morph-remove'], info: elements['morph-info'],
+    },
+    context: {
+      model: () => active?.model,
+      canMorph: () => Boolean(active?.model) && !active.player,
+      rebuild: () => refreshStructureView(),
+      setStatus,
+      async loadModel(input) {
+        const service = host.getService(MODEL_SERVICE, '1.0.0');
+        const source = active.representationSource, options = { assemblyId: source?.provenance?.assemblyId, chains: source?.provenance?.chains };
+        if (input.file) {
+          if (input.file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
+          return service.parse({ bytes: new Uint8Array(await input.file.arrayBuffer()), name: input.file.name, mediaType: /\.m?cif$/i.test(input.file.name) ? 'chemical/x-mmcif' : 'chemical/x-pdb' }, options);
+        }
+        const loaded = await loadAccession(input.accession, undefined);
+        return service.parse({ bytes: loaded.bytes, name: loaded.name, mediaType: loaded.mediaType ?? 'chemical/x-mmcif' }, options);
+      },
+    },
+  });
+  elements['morph-load'].addEventListener('click', () => {
+    const accession = elements['morph-accession'].value.trim();
+    if (/^[0-9][A-Za-z0-9]{3}$/.test(accession)) stateMorph.load({ accession }, accession.toUpperCase());
+    else elements['morph-info'].textContent = '请输入第二个构象的 4 位 RCSB 编号（首位是数字），或选择文件。';
+  });
+  elements['morph-file-button'].addEventListener('click', () => elements['morph-file'].click());
+  elements['morph-file'].addEventListener('change', () => {
+    const [file] = elements['morph-file'].files;
+    elements['morph-file'].value = '';
+    if (file) stateMorph.load({ file }, file.name);
+  });
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -655,17 +691,23 @@ function boot() {
     return result.layers;
   }
 
+  /** Ids of the assets of the structure part nodes of one source (the layers a conformation morph has to move). */
+  function structureAssetIds(source) {
+    return new Set((active?.scene.nodes ?? []).filter((node) => node.assetId && node.extensions?.[STRUCTURE]?.sourceAssetId === source?.id).map((node) => node.assetId));
+  }
   function refreshStructureView(style) {
     if (!active?.model && !active?.representationSource) return;
     const camera = viewport.getCamera({ destination: true });
     const next = { ...active };
     const layers = structureLayers(next, style);
     active.player?.decorate(layers);
+    stateMorph.decorate(layers, structureAssetIds(next.representationSource));
     const prepared = viewport.prepare(active.store.getSnapshot(), layers,
       { overlayCapacity: active.overlayCapacity, ...playerViewportOptions(active.player) });
     viewport.commit(prepared);
     active.handles.current = prepared;
     applyClipping();
+    stateMorph.reapply();
     active.representationSource = next.representationSource;
     active.structureTargets = next.structureTargets;
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
@@ -1241,6 +1283,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    stateMorph.reset();
     entryIntro.reset();
     leaveTakeApart();
     sequenceBar.setModel(null);

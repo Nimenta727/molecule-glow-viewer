@@ -672,18 +672,15 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  function setMechanism(snapshot) {
-    if (!active) return;
-    applyPose(snapshot?.transforms);
-    const highlighted = new Set(snapshot?.highlightedIds);
-    for (const mesh of active.meshes) if (mesh.material.emissive) {
-      mesh.material.emissive.set(highlighted.has(mesh.userData.nodeId) ? '#5a3d0d' : '#000000');
-      mesh.material.emissiveIntensity = 0.35;
-    }
-    const phase = snapshot?.conformation;
+  /**
+   * Moves every layer that carries `conformations` (states) to `phase`: { from, to, fraction } between two states, or { weights } for a blend of
+   * several. Used by the mechanism players and by the generic conformation morph (setConformation).
+   */
+  function applyConformation(phase) {
+    if (!active || !phase) return;
     for (const mesh of active.meshes) {
       const morph = mesh.userData.conformation;
-      if (!morph || !phase) continue;
+      if (!morph) continue;
       const a = phase.weights ? Float32Array.from(morph.states[0], (_, i) =>
         phase.weights.reduce((sum, weight, state) => sum + weight * morph.states[state][i], 0)) : morph.states[phase.from];
       const b = phase.weights ? a : morph.states[phase.to ?? (phase.from + 1) % 3];
@@ -713,6 +710,22 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
       }
       mesh.frustumCulled = false;
     }
+  }
+  /** Between the first two states of every layer that has them: 0 = the structure as loaded, 1 = the second conformation. */
+  function setConformation(fraction) {
+    applyConformation({ from: 0, to: 1, fraction: Math.min(1, Math.max(0, fraction)) });
+    invalidate();
+  }
+
+  function setMechanism(snapshot) {
+    if (!active) return;
+    applyPose(snapshot?.transforms);
+    const highlighted = new Set(snapshot?.highlightedIds);
+    for (const mesh of active.meshes) if (mesh.material.emissive) {
+      mesh.material.emissive.set(highlighted.has(mesh.userData.nodeId) ? '#5a3d0d' : '#000000');
+      mesh.material.emissiveIntensity = 0.35;
+    }
+    applyConformation(snapshot?.conformation);
     if (pointSelection?.parent && Number.isSafeInteger(pointSelection.userData.pointIndex)) {
       pointSelection.position.fromBufferAttribute(pointSelection.parent.geometry.getAttribute('position'), pointSelection.userData.pointIndex);
     }
@@ -989,6 +1002,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, focusPoint, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setMolecules, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

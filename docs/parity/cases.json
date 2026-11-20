@@ -295,6 +295,25 @@
       "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
     },
     {
+      "id": "classic.structure.state-morph",
+      "kind": "manual-contract",
+      "source": "src/core/load-scene.js",
+      "steps": [
+        "Load 4AKE, add 1AKE as the second state; also 1K4C with 5VK6. Move the morph fraction to 0, 0.5, 1 and run the automatic back-and-forth."
+      ],
+      "expected": "Matched residues keyed by chain and label_seq; state B fitted onto A over all matched residues; every residue target and every state-B small molecule within 1e-6 A of the classic p2/ligand positions; fraction 0 reproduces the first state and removing the second state restores it; the view says the motion is an interpolation between two end states."
+    },
+    {
+      "id": "new.structure.state-morph",
+      "kind": "partial-automation",
+      "runner": "tools/state-pair-parity.mjs",
+      "steps": [
+        "Load 4AKE, add 1AKE as the second state; also 1K4C with 5VK6. Move the morph fraction to 0, 0.5, 1 and run the automatic back-and-forth."
+      ],
+      "expected": "Matched residues keyed by chain and label_seq; state B fitted onto A over all matched residues; every residue target and every state-B small molecule within 1e-6 A of the classic p2/ligand positions; fraction 0 reproduces the first state and removing the second state restores it; the view says the motion is an interpolation between two end states.",
+      "scope": "Runner compares matching, fit, targets and state-B ligands on five real pairs; pixel behaviour (fraction 0, removal, automatic motion) was checked in a browser session, not by this runner."
+    },
+    {
       "id": "classic.animation.data-v1-adk-kcsa",
       "kind": "manual-contract",
       "source": "src/sim/data-anim.js",

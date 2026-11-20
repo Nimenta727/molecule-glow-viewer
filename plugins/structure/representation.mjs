@@ -131,7 +131,7 @@ export function rangeTypeFor(atom, ranges) {
   return 'default';
 }
 
-function centerAndScale(items) {
+export function centerAndScale(items) {
   if (!items.length) return { center: [0, 0, 0], point: () => [0, 0, 0] };
   const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
   for (const { pos } of items) for (let axis = 0; axis < 3; axis++) {
