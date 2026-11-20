@@ -169,7 +169,9 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
   /** Marks every point whose target belongs to `targets` (a Set) with a wireframe ring: the multi-object counterpart of setPointSelection. */
   let setMarkers = [];
-  function setPointSelections(targets) {
+  function setPointSelections(targets, { dim = false } = {}) {
+    restoreDimming();
+    const keepNodes = new Set();
     for (const marker of setMarkers) { marker.removeFromParent(); marker.geometry.dispose(); marker.material.dispose(); }
     setMarkers = [];
     let count = 0;
@@ -181,6 +183,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         const marker = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6),
           new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }), indices.length);
         marker.renderOrder = 10;
+        marker.userData.selectionMarker = true;
         marker.frustumCulled = false;
         const position = mesh.geometry.getAttribute('position'), matrix = new THREE.Matrix4(), radius = Math.max(mesh.material.size * 0.7, 0.04);
         indices.forEach((index, slot) => {
@@ -189,12 +192,54 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         });
         mesh.add(marker);
         setMarkers.push(marker);
+        keepNodes.add(mesh.userData.nodeId);
         count += indices.length;
       }
     }
+    if (dim && keepNodes.size) dimOtherNodes(keepNodes);
     invalidate();
     return count;
   }
+
+  /**
+   * Ghosts every part (node) that holds none of the selected objects, as the classic viewer did: translucent, no depth writes (so no ink
+   * outline), outline hulls hidden. Materials shared with a kept part stay as they are. Undone by restoreDimming().
+   */
+  let dimmed = [];
+  function restoreDimming() {
+    for (const entry of dimmed) {
+      if (entry.hidden) { entry.object.visible = true; continue; }
+      Object.assign(entry.material, { transparent: entry.transparent, opacity: entry.opacity, depthWrite: entry.depthWrite });
+      entry.material.needsUpdate = true;
+    }
+    dimmed = [];
+  }
+  function dimOtherNodes(keepNodes) {
+    if (!active) return 0;
+    const visibleNodes = [...active.groups].filter(([, group]) => isVisible(group));
+    if (visibleNodes.length < 2 || visibleNodes.every(([id]) => keepNodes.has(id))) return 0;
+    const keepMaterials = new Set(), seen = new Set();
+    for (const [id, group] of active.groups) if (keepNodes.has(id)) group.traverse((object) => { if (object.material) keepMaterials.add(object.material); });
+    let count = 0;
+    for (const [id, group] of visibleNodes) {
+      if (keepNodes.has(id)) continue;
+      count++;
+      group.traverse((object) => {
+        const material = object.material;
+        if (!material || Array.isArray(material) || object.userData.selectionMarker) return;
+        if (material.side === THREE.BackSide) { if (object.visible) { object.visible = false; dimmed.push({ object, hidden: true }); } return; }
+        if (keepMaterials.has(material) || seen.has(material)) return;
+        seen.add(material);
+        dimmed.push({ material, transparent: material.transparent, opacity: material.opacity, depthWrite: material.depthWrite });
+        material.transparent = true;
+        material.opacity = Math.min(material.opacity, 0.14);
+        material.depthWrite = false;
+        material.needsUpdate = true;
+      });
+    }
+    return count;
+  }
+
 
   function setNodeVisibility(ids, visible) {
     for (const id of ids) {

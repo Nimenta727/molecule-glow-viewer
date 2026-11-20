@@ -400,7 +400,7 @@ function boot() {
     const ligandKeys = new Set(result.ligands.map((ligand) => structureObjectId('ligand', ligand.atom)));
     const targets = new Set([...active.structureTargets.values()].filter((target) =>
       (target.kind === 'ligand' ? ligandKeys : keys).has(structureObjectId(target.kind, target.atom))));
-    const marked = viewport.setPointSelections(targets);
+    const marked = viewport.setPointSelections(targets, { dim: true });
     syncSequence();
     return { residues: result.residues.length, ligands: result.ligands.length, marked, summary: result.summary };
   }
