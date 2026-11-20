@@ -110,6 +110,10 @@
               <button id="sequence-toggle" type="button" aria-pressed="false">序列条</button>
               <details class="selection-help"><summary>语法</summary><p id="selection-help-text"></p></details>
             </form>
+            <div id="entry-intro-controls" class="structure-form" hidden>
+              <button id="entry-intro-load" type="button" title="从 RCSB 与 UniProt 读取：物种、方法、分辨率、突变、文献、功能">自动简介</button>
+            </div>
+            <div id="entry-intro" class="entry-intro" hidden aria-live="polite"></div>
             <div id="take-apart-controls" class="structure-form" hidden>
               <button id="take-apart-toggle" type="button" aria-pressed="false" title="把每条链当作一块零件：拆开、取下、装回，并查看它们的接触界面">拆装</button>
             </div>

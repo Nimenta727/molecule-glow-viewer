@@ -240,3 +240,13 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .take-apart-partner { display: block; width: 100%; margin-top: 0.2rem; text-align: left; font-size: 0.75rem; }
 .take-apart-bonds { margin: 0.15rem 0 0.3rem 0.4rem; font-size: 0.72rem; color: var(--dim); }
 .take-apart-bonds i { display: inline-block; width: 0.55rem; height: 0.55rem; margin-right: 0.2rem; border-radius: 1px; vertical-align: baseline; }
+
+/* ---- entry introduction ---- */
+.entry-intro:not([hidden]) { padding: 0.3rem 0.75rem 0.6rem; font-size: 0.78rem; line-height: 1.45; }
+.intro-title { margin: 0.2rem 0; font-size: 0.92rem; }
+.intro-section { margin-top: 0.4rem; }
+.intro-source { color: var(--dim); font-size: 0.72rem; }
+.intro-warning { color: #9a5a00; margin: 0.4rem 0 0; }
+.intro-list { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+.intro-chips button { margin: 0 0.2rem 0.2rem 0; padding: 0 0.4rem; font-size: 0.72rem; }
+.entry-intro a { color: var(--acc-ink); }

@@ -15,9 +15,10 @@ import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
+import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
-import { SELECTION_HELP, describeSelection } from '../../plugins/structure/selection.mjs';
+import { SELECTION_HELP, describeSelection, selectionSpace } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -79,6 +80,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
@@ -271,6 +273,7 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      entryIntro.reset();
       leaveTakeApart();
       sequenceBar.setModel(active.model);
       resetSiteChips();
@@ -467,6 +470,22 @@ function boot() {
     elements['take-apart-toggle'].setAttribute('aria-pressed', String(on));
   });
   function leaveTakeApart() { takeApart.exit(); elements['take-apart-toggle'].setAttribute('aria-pressed', 'false'); }
+  const entryIntro = createEntryIntro({
+    box: elements['entry-intro'], button: elements['entry-intro-load'],
+    context: {
+      entryId() {
+        const source = active?.scene.assets.find((asset) => asset.kind === 'file' && asset.provenance?.source)?.provenance.source;
+        return source?.provider === 'RCSB PDB' ? source.accession : null;
+      },
+      sizeOf(entity) {
+        const counts = new Map();
+        for (const residue of selectionSpace(active.model).residues) counts.set(residue.labelAsym, (counts.get(residue.labelAsym) ?? 0) + 1);
+        return Math.max(0, ...entity.asyms.map((asym) => counts.get(asym) ?? 0));
+      },
+      ligands: () => [...new Set(selectionSpace(active.model).ligands.map((ligand) => ligand.comp))],
+      select: (expression) => { elements['selection-expression'].value = expression; selectSet(expression); },
+    },
+  });
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
@@ -1131,6 +1150,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    entryIntro.reset();
     leaveTakeApart();
     sequenceBar.setModel(null);
     resetSiteChips();
