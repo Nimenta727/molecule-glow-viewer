@@ -15,8 +15,9 @@ import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { loadFunctionalSites, siteExpression, SITE_CATEGORIES, FunctionalSiteError } from '../../plugins/structure/functional-sites.mjs';
+import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
-import { SELECTION_HELP } from '../../plugins/structure/selection.mjs';
+import { SELECTION_HELP, describeSelection } from '../../plugins/structure/selection.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -78,6 +79,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
+  elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
@@ -269,6 +271,7 @@ function boot() {
       stopFrame();
       active = scene;
       showStructurePick();
+      leaveTakeApart();
       sequenceBar.setModel(active.model);
       resetSiteChips();
       elements['chain-id'].value = '';
@@ -440,22 +443,52 @@ function boot() {
   });
   elements['sequence-close'].addEventListener('click', () => { sequenceBar.setVisible(false); elements['sequence-toggle'].setAttribute('aria-pressed', 'false'); });
 
+  const takeApart = createTakeApart({
+    viewport,
+    elements: {
+      panel: elements['take-apart-panel'], explode: elements['take-apart-explode'], all: elements['take-apart-all'], restore: elements['take-apart-restore'],
+      play: elements['take-apart-play'], step: elements['take-apart-step'], pieces: elements['take-apart-pieces'], info: elements['take-apart-info'],
+    },
+    context: {
+      model: () => active?.representationSource ? active.model : null,
+      nodeForChain(key) {
+        const source = active?.representationSource?.id;
+        return active?.scene.nodes.find((node) => node.extensions?.[STRUCTURE]?.chainKey === key && node.extensions[STRUCTURE].sourceAssetId === source)?.id;
+      },
+      targetFor: (residue) => active.structureTargets.get(structureObjectId('residue', residue.atom)),
+      showResidues: (result, options) => showSelection(result, options),
+      clearSelection: () => clearSet(),
+      assemblyKeywords: () => ({}),
+      setStatus,
+    },
+  });
+  elements['take-apart-toggle'].addEventListener('click', () => {
+    const on = takeApart.toggle();
+    elements['take-apart-toggle'].setAttribute('aria-pressed', String(on));
+  });
+  function leaveTakeApart() { takeApart.exit(); elements['take-apart-toggle'].setAttribute('aria-pressed', 'false'); }
   function selectSet(expression) {
     const model = active?.model;
     if (!model) return null;
-    const result = host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet });
-    active.selectionSet = result;
+    return showSelection(host.getService(MODEL_SERVICE, '1.0.0').selectExpression(model, expression, { previous: active.selectionSet }));
+  }
+  /** Marks, dims around and reports a selection result ({ residues, ligands }); the one place that turns a selection into what the viewport shows. */
+  function showSelection(result, { markers = true } = {}) {
+    if (!active?.model) return null;
+    const summary = result.summary ?? describeSelection(result);
+    active.selectionSet = { ...result, summary };
     const keys = new Set(result.residues.map(({ atom }) => structureObjectId('residue', atom)));
     const ligandKeys = new Set(result.ligands.map((ligand) => structureObjectId('ligand', ligand.atom)));
     const targets = new Set([...active.structureTargets.values()].filter((target) =>
       (target.kind === 'ligand' ? ligandKeys : keys).has(structureObjectId(target.kind, target.atom))));
-    const marked = viewport.setPointSelections(targets, { dim: true });
+    const marked = viewport.setPointSelections(targets, { dim: true, markers });
     syncSequence();
-    return { residues: result.residues.length, ligands: result.ligands.length, marked, summary: result.summary };
+    return { residues: result.residues.length, ligands: result.ligands.length, marked, summary };
   }
   function clearSet() {
     if (active) active.selectionSet = undefined;
     viewport.setPointSelections();
+    viewport.setLinks([]);
     syncSequence();
     sequenceBar.setInfo('拖动选择一段；灰块是结构里缺失的残基');
   }
@@ -1098,6 +1131,7 @@ function boot() {
     viewport.clear();
     active = undefined;
     showStructurePick();
+    leaveTakeApart();
     sequenceBar.setModel(null);
     resetSiteChips();
     syncControls();

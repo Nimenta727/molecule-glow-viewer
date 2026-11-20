@@ -169,7 +169,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
 
   /** Marks every point whose target belongs to `targets` (a Set) with a wireframe ring: the multi-object counterpart of setPointSelection. */
   let setMarkers = [];
-  function setPointSelections(targets, { dim = false } = {}) {
+  function setPointSelections(targets, { dim = false, markers = true } = {}) {
     restoreDimming();
     const keepNodes = new Set();
     for (const marker of setMarkers) { marker.removeFromParent(); marker.geometry.dispose(); marker.material.dispose(); }
@@ -180,6 +180,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         const indices = [];
         (mesh.userData.pointTargets ?? []).forEach((target, index) => { if (target && targets.has(target)) indices.push(index); });
         if (!indices.length || !isVisible(mesh)) continue;
+        if (!markers) { keepNodes.add(mesh.userData.nodeId); count += indices.length; continue; }
         const marker = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 6),
           new THREE.MeshBasicMaterial({ color: '#e5a529', depthTest: false, wireframe: true }), indices.length);
         marker.renderOrder = 10;
@@ -240,6 +241,65 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     return count;
   }
 
+
+  /**
+   * Temporary offsets of nodes in their parent's space (viewport units), on top of whatever pose is applied: used to pull parts of a structure
+   * apart without touching the document. An empty/absent offset restores the node exactly. Links follow the nodes.
+   */
+  function setNodeOffsets(offsets) {
+    if (!active) return;
+    for (const [id, group] of active.groups) {
+      const next = offsets?.get(id) ?? [0, 0, 0], moved = next.some((value) => value !== 0);
+      // the rest position is remembered, so putting a node back is exact (no accumulated rounding)
+      if (moved && !group.userData.rest) group.userData.rest = group.position.clone();
+      const rest = group.userData.rest;
+      if (rest) group.position.set(rest.x + next[0], rest.y + next[1], rest.z + next[2]);
+      if (!moved) { if (rest) group.position.copy(rest); group.userData.rest = undefined; group.userData.offset = undefined; }
+      else group.userData.offset = next;
+    }
+    updateLinks();
+    updatePresentationOverlay();
+    invalidate();
+  }
+
+  /** Lines between pairs of picked points ({ a, b } are point targets of the structure); they follow the nodes when these move. */
+  let linkObject, links = [];
+  function locate(target) {
+    for (const mesh of active?.meshes ?? []) {
+      const index = mesh.userData.pointTargets?.indexOf(target) ?? -1;
+      if (index >= 0) return { mesh, index };
+    }
+    return null;
+  }
+  function setLinks(pairs = [], { color = '#e5a529' } = {}) {
+    if (linkObject) { linkObject.removeFromParent(); linkObject.geometry.dispose(); linkObject.material.dispose(); linkObject = undefined; }
+    links = active ? pairs.map(({ a, b }) => ({ a: locate(a), b: locate(b) })).filter(({ a, b }) => a && b) : [];
+    if (links.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(links.length * 6), 3));
+      linkObject = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 }));
+      linkObject.renderOrder = 11;
+      linkObject.frustumCulled = false;
+      linkObject.userData.selectionMarker = true;
+      scene.add(linkObject);
+      updateLinks();
+    }
+    invalidate();
+    return links.length;
+  }
+  const linkPoint = new THREE.Vector3();
+  function updateLinks() {
+    if (!linkObject) return;
+    const position = linkObject.geometry.getAttribute('position');
+    links.forEach(({ a, b }, i) => {
+      for (const [slot, end] of [[0, a], [1, b]]) {
+        end.mesh.updateWorldMatrix(true, false);
+        linkPoint.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index).applyMatrix4(end.mesh.matrixWorld);
+        position.setXYZ(i * 2 + slot, linkPoint.x, linkPoint.y, linkPoint.z);
+      }
+    });
+    position.needsUpdate = true;
+  }
 
   function setNodeVisibility(ids, visible) {
     for (const id of ids) {
@@ -469,7 +529,12 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     if (!active) return;
     for (const [id, group] of active.groups) {
       applyTransform(group, pose?.get(id) ?? active.pose.get(id));
+      if (group.userData.offset) {
+        group.userData.rest = group.position.clone();
+        group.position.set(group.position.x + group.userData.offset[0], group.position.y + group.userData.offset[1], group.position.z + group.userData.offset[2]);
+      }
     }
+    updateLinks();
     updatePresentationOverlay();
     invalidate();
   }
@@ -655,6 +720,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   function clear() {
+    setLinks([]);
     cancelPick();
     cancelCameraTransition();
     responsiveFraming = false;
@@ -789,6 +855,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setLinks, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; } };
 }

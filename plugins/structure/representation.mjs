@@ -26,7 +26,7 @@ function firstModel(atoms) {
   return atoms.filter((atom) => atom.modelId === id);
 }
 
-function chainKey(atom) {
+export function chainKey(atom) {
   const key = `${text(atom.authChainId)}\u0000${text(atom.labelChainId)}`;
   return atom.assemblyCopy ? `${key}\u0000${atom.assemblyCopy}` : key;
 }
@@ -98,6 +98,9 @@ function isWater(atom) {
 export function isPolymer(atom, format) {
   return atom.record === 'ATOM' || (format === 'mmcif' && Boolean(atom.labelSeqId)) || MODIFIED_RESIDUES.has(atom.residueName);
 }
+
+/** The key a chain group carries in the representation and in the scene's node metadata (`chainKey`). */
+export const chainGroupKey = (atom) => `chain:${encodeURIComponent(chainKey(atom).replace('\u0000', '|'))}`;
 
 function chainFor(atom, key) {
   return {

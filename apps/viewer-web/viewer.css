@@ -226,3 +226,15 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .sequence-chips:not([hidden]) { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; padding: 0.25rem 0.5rem; border-bottom: 1px solid var(--line); font-size: 0.74rem; }
 .sequence-chips button { padding: 0 0.45rem; background: #fff; border-width: 1px; }
 .sequence-chips .source { color: var(--dim); }
+
+/* ---- take apart ---- */
+.take-apart:not([hidden]) { padding: 0.2rem 0.75rem 0.5rem; font-size: 0.8rem; }
+.take-apart-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+.take-apart-row input[type="range"] { flex: 1; min-width: 6rem; accent-color: var(--acc); }
+.take-apart-pieces { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.4rem; max-height: 7.5rem; overflow: auto; }
+.take-apart-chip { padding: 0 0.4rem; font-size: 0.72rem; }
+.take-apart-chip.on, .take-apart-partner:hover { border-color: var(--acc); background: var(--acc-soft); }
+.take-apart-info { margin-top: 0.4rem; }
+.take-apart-info p { margin: 0.3rem 0; color: var(--dim); }
+.take-apart-title { font-weight: 600; margin-bottom: 0.3rem; }
+.take-apart-partner { display: block; width: 100%; margin-top: 0.2rem; text-align: left; font-size: 0.75rem; }

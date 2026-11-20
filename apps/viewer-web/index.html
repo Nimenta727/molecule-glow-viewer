@@ -110,6 +110,20 @@
               <button id="sequence-toggle" type="button" aria-pressed="false">序列条</button>
               <details class="selection-help"><summary>语法</summary><p id="selection-help-text"></p></details>
             </form>
+            <div id="take-apart-controls" class="structure-form" hidden>
+              <button id="take-apart-toggle" type="button" aria-pressed="false" title="把每条链当作一块零件：拆开、取下、装回，并查看它们的接触界面">拆装</button>
+            </div>
+            <div id="take-apart-panel" class="take-apart" hidden>
+              <label class="take-apart-row">拆开程度 <input id="take-apart-explode" type="range" min="0" max="1" step="0.01" value="0"></label>
+              <div class="take-apart-row">
+                <button id="take-apart-all" type="button">全部拆开</button>
+                <button id="take-apart-restore" type="button">装回</button>
+                <button id="take-apart-play" type="button">播放装配</button>
+              </div>
+              <p id="take-apart-step" class="structure-summary" aria-live="polite"></p>
+              <div id="take-apart-pieces" class="take-apart-pieces" aria-label="亚基（链）"></div>
+              <div id="take-apart-info" class="take-apart-info"></div>
+            </div>
             <p id="structure-summary" class="structure-summary" aria-live="polite" hidden></p>
             <details id="legacy-components" hidden>
               <summary>场景组件</summary>
