@@ -8,8 +8,12 @@ import { compileExpression, ExpressionError } from './expression.mjs';
  *     constants:  { k1: 9e8 },
  *     parameters: [{ id, label, min, max, step, default, unit?, integer? }],         numbers the user or a schedule sets (voltage, pH, concentrations, clock factors)
  *     variables:  { gate: { values: ['C', 'O', 'I'], init: 'C' } },                  the discrete state; a name `gate_O` is 1 while gate is O, else 0
+ *     numbers:    { pos: { init: 1, min: 0, max: 1000 } },                            whole-number state that grows or is assigned (a position along a sequence)
+ *     tables:     { codon: { values: [0, 1, 1, 2], default: 0 } },                    per-position data of the work, read in formulas as `codon(pos)`
  *     derived:    [{ name: 'h', expr }],                                              shared formulas, evaluated in order before the rates
- *     transitions:[{ id, label, when?, rate, set?: { gate: 'O' }, count?: { out: 1 } }],   in order; a transition runs only while `when` is true and its `rate` is positive
+ *     transitions:[{ id, label, when?, rate, set?: { gate: 'O' }, inc?: { pos: 1 }, assign?: { pos: expr }, count?: { out: 1 },
+ *                    outcomes?: [{ weight: expr, set?, inc?, assign?, count? }] }],   in order; runs only while `when` is true and `rate` is positive; after it is chosen one
+ *                    outcome is drawn by its weight (a branch with its own effects: which tRNA arrived, whether a drug locked a factor)
  *     counters:   ['out', 'inn'],
  *     clocks:     [{ name: 'ns', add: 'conducting ? dt * speed * ionSpeed : 0' }],    totals that grow by `add` over each interval (`dt` seconds, state at its start)
  *     observables:[{ name: 'EK', expr }] }                                            numbers to record (may read counters and clocks)
@@ -17,7 +21,7 @@ import { compileExpression, ExpressionError } from './expression.mjs';
  * The draws are the classic's: one uniform for the waiting time (none when no transition can run), one to choose among the transitions in their order, and a
  * parameter change that falls before the next event is a boundary event that keeps the state. Seeking and replaying give the same history for any partition.
  */
-export const MARKOV_LIMITS = Object.freeze({ constants: 64, parameters: 24, variables: 12, values: 16, derived: 32, transitions: 64, counters: 16, clocks: 8, observables: 16, events: 250000 });
+export const MARKOV_LIMITS = Object.freeze({ constants: 64, parameters: 24, variables: 24, values: 16, numbers: 16, tables: 16, tableLength: 4096, derived: 48, transitions: 96, outcomes: 8, counters: 24, clocks: 8, observables: 16, events: 250000 });
 const KEY = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/;
 const ID = /^[A-Za-z0-9_+\-]{1,24}$/;
 const isObject = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -52,8 +56,22 @@ export function compileMarkovModel(raw) {
     model.variables[name] = { values, init: v.init }; state0[name] = v.init;
     for (const x of values) { const flag = `${name}_${x}`; if (!declare(flag, `变量 ${name} 的取值标志`)) continue; flags.add(flag); }
   }
-  const rateNames = () => new Set([...Object.keys(model.constants), ...model.parameters.map((p) => p.id), ...flags, ...model.derived.map((d) => d.name)]);
-  const compile = (what, expr, names) => { try { return compileExpression(expr, names); } catch (e) { errors.push(`${what}：${e instanceof ExpressionError ? e.message : e}（${String(expr).slice(0, 60)}）`); return null; } };
+  model.numbers = {}; model.tables = {};
+  for (const [name, v] of Object.entries(isObject(raw.numbers) ? raw.numbers : {}).slice(0, MARKOV_LIMITS.numbers)) {
+    if (!declare(name, '数值变量')) continue;
+    const init = v?.init, min = v?.min ?? -Infinity, max = v?.max ?? Infinity;
+    if (!finite(init) || (v?.min !== undefined && !finite(v.min)) || (v?.max !== undefined && !finite(v.max)) || min > max || init < min || init > max) { errors.push(`数值变量 ${name} 的初值/下限/上限不合法。`); continue; }
+    model.numbers[name] = { init, min, max };
+  }
+  for (const [name, t] of Object.entries(isObject(raw.tables) ? raw.tables : {}).slice(0, MARKOV_LIMITS.tables)) {
+    if (!declare(name, '表')) continue;
+    const values = Array.isArray(t) ? t : t?.values, def = Array.isArray(t) ? 0 : (t?.default ?? 0);
+    if (!Array.isArray(values) || values.length > MARKOV_LIMITS.tableLength || !values.every(finite) || !finite(def)) { errors.push(`表 ${name} 必须是有限的数的列表（至多 ${MARKOV_LIMITS.tableLength} 项），默认值也要是数。`); continue; }
+    model.tables[name] = { values: values.slice(), default: def };
+  }
+  const tableArity = () => Object.fromEntries(Object.keys(model.tables).map((n) => [n, 1]));
+  const rateNames = () => new Set([...Object.keys(model.constants), ...model.parameters.map((p) => p.id), ...flags, ...Object.keys(model.numbers), ...model.derived.map((d) => d.name)]);
+  const compile = (what, expr, names) => { try { return compileExpression(expr, names, { functions: tableArity() }); } catch (e) { errors.push(`${what}：${e instanceof ExpressionError ? e.message : e}（${String(expr).slice(0, 60)}）`); return null; } };
   (Array.isArray(raw.derived) ? raw.derived : []).slice(0, MARKOV_LIMITS.derived).forEach((d, i) => {
     const fn = compile(`第 ${i + 1} 个派生量`, d?.expr, rateNames());
     if (fn && declare(d.name, `第 ${i + 1} 个派生量`)) model.derived.push({ name: d.name, fn });
@@ -67,10 +85,21 @@ export function compileMarkovModel(raw) {
     if (seen.has(t.id)) { errors.push(`转移“${t.id}”重复。`); return; }
     seen.add(t.id);
     const names = rateNames(), when = t.when === undefined ? () => 1 : compile(`${what}“${t.id}”的条件`, t.when, names), rate = compile(`${what}“${t.id}”的速率`, t.rate, names);
-    const set = {}, count = {};
-    for (const [k, v] of Object.entries(isObject(t.set) ? t.set : {})) { if (!model.variables[k]) errors.push(`${what}“${t.id}”设置了不存在的变量“${k}”。`); else if (!model.variables[k].values.includes(v)) errors.push(`${what}“${t.id}”把 ${k} 设成了不存在的取值“${String(v)}”。`); else set[k] = v; }
-    for (const [k, v] of Object.entries(isObject(t.count) ? t.count : {})) { if (!model.counters.includes(k)) errors.push(`${what}“${t.id}”给不存在的计数器“${k}”计数。`); else if (!finite(v)) errors.push(`${what}“${t.id}”的计数必须是数。`); else count[k] = v; }
-    if (when && rate) model.transitions.push({ id: t.id, label: typeof t.label === 'string' ? t.label.slice(0, 80) : t.id, when, rate, set, count });
+    const effects = (spec, where) => {
+      const out = { set: {}, count: {}, inc: {}, assign: {} };
+      for (const [k, v] of Object.entries(isObject(spec?.set) ? spec.set : {})) { if (!model.variables[k]) errors.push(`${where}设置了不存在的变量“${k}”。`); else if (!model.variables[k].values.includes(v)) errors.push(`${where}把 ${k} 设成了不存在的取值“${String(v)}”。`); else out.set[k] = v; }
+      for (const [k, v] of Object.entries(isObject(spec?.count) ? spec.count : {})) { if (!model.counters.includes(k)) errors.push(`${where}给不存在的计数器“${k}”计数。`); else if (!finite(v)) errors.push(`${where}的计数必须是数。`); else out.count[k] = v; }
+      for (const [k, v] of Object.entries(isObject(spec?.inc) ? spec.inc : {})) { if (!model.numbers[k]) errors.push(`${where}增减了不存在的数值变量“${k}”。`); else if (!finite(v)) errors.push(`${where}的增减必须是数。`); else out.inc[k] = v; }
+      for (const [k, expr] of Object.entries(isObject(spec?.assign) ? spec.assign : {})) { if (!model.numbers[k]) { errors.push(`${where}给不存在的数值变量“${k}”赋值。`); continue; } const fn = compile(`${where}给 ${k} 赋值`, expr, names); if (fn) out.assign[k] = fn; }
+      return out;
+    };
+    const base = effects(t, `${what}“${t.id}”`), outcomes = [];
+    (Array.isArray(t.outcomes) ? t.outcomes : []).slice(0, MARKOV_LIMITS.outcomes).forEach((o, j) => {
+      const weight = compile(`${what}“${t.id}”第 ${j + 1} 个分支的权重`, o?.weight, names);
+      if (weight) outcomes.push({ weight, ...effects(o, `${what}“${t.id}”第 ${j + 1} 个分支`) });
+    });
+    const { set, count } = base;
+    if (when && rate) model.transitions.push({ id: t.id, label: typeof t.label === 'string' ? t.label.slice(0, 80) : t.id, when, rate, set, count, inc: base.inc, assign: base.assign, outcomes });
   });
   (Array.isArray(raw.clocks) ? raw.clocks : []).slice(0, MARKOV_LIMITS.clocks).forEach((c, i) => {
     const fn = compile(`第 ${i + 1} 个时钟`, c?.add, new Set([...rateNames(), 'dt']));
@@ -82,7 +111,7 @@ export function compileMarkovModel(raw) {
     else if (fn) errors.push(`第 ${i + 1} 个观测量的名称不合法。`);
   });
   if (!model.transitions.length) errors.push('随机过程没有任何转移。');
-  model.initial = state0;
+  model.initial = state0; model.initialNumbers = Object.fromEntries(Object.entries(model.numbers).map(([k, v]) => [k, v.init]));
   return { model, errors };
 }
 
@@ -110,10 +139,12 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
   if (!sets.length || sets[0].time !== 0 || sets.some((s, i) => i && !(s.time > sets[i - 1].time))) throw new Error('参数时间表要从 0 开始并按时间递增。');
   const random = markovRandom(seed);
   const zero = (names) => Object.fromEntries(names.map((n) => [n, 0]));
-  const history = [{ time: 0, vars: { ...model.initial }, counters: zero(model.counters), clocks: zero(model.clocks.map((c) => c.name)), configIndex: 0, id: 'initial' }];
+  const tableFns = Object.fromEntries(Object.entries(model.tables).map(([n, t]) => [n, (i) => { const v = t.values[i]; return v === undefined ? t.default : v; }]));
+  const history = [{ time: 0, vars: { ...model.initial }, nums: { ...model.initialNumbers }, counters: zero(model.counters), clocks: zero(model.clocks.map((c) => c.name)), configIndex: 0, id: 'initial' }];
   const scopeOf = (state, params, extra = {}) => {
     const scope = Object.create(null);
-    Object.assign(scope, model.constants, params);
+    Object.assign(scope, model.constants, params, state.nums);
+    scope.$fn = tableFns;
     for (const [name, v] of Object.entries(model.variables)) for (const x of v.values) scope[`${name}_${x}`] = +(state.vars[name] === x);
     for (const d of model.derived) scope[d.name] = d.fn(scope);
     return Object.assign(scope, extra);
@@ -122,11 +153,15 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
     const dt = time - state.time, scope = scopeOf(state, params, { dt });
     return Object.fromEntries(model.clocks.map((c) => [c.name, state.clocks[c.name] + c.fn(scope)]));
   };
+  const ratesIn = (scope) => {
+    const rates = [];
+    for (const t of model.transitions) { if (!t.when(scope)) continue; const r = t.rate(scope); if (r > 0) rates.push([r, t]); }
+    return rates;
+  };
   let pending;
   function next() {
     const s = history.at(-1), params = sets[s.configIndex], scope = scopeOf(s, params);
-    const rates = [];
-    for (const t of model.transitions) { if (!t.when(scope)) continue; const r = t.rate(scope); if (r > 0) rates.push([r, t]); }
+    const rates = ratesIn(scope);
     const total = rates.reduce((sum, [r]) => sum + r, 0);
     const tau = total ? -Math.log(1 - random()) / total : Infinity;
     const boundary = sets[s.configIndex + 1]?.time ?? Infinity;
@@ -134,8 +169,22 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
     if (!Number.isFinite(tau)) return { ...s, time: Infinity };
     let pick = random() * total, chosen = rates.at(-1)[1];
     for (const [r, t] of rates) { pick -= r; if (pick <= 0) { chosen = t; break; } }
-    const time = s.time + tau, result = { ...s, vars: { ...s.vars, ...chosen.set }, counters: { ...s.counters }, clocks: advance(s, time, params), time, id: chosen.id };
-    for (const [k, v] of Object.entries(chosen.count)) result.counters[k] += v;
+    const time = s.time + tau, result = { ...s, vars: { ...s.vars }, nums: { ...s.nums }, counters: { ...s.counters }, clocks: advance(s, time, params), time, id: chosen.id };
+    const apply = (fx) => {
+      Object.assign(result.vars, fx.set);
+      for (const [k, v] of Object.entries(fx.count)) result.counters[k] += v;
+      for (const [k, v] of Object.entries(fx.inc)) result.nums[k] += v;
+      for (const [k, fn] of Object.entries(fx.assign)) result.nums[k] = fn(scope);
+      for (const k of Object.keys(result.nums)) result.nums[k] = Math.min(model.numbers[k].max, Math.max(model.numbers[k].min, result.nums[k]));
+    };
+    apply(chosen);
+    if (chosen.outcomes.length) {   // one branch, by weight (drawn after the transition was chosen)
+      const weights = chosen.outcomes.map((o) => Math.max(0, o.weight(scope))), sum = weights.reduce((a, w) => a + w, 0);
+      if (!(sum > 0)) throw new Error(`转移“${chosen.id}”的分支权重之和必须为正。`);
+      let u = random() * sum, branch = chosen.outcomes.length - 1;
+      for (let j = 0; j < weights.length; j++) { u -= weights[j]; if (u <= 0) { branch = j; break; } }
+      apply(chosen.outcomes[branch]);
+    }
     return result;
   }
   const labels = Object.fromEntries(model.transitions.map((t) => [t.id, t.label]));
@@ -157,6 +206,11 @@ export function createMarkovRun(raw, seed, schedule = [{ time: 0 }]) {
       let lo = 0, hi = history.length;
       while (lo + 1 < hi) { const mid = (lo + hi) >>> 1; if (history[mid].time <= time) lo = mid; else hi = mid; }
       return { ...view(history[lo], time), events: history.slice(Math.max(1, lo - 19), lo + 1).map(({ time: t, id }) => ({ time: t, id, label: labels[id] ?? '参数变更' })) };
+    },
+    /** The transitions that could run in a given state and parameter set, with their rates, in order: [[rate, id]...] (the "what can happen next" of a panel, and what tests compare). */
+    ratesAt({ vars, nums = {}, params }) {
+      const state = { vars: { ...model.initial, ...vars }, nums: { ...model.initialNumbers, ...nums } };
+      return ratesIn(scopeOf(state, { ...validateParameterSet(model, params ?? {}) })).map(([r, t]) => [r, t.id]);
     },
     /** Every event up to `time` (for tests and plots). */
     events(time) { this.at(time); return history.filter((s) => s.time <= time && s.id !== 'initial').map((s) => ({ time: s.time, id: s.id })); },

@@ -1,0 +1,7 @@
+ok   genetic code, preferred codons: identical to the classic
+ok   elongation rate constants: identical to the classic TL_K
+ok   antibiotic binding constants (kon, koff, Kd): identical to the classic TL_DRUG
+ok   sequence tables for 3 ORFs, 120 positions (codon class, Ala/Ser/Thr, near-cognate shares, the codon list): 0 differences
+ok   rate tables: 40000 random states over 14 ribosome states, 28 different events, 3 ORFs: the next events and their rates equal the classic, in the same order, to the last bit (0 differences)
+
+5/5 identical

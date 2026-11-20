@@ -458,13 +458,14 @@
     },
     {
       "id": "new.mechanism.translation",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
+      "runner": "tools/translation-parity.mjs",
+      "also_runs": ["plugins/simulation/test/translation.test.mjs"],
       "steps": [
         "Run 4V6F with seed 7, fixed dt and matched drug/concentration parameters twice."
       ],
       "expected": "Replays deterministic within each engine; tRNA and peptide events, sequence/units/names and drug response compared; mismatched RNG requires justified statistical tolerances.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "scope": "The runner compares the classic rates() with the data-defined ribosome scheme state by state (40000 random states, exact rates and order) and the sequence tables with the classic code; the Node tests check the elongation speed, the missense error (analytic and simulated) and every antibiotic's documented effect, seeded and replayable. A translation tool, the Viewer panel, the 70S structure animation and the cell-level views are not built; full parity remains pending."
     },
     {
       "id": "classic.system.cell-corner",

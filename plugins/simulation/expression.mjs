@@ -7,7 +7,8 @@
  *
  * Truth is a number: comparisons and `!` give 1 or 0, and any non-zero value is true, so a switch that is on is simply 1. The arithmetic is plain JavaScript
  * arithmetic in the order written, so a formula copied from the classic code gives the same digits (`^` is `**`).
- * `compileExpression(source, names)` checks the source once (every name must be in `names`) and returns a function of a scope object.
+ * `compileExpression(source, names, { functions })` checks the source once (every name must be in `names`) and returns a function of a scope object.
+ * `functions` names tables of the work that can be called as `table(index)`; the scope then carries them under `$fn`.
  */
 export const MAX_EXPRESSION = 1000;
 const MAX_DEPTH = 40;
@@ -34,10 +35,10 @@ function tokens(source) {
 }
 
 /** Parses to a tree of closures; `names` is the set of names the expression may read. */
-export function compileExpression(source, names) {
+export function compileExpression(source, names, { functions = {} } = {}) {
   if (typeof source !== 'string' || !source.trim()) throw new ExpressionError('表达式不能为空');
   if (source.length > MAX_EXPRESSION) throw new ExpressionError(`表达式太长（最多 ${MAX_EXPRESSION} 个字符）`);
-  const toks = tokens(source), allowed = names instanceof Set ? names : new Set(names), used = new Set();
+  const toks = tokens(source), allowed = names instanceof Set ? names : new Set(names), used = new Set(), allowedFn = new Set();
   let i = 0;
   const peek = () => toks[i], eat = (value) => { const t = toks[i]; if (t?.type === 'op' && t.value === value) { i++; return true; } return false; };
   const need = (value) => { if (!eat(value)) throw new ExpressionError(`这里应该有“${value}”`); };
@@ -85,6 +86,12 @@ export function compileExpression(source, names) {
     if (t.type === 'op' && t.value === '(') { const inner = ternary(depth + 1); need(')'); return inner; }
     if (t.type === 'name') {
       if (eat('(')) {
+        if (Object.hasOwn(functions, t.value)) {   // a table of the work: name(index), looked up in the scope's `$fn` (not a name an expression can write)
+          const arg = ternary(depth + 1); need(')');
+          if (!allowedFn.has(t.value)) allowedFn.add(t.value);
+          const name = t.value;
+          return (s) => s.$fn[name](arg(s));
+        }
         const fn = FUNCTIONS[t.value];
         if (!fn) throw new ExpressionError(`没有函数“${t.value}”（可用：${FUNCTION_NAMES.join('、')}）`);
         const args = [];
