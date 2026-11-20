@@ -42,8 +42,8 @@
 
 ## 5. 哪些是证据、哪些是作品
 
-- `plugins/simulation/test/models.mjs`、`kcsa-markov.mjs`：**验收用例**，证明引擎能表达 KcsA/ATP 等，不是随包发布的作品。
-- 官方三件（ATP/KcsA/AdK）仍是过渡的专用播放器（`player-v1`）；新作品应写成工具配置。
+- `plugins/simulation/test/kcsa-markov.mjs`（以及转发用的 `models.mjs`）：**验收用例**，证明引擎能表达 KcsA/ATP 等，不是随包发布的作品。
+- 官方三件（ATP/KcsA/AdK）仍是过渡的专用播放器（`player-v1`）；新作品应写成工具配置。已随包发布的作品：`plugins/simulation/works/`（呼吸链、叶绿体：数据动画工具＋区室动力学，配置由 `mechanismWorkConfig` 从经典场景生成，科学卡 `*.card.json`）。
 - 实验坐标、推导、建模、示意要在说明里分开；确定性重放不等于实验有效。
 
 ## 6. 现在做不到（别承诺给用户）
