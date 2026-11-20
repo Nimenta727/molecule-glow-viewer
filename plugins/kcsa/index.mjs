@@ -1,3 +1,4 @@
+import { kcsaToolDescriptor } from './tool.mjs';
 import { DEFAULTS, PARAMETERS, validateParameters, createKinetics, singleChannelCurrent, reversalPotential, conducting } from './kinetics.mjs';
 import { buildKcsaStructure } from './structure.mjs';
 import { lerp } from '../motion/vectors.mjs';
@@ -6,7 +7,7 @@ import { KCSA_1K4C_TEMPLATE, normalizeKcsaConfig, numeral } from './config.mjs';
 export const KCSA_PLAYER = 'org.glow.legacy-process.kcsa';
 export const kcsaPlugin = {
   manifest: { id: KCSA_PLAYER, version: '1.0.0', apiVersion: 1,
-    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels'] },
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels', 'tools'] },
   activate(context) {
     const instances = new Set();
     context.lifecycle.add(() => { for (const instance of instances) instance.dispose(); instances.clear(); });
@@ -23,6 +24,7 @@ export const kcsaPlugin = {
         instances.add(player); return player;
       },
     });
+    context.registerTool(KCSA_PLAYER, kcsaToolDescriptor(this.manifest.version));
     const { panel } = KCSA_1K4C_TEMPLATE;
     context.registerPanel(KCSA_PLAYER, {
       title: panel.title, parametersTitle: panel.parametersTitle, speed: { label: panel.speedLabel, min: 0.05, max: 3, step: 0.05 },

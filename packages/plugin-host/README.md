@@ -22,7 +22,7 @@ await host.deactivate('example.import');
 
 ## Contract
 
-Manifests use an exact `x.y.z` version, `apiVersion: 1`, dependency entries `{ id, version, optional }`, and capabilities drawn from `importers`, `representations`, `services`, `players`, and `panels`. A required dependency must already be active at the exact version. An active plugin with a required dependent cannot be deactivated until that dependent is deactivated.
+Manifests use an exact `x.y.z` version, `apiVersion: 1`, dependency entries `{ id, version, optional }`, and capabilities drawn from `importers`, `representations`, `services`, `players`, `panels`, and `tools`. A required dependency must already be active at the exact version. An active plugin with a required dependent cannot be deactivated until that dependent is deactivated.
 
 `activate(plugin)` returns the plugin ID. Registrations are staged until activation completes; collisions are global within each capability registry and fail activation. Plugin activation and deactivation are serialized. `deactivate(id)` returns `false` for an inactive plugin and `true` after successful deactivation.
 
@@ -37,3 +37,21 @@ The official catalog in `plugins/mechanism-catalog.mjs` maps legacy process IDs 
 Preparation may return additional trusted `create()` inputs, such as `{states}`; the Viewer retains them for that player ID rather than naming a process-specific model cache. AdK uses this path for two-state coordinates and alignment. The catalog also recognizes its specific legacy `states` declaration without inserting a fictitious `process`. Panel descriptors may request `control: 'range'` and a `parametersTitle`. An optional `functionalDescription` describes the plugin's own domain representation in the shared UI and exported evidence.
 
 The ATP factory accepts `{ model, scene, state }`. Its instance supports `play()`, `pause()`, `seek(seconds)`, `advance(seconds)`, `snapshot()`, `save()` and `dispose()`, together with its speed, playback-rate and step controls. Snapshots provide structure transforms, conformation phase, named particles, counters and events. Scene scopes release instances on replacement. The official plugin also disposes its instances when deactivated.
+
+## Tools (`tools` capability)
+
+A trusted plugin registers a tool with `context.registerTool(id, descriptor)` during activation; `host.getTool(id)` returns the frozen descriptor and `host.listTools({ audience })` lists the tools a front end may mount (`'view'` for the Viewer, `'author'` for Studio), sorted by id. See `tool-descriptor.mjs` for the descriptor contract and [CONTRACT_4.3.0](../../docs/CONTRACT_4.3.0.md) §3 and §10 for the design.
+
+```js
+context.registerTool('org.glow.legacy-process.kcsa', {
+  version: '1.0.0', title: 'KcsA 钾通道', audience: ['view', 'author'], runtime: 'player-v1',
+  parameters: { pH: { type: 'number', label: '胞内 pH', min: 3.5, max: 8, step: 0.1, default: 4 } },   // runtime controls
+  author: { template, fields: (config) => [{ path: 'steps.0.title', type: 'text', label: '第 1 步标题' }], validate },  // edits scene.tools[].config
+  model: { kind: '…', assumptions: ['教学速率模型，不是分子动力学。'] },
+});
+```
+
+- `audience` decides which front end may mount the tool. A parameter's own `audience` must lie within the tool's. An `author` block needs `"author"` in the audience.
+- `tool-model.mjs` holds the pure logic shared by front ends: `toolControls`, `validateToolValues`, `authorFields`, and `editAuthorField`, which coerces a raw entry to the field type and then lets the tool's own `validate` accept or refuse the whole configuration. Config paths refuse `__proto__`, `constructor`, `prototype`.
+- `tool-panel.mjs` builds the input elements (`renderControl`, `renderControls`, `readControl`, `writeControl`). Number and range controls keep the markup the Viewer's mechanism panel has always used.
+- The Viewer builds its mechanism parameter controls from the tool descriptor (view audience); a player without a descriptor falls back to its panel definition. Studio's "工具配置" section builds an editor from the author fields of every `scene.tools[]` entry and applies edits with the `setToolConfig` command; a tool that is not registered keeps its configuration untouched and is reported, never downgraded to a static preview.

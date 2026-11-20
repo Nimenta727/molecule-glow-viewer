@@ -1,3 +1,4 @@
+import { atpToolDescriptor } from './tool.mjs';
 import { centroid, rotateVector, superpose } from '../structure/alignment.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM as scale, selectCoordinateAtoms } from '../structure/representation.mjs';
 import { matchesPart } from '../structure/functional-preview.mjs';
@@ -8,7 +9,7 @@ import { displaceVertices } from '../motion/conformation.mjs';
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
   manifest: { id: ATP_PLAYER, version: '1.0.0', apiVersion: 1,
-    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels'] },
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels', 'tools'] },
   activate(context) {
     const instances = new Set();
     context.lifecycle.add(() => { for (const player of instances) player.dispose(); instances.clear(); });
@@ -20,6 +21,7 @@ export const atpSynthasePlugin = {
       instances.add(player);
       return player;
     } });
+    context.registerTool(ATP_PLAYER, atpToolDescriptor(this.manifest.version));
     const { panel } = ATP_6ZPO_TEMPLATE;
     context.registerPanel(ATP_PLAYER, {
       title: panel.title,

@@ -17,6 +17,8 @@ import { defaultStyleFor } from './default-style.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
 import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
+import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
+import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -298,14 +300,14 @@ function boot() {
       elements['mechanism-speed'].value = String(snapshot.speed);
       elements['mechanism-seed'].value = String(snapshot.seed);
       elements['mechanism-rate'].value = String(snapshot.playbackRate);
-      elements['mechanism-parameters'].replaceChildren(...Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => {
-        const label = document.createElement('label'), input = document.createElement('input');
-        label.append(document.createTextNode(parameter.label));
-        input.type = parameter.control === 'range' ? 'range' : 'number'; input.dataset.parameter = key;
-        for (const attribute of ['min', 'max', 'step']) input.setAttribute(attribute, parameter[attribute]);
-        input.value = snapshot.parameters[key]; label.append(input); return label;
-      }));
-      elements['mechanism-parameter-panel'].hidden = !panel?.parameters;
+      // Runtime controls come from the tool's descriptor, filtered to what a viewing front end may show; a player without
+      // a descriptor falls back to the numeric table of its panel definition.
+      const tool = host.getTool(active.playerId);
+      const controls = tool ? toolControls(tool, 'view') : Object.entries(panel?.parameters ?? {}).map(([key, parameter]) => ({
+        key, type: 'number', label: parameter.label, min: parameter.min, max: parameter.max, step: parameter.step, control: parameter.control, default: parameter.value }));
+      active.mechanismControls = new Map(controls.map((control) => [control.key, control]));
+      elements['mechanism-parameters'].replaceChildren(...renderControls(document, controls, snapshot.parameters ?? {}));
+      elements['mechanism-parameter-panel'].hidden = !controls.length;
       elements['mechanism-parameter-title'].textContent = panel?.parametersTitle ?? '机制参数';
       elements['mechanism-back'].disabled = true;
       elements['mechanism-steps'].replaceChildren(...player.steps.map(({ title }, index) => {
@@ -322,7 +324,7 @@ function boot() {
       else button.removeAttribute('aria-current');
     }
     elements['mechanism-caption'].textContent = player.steps[stage].caption;
-    for (const input of elements['mechanism-parameters'].querySelectorAll('input')) if (input !== document.activeElement) input.value = snapshot.parameters?.[input.dataset.parameter];
+    for (const input of elements['mechanism-parameters'].querySelectorAll('input, select')) if (input !== document.activeElement) writeControl(input, snapshot.parameters?.[input.dataset.parameter]);
     elements['mechanism-metrics'].textContent = snapshot.metrics ?? '';
     elements['mechanism-counters'].textContent = `${Object.entries(snapshot.counters).map(([name, value]) => `${name} ${value}`).join(' · ')} · ${snapshot.time.toFixed(2)} 示意秒`;
     const eventKey = JSON.stringify(snapshot.events);
@@ -1063,10 +1065,10 @@ function boot() {
   elements['mechanism-parameters'].addEventListener('change', (event) => {
     const key = event.target.dataset.parameter;
     if (!key || !active?.player?.setParameters) return;
-    try { active.player.setParameters({ [key]: Number(event.target.value) }); showPose(); }
+    const type = active.mechanismControls?.get(key)?.type ?? 'number', raw = readControl(event.target);
+    try { active.player.setParameters({ [key]: type === 'number' ? Number(raw) : type === 'boolean' ? Boolean(raw) : raw }); showPose(); }
     catch (error) { setStatus(error.message); }
-    const value = active.player.snapshot().parameters[key];
-    event.target.value = value;
+    writeControl(event.target, active.player.snapshot().parameters[key]);
   });
   elements['mechanism-parameters'].addEventListener('input', (event) => {
     if (event.target.type === 'range') event.target.dispatchEvent(new Event('change', { bubbles: true }));

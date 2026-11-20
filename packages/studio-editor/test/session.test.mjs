@@ -144,3 +144,22 @@ test('a v3 work keeps its tools, resource records and links through editing, und
   session.undo(); assert.deepEqual(session.getScene(), scene);
   session.redo(); assert.deepEqual(session.getScene().tools, scene.tools);
 });
+
+test('setToolConfig replaces one tool entry\'s configuration, is undoable, and refuses bad targets', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [], resources: [],
+    tools: [{ id: 'a', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 1 }, state: { time: 2 } }, { id: 'b', tool: { id: 'x.z', version: '1.0.0' }, config: { m: 1 } }] };
+  const session = createStudioSession(base);
+  assert.equal(session.dispatch({ type: 'setToolConfig', id: 'a', config: { n: 5, nested: { ok: true } } }), true);
+  assert.deepEqual(session.getScene().tools[0], { id: 'a', tool: { id: 'x.y', version: '1.0.0' }, config: { n: 5, nested: { ok: true } }, state: { time: 2 } });
+  assert.deepEqual(session.getScene().tools[1].config, { m: 1 }, 'other entries are untouched');
+  assert.equal(session.dispatch({ type: 'setToolConfig', id: 'a', config: { n: 5, nested: { ok: true } } }), false, 'no change, no history entry');
+  session.undo(); assert.deepEqual(session.getScene().tools[0].config, { n: 1 });
+  session.redo(); assert.equal(session.getScene().tools[0].config.n, 5);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'missing', config: {} }), /没有工具条目/);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'a', config: [] }), /config object/);
+  assert.throws(() => session.dispatch({ type: 'setToolConfig', id: 'a', config: { bad: () => 1 } }), /JSON|non/i);
+  const { tools, resources, ...v2 } = base;
+  assert.throws(() => createStudioSession({ ...v2, schemaVersion: 2 }).dispatch({ type: 'setToolConfig', id: 'a', config: {} }), /v3/);
+});

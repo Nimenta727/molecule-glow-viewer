@@ -26,6 +26,8 @@
         <nav class="project-actions" aria-label="项目操作">
           <button id="new-project" type="button">新建项目</button>
           <button id="import-structure" type="button">导入结构为新场景</button>
+          <button id="import-package" type="button">导入场景包</button>
+          <input id="package-file" type="file" accept=".glow,application/zip" hidden>
           <input id="structure-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
           <button id="open-project" type="button">打开项目</button>
           <input id="project-file" type="file" accept=".glow-project,.json,application/json" hidden>
@@ -105,6 +107,11 @@
               <button class="wide primary" type="submit">应用属性</button>
             </form>
           </section>
+
+          <details id="tool-settings" class="panel-section panel-group">
+            <summary><h2>工具配置</h2></summary>
+            <div id="tool-config"></div>
+          </details>
 
           <details id="navigation-settings" class="panel-section panel-group">
             <summary><h2>四模式导航</h2></summary>

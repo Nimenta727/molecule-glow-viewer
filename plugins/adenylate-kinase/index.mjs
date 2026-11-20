@@ -1,10 +1,11 @@
+import { adkToolDescriptor } from './tool.mjs';
 import { PARAMETERS, createAdkPlayback } from './playback.mjs';
 import { buildAdkStructure } from './structure.mjs';
 import { ADK_4AKE_TEMPLATE, normalizeAdkConfig } from './config.mjs';
 export const ADK_PLAYER = 'org.glow.legacy-process.adenylate-kinase';
 export const adenylateKinasePlugin = {
   manifest: { id: ADK_PLAYER, version: '1.0.0', apiVersion: 1,
-    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels'] },
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }], capabilities: ['players', 'panels', 'tools'] },
   activate(context) {
     const instances = new Set();
     context.lifecycle.add(() => { for (const player of instances) player.dispose(); instances.clear(); });
@@ -21,6 +22,7 @@ export const adenylateKinasePlugin = {
         instances.add(player); return player;
       },
     });
+    context.registerTool(ADK_PLAYER, adkToolDescriptor(this.manifest.version));
     const { panel } = ADK_4AKE_TEMPLATE;
     context.registerPanel(ADK_PLAYER, {
       title: panel.title, parametersTitle: panel.parametersTitle, speed: { label: panel.speedLabel, min: 0.05, max: 3, step: 0.05 },

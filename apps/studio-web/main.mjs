@@ -8,6 +8,10 @@ import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geome
 import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
 import { createNavigationEditor } from './navigation-editor.mjs';
+import { createToolConfigPanel } from './tool-config.mjs';
+import { readScenePackage } from '../../packages/schema/archive.mjs';
+import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
+import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -33,6 +37,33 @@ const navigationEditor = createNavigationEditor(ui['navigation-editor'], {
 });
 
 function session() { return sessions.get(project.activeSceneId); }
+
+// The structure importer and the mechanism plugins are activated on demand; the latter register the tools whose
+// authoring configuration the "工具配置" section edits.
+function ensureStructurePlugin() {
+  structureReady ??= import('../../plugins/structure/index.mjs').then(({ structurePlugin, STRUCTURE_IMPORTER_ID }) =>
+    host.activate(structurePlugin).then(() => STRUCTURE_IMPORTER_ID)).catch((error) => {
+    structureReady = undefined;
+    throw error;
+  });
+  return structureReady;
+}
+let toolPluginsReady;
+function ensureToolPlugins() {
+  toolPluginsReady ??= (async () => {
+    await ensureStructurePlugin();
+    const { mechanismPlugins } = await import('../../plugins/mechanism-catalog.mjs');
+    const active = new Set(host.listActive().map(({ id }) => id));
+    for (const plugin of mechanismPlugins) if (!active.has(plugin.manifest.id)) await host.activate(plugin);
+  })().catch((error) => { toolPluginsReady = undefined; throw error; });
+  return toolPluginsReady;
+}
+const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
+  getTool: (id) => host.getTool(id),
+  getScene: () => session().getScene(),
+  apply: (id, config) => edit({ type: 'setToolConfig', id, config }, '已更新工具配置。'),
+  report: (message) => status(message),
+});
 
 const host = createPluginHost({
   getScene: () => session().getCoreDocument(),
@@ -199,6 +230,11 @@ function renderPanels(scene, document) {
   ui['evidence-list'].replaceChildren(...scene.evidence.map(({ type, citation, assetId }) =>
     listItem([TYPES[type] || type, citation || assetId].filter(Boolean).join(' · '))));
   navigationEditor.render(scene);
+  toolConfigPanel.render(scene);
+  if (scene.tools?.length && !toolPluginsReady) {
+    ensureToolPlugins().then(() => { if (session().getScene().id === scene.id) toolConfigPanel.render(session().getScene()); })
+      .catch((error) => status(`无法启用工具插件。 ${error.message}`));
+  }
 }
 
 function showPose() {
@@ -263,6 +299,7 @@ viewport = createViewport(ui.viewport, {
 
 onClick('new-project', newProject);
 onClick('import-structure', () => { navigationEditor.assertSaved(); ui['structure-file'].click(); });
+onClick('import-package', () => { navigationEditor.assertSaved(); ui['package-file'].click(); });
 onClick('open-project', () => { navigationEditor.assertSaved(); ui['project-file'].click(); });
 onClick('reset-camera', () => viewport.resetCamera());
 ui['gizmo-mode'].addEventListener('change', () => viewport.setGizmoMode(ui['gizmo-mode'].value));
@@ -304,12 +341,7 @@ watchFile('structure-file', async (file) => {
   const ticket = ++loading;
   if (file.size > 30 * 1024 * 1024) throw new Error('结构文件超过 30 MiB。');
   status('正在导入结构…');
-  structureReady ??= import('../../plugins/structure/index.mjs').then(({ structurePlugin, STRUCTURE_IMPORTER_ID }) =>
-    host.activate(structurePlugin).then(() => STRUCTURE_IMPORTER_ID)).catch((error) => {
-    structureReady = undefined;
-    throw error;
-  });
-  const importer = host.getImporter(await structureReady);
+  const importer = host.getImporter(await ensureStructurePlugin());
   const imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
   if (ticket !== loading) return;
   navigationEditor.assertSaved();
@@ -323,6 +355,28 @@ watchFile('structure-file', async (file) => {
   editingPose = false;
   refresh({ resetCamera: true, resetTime: true });
   status(`已导入 ${file.name}。`);
+});
+
+watchFile('package-file', async (file) => {
+  const ticket = ++loading;
+  if (file.size > 128 * 1024 * 1024) throw new Error('场景包超过 128 MiB。');
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('请选择 .glow 场景包（Viewer 的“保存”导出）。旧版 v1 文本包请先在 Viewer 中打开并保存。');
+  status('正在导入场景包…');
+  const { scene: read, resources } = await readScenePackage(bytes);
+  // A v2 package is brought to v3 with the default tool configuration of its declared mechanism; a v3 work keeps its own.
+  const { scene: work } = await upgradeSceneToV3(read, resources, { tools: toolEntriesForScene(read) });
+  if (ticket !== loading) return;
+  navigationEditor.assertSaved();
+  const id = sessions.has(work.id) ? makeId(work.id) : work.id;
+  const next = createStudioSession({ ...work, id }, resources);
+  geometryFor(next);
+  sessions.set(id, next);
+  project = { ...project, activeSceneId: id };
+  selection = work.nodes[0]?.id ?? null;
+  editingPose = false;
+  refresh({ resetCamera: true, resetTime: true });
+  status(`已导入场景包 ${file.name}。`);
 });
 
 watchFile('project-file', async (file) => {

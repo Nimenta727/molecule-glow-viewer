@@ -1,4 +1,6 @@
-const CAPABILITIES = new Set(['importers', 'representations', 'services', 'players', 'panels']);
+import { validateToolDescriptor } from './tool-descriptor.mjs';
+
+const CAPABILITIES = new Set(['importers', 'representations', 'services', 'players', 'panels', 'tools']);
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const isVersion = (value) => typeof value === 'string' && SEMVER.test(value);
@@ -29,7 +31,7 @@ function registryKey(capability, name) { return `${capability}:${name}`; }
 export function createPluginHost({ getScene, dispatch }) {
   if (typeof getScene !== 'function' || typeof dispatch !== 'function') throw new TypeError('getScene and dispatch are required');
   const active = new Map();
-  const registries = { importers: new Map(), representations: new Map(), services: new Map(), players: new Map(), panels: new Map() };
+  const registries = { importers: new Map(), representations: new Map(), services: new Map(), players: new Map(), panels: new Map(), tools: new Map() };
   let queue = Promise.resolve();
   const exclusive = (task) => {
     const result = queue.then(task);
@@ -88,6 +90,7 @@ export function createPluginHost({ getScene, dispatch }) {
         registerRepresentation(name, representation) { register('representations', name, representation); },
         registerPlayer(name, player) { register('players', name, player); },
         registerPanel(name, definition) { register('panels', name, definition); },
+        registerTool(name, descriptor) { register('tools', name, validateToolDescriptor(name, descriptor)); },
         registerService(name, version, service) { register('services', name, service, version); },
         getService(name, version) {
           ensureUsable();
@@ -146,6 +149,12 @@ export function createPluginHost({ getScene, dispatch }) {
     getRepresentation(id) { return lookup(registries.representations, registryKey('representations', id)); },
     getPlayer(id) { return lookup(registries.players, registryKey('players', id)); },
     getPanel(id) { return lookup(registries.panels, registryKey('panels', id)); },
+    getTool(id) { return lookup(registries.tools, registryKey('tools', id)); },
+    /** Registered tools for a front end (`view` or `author`), sorted by id. Tools the front end must not mount are not listed. */
+    listTools({ audience } = {}) {
+      return [...registries.tools.values()].map(({ key, value }) => ({ id: key.slice('tools:'.length), ...value }))
+        .filter((tool) => !audience || tool.audience.includes(audience)).sort((a, b) => a.id.localeCompare(b.id));
+    },
     getService(id, version) { return lookup(registries.services, registryKey('services', `${id}@${version}`)); },
     listActive() { return [...active.values()].map(record => Object.freeze({ id: record.manifest.id, version: record.manifest.version })); },
   });

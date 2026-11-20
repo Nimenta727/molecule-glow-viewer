@@ -155,6 +155,14 @@ function applyMetadata(scene, command) {
       next.presentation.bookmarks.push(clone(bookmark));
       break;
     }
+    case 'setToolConfig': {
+      if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
+      const entry = next.tools.find(({ id }) => id === command.id);
+      if (!entry) throw new TypeError(`作品里没有工具条目 ${String(command.id)}。`);
+      if (!command.config || typeof command.config !== 'object' || Array.isArray(command.config)) throw new TypeError('setToolConfig requires a config object');
+      entry.config = clone(command.config);
+      break;
+    }
     case 'addEvidence': {
       const entry = command.entry;
       if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.type !== 'string' || typeof entry.citation !== 'string') {
@@ -185,7 +193,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 
