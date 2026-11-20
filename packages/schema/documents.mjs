@@ -1,6 +1,10 @@
 import { Validator } from '@cfworker/json-schema';
 import { validateDocument as validateCoreDocument } from '../core/scene-document.mjs';
 import { GEOMETRY_MEDIA_TYPE } from './geometry.mjs';
+import { SchemaValidationError } from './errors.mjs';
+import { validateResource } from './resource.mjs';
+
+export { SchemaValidationError };
 
 const DRAFT = 'https://json-schema.org/draft/2020-12/schema';
 const ID = { type: 'string', pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$' };
@@ -163,14 +167,47 @@ export const SCENE_SCHEMA = {
   $defs: COMMON_DEFS, ...SCENE_DEFINITION,
 };
 
+// ---- Scene v3: assets may reference immutable resources, and the scene carries the tool configurations that make it a "work".
+// v3 = v2 + `resource` on file/external assets + required `tools` and `resources`. See docs/CONTRACT_4.3.0.md §2, §4, §12.
+const SEMVER = { type: 'string', pattern: '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$' };
+const RESOURCE_REF = {
+  type: 'object', additionalProperties: false, required: ['id', 'version', 'sha256'],
+  properties: { id: ID, version: { type: 'string', pattern: '^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$' }, sha256: SHA256 },
+};
+const withResource = (asset) => ({ ...asset, properties: { ...asset.properties, resource: RESOURCE_REF } });
+const JSON_OBJECT = { type: 'object', additionalProperties: JSON_VALUE };
+const TOOL_ENTRY = {
+  type: 'object', additionalProperties: false, required: ['id', 'tool', 'config'],
+  properties: {
+    id: ID,
+    tool: { type: 'object', additionalProperties: false, required: ['id', 'version'], properties: { id: ID, version: SEMVER } },
+    config: JSON_OBJECT,   // validated by the tool that owns it
+    state: JSON_OBJECT,    // the tool's save() output (seed, parameter history, playback)
+  },
+};
+// Deep copy: the validator caches $ref bases per schema object, so v2 and v3 must not share sub-schemas.
+const SCENE_PROPERTIES_V3 = schemaCopy({
+  ...SCENE_PROPERTIES,
+  schemaVersion: { const: 3 },
+  assets: { type: 'array', items: { oneOf: [PRIMITIVE_ASSET, withResource(FILE_ASSET), withResource(EXTERNAL_ASSET)] } },
+  tools: { type: 'array', items: TOOL_ENTRY },
+  resources: { type: 'array', items: { type: 'object' } },   // glow-resource records, checked by validateResource
+});
+export const SCENE_SCHEMA_V3 = {
+  $schema: DRAFT, $id: 'https://molecule-glow-viewer.invalid/schema/scene-v3.json',
+  $defs: schemaCopy(COMMON_DEFS),
+  type: 'object', additionalProperties: false,
+  required: [...SCENE_REQUIRED, 'tools', 'resources'], properties: SCENE_PROPERTIES_V3,
+};
+const SCENE_ENVELOPE = { type: 'object', required: ['schemaVersion'], properties: { schemaVersion: { enum: [2, 3] } } };
+
 export const PROJECT_SCHEMA = {
   $schema: DRAFT, $id: 'https://molecule-glow-viewer.invalid/schema/project-v1.json',
-  $defs: { jsonValue: schemaCopy(JSON_VALUE), scene: schemaCopy(SCENE_DEFINITION) },
   type: 'object', additionalProperties: false, required: ['format', 'schemaVersion', 'id', 'title', 'scenes', 'activeSceneId'],
   properties: {
     format: { const: 'glow-project' }, schemaVersion: { const: 1 }, id: ID,
     title: { type: 'string', minLength: 1 },
-    scenes: { type: 'array', minItems: 1, items: { $ref: '#/$defs/scene' } },
+    scenes: { type: 'array', minItems: 1, items: SCENE_ENVELOPE },   // each scene is then validated as v2 or v3
     activeSceneId: ID,
   },
 };
@@ -194,14 +231,6 @@ function schemaErrors(schema, input, label) {
   if (!validator) { validator = new Validator(schema, '2020-12', false); validators.set(schema, validator); }
   const result = validator.validate(input);
   if (!result.valid) throw new SchemaValidationError(label, result.errors);
-}
-
-export class SchemaValidationError extends Error {
-  constructor(label, errors = []) {
-    super(`${label} is invalid${errors.length ? `: ${errors.map((error) => `${error.instanceLocation || '$'} ${error.error}`).join('; ')}` : ''}`);
-    this.name = 'SchemaValidationError';
-    this.errors = errors;
-  }
 }
 
 function detachedJson(value, path = '$', ancestors = new Set()) {
@@ -261,8 +290,32 @@ function checkSceneReferences(scene) {
     }
     checkNavigation(scene.presentation, nodeIds, scene.timeline);
   }
+  if (scene.schemaVersion === 3) checkWorkReferences(scene);
   try { validateCoreDocument(projectCoreDocument(scene)); }
   catch (error) { throw new SchemaValidationError(error.message); }
+}
+
+function checkWorkReferences(scene) {
+  const fail = (message) => { throw new SchemaValidationError(message); };
+  const toolIds = new Set();
+  for (const entry of scene.tools) {
+    if (toolIds.has(entry.id)) fail(`duplicate tool entry ID "${entry.id}"`);
+    toolIds.add(entry.id);
+  }
+  const records = new Map();
+  for (const input of scene.resources) {
+    const record = validateResource(input);
+    const key = `${record.id}@${record.version}`;
+    if (records.has(key)) fail(`duplicate resource ${key}`);
+    records.set(key, record);
+  }
+  for (const asset of scene.assets) {
+    if (!asset.resource) continue;
+    const { id, version, sha256 } = asset.resource, record = records.get(`${id}@${version}`);
+    if (!record) fail(`asset "${asset.id}" refers to resource ${id}@${version}, which the scene does not carry`);
+    if (!record.files.some((file) => file.sha256 === sha256)) fail(`asset "${asset.id}" expects sha256 ${sha256}, which is not part of resource ${id}@${version}`);
+    if (asset.kind === 'file' && asset.sha256 !== sha256) fail(`asset "${asset.id}" bytes (${asset.sha256}) differ from its resource reference (${sha256})`);
+  }
 }
 
 function checkNavigation({ navigation, notes, bookmarks }, nodeIds, timeline) {
@@ -320,7 +373,7 @@ export function isPackagePath(value) {
 
 export function validateScene(input) {
   const scene = detachedJson(input);
-  schemaErrors(SCENE_SCHEMA, scene, 'Scene');
+  schemaErrors(scene?.schemaVersion === 3 ? SCENE_SCHEMA_V3 : SCENE_SCHEMA, scene, 'Scene');
   checkSceneReferences(scene);
   return scene;
 }
@@ -329,8 +382,8 @@ export function validateProject(input) {
   const project = detachedJson(input);
   schemaErrors(PROJECT_SCHEMA, project, 'Project');
   const ids = new Set();
+  project.scenes = project.scenes.map((scene) => validateScene(scene));
   for (const scene of project.scenes) {
-    checkSceneReferences(scene);
     if (ids.has(scene.id)) throw new SchemaValidationError(`duplicate scene ID "${scene.id}"`);
     ids.add(scene.id);
   }

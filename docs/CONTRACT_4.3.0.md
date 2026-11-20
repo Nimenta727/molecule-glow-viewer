@@ -113,6 +113,8 @@
 }]
 ```
 
+> **实现注记（2026-11-19，schemaVersion 3 已落地）**：上面是示意。实际的 `tools[]` 条目是 `{ id, tool: { id, version }, config, state? }`——`config` 是由**该工具自己校验**的 JSON 对象（ATP/AdK/KcsA 的配置分节见各自的 `config.mjs`），`state` 是工具 `save()` 的输出（播放时间、种子、参数历史）。`bindings/selections/params/narrative` 是 `config` 内部的分节，不是 schema 层的固定字段，这样新工具不需要改 schema。`resources[]` 在场景中携带资源记录，文件/外部资产用 `resource: { id, version, sha256 }` 引用，schema 校验引用能解析到记录且哈希一致。
+
 - `bindings` 优先用**节点 ID**；允许"链/组件匹配规则"作为兜底（取代现在的 `/adenylate kinase/i`），解析结果必须写回 `bindings` 并产生诊断，使作品重开时不再依赖正则猜测。
 - `narrative`、证据文案、能量步骤等"教学剧情"属于作品；现有 `scene.presentation.notes/navigation` 继续使用，不重复建设。
 - 作品中**不允许**任何可执行内容；`tools[].tool` 只能指向宿主已注册的受信工具。
@@ -221,3 +223,5 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 - **KcsA 样板（2026-11-19，已完成同样的一步）**：`plugins/kcsa/config.mjs`（`KCSA_1K4C_TEMPLATE` + 校验）承接五个结构态的角色与编号（主结构/开放/失活/TBA/Ba）、通道链识别（名称模式、链数）、孔区叠合与轴线残基、过滤器离子、阻断剂残基名、粒子与计数标签、步骤/导航/证据文字、膜半径和**初始实验条件**（pH、电位、离子浓度等，由动力学模型的参数校验把关）。`structure.mjs`/`index.mjs` 只保留叠合、孔道搜索、位点推导和敲击循环；**门控动力学（`kinetics.mjs`）按契约保持为算法，不进配置**。缺少某个构象结构时给出明确报错。
 - **三个样板的共同结论**：ATP（环旋转 + 位点构象插值）、AdK（域拟合 + 两态插值）、KcsA（多态叠合 + 孔道/位点）都已是“配置 + 几何算法”。三者共有的“结构对应 → 叠合 → 按残基位移插值构象”下一步合并为 `plugins/motion` 的同一工具；KcsA 的门控/渗透计时与阻断留给 `plugins/simulation`。
 - **`plugins/motion` 第一步（2026-11-19，已完成）**：三个播放器里各写一遍的“顶点按最近锚点原子的反距离加权位移移到另一构象”合并为 `plugins/motion/conformation.mjs` 的 `displaceVertices`（连同 `nearestAnchors`、`rotationAngle`、`vectors.mjs` 的向量小工具、`path.mjs` 的 `walkPath`）；ATP（3 态 β 位点）、AdK（两态域）、KcsA（开放/失活）改为调用它。这是**纯重构**：三份黄金输出逐位一致，真实 6ZPO、4AKE/1AKE、五个 KcsA 态上的新旧位移输出逐项一致。仍是库模块，待 4.3.3 工具协议后注册为 `tools`。叠合 `superpose` 本来就在 `plugins/structure/alignment.mjs`，没有重复。
+- **schemaVersion 3（2026-11-19，已完成）**：`packages/schema` 新增 v3 场景（`tools`、`resources` 必填；资产可带 `resource`）、`upgradeSceneToV3`（v2 → v3 只增不删；过渡期的 `provenance.resource` 提升为一等字段；字节缺失/哈希不符只产生诊断，不阻止打开）、`attachStructureResources`。v2 的读写与校验保持原样；v2 文档不得含 v3 字段；工程可同时包含 v2 与 v3 场景。Viewer 在载入边界升级场景，并为声明了内置机制（旧 `process` 或 AdK 两态）的场景写入完整默认配置（`plugins/mechanism-catalog.mjs` 的 `toolEntriesForScene`）；播放器从 `tools[]` 读配置和状态，导出的包携带它们。Studio 编辑 v3 场景时保留 `tools/resources/resource`（撤销/重做亦然）。
+- **已知边界**：① 场景里已保存的 `presentation.navigation` 优先于配置里的导航/步骤文字（保存后的呈现归场景所有；改配置文字要同时清除或改写已保存的导航）；② 生产 v2 场景的代码（结构导入、Studio 新建、旧包迁移）仍写 v2，在 Viewer 载入时升级，尚未让它们直接写 v3；③ 工具 ID 仍是 `org.glow.legacy-process.*`，`org.glow.tool.*` 随工具协议（4.3.3）；④ `scene.dependencies` 尚未为工具条目自动登记；⑤ 导出时按 `embedAllowed` 决定是否嵌入资源字节尚未实现（授权未知的本地文件目前也会随包嵌入）。

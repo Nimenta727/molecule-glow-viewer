@@ -16,6 +16,7 @@ import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from './default-style.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
+import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -218,6 +219,7 @@ function boot() {
         if (!loaded.model) restoreStructureModel(loaded);
       }
       if (signal.aborted) return;
+      await prepareWorkScene(loaded);   // current scene format + the tool configuration of the declared mechanism
       await preparePlayer(loaded, signal);
       signal.throwIfAborted();
       const layers = structureLayers(loaded);
@@ -871,8 +873,7 @@ function boot() {
         }
       } else {
         if (active?.player) {
-          const source = active.scene.assets.find((asset) => asset.provenance?.parserVersion);
-          if (source) source.provenance.playback = active.player.save();
+          storePlayerState(active.scene, active.playerId, active.player.save());
           active.player.dispose();
           active.player = undefined;
         }
@@ -938,8 +939,7 @@ function boot() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
     if (active.player) {
-      const source = scene.assets.find((asset) => asset.provenance?.parserVersion);
-      if (source) source.provenance.playback = active.player.save();
+      storePlayerState(scene, active.playerId, active.player.save());
       if (active.player.evidence) {
         if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
       } else if (!scene.evidence.some(({ citation }) => citation === ATP_6ZPO_TEMPLATE.sceneEvidence.citation)) {

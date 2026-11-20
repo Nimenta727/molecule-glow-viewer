@@ -1,5 +1,5 @@
 import { Validator } from '@cfworker/json-schema';
-import { SchemaValidationError } from './documents.mjs';
+import { SchemaValidationError } from './errors.mjs';
 
 /**
  * Resources are immutable raw material (structures, ligands, sequences) with identity, source and licence.

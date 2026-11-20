@@ -1,30 +1,27 @@
-import { describeStructureAsset, ResourceError } from '../../packages/schema/resource.mjs';
-
-const isStructureFile = (asset) => asset.kind === 'file' && /^chemical\//.test(asset.mediaType ?? '') &&
-  Boolean(asset.provenance?.parserVersion || asset.provenance?.mechanismState);
+import { attachStructureResources } from '../../packages/schema/migrate.mjs';
+import { ResourceError } from '../../packages/schema/resource.mjs';
 
 /**
- * Registers every raw structure file of a loaded scene as an immutable resource and links the asset to it through
- * `provenance.resource` ({ id, version, sha256 }). A problem with one file (bytes missing, hash mismatch) becomes a
- * diagnostic for that file only; the scene still opens. Preview geometry is derived data and is not a resource.
+ * Registers the resources of a v3 scene in the session store. First the scene is made resource-complete (structure files
+ * added by a mechanism's preparation get their record and link), then every record the scene carries is stored with its
+ * verified bytes. A problem with one file (bytes missing, hash mismatch) becomes a diagnostic for that file only; the scene
+ * still opens. Preview geometry is derived data and is not a resource.
  */
 export async function registerSceneResources(store, scene, resources) {
-  const registered = [], diagnostics = [];
-  for (const asset of scene.assets) {
-    if (!isStructureFile(asset)) continue;
-    const bytes = resources.get(asset.path);
-    if (!(bytes instanceof Uint8Array)) {
-      diagnostics.push({ code: 'res-missing', assetId: asset.id, message: `资源文件缺失：${asset.path}` });
-      continue;
+  const registered = [];
+  const { diagnostics } = await attachStructureResources(scene, resources);
+  for (const record of scene.resources) {
+    const files = new Map();
+    for (const { path } of record.files) {
+      const bytes = resources.get(path);
+      if (bytes instanceof Uint8Array) files.set(path, bytes);
     }
     try {
-      const { record } = describeStructureAsset(asset, bytes);
-      const stored = await store.ensure(record, new Map([[asset.path, bytes]]));
-      asset.provenance = { ...asset.provenance, resource: { id: stored.id, version: stored.version, sha256: asset.sha256 } };
-      registered.push({ assetId: asset.id, id: stored.id, version: stored.version });
+      const stored = await store.ensure(record, files);
+      registered.push({ id: stored.id, version: stored.version });
     } catch (error) {
       if (!(error instanceof ResourceError)) throw error;
-      diagnostics.push({ code: error.code, assetId: asset.id, message: error.message });
+      diagnostics.push({ code: error.code, resourceId: record.id, message: error.message });
     }
   }
   return { registered, diagnostics };
