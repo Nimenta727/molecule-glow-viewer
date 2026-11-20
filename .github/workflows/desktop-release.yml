@@ -2,6 +2,7 @@ name: desktop-release
 on:
   push:
     tags: ['desktop-v*']
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -22,8 +23,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"; version="${tag#desktop-v}"
           pkg=$(node -p "require('./desktop/package.json').version")
+          if [ "$GITHUB_REF_TYPE" = tag ]; then tag="$GITHUB_REF_NAME"; else tag="desktop-v$pkg"; fi
+          version="${tag#desktop-v}"; echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
           [ "$version" = "$pkg" ] || { echo "tag $version != desktop/package.json $pkg"; exit 1; }
           cand=evidence/release/candidate.json
           node -e "const c=require('./$cand'); if(c.sourceCommit!==process.env.GITHUB_SHA||c.sourceDirty) {console.error('candidate not built from tag commit', c); process.exit(1)}"
@@ -48,6 +50,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME}"; notes="docs/releases/${tag}.md"
+          tag="$RELEASE_TAG"; notes="docs/releases/${tag}.md"
           [ -f "$notes" ] || { echo "missing $notes"; exit 1; }
-          gh release create "$tag" out/* --title "$(head -1 "$notes" | sed 's/^# //')" --notes-file "$notes" --verify-tag
+          # A tag push releases that tag; a manual run creates the tag on the exact commit the gate built.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then target=(--verify-tag); else target=(--target "$GITHUB_SHA"); fi
+          gh release create "$tag" out/* --title "$(head -1 "$notes" | sed 's/^# //')" --notes-file "$notes" "${target[@]}"

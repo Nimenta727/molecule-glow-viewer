@@ -64,6 +64,6 @@ Windows 作业在暂存和实际 EXE 六例后，分别执行 `tools/security-sm
 
 ## v0.6.0 起：标签触发的自动发行
 
-`.github/workflows/desktop-release.yml` 在推送 `desktop-v*` 标签时运行：先以可复用方式调用完整 `platform.yml` 闸门（源码测试、暂存六例、安全、Studio M3、Skill 打包、实际 portable EXE 六例与安全回归），全部通过后才由发布作业建 Release。发布作业核对标签版本等于 `desktop/package.json`、候选 `sourceCommit` 等于标签提交且 `sourceDirty=false`，再把候选改名为 `MoleculeGlow-<版本>-win-x64.exe`，附 Skill ZIP、验证证据 ZIP、`release-manifest.json` 与 `SHA256SUMS.txt`；说明取自 `docs/releases/<标签>.md`。任一闸门失败则不建 Release。签名状态仍为未签名。
+`.github/workflows/desktop-release.yml` 在推送 `desktop-v*` 标签时运行，也可在 Actions 页面对 main 手动运行（此时标签取 `desktop-v<desktop/package.json 版本>`，由发布作业在闸门所构建的同一提交上创建）：先以可复用方式调用完整 `platform.yml` 闸门（源码测试、暂存六例、安全、Studio M3、Skill 打包、实际 portable EXE 六例与安全回归），全部通过后才由发布作业建 Release。发布作业核对标签版本等于 `desktop/package.json`、候选 `sourceCommit` 等于标签提交且 `sourceDirty=false`，再把候选改名为 `MoleculeGlow-<版本>-win-x64.exe`，附 Skill ZIP、验证证据 ZIP、`release-manifest.json` 与 `SHA256SUMS.txt`；说明取自 `docs/releases/<标签>.md`。任一闸门失败则不建 Release。签名状态仍为未签名。
 
 0.6.0 修正：打包检查原先要求目录里每个插件都带科学卡，导致自 4.4.2d 引入 motion/simulation 两个纯工具插件后 Windows 作业在暂存步骤失败。现规则为：注册播放器（`registerPlayer`）的机理插件必须带卡，纯工具框架插件不要求。
