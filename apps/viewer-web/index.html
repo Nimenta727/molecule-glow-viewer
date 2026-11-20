@@ -206,6 +206,22 @@
               <button id="entry-intro-load" type="button" title="从 RCSB 与 UniProt 读取：物种、方法、分辨率、突变、文献、功能">自动简介</button>
             </div>
             <div id="entry-intro" class="entry-intro" hidden aria-live="polite"></div>
+            <details id="analysis-controls" hidden>
+              <summary>测量与通道</summary>
+              <div class="structure-form">
+                <input id="measure-a" type="text" placeholder="选择 A，如 chain A and resi 87" maxlength="200" spellcheck="false">
+                <input id="measure-b" type="text" placeholder="选择 B（三个时的顶点）" maxlength="200" spellcheck="false">
+                <input id="measure-c" type="text" placeholder="选择 C（可空：只量距离）" maxlength="200" spellcheck="false">
+                <button id="measure-go" type="button">测量</button><button id="measure-clear" type="button">清除</button>
+              </div>
+              <p id="measure-out" class="structure-summary" aria-live="polite"></p>
+              <div class="structure-form">
+                <input id="channel-start" type="text" placeholder="通道起点（选择；空 = 结构中心）" maxlength="200" spellcheck="false">
+                <label class="inline-field" title="路径上任何一点到最近 Cα/P 的距离都不能小于这个值；孔道窄就调小">最窄净空 <input id="channel-min" type="number" min="1.5" max="8" step="0.5" value="3" style="width:4.5rem"> Å</label>
+                <button id="channel-go" type="button" title="沿净空最大的路径穿过结构">搜索通道</button><button id="channel-clear" type="button">清除</button>
+              </div>
+              <p id="channel-out" class="structure-summary" aria-live="polite"></p>
+            </details>
             <div id="membrane-controls" class="structure-form" hidden>
               <button id="membrane-toggle" type="button" title="从 RCSB（OPM / PDBTM / MemProtMD）读取跨膜片段，或扫描疏水带，画出膜的两个面">寻找细胞膜</button>
               <span id="membrane-note" class="intro-source" aria-live="polite"></span>

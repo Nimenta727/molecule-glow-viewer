@@ -185,3 +185,14 @@ export function alongPath(path, s) {
   return [b[0] + d[0] * inv * k, b[1] + d[1] * inv * k, b[2] + d[2] * inv * k];
 }
 export const pathLength = (path) => { let s = 0; for (let i = 1; i < path.length; i++) s += dist(path[i].p || path[i], path[i - 1].p || path[i - 1]); return s; };
+
+/**
+ * What a channel path says: its length, the narrowest point (radius and place) and the residues lining that point. `path` is findChannel's result, `residues` selectionSpace(model).residues
+ * (with `position`); the lining residues are the `count` nearest to the narrowest point.
+ */
+export function describeChannel(path, residues, { count = 4 } = {}) {
+  if (!path?.length) return null;
+  let narrow = path[0]; for (const x of path) if (x.r < narrow.r) narrow = x;
+  const lining = residues.map((r) => ({ residue: r, distance: dist(r.position, narrow.p) })).sort((a, b) => a.distance - b.distance).slice(0, count);
+  return { length: pathLength(path), points: path.length, narrowest: narrow.r, narrowestAt: narrow.p, lining };
+}

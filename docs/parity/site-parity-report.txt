@@ -16,5 +16,6 @@ ok   1K4C KcsA pore, from the filter centre outwards: 9 points, length 26.1 Å, 
 ok   2HVK KcsA pore (closed-state fixture): 9 points, length 26.7 Å, narrowest 2.19 Å: path equal point by point to the last bit; points along the path differ by 0.0e+0
 ok   6ZPO ATP synthase, from the c-ring centre: 11 points, length 42.4 Å, narrowest 5.97 Å: path equal point by point to the last bit; points along the path differ by 0.0e+0
 ok   1K4C KcsA pore with the classic defaults (2 Å grid, 120 Å box): no way out (the classic finds none either): path equal point by point to the last bit; points along the path differ by 0.0e+0
+ok   measure: 3930 distances and 3907 angles between residues and ligand centres of three real structures: the same three.js distanceTo / angleTo / radToDeg numbers to the last bit (largest difference 0); by selection language: 11.55 Å, 35.1°
 
-18/18 identical
+19/19 identical

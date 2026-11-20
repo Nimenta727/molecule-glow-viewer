@@ -26,6 +26,7 @@ import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { createSiteView } from './site-view.mjs';
 import { createMembraneView } from './membrane-view.mjs';
+import { createAnalysisPanel } from './analysis-panel.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
@@ -115,6 +116,7 @@ function syncControls() {
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['membrane-controls'].hidden = !structureEnabled || !active?.model;
+  elements['analysis-controls'].hidden = !structureEnabled || !active?.model;
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
@@ -315,6 +317,7 @@ function boot() {
       stateMorph.reset();
       entryIntro.reset();
       membraneView.reset();
+      analysisPanel.reset();
       leaveTakeApart();
       sequenceBar.setModel(active.model);
       resetSiteChips();
@@ -589,6 +592,12 @@ function boot() {
       ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
       template: loadChemicalComponent,
     },
+  });
+  const analysisPanel = createAnalysisPanel({
+    viewport,
+    elements: { a: elements['measure-a'], b: elements['measure-b'], c: elements['measure-c'], measure: elements['measure-go'], measureClear: elements['measure-clear'], measureOut: elements['measure-out'],
+      start: elements['channel-start'], minClear: elements['channel-min'], channel: elements['channel-go'], channelClear: elements['channel-clear'], channelOut: elements['channel-out'] },
+    context: { model: () => active?.model, space: () => selectionSpace(active.model) },
   });
   const membraneView = createMembraneView({
     viewport, button: elements['membrane-toggle'], note: elements['membrane-note'],
@@ -1455,6 +1464,7 @@ function boot() {
     stateMorph.reset();
     entryIntro.reset();
     membraneView.reset();
+    analysisPanel.reset();
     leaveTakeApart();
     sequenceBar.setModel(null);
     resetSiteChips();

@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { pathToFileURL } from 'node:url';
 import { parseMmcif } from '../plugins/structure/parser.mjs';
 import { selectionSpace } from '../plugins/structure/selection.mjs';
+import { measure, distance, angle } from '../plugins/structure/measure.mjs';
 import { siteInteractions, siteAround, pocketSurface, findChannel, alongPath, pathLength } from '../plugins/structure/site-analysis.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
@@ -97,6 +98,25 @@ const run = (code) => vm.runInContext(code, ctx);
     }
     check(`${id} ${label}: ${mine ? `${mine.length} points, length ${pathLength(mine).toFixed(1)} Å, narrowest ${Math.min(...mine.map((x) => x.r)).toFixed(2)} Å` : 'no way out (the classic finds none either)'}: path equal point by point to the last bit; points along the path differ by ${alongWorst.toExponential(1)}`, eq && lenSame && alongWorst === 0, `${classic?.length}/${mine?.length}`);
   }
+}
+
+// 4. measure -------------------------------------------------------------------------------------------------------------------------------------------------------------------
+{
+  // the classic glow.measure is distanceTo / angleTo / radToDeg on the selected points; the same three.js calls on real residue and ligand positions
+  let n = 0, worst = 0, angles = 0;
+  for (const id of ['1AKE', '6ZPO', '1K4C']) {
+    const space = selectionSpace(model(id)), pts = [...space.residues.slice(0, 160).map((r) => r.position), ...space.ligands.slice(0, 8).map((l) => l.atoms.reduce((s, a) => s.map((v, k) => v + a.position[k]), [0, 0, 0]).map((v) => v * (1 / l.atoms.length)))];
+    const V = pts.map((p) => new THREE.Vector3(...p));
+    for (let i = 0; i < V.length; i += 3) for (let j = 1; j < V.length; j += 7) {
+      n++; worst = Math.max(worst, Math.abs(V[i].distanceTo(V[j]) - distance(pts[i], pts[j])));
+      const k = (i + j * 5) % V.length; if (k === i || k === j) continue;
+      const u = V[i].clone().sub(V[j]), v = V[k].clone().sub(V[j]); angles++;
+      worst = Math.max(worst, Math.abs(THREE.MathUtils.radToDeg(u.angleTo(v)) - angle(pts[i], pts[j], pts[k])));
+    }
+  }
+  const one = selectionSpace(model('1AKE')), r1 = one.residues[10], r2 = one.residues[200], ligand = one.ligands[0];
+  const m2 = measure(one, [`chain ${r1.chain} and resi ${r1.authSeq}`, `chain ${r2.chain} and resi ${r2.authSeq}`]), m3 = measure(one, [`chain ${r1.chain} and resi ${r1.authSeq}`, `ligand ${ligand.comp} and chain ${ligand.chain}`, `chain ${r2.chain} and resi ${r2.authSeq}`]);
+  check(`measure: ${n} distances and ${angles} angles between residues and ligand centres of three real structures: the same three.js distanceTo / angleTo / radToDeg numbers to the last bit (largest difference ${worst}); by selection language: ${m2.distance.toFixed(2)} Å, ${m3.angle.toFixed(1)}°`, worst === 0 && n > 100 && angles > 100, String(worst));
 }
 
 console.log(lines.join('\n') + `\n\n${total - bad}/${total} identical`);
