@@ -16,6 +16,6 @@
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |
 | [DUPLICATION_MAP](DUPLICATION_MAP.md) | 保留/复用/待合并位置 |
 
-活跃机器资料：[feature-parity.json](feature-parity.json)、[parity](parity/README.md)、[science](science/README.md)。validation 和 images 保留证据的稳定路径；不能把历史通过冒充当前提交通过。最新资产身份见 Release 的 release-manifest.json；0.6.0 的产物哈希、源码提交与测试摘要见该 Release 的 release-manifest.json（由 desktop-release 工作流在全部闸门通过后生成）；上一版见 [Desktop 0.5.0 记录](validation/desktop-v0.5.0.json)。
+活跃机器资料：[feature-parity.json](feature-parity.json)、[parity](parity/README.md)、[science](science/README.md)。validation 和 images 保留证据的稳定路径；不能把历史通过冒充当前提交通过。最新资产身份见 Release 的 release-manifest.json；0.6.0 的产物哈希、源码提交与测试摘要见 [Desktop 0.6.0 记录](validation/desktop-v0.6.0.json) 与该 Release 的 release-manifest.json（由 desktop-release 工作流在全部闸门通过后生成）；上一版见 [Desktop 0.5.0 记录](validation/desktop-v0.5.0.json)。
 
 制作：[Skill](../skill/README.md)；数据格式：[workshop/SCHEMA.md](../workshop/SCHEMA.md)。每一步的改动与下一步规划在 [routine](routine/)（按日期-主题命名）。

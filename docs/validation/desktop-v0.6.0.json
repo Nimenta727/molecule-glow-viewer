@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "version": "0.6.0",
+  "tag": "desktop-v0.6.0",
+  "sourceCommit": "2e270c165c9ee2eba37ab724a45d27447822958f",
+  "sourceDirty": false,
+  "scope": "Classic default; Core/plugins and Studio migration preview. Not migration-complete.",
+  "release_url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.6.0",
+  "signed": false,
+  "build": {
+    "contentSha256": "90647952634a00f997c26153a95a4a89954d16ad41d8d86112b3e1346223f2db",
+    "candidateFile": "MoleculeGlow-0.6.0-2e270c16-win-x64.exe",
+    "candidateSha256": "c2c1de803e217027e0c0f9a3115bcdd24bad183d1d9be598aceecb3c0de848c4"
+  },
+  "gate": {
+    "workflow": "platform-release-gate",
+    "run": "https://github.com/Nimenta727/molecule-glow-viewer/actions/runs/44793674903",
+    "passed": [
+      "source: npm test (483), parity, docs, build, copies, workshop",
+      "stage: classic, studio, local PDB, ATP, KcsA, AdK round trips",
+      "stage security: classic-dom, embed-consent, embed-classic, network-live",
+      "Studio M3 authoring",
+      "Skill package and verify",
+      "actual portable EXE: six round trips and four security cases"
+    ],
+    "not_covered": "Classic scientific/visual parity beyond the recorded numeric rows; real-GPU performance (CI uses SwiftShader)."
+  },
+  "assets": [
+    {
+      "name": "MoleculeGlow-0.6.0-win-x64.exe",
+      "bytes": 79140221,
+      "sha256": "c2c1de803e217027e0c0f9a3115bcdd24bad183d1d9be598aceecb3c0de848c4",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.6.0/MoleculeGlow-0.6.0-win-x64.exe"
+    },
+    {
+      "name": "desktop-validation-0.6.0.zip",
+      "bytes": 16659298,
+      "sha256": "8fb70e6a6f9a407abc570e67445931b81be5887c2fa663c22a3d483b8d9fabd9",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.6.0/desktop-validation-0.6.0.zip"
+    },
+    {
+      "name": "molecule-glow-viewer-skill-0.6.0.zip",
+      "bytes": 710361,
+      "sha256": "833b49e45a33e537cfacfa9e38fcc3c7914ae3c2faaf5376cbac4b745888f3f4",
+      "url": "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.6.0/molecule-glow-viewer-skill-0.6.0.zip"
+    },
+    {
+      "name": "release-manifest.json"
+    },
+    {
+      "name": "SHA256SUMS.txt"
+    }
+  ]
+}
