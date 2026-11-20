@@ -54,10 +54,13 @@ async function fetchIndex(fetchImpl, url, format, label) {
 const text = (value, max) => typeof value === 'string' ? value.slice(0, max) : '';
 const list = (value, max = 32) => Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, max) : [];
 
+/** The four subjects a template or a work is about: mechanism, protein, local system, cell. */
+export const TOPICS = Object.freeze({ mechanism: '机理', protein: '蛋白质', 'local-system': '局部系统', cell: '细胞' });
+
 function workEntry(raw, source) {
   if (!raw || typeof raw.id !== 'string' || typeof raw.file !== 'string' || !SHA256.test(raw.sha256 ?? '') || !/^packs\/[A-Za-z0-9._-]+\.glow$/.test(raw.file)) return null;
   return Object.freeze({
-    kind: 'work', source, id: raw.id, title: text(raw.title, 120) || raw.id, description: text(raw.description, 400), category: text(raw.category, 20), tags: list(raw.tags, 8),
+    kind: 'work', zone: raw.zone === 'template' ? 'template' : 'work', topic: Object.hasOwn(TOPICS, raw.topic) ? raw.topic : 'protein', source, id: raw.id, title: text(raw.title, 120) || raw.id, description: text(raw.description, 400), category: text(raw.category, 20), tags: list(raw.tags, 8),
     license: text(raw.license, 40), file: raw.file, sha256: raw.sha256, size: Number.isFinite(raw.size) ? raw.size : 0, updated: text(raw.updated, 20),
     pdb: list(raw.pdb), resources: list(raw.resources), tools: list(raw.tools), animation: text(raw.animation, 10),
   });
@@ -73,13 +76,13 @@ function resourceEntry(raw, source) {
 /** Loads both catalogues of every requested source. A missing or invalid catalogue becomes an entry of `errors`, never an exception. */
 export async function loadCatalog({ base, fetch: fetchImpl = globalThis.fetch, sources = WORKSHOP_SOURCES } = {}) {
   if (typeof base !== 'string' || typeof fetchImpl !== 'function') throw new TypeError('loadCatalog needs a base URL and a fetch function');
-  const works = [], resources = [], errors = [];
+  const works = [], templates = [], resources = [], errors = [];
   for (const source of sources) {
     try {
       const index = await fetchIndex(fetchImpl, `${base}${source}/index.json`, 'glow-index', `${SOURCE_NAMES[source] ?? source}作品区`);
       for (const raw of index.packs ?? []) {
         const entry = workEntry(raw, source);
-        if (entry) works.push(entry); else errors.push({ source, zone: 'works', message: `${text(raw?.id, 60) || '（无编号）'}：目录项不完整，已忽略` });
+        if (entry) (entry.zone === 'template' ? templates : works).push(entry); else errors.push({ source, zone: 'works', message: `${text(raw?.id, 60) || '（无编号）'}：目录项不完整，已忽略` });
       }
     } catch (error) { errors.push({ source, zone: 'works', message: error.message }); }
     try {
@@ -90,24 +93,25 @@ export async function loadCatalog({ base, fetch: fetchImpl = globalThis.fetch, s
       }
     } catch (error) { errors.push({ source, zone: 'resources', message: error.message }); }
   }
-  return Object.freeze({ base, works: Object.freeze(works), resources: Object.freeze(resources), errors: Object.freeze(errors) });
+  return Object.freeze({ base, templates: Object.freeze(templates), works: Object.freeze(works), resources: Object.freeze(resources), errors: Object.freeze(errors) });
 }
 
 const norm = (value) => String(value ?? '').toLowerCase();
 
 /** Entries of one zone ('works' or 'resources'), optionally of one source, matching a text (title, description, tags, ids, accessions) and a tag. */
-export function queryCatalog(catalog, { zone = 'works', source, text: query = '', tag } = {}) {
-  const entries = zone === 'resources' ? catalog.resources : catalog.works;
+export function queryCatalog(catalog, { zone = 'works', source, text: query = '', tag, topic } = {}) {
+  const entries = zone === 'resources' ? catalog.resources : zone === 'templates' ? catalog.templates : catalog.works;
   const words = norm(query).split(/\s+/).filter(Boolean);
   return entries.filter((entry) => {
     if (source && entry.source !== source) return false;
     if (tag && !entry.tags.includes(tag)) return false;
+    if (topic && entry.topic !== topic) return false;
     const haystack = norm([entry.id, entry.title, entry.description, entry.tags.join(' '), entry.pdb?.join(' '), entry.record?.source.accession, entry.record?.card?.species, entry.license].join(' '));
     return words.every((word) => haystack.includes(word));
   });
 }
 
-export const allTags = (catalog, zone) => [...new Set((zone === 'resources' ? catalog.resources : catalog.works).flatMap((entry) => entry.tags))].sort((a, b) => a.localeCompare(b, 'zh'));
+export const allTags = (catalog, zone) => [...new Set((zone === 'resources' ? catalog.resources : zone === 'templates' ? catalog.templates : catalog.works).flatMap((entry) => entry.tags))].sort((a, b) => a.localeCompare(b, 'zh'));
 
 /** The resource entries a work is built from, and the ids it names that this catalogue does not hold. */
 export function relatedResources(catalog, work) {
@@ -115,8 +119,8 @@ export function relatedResources(catalog, work) {
   return { found: work.resources.map((id) => byId.get(id)).filter(Boolean), missing: work.resources.filter((id) => !byId.has(id)) };
 }
 
-/** The works that use a resource. */
-export const worksUsing = (catalog, resource) => catalog.works.filter((work) => work.resources.includes(resource.id));
+/** The works and templates that use a resource. */
+export const worksUsing = (catalog, resource) => [...catalog.works, ...catalog.templates].filter((work) => work.resources.includes(resource.id));
 
 /** Downloads a work's pack and checks it against the catalogue's hash. */
 export async function fetchWorkBytes(catalog, entry, { fetch: fetchImpl = globalThis.fetch } = {}) {

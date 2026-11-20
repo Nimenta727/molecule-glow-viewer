@@ -101,3 +101,21 @@ test('a scene\'s tool entry decides which player runs, before the legacy declara
   assert.equal(runtime.createPlayer(unknown), 'atp-player');
   assert.equal(unknown.playerId, 'org.glow.legacy-process.atp-synthase');
 });
+
+test('a template is static: opening a pack as a template removes the process, animation and second state, so no tool is attached', async () => {
+  const { makeStaticTemplate } = await import('../work-scene.mjs');
+  for (const legacy of [{ process: 'respiratoryChain', id: '5GUP', membranes: [{ at: 'x', offset: 0 }] }, { process: 'atpSynthase', id: '6ZPO' }, { id: '4AKE', states: ['4AKE', '1AKE'] }, { id: '1K4C', animation: { version: 1, compartments: {} } }, { process: 'cellCorner', id: '4V6F', components: [{ id: '1K4C' }] }]) {
+    const loaded = { scene: v2(legacy), resources: new Map(), warnings: [] };
+    const removed = makeStaticTemplate(loaded);
+    assert.ok(removed.length >= 1, JSON.stringify(legacy)); assert.equal(loaded.isTemplate, true);
+    await prepareWorkScene(loaded);
+    assert.deepEqual(loaded.scene.tools, [], 'a template carries no tool');
+    assert.ok(!('process' in loaded.scene.legacy.scene) && !('animation' in loaded.scene.legacy.scene) && !('states' in loaded.scene.legacy.scene));
+  }
+  const kept = { scene: v2({ process: 'respiratoryChain', id: '5GUP', membranes: [{ at: 'x', offset: 0 }], components: [{ id: '6ZPO' }], colors: { a: '#fff' } }), resources: new Map(), warnings: [] };
+  makeStaticTemplate(kept);
+  assert.deepEqual([kept.scene.legacy.scene.id, kept.scene.legacy.scene.components.length, kept.scene.legacy.scene.membranes.length, Object.keys(kept.scene.legacy.scene.colors)], ['5GUP', 1, 1, ['a']], 'the structure, components, membrane and colours stay');
+  const work = { scene: v2({ process: 'respiratoryChain', id: '5GUP' }), resources: new Map(), warnings: [] };
+  await prepareWorkScene(work);
+  assert.equal(work.scene.tools.length, 1, 'the same pack opened as a work gets its tool');
+});

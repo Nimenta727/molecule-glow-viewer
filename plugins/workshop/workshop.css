@@ -13,6 +13,7 @@ dialog.workshop::backdrop { background: rgba(31, 39, 51, 0.35); }
 .workshop-tabs { display: flex; gap: 0; }
 .workshop-tabs [role="tab"] { border: 1px solid var(--line, #d9dce2); background: #fff; padding: 0.3rem 0.9rem; cursor: pointer; }
 .workshop-tabs [role="tab"]:first-child { border-radius: 4px 0 0 4px; }
+.workshop-tabs [role="tab"]:not(:first-child):not(:last-child) { border-left: 0; }
 .workshop-tabs [role="tab"]:last-child { border-radius: 0 4px 4px 0; border-left: 0; }
 .workshop-tabs [role="tab"][aria-selected="true"] { background: var(--acc-soft, #eceffa); border-color: var(--acc, #4a5fb0); color: var(--acc-ink, #2f3f86); font-weight: 600; }
 .workshop-note { margin: 0; padding: 0.35rem 1rem; min-height: 1.4rem; color: var(--dim, #5d6676); font-size: 0.85rem; }

@@ -37,7 +37,7 @@ import { SELECTION_HELP, describeSelection, selectionSpace } from '../../plugins
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
-import { prepareWorkScene, storePlayerState, toolEntryFor } from './work-scene.mjs';
+import { prepareWorkScene, makeStaticTemplate, storePlayerState, toolEntryFor } from './work-scene.mjs';
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
 import { normalizeProcessConfig } from '../../plugins/simulation/process-tool.mjs';
@@ -98,6 +98,8 @@ function syncControls() {
   elements['rcsb-load'].disabled = !structureEnabled;
   elements['structure-assembly'].disabled = !structureEnabled;
   elements['atp-enabled'].disabled = !structureEnabled;
+  const staticTemplate = Boolean(active?.isTemplate);
+  elements['template-note'].hidden = !staticTemplate;
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
@@ -112,9 +114,9 @@ function syncControls() {
   setCompositionAvailable(compositionTool);
   elements['composition-controls'].hidden = !structureEnabled || !active?.model || !compositionTool;
   elements['process-controls'].hidden = !structureEnabled || !active?.model || !processTool;
-  elements['particle-controls'].hidden = !structureEnabled || !active?.model || !particlesTool;
-  elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
-  elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
+  elements['particle-controls'].hidden = staticTemplate || !structureEnabled || !active?.model || !particlesTool;
+  elements['spin-controls'].hidden = staticTemplate || !structureEnabled || !active?.model || !active?.representationSource;
+  elements['morph-controls'].hidden = staticTemplate || !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
   elements['membrane-controls'].hidden = !structureEnabled || !active?.model;
@@ -275,6 +277,7 @@ function boot() {
         if (!loaded.model) restoreStructureModel(loaded);
       }
       if (signal.aborted) return;
+      if (input.template) makeStaticTemplate(loaded);   // a template is static: looking and reading, nothing moves
       await prepareWorkScene(loaded);   // current scene format + the tool configuration of the declared mechanism
       await preparePlayer(loaded, signal);
       signal.throwIfAborted();
@@ -1197,14 +1200,15 @@ function boot() {
     load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
     toolTitle,
     actions: {
-      works: [{ label: '打开', title: '下载、核对哈希后在 Viewer 中打开', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      templates: [{ label: '查看', title: '静态模板：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      works: [{ label: '打开动态演示', title: '作品：下载、核对哈希后打开，演示作用原理', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       resources: [{ label: '打开结构', title: '从来源取回、核对哈希后作为结构打开', run: (entry) => openWorkshopResource(entry) }],
     },
   });
   async function openWorkshopWork(entry, catalog) {
     const bytes = await fetchWorkBytes(catalog, entry);
     await setStructureEnabled(true);   // official works restore their structures and mechanisms through the structure plugin
-    await openScene({ file: new File([bytes], entry.file.split('/').pop()) }, { propagate: true });
+    await openScene({ file: new File([bytes], entry.file.split('/').pop()), template: entry.zone === 'template' }, { propagate: true });
   }
   async function openWorkshopResource(entry) {
     await setStructureEnabled(true);
@@ -1693,8 +1697,8 @@ function boot() {
   const workId = new URLSearchParams(location.search).get('work');
   if (workId) {
     workshop.catalog().then((catalog) => {
-      const entry = catalog.works.find(({ id }) => id === workId);
-      if (!entry) throw new Error(`工坊里没有作品 ${workId}。`);
+      const entry = [...catalog.works, ...catalog.templates].find(({ id }) => id === workId);
+      if (!entry) throw new Error(`工坊里没有模板或作品 ${workId}。`);
       return openWorkshopWork(entry, catalog);
     }).catch((error) => setStatus(`无法打开工坊作品。 ${error.message}`));
   } else openScene();

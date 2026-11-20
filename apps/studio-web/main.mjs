@@ -454,18 +454,20 @@ watchFile('structure-file', async (file) => {
 
 // ---- workshop: works open in the Viewer; a resource becomes a new work here ------------------------------------------------
 let rcsbSource;
+function openInViewer(entry) {
+  const url = new URL('../viewer-web/index.html', location.href);
+  url.searchParams.set('work', entry.id);
+  const override = new URLSearchParams(location.search).get('workshop');
+  if (override) url.searchParams.set('workshop', override);
+  window.open(url, '_blank', 'noopener');
+  return false;   // the dialog stays open
+}
 const workshop = createWorkshopDialog(document, {
   load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
   toolTitle,
   actions: {
-    works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => {
-      const url = new URL('../viewer-web/index.html', location.href);
-      url.searchParams.set('work', entry.id);
-      const override = new URLSearchParams(location.search).get('workshop');
-      if (override) url.searchParams.set('workshop', override);
-      window.open(url, '_blank', 'noopener');
-      return false;   // the dialog stays open
-    } }],
+    templates: [{ label: '在 Viewer 中查看', title: '模板是静态的：在 Viewer 里看结构、读解说', run: (entry) => openInViewer(entry) }],
+    works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => openInViewer(entry) }],
     resources: [{ label: '用此资源新建作品', title: '从来源取回、核对哈希，成为新作品的第一个资源', run: async (entry) => {
       navigationEditor.assertSaved();
       const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs');

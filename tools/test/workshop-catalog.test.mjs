@@ -6,6 +6,7 @@ import { validateResource } from '../../packages/schema/resource.mjs';
 import { ATP_TOOL } from '../../plugins/atp-synthase/tool.mjs';
 import { ADK_TOOL } from '../../plugins/adenylate-kinase/tool.mjs';
 import { KCSA_TOOL } from '../../plugins/kcsa/tool.mjs';
+import { DATA_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, PROCESS_TOOL } from '../../plugins/mechanism-catalog.mjs';
 
 const root = new URL('../../', import.meta.url);
 const json = (path) => JSON.parse(fs.readFileSync(new URL(path, root), 'utf8'));
@@ -35,20 +36,30 @@ test('the official resource catalogue holds valid, reproducible records that agr
   assert.equal(ids.size, 11);
 });
 
-test('every work names resources the catalogue holds and tools the application registers', () => {
-  const tools = new Set([ATP_TOOL, ADK_TOOL, KCSA_TOOL]);
+test('every template and work names resources the catalogue holds and tools the application registers; templates need no tool', () => {
+  const tools = new Set([ATP_TOOL, ADK_TOOL, KCSA_TOOL, DATA_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, PROCESS_TOOL]);
   const known = new Set(resources.resources.map(({ record }) => record.id));
-  assert.equal(works.packs.length, 15);
+  assert.equal(works.packs.length, 23);
   for (const work of works.packs) {
     assert.equal(work.kind, 'work', work.id);
+    assert.ok(['template', 'work'].includes(work.zone), `${work.id}: zone`);
+    assert.ok(['mechanism', 'protein', 'local-system', 'cell'].includes(work.topic), `${work.id}: subject`);
     assert.ok(work.resources.every((id) => known.has(id)), `${work.id}: resources exist in the catalogue`);
     assert.ok(work.resources.every((id) => work.pdb.includes(id.replace('res.rcsb.', ''))), `${work.id}: resources are structures the work uses`);
     assert.ok(work.tools.every((id) => tools.has(id)), `${work.id}: tools are registered ones`);
+    assert.equal(work.zone === 'template', work.tools.length === 0, `${work.id}: a template needs no tool, a work needs at least one`);
   }
   const by = Object.fromEntries(works.packs.map((work) => [work.id, work.tools]));
-  assert.deepEqual(by['official.atp-synthase'], [ATP_TOOL]);
-  assert.deepEqual(by['official.kcsa'], [KCSA_TOOL]);
-  assert.deepEqual(by['official.adenylate-kinase'], [ADK_TOOL]);
+  assert.deepEqual(by['official.atp-synthase.work'], [ATP_TOOL]);
+  assert.deepEqual(by['official.kcsa.work'], [KCSA_TOOL]);
+  assert.deepEqual(by['official.adenylate-kinase.work'], [ADK_TOOL]);
+  assert.deepEqual(by['official.respiratory-chain.work'], [DATA_TOOL]);
+  assert.deepEqual(by['official.translation.work'], [TRANSLATION_TOOL]);
+  assert.deepEqual(by['official.cell-corner.work'], [COMPOSITION_TOOL]);
+  const templates = works.packs.filter((work) => work.zone === 'template'), animated = new Set(works.packs.filter((work) => work.zone === 'work').map((work) => work.id.replace(/\.work$/, '')));
+  assert.equal(templates.length, 13); assert.ok(templates.every((template) => template.file && !template.id.endsWith('.work')));
+  assert.ok(!templates.some((template) => ['official.kcsa-data', 'official.adk-reaction-data'].includes(template.id)), 'a pure animation-format demo is a work only');
+  assert.ok(['official.whole-cell'].every((id) => !animated.has(id)), 'the whole cell has no animated version yet');
 });
 
 test('the committed catalogues are exactly what the build scripts produce', () => {

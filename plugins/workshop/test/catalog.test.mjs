@@ -17,39 +17,46 @@ const base = 'https://example.test/workshop/';
 
 test('the real catalogues load: works and resources of the official source, with a missing community source reported, not thrown', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
-  assert.equal(catalog.works.length, 15);
+  assert.equal(catalog.templates.length, 13, 'templates: static, one per pack that is not only an animation demo');
+  assert.equal(catalog.works.length, 10, 'works: the animated versions');
+  assert.ok(catalog.templates.every((entry) => entry.zone === 'template' && entry.tools.length === 0), 'a template needs no tool');
+  assert.ok(catalog.works.every((entry) => entry.zone === 'work' && entry.tools.length > 0), 'a work names the tools it needs');
+  assert.deepEqual([...new Set([...catalog.templates, ...catalog.works].map((entry) => entry.topic))].sort(), ['cell', 'local-system', 'mechanism', 'protein'], 'the four subjects');
   assert.equal(catalog.resources.length, 11);
-  assert.ok(catalog.works.every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
+  assert.ok([...catalog.templates, ...catalog.works].every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
   assert.ok(catalog.resources.every((entry) => entry.kind === 'resource' && entry.delivery === 'reference' && entry.record.attribution.license === 'CC0-1.0'));
   assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources'], 'the community source has works (none yet) but no resource catalogue');
-  assert.ok(Object.isFrozen(catalog.works[0]) && Object.isFrozen(catalog.resources[0].record));
+  assert.ok(Object.isFrozen(catalog.works[0]) && Object.isFrozen(catalog.templates[0]) && Object.isFrozen(catalog.resources[0].record));
 });
 
 test('queries match titles, tags, ids and accessions, by zone, source and tag', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
-  const atp = queryCatalog(catalog, { zone: 'works', text: 'ATP' }).map(({ id }) => id);
+  const atp = queryCatalog(catalog, { zone: 'templates', text: 'ATP' }).map(({ id }) => id);
   assert.ok(atp.includes('official.atp-synthase') && atp.includes('official.respiratory-chain'), 'ATP appears in titles and descriptions');
   assert.ok(!atp.includes('official.kcsa') && !atp.includes('official.spike'));
-  assert.deepEqual(queryCatalog(catalog, { zone: 'works', text: 'atp 合酶' }).map(({ id }) => id).includes('official.kcsa'), false, 'every word must match');
-  assert.deepEqual(queryCatalog(catalog, { zone: 'works', text: '6zpo' }).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.respiratory-chain'], 'by the structure a work uses');
+  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', text: 'atp 合酶' }).map(({ id }) => id).includes('official.kcsa'), false, 'every word must match');
+  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', text: '6zpo' }).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.respiratory-chain'], 'by the structure a template uses');
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', text: 'kcsa' }).map(({ id }) => id).sort(), ['res.rcsb.1K4C', 'res.rcsb.2HVK', 'res.rcsb.2ITD', 'res.rcsb.5VK6', 'res.rcsb.5VKE']);
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', text: 'escherichia' }).map(({ id }) => id), ['res.rcsb.1AKE', 'res.rcsb.4AKE'], 'by species');
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', tag: '阻断剂' }).map(({ id }) => id), ['res.rcsb.2HVK', 'res.rcsb.2ITD']);
   assert.equal(queryCatalog(catalog, { zone: 'works', source: 'community' }).length, 0);
+  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'cell' }).map(({ id }) => id), ['official.whole-cell'], 'by subject');
+  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'protein' }).map(({ id }) => id).sort(), ['official.groel', 'official.nucleosome', 'official.proteasome-20s', 'official.spike']);
+  assert.deepEqual(queryCatalog(catalog, { zone: 'works', topic: 'local-system' }).map(({ id }) => id), ['official.cell-corner.work']);
   assert.equal(queryCatalog(catalog, { zone: 'works', text: 'no-such-thing' }).length, 0);
-  assert.equal(queryCatalog(catalog, { zone: 'works', text: '  ' }).length, 15, 'blank text matches everything');
+  assert.equal(queryCatalog(catalog, { zone: 'templates', text: '  ' }).length, 13, 'blank text matches everything');
   assert.ok(allTags(catalog, 'resources').includes('钾通道'));
 });
 
 test('a work shows the resources it is built from, and a resource shows the works that use it', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
-  const adk = catalog.works.find(({ id }) => id === 'official.adenylate-kinase');
+  const adk = catalog.works.find(({ id }) => id === 'official.adenylate-kinase.work');
   assert.deepEqual(relatedResources(catalog, adk).found.map(({ id }) => id), ['res.rcsb.4AKE', 'res.rcsb.1AKE']);
   assert.deepEqual(adk.tools, ['org.glow.tool.conformation-pair']);
-  const spike = catalog.works.find(({ id }) => id === 'official.spike');
+  const spike = catalog.templates.find(({ id }) => id === 'official.spike');
   assert.deepEqual(relatedResources(catalog, { ...spike, resources: ['res.rcsb.6VXX'] }), { found: [], missing: ['res.rcsb.6VXX'] });
   const atpResource = catalog.resources.find(({ id }) => id === 'res.rcsb.6ZPO');
-  assert.deepEqual(worksUsing(catalog, atpResource).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.respiratory-chain']);
+  assert.deepEqual(worksUsing(catalog, atpResource).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.atp-synthase.work', 'official.respiratory-chain', 'official.respiratory-chain.work']);
 });
 
 test('a broken catalogue entry is dropped with a note and the rest still loads; a bad format or 404 is an error entry', async () => {
@@ -63,17 +70,17 @@ test('a broken catalogue entry is dropped with a note and the rest still loads; 
   assert.match(catalog.errors.map(({ message }) => message).join('|'), /仅引用/);
   const wrong = await loadCatalog({ base, fetch: localFetch({ 'official/index.json': '{"format":"other","version":1}', 'official/resources/index.json': null }), sources: ['official'] });
   assert.deepEqual(wrong.errors.map(({ zone, message }) => [zone, /目录格式不对|HTTP 404/.test(message)]), [['works', true], ['resources', true]]);
-  assert.equal(wrong.works.length + wrong.resources.length, 0);
+  assert.equal(wrong.works.length + wrong.templates.length + wrong.resources.length, 0);
   const strayWork = JSON.parse(read('official/index.json'));
   strayWork.packs[0].file = '../../etc/passwd';
   const guarded = await loadCatalog({ base, fetch: localFetch({ 'official/index.json': JSON.stringify(strayWork) }), sources: ['official'] });
-  assert.equal(guarded.works.length, 14, 'a work whose file path escapes packs/ is ignored');
+  assert.equal(guarded.works.length + guarded.templates.length, 22, 'an entry whose file path escapes packs/ is ignored');
   await assert.rejects(loadCatalog({ base: 3, fetch: localFetch() }), TypeError);
 });
 
 test('a work is only handed over when its bytes match the catalogue\'s hash', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch(), sources: ['official'] });
-  const entry = catalog.works.find(({ id }) => id === 'official.atp-synthase');
+  const entry = catalog.templates.find(({ id }) => id === 'official.atp-synthase');
   const bytes = await fetchWorkBytes(catalog, entry, { fetch: localFetch() });
   assert.equal(await sha256Hex(bytes), entry.sha256);
   await assert.rejects(fetchWorkBytes(catalog, entry, { fetch: localFetch({ [`official/${entry.file}`]: 'tampered' }) }), (error) => error instanceof WorkshopError && error.code === 'work-hash-mismatch');

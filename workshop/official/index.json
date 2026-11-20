@@ -7,9 +7,9 @@
  "packs": [
   {
    "kind": "work",
-   "id": "official.proteasome-20s",
    "title": "20S 蛋白酶体（核心颗粒）",
    "category": "single",
+   "topic": "protein",
    "tags": [
     "蛋白降解",
     "酶"
@@ -25,19 +25,21 @@
     "5LE5"
    ],
    "resources": [],
-   "tools": [],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.proteasome-20s.glow",
    "cover": "covers/official.proteasome-20s.jpg",
    "size": 639,
-   "sha256": "194d3bc83f3715db5d4136f9824f1803d64ecd342e992acb3b518e1293b39589"
+   "sha256": "194d3bc83f3715db5d4136f9824f1803d64ecd342e992acb3b518e1293b39589",
+   "zone": "template",
+   "id": "official.proteasome-20s",
+   "tools": []
   },
   {
    "kind": "work",
-   "id": "official.flagellar-motor",
    "title": "鞭毛马达",
    "category": "system",
+   "topic": "mechanism",
    "tags": [
     "分子马达",
     "细菌",
@@ -57,19 +59,88 @@
     "1UCU"
    ],
    "resources": [],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.flagellar-motor.glow",
    "cover": "covers/official.flagellar-motor.jpg",
    "size": 4086,
-   "sha256": "2ac4e06d5ca70fe4a4764d940e04e3188f893d111125e09a89fce14238a35c5a"
+   "sha256": "2ac4e06d5ca70fe4a4764d940e04e3188f893d111125e09a89fce14238a35c5a",
+   "zone": "template",
+   "id": "official.flagellar-motor",
+   "tools": []
   },
   {
    "kind": "work",
-   "id": "official.translation",
-   "title": "核糖体翻译（mRNA → 蛋白质，可加抗生素）",
+   "title": "鞭毛马达（动态演示）",
    "category": "system",
+   "topic": "mechanism",
+   "tags": [
+    "分子马达",
+    "细菌",
+    "膜蛋白"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "细菌鞭毛马达：H⁺ 流过 11 个定子产生力矩，带动 C 环、杆、钩和鞭毛丝一起转动。",
+   "pdb": [
+    "7CGO",
+    "8YJT",
+    "6YKM",
+    "1UCU"
+   ],
+   "resources": [],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.flagellar-motor.glow",
+   "cover": "covers/official.flagellar-motor.jpg",
+   "size": 4086,
+   "sha256": "2ac4e06d5ca70fe4a4764d940e04e3188f893d111125e09a89fce14238a35c5a",
+   "zone": "work",
+   "id": "official.flagellar-motor.work",
+   "tools": [
+    "org.glow.tool.data-animation"
+   ]
+  },
+  {
+   "kind": "work",
+   "title": "核糖体（70S，翻译机器）",
+   "category": "system",
+   "topic": "mechanism",
+   "tags": [
+    "核糖体",
+    "翻译",
+    "抗生素"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "70S 核糖体按真实速率读 mRNA：tRNA 选择、校对、肽键形成、移位；可加抗生素，并放大到解码中心和肽基转移中心的真实原子。",
+   "pdb": [
+    "4V6F"
+   ],
+   "resources": [],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.translation.glow",
+   "cover": "covers/official.translation.jpg",
+   "size": 1159,
+   "sha256": "66daa60dda615a5b4930a7219b92e495fda335962c73cf5a861769e9a919e6e4",
+   "zone": "template",
+   "id": "official.translation",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "核糖体翻译（mRNA → 蛋白质，可加抗生素）（动态演示）",
+   "category": "system",
+   "topic": "mechanism",
    "tags": [
     "核糖体",
     "翻译",
@@ -87,19 +158,23 @@
     "4V6F"
    ],
    "resources": [],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.translation.glow",
    "cover": "covers/official.translation.jpg",
    "size": 1159,
-   "sha256": "66daa60dda615a5b4930a7219b92e495fda335962c73cf5a861769e9a919e6e4"
+   "sha256": "66daa60dda615a5b4930a7219b92e495fda335962c73cf5a861769e9a919e6e4",
+   "zone": "work",
+   "id": "official.translation.work",
+   "tools": [
+    "org.glow.tool.translation"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.nucleosome",
    "title": "核小体",
    "category": "single",
+   "topic": "protein",
    "tags": [
     "DNA",
     "染色质"
@@ -115,19 +190,53 @@
     "1KX5"
    ],
    "resources": [],
-   "tools": [],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.nucleosome.glow",
    "cover": "covers/official.nucleosome.jpg",
    "size": 2068,
-   "sha256": "e357d3f59fe75c21fad555ee7e315b5512234da6347dbfb62308a80e27683922"
+   "sha256": "e357d3f59fe75c21fad555ee7e315b5512234da6347dbfb62308a80e27683922",
+   "zone": "template",
+   "id": "official.nucleosome",
+   "tools": []
   },
   {
    "kind": "work",
-   "id": "official.kcsa",
-   "title": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）",
+   "title": "钾离子通道 KcsA",
    "category": "single",
+   "topic": "mechanism",
+   "tags": [
+    "离子通道",
+    "膜蛋白"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "K⁺ 按敲击机制单列通过选择性过滤器，Na⁺ 被排斥；胞内 pH 控制门的开关和失活，可调膜电位、浓度，加 TBA / Ba²⁺ 阻断。",
+   "pdb": [
+    "1K4C"
+   ],
+   "resources": [
+    "res.rcsb.1K4C"
+   ],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.kcsa.glow",
+   "cover": "covers/official.kcsa.jpg",
+   "size": 1103,
+   "sha256": "380c1efefa945a45564418de2766cc746ddd4e0cc64b5042908b490f39877879",
+   "zone": "template",
+   "id": "official.kcsa",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "钾离子通道 KcsA（膜中，pH 门控，可加阻断剂）（动态演示）",
+   "category": "single",
+   "topic": "mechanism",
    "tags": [
     "离子通道",
     "膜蛋白",
@@ -146,21 +255,23 @@
    "resources": [
     "res.rcsb.1K4C"
    ],
-   "tools": [
-    "org.glow.tool.channel-gating"
-   ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.kcsa.glow",
    "cover": "covers/official.kcsa.jpg",
    "size": 1103,
-   "sha256": "380c1efefa945a45564418de2766cc746ddd4e0cc64b5042908b490f39877879"
+   "sha256": "380c1efefa945a45564418de2766cc746ddd4e0cc64b5042908b490f39877879",
+   "zone": "work",
+   "id": "official.kcsa.work",
+   "tools": [
+    "org.glow.tool.channel-gating"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.kcsa-data",
    "title": "钾通道 KcsA（纯数据动画示例）",
    "category": "single",
+   "topic": "mechanism",
    "tags": [
     "离子通道",
     "示例",
@@ -178,19 +289,23 @@
    "resources": [
     "res.rcsb.1K4C"
    ],
-   "tools": [],
    "animation": "data",
    "updated": "",
    "file": "packs/official.kcsa-data.glow",
    "cover": "covers/official.kcsa-data.jpg",
    "size": 2141,
-   "sha256": "8f93a90e94e44accadcf55eb1801cdbcff27e4e8c71e191ffd72b163852ca672"
+   "sha256": "8f93a90e94e44accadcf55eb1801cdbcff27e4e8c71e191ffd72b163852ca672",
+   "zone": "work",
+   "id": "official.kcsa-data",
+   "tools": [
+    "org.glow.tool.data-animation"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.cell-corner",
-   "title": "细胞一角：核糖体 + 钾通道（同时模拟）",
+   "title": "细胞一角：核糖体 + 钾通道（同时模拟）（动态演示）",
    "category": "system",
+   "topic": "local-system",
    "tags": [
     "细胞",
     "核糖体",
@@ -211,19 +326,57 @@
    "resources": [
     "res.rcsb.1K4C"
    ],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.cell-corner.glow",
    "cover": "covers/official.cell-corner.jpg",
    "size": 1399,
-   "sha256": "f2ade9f4e93162add405ea03d2715e138f21dd9583b7173f1854a8a96ea382d1"
+   "sha256": "f2ade9f4e93162add405ea03d2715e138f21dd9583b7173f1854a8a96ea382d1",
+   "zone": "work",
+   "id": "official.cell-corner.work",
+   "tools": [
+    "org.glow.tool.multi-process"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.respiratory-chain",
-   "title": "线粒体呼吸链（电子传递 → ATP）",
+   "title": "细胞一角：核糖体与钾通道",
    "category": "system",
+   "topic": "local-system",
+   "tags": [
+    "细胞",
+    "核糖体",
+    "离子通道"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "细胞质里的核糖体在翻译，上方细胞膜里的 KcsA 按胞内 pH 开关，两套模拟同时运行。",
+   "pdb": [
+    "4V6F",
+    "1K4C"
+   ],
+   "resources": [
+    "res.rcsb.1K4C"
+   ],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.cell-corner.glow",
+   "cover": "covers/official.cell-corner.jpg",
+   "size": 1399,
+   "sha256": "f2ade9f4e93162add405ea03d2715e138f21dd9583b7173f1854a8a96ea382d1",
+   "zone": "template",
+   "id": "official.cell-corner",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "线粒体呼吸链（电子传递 → ATP）（动态演示）",
+   "category": "system",
+   "topic": "mechanism",
    "tags": [
     "线粒体",
     "电子传递",
@@ -247,19 +400,60 @@
     "res.rcsb.6ZPO",
     "res.rcsb.1HRC"
    ],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.respiratory-chain.glow",
    "cover": "covers/official.respiratory-chain.jpg",
    "size": 5320,
-   "sha256": "818da1c09171ae7ef3466409f699044b22ac05052cf59ce46d0afdc350518a8a"
+   "sha256": "818da1c09171ae7ef3466409f699044b22ac05052cf59ce46d0afdc350518a8a",
+   "zone": "work",
+   "id": "official.respiratory-chain.work",
+   "tools": [
+    "org.glow.tool.data-animation"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.adenylate-kinase",
-   "title": "腺苷酸激酶（开合）",
+   "title": "线粒体呼吸链（复合体 I、III、IV 与 ATP 合酶）",
+   "category": "system",
+   "topic": "mechanism",
+   "tags": [
+    "线粒体",
+    "电子传递",
+    "能量"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 2,
+   "license": "CC-BY-4.0",
+   "description": "复合体 I、III、IV 和 ATP 合酶在同一层膜上：电子从 NADH 经铁硫簇和血红素传到 O₂，泵出的 H⁺ 回流合成 ATP；膜两侧 pH 和电位实时模拟。",
+   "pdb": [
+    "5GUP",
+    "6ZPO",
+    "1HRC"
+   ],
+   "resources": [
+    "res.rcsb.5GUP",
+    "res.rcsb.6ZPO",
+    "res.rcsb.1HRC"
+   ],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.respiratory-chain.glow",
+   "cover": "covers/official.respiratory-chain.jpg",
+   "size": 5320,
+   "sha256": "818da1c09171ae7ef3466409f699044b22ac05052cf59ce46d0afdc350518a8a",
+   "zone": "template",
+   "id": "official.respiratory-chain",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "腺苷酸激酶",
    "category": "single",
+   "topic": "mechanism",
    "tags": [
     "酶",
     "构象变化"
@@ -279,21 +473,57 @@
     "res.rcsb.4AKE",
     "res.rcsb.1AKE"
    ],
-   "tools": [
-    "org.glow.tool.conformation-pair"
+   "animation": "none",
+   "updated": "2026-11-16",
+   "file": "packs/official.adenylate-kinase.glow",
+   "cover": "covers/official.adenylate-kinase.jpg",
+   "size": 3714,
+   "sha256": "365aab38fb34d9c4122587c8ca13989e2df552133d5fe72652085acc6d060b26",
+   "zone": "template",
+   "id": "official.adenylate-kinase",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "腺苷酸激酶（开合）（动态演示）",
+   "category": "single",
+   "topic": "mechanism",
+   "tags": [
+    "酶",
+    "构象变化"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "腺苷酸激酶的 LID 和 NMP 结构域在张开（4AKE）和闭合（1AKE）两个晶体结构之间开合，抑制剂 Ap5A 占据活性位点。",
+   "pdb": [
+    "4AKE",
+    "1AKE"
+   ],
+   "resources": [
+    "res.rcsb.4AKE",
+    "res.rcsb.1AKE"
    ],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.adenylate-kinase.glow",
    "cover": "covers/official.adenylate-kinase.jpg",
    "size": 3714,
-   "sha256": "365aab38fb34d9c4122587c8ca13989e2df552133d5fe72652085acc6d060b26"
+   "sha256": "365aab38fb34d9c4122587c8ca13989e2df552133d5fe72652085acc6d060b26",
+   "zone": "work",
+   "id": "official.adenylate-kinase.work",
+   "tools": [
+    "org.glow.tool.conformation-pair"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.adk-reaction-data",
    "title": "腺苷酸激酶催化反应（纯数据动画示例）",
    "category": "single",
+   "topic": "mechanism",
    "tags": [
     "酶",
     "示例",
@@ -312,19 +542,23 @@
    "resources": [
     "res.rcsb.1AKE"
    ],
-   "tools": [],
    "animation": "data",
    "updated": "2026-11-16",
    "file": "packs/official.adk-reaction-data.glow",
    "cover": "covers/official.adk-reaction-data.jpg",
    "size": 2057,
-   "sha256": "5028e0933d0a04d34eb0a926502f5ba23b6e61fdd58ba2fb131da6a9824352f2"
+   "sha256": "5028e0933d0a04d34eb0a926502f5ba23b6e61fdd58ba2fb131da6a9824352f2",
+   "zone": "work",
+   "id": "official.adk-reaction-data",
+   "tools": [
+    "org.glow.tool.data-animation"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.chloroplast-light",
-   "title": "叶绿体光反应（光 → NADPH + ATP）",
+   "title": "叶绿体光反应（光 → NADPH + ATP）（动态演示）",
    "category": "system",
+   "topic": "mechanism",
    "tags": [
     "叶绿体",
     "光合作用",
@@ -350,19 +584,62 @@
    "resources": [
     "res.rcsb.3JCU"
    ],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.chloroplast-light.glow",
    "cover": "covers/official.chloroplast-light.jpg",
    "size": 8977,
-   "sha256": "b358b662cc58e734fdd8228076f9775cc08f1b36c749a34e4ce79931f82ef4ce"
+   "sha256": "b358b662cc58e734fdd8228076f9775cc08f1b36c749a34e4ce79931f82ef4ce",
+   "zone": "work",
+   "id": "official.chloroplast-light.work",
+   "tools": [
+    "org.glow.tool.data-animation"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.whole-cell",
-   "title": "整个细胞：大肠杆菌（从 2 µm 缩放到原子）",
+   "title": "叶绿体光系统 II",
+   "category": "system",
+   "topic": "mechanism",
+   "tags": [
+    "叶绿体",
+    "光合作用",
+    "电子传递"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 2,
+   "license": "CC-BY-4.0",
+   "description": "PSII、b6f、PSI 和 ATP 合酶排在类囊体膜上：光子激发 P680 / P700，电子从水出发经 Z 方案生成 NADPH，H⁺ 回流合成 ATP。",
+   "pdb": [
+    "3JCU",
+    "6RQF",
+    "5L8R",
+    "6FKF",
+    "1PLC",
+    "1A70",
+    "1FNB"
+   ],
+   "resources": [
+    "res.rcsb.3JCU"
+   ],
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.chloroplast-light.glow",
+   "cover": "covers/official.chloroplast-light.jpg",
+   "size": 8977,
+   "sha256": "b358b662cc58e734fdd8228076f9775cc08f1b36c749a34e4ce79931f82ef4ce",
+   "zone": "template",
+   "id": "official.chloroplast-light",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "整个细胞：大肠杆菌",
    "category": "cell",
+   "topic": "cell",
    "tags": [
     "细胞",
     "多尺度"
@@ -381,19 +658,21 @@
    "resources": [
     "res.rcsb.1K4C"
    ],
-   "tools": [],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.whole-cell.glow",
    "cover": "covers/official.whole-cell.jpg",
    "size": 1437,
-   "sha256": "5844e1fa3da8fff2c8450c3a8bafeb277c49878344cab221eb6bf4ab76795677"
+   "sha256": "5844e1fa3da8fff2c8450c3a8bafeb277c49878344cab221eb6bf4ab76795677",
+   "zone": "template",
+   "id": "official.whole-cell",
+   "tools": []
   },
   {
    "kind": "work",
-   "id": "official.atp-synthase",
-   "title": "ATP 合酶（合成 ATP）",
+   "title": "ATP 合酶",
    "category": "single",
+   "topic": "mechanism",
    "tags": [
     "分子马达",
     "能量",
@@ -412,21 +691,56 @@
    "resources": [
     "res.rcsb.6ZPO"
    ],
-   "tools": [
-    "org.glow.tool.rotary-atpase"
+   "animation": "builtin",
+   "updated": "2026-11-16",
+   "file": "packs/official.atp-synthase.glow",
+   "cover": "covers/official.atp-synthase.jpg",
+   "size": 5477,
+   "sha256": "eabd3a18cf40a4b3fa14ae267f1829fe53053f22da6236675be5ccfeb4432221",
+   "zone": "template",
+   "id": "official.atp-synthase",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "ATP 合酶（合成 ATP）（动态演示）",
+   "category": "single",
+   "topic": "mechanism",
+   "tags": [
+    "分子马达",
+    "能量",
+    "膜蛋白"
+   ],
+   "author": {
+    "name": "molecule-glow-viewer",
+    "url": "https://github.com/Nimenta727/molecule-glow-viewer"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "H⁺ 顺梯度流过 c 环使其转动，γ 亚基依次改变三个 β 亚基的构象，把 ADP + Pi 合成 ATP（Boyer 结合变构机制）。",
+   "pdb": [
+    "6ZPO"
+   ],
+   "resources": [
+    "res.rcsb.6ZPO"
    ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.atp-synthase.glow",
    "cover": "covers/official.atp-synthase.jpg",
    "size": 5477,
-   "sha256": "eabd3a18cf40a4b3fa14ae267f1829fe53053f22da6236675be5ccfeb4432221"
+   "sha256": "eabd3a18cf40a4b3fa14ae267f1829fe53053f22da6236675be5ccfeb4432221",
+   "zone": "work",
+   "id": "official.atp-synthase.work",
+   "tools": [
+    "org.glow.tool.rotary-atpase"
+   ]
   },
   {
    "kind": "work",
-   "id": "official.groel",
    "title": "GroEL 伴侣蛋白",
    "category": "single",
+   "topic": "protein",
    "tags": [
     "伴侣蛋白",
     "蛋白折叠"
@@ -442,19 +756,21 @@
     "1AON"
    ],
    "resources": [],
-   "tools": [],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.groel.glow",
    "cover": "covers/official.groel.jpg",
    "size": 1501,
-   "sha256": "c30af3fa02568ffe8b1f15b671a53cf4b65a3c7989f0f9e460bcd1138cd2364e"
+   "sha256": "c30af3fa02568ffe8b1f15b671a53cf4b65a3c7989f0f9e460bcd1138cd2364e",
+   "zone": "template",
+   "id": "official.groel",
+   "tools": []
   },
   {
    "kind": "work",
-   "id": "official.spike",
    "title": "SARS-CoV-2 刺突蛋白（三聚体）",
    "category": "single",
+   "topic": "protein",
    "tags": [
     "病毒",
     "膜蛋白"
@@ -470,13 +786,15 @@
     "6VXX"
    ],
    "resources": [],
-   "tools": [],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.spike.glow",
    "cover": "covers/official.spike.jpg",
    "size": 638,
-   "sha256": "3eca68a076df85c61e2f105d9113a99301f1b9279bbff0a164152523dfe2d95d"
+   "sha256": "3eca68a076df85c61e2f105d9113a99301f1b9279bbff0a164152523dfe2d95d",
+   "zone": "template",
+   "id": "official.spike",
+   "tools": []
   }
  ]
 }

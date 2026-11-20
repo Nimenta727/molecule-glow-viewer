@@ -28,6 +28,18 @@ export function completeBindings(scene, getTool) {
 }
 
 /**
+ * A template is fully static: it is for looking at the structure and reading the explanation, nothing moves. Opening a pack as a template removes what makes it move (the declared
+ * process or built-in mechanism, a data animation, the second conformation of a two-state pair) before the scene is prepared, so no tool is attached and no player is created; the
+ * structure, its components and layout, the membrane, the part names and colours, the notes and the evidence stay. Returns what was removed (for the status line).
+ */
+export function makeStaticTemplate(loaded) {
+  const config = loaded.scene.legacy?.scene, removed = [];
+  if (config && typeof config === 'object') for (const key of ['process', 'animation', 'states', 'energy', 'energyHL']) if (key in config) { removed.push(key); delete config[key]; }
+  loaded.isTemplate = true;
+  return removed;
+}
+
+/**
  * Brings a freshly loaded scene to the current format and gives it the tool configuration of its declared mechanism.
  * v2 scenes are upgraded (nothing is removed); a v3 work that carries no entry for its mechanism gets the default one.
  * Problems with individual resources become warnings; the scene still opens.
@@ -37,6 +49,7 @@ export async function prepareWorkScene(loaded) {
   const { scene, diagnostics } = await upgradeSceneToV3(loaded.scene, loaded.resources, { tools });
   if (!scene.tools.length && tools.length) scene.tools = tools;
   loaded.scene = scene;
+  if (loaded.isTemplate) loaded.scene.tools = [];   // a template carries no tool at all
   for (const { message } of diagnostics) loaded.warnings = [...(loaded.warnings ?? []), message];
 }
 

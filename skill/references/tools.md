@@ -2,6 +2,10 @@
 
 给 AI/作者用。原则：**作品 = 资源（结构）＋工具配置（纯数据）**。不为一个蛋白写专用插件；新算法才新增工具。下面五个通用工具都在 `plugins/mechanism-catalog.mjs` 注册，运行时 `layer-v1`（画在结构上的图层，无自带播放时钟），受众 `view` 与 `author`。
 
+## 0. 模板是静态的，作品才用工具
+
+目录项有 `zone`（`template` 静态 / `work` 动态）和 `topic`（`mechanism` 机理 / `protein` 蛋白质 / `local-system` 局部系统 / `cell` 细胞）。**模板不挂任何工具**（打开时 `makeStaticTemplate` 会去掉 `process`、`animation`、`states`），本文件讲的工具配置只属于作品。目录由 `node workshop/tools/build-index.mjs` 生成，不要手改 `index.json`。
+
 ## 1. 配置放哪里
 
 - 配置：`scene.tools[].config`（场景 v3）；运行状态（已跑到的时间、干预）：`entry.state`。
