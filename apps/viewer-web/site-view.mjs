@@ -1,4 +1,7 @@
 import { siteAround, siteInteractions, pocketJob, pocketSurface, INTERACTION_TYPES, RESIDUE_CHEMISTRY, POCKET_SAND } from '../../plugins/structure/site-analysis.mjs';
+import { bondsFromTemplate, bondsByDistance } from '../../plugins/structure/chemical-component.mjs';
+import { elementStyle } from '../../plugins/structure/elements.mjs';
+import { valenceGeometry } from '../../packages/render-three/molecule-geometry.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 
@@ -8,17 +11,18 @@ import { displayCenter } from '../../plugins/motion/state-pair.mjs';
  * distances, and the shape of the pocket as a translucent surface coloured by residue chemistry. The rules and numbers are in plugins/structure/site-analysis.mjs
  * (equal to the classic); this file wires them to the page.
  */
-const LINES = 'site-lines', POCKET = 'site-pocket', RADIUS = 5;
+const LINES = 'site-lines', POCKET = 'site-pocket', STICKS = 'site-residues', RADIUS = 5, RESIDUE_CARBON = '#c9d0de';
 const THREE_LETTER = (comp) => comp.charAt(0) + comp.slice(1).toLowerCase();
 
 export function createSiteView({ viewport, elements, context }) {
   let result = null, selection = null, token = 0;
 
-  const clear = () => { viewport.setOverlayLines(LINES, []); viewport.setOverlayMesh(POCKET, null); };
+  const clear = () => { viewport.setOverlayLines(LINES, []); viewport.setOverlayMesh(POCKET, null); viewport.setMolecules([], { tag: STICKS }); };
   function reset() {
     token++; result = null; clear();
     elements.list.replaceChildren(); elements.summary.textContent = '';
     elements.pocket.textContent = '显示口袋表面'; elements.pocket.disabled = true; elements.pocket.dataset.on = '';
+    elements.sticks.textContent = '显示周围残基'; elements.sticks.disabled = true; elements.sticks.dataset.on = '';
     elements.lines.textContent = '隐藏相互作用线'; elements.lines.dataset.on = '1';
   }
   const toRoot = (model) => { const centre = displayCenter(model); return (p) => p.map((v, i) => (v - centre[i]) * PRESENTATION_METERS_PER_ANGSTROM); };
@@ -44,7 +48,8 @@ export function createSiteView({ viewport, elements, context }) {
       return li;
     }));
     if (!found.interactions.length) elements.list.textContent = `${RADIUS} Å 内没有符合规则的氢键、盐桥或配位。`;
-    elements.pocket.disabled = false;
+    elements.pocket.disabled = false; elements.sticks.disabled = !found.shown.length;
+    result.shown = found.shown;
     drawLines();
   }
 
@@ -61,6 +66,28 @@ export function createSiteView({ viewport, elements, context }) {
     viewport.setOverlayMesh(POCKET, { pos: position, idx: surface.idx, colors }, { opacity: 0.3 });
   }
 
+  /** The residues that touch the ligand as ball-and-stick (bond orders from the chemical component dictionary when it can be read, else guessed from distances), hung on each residue's own point. */
+  async function sticks(on) {
+    if (!result) return;
+    const mine = ++token;
+    elements.sticks.dataset.on = on ? '1' : ''; elements.sticks.textContent = on ? '隐藏周围残基' : '显示周围残基';
+    if (!on) { viewport.setMolecules([], { tag: STICKS }); return; }
+    const comps = [...new Set(result.shown.map((r) => r.comp))], templates = {};
+    await Promise.all(comps.map(async (comp) => { try { templates[comp] = await context.template(comp); } catch { templates[comp] = null; } }));
+    if (mine !== token || elements.sticks.dataset.on !== '1') return;
+    const items = [];
+    for (const residue of result.shown) {
+      const target = context.residueTarget(residue); if (!target) continue;
+      const anchor = residue.atoms.find((a) => a.an === 'CA' || a.an === 'P')?.position ?? residue.atoms[0].position;
+      const atoms = residue.atoms.map((a) => ({ name: a.an, element: a.el, position: a.position }));
+      const bonds = (templates[residue.comp] && bondsFromTemplate(atoms, templates[residue.comp])) || bondsByDistance(atoms);
+      const geometry = valenceGeometry(atoms.map((a) => { const [color, radius] = elementStyle(a.element); return { position: a.position.map((v, k) => (v - anchor[k]) * PRESENTATION_METERS_PER_ANGSTROM), color: a.element === 'C' ? RESIDUE_CARBON : color, radius }; }), bonds, PRESENTATION_METERS_PER_ANGSTROM);
+      items.push({ target, geometry });
+    }
+    const drawn = viewport.setMolecules(items, { tag: STICKS });
+    elements.summary.textContent += drawn < result.shown.length ? ` 周围残基画出 ${drawn}/${result.shown.length} 个（其余在当前表示里没有对应的点）。` : '';
+  }
+  elements.sticks.addEventListener('click', () => sticks(elements.sticks.dataset.on !== '1'));
   elements.details.addEventListener('toggle', () => { if (elements.details.open && !result && selection) analyse(); else if (!elements.details.open) clear(); else drawLines(); if (elements.details.open && elements.pocket.dataset.on === '1') pocket(true); });
   elements.lines.addEventListener('click', () => { const on = elements.lines.dataset.on !== '1'; elements.lines.dataset.on = on ? '1' : ''; elements.lines.textContent = on ? '隐藏相互作用线' : '显示相互作用线'; drawLines(); });
   elements.pocket.addEventListener('click', () => pocket(elements.pocket.dataset.on !== '1'));

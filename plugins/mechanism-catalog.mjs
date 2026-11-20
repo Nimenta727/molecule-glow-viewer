@@ -88,3 +88,22 @@ function mechanismEntriesForScene(scene) {
   const bindings = autoBindings(describe(version, id), scene, entry);
   return [Object.keys(bindings).length ? { ...entry, bindings } : entry];
 }
+
+/**
+ * The evidence lines a scene's tools stand for (classic: the evidence badges, which say what is modelled and what is only drawn). Every tool entry gives one "modelled" line (what kind of
+ * model it is) and one "illustrative" line per assumption its descriptor declares (what is only for showing, not a measurement). `getTool(id)` returns a registered tool (or nothing, for a
+ * tool whose plugin is not active: that tool gets a line saying so, since nothing is drawn for it). Returns [{ type, citation, toolId }].
+ */
+export function toolEvidence(scene, { getTool, resolveToolId = (id) => id } = {}) {
+  const lines = [], seen = new Set();
+  for (const entry of scene?.tools ?? []) {
+    const id = resolveToolId(entry.tool?.id) ?? entry.tool?.id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const tool = getTool?.(id), title = tool?.title ?? toolTitle(id);
+    if (!tool?.model) { lines.push({ type: 'illustrative', citation: `${title}：这个工具的插件没有启用，它的内容没有画出来；配置仍保存在作品里`, toolId: id }); continue; }
+    lines.push({ type: 'modelled', citation: `${title}：${tool.model.kind}`, toolId: id });
+    for (const assumption of tool.model.assumptions) lines.push({ type: 'illustrative', citation: `${title}：${assumption}`, toolId: id });
+  }
+  return lines;
+}

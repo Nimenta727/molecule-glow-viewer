@@ -36,6 +36,10 @@
 6. 浏览器端到端：保存→关闭→重开后数值/像素一致；Studio 编辑往返。
 7. `docs/routine/<日期>-<主题>.md` 写：做了什么、改了什么、下一步。
 
+## 4b. 结构分析函数（纯函数，写进作品或 API 时直接用）
+
+`plugins/structure/site-analysis.mjs`（相互作用、口袋表面、通道）、`measure.mjs`（距离/角度）、`membrane-placement.mjs`（自动定膜）。都是纯函数、都与经典逐位对照（`tools/site-parity.mjs`、`tools/membrane-parity.mjs`）；Viewer 里的面板只是接线。工具的证据行由 `toolEvidence(scene, host)` 生成（建模一行 + 每条假设一行示意），不要在作品里手写重复。
+
 ## 5. 哪些是证据、哪些是作品
 
 - `plugins/simulation/test/models.mjs`、`kcsa-markov.mjs`：**验收用例**，证明引擎能表达 KcsA/ATP 等，不是随包发布的作品。

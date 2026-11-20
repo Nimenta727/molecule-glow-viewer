@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, toolEvidence } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -609,9 +609,11 @@ function boot() {
   });
   const siteView = createSiteView({
     viewport,
-    elements: { details: elements['site-analysis'], lines: elements['site-lines-toggle'], pocket: elements['site-pocket-toggle'], summary: elements['site-summary'], list: elements['site-list'] },
+    elements: { details: elements['site-analysis'], lines: elements['site-lines-toggle'], pocket: elements['site-pocket-toggle'], sticks: elements['site-sticks-toggle'], summary: elements['site-summary'], list: elements['site-list'] },
     context: {
       model: (selection) => active?.models?.get(selection.sourceAssetId) ?? active?.model,
+      template: loadChemicalComponent,
+      residueTarget: (residue) => { const r = selectionSpace(active.model).residues.find((x) => x.asym === residue.asym && x.authSeq === residue.seq && x.resn === residue.comp); return r && active.structureTargets.get(structureObjectId('residue', r.atom)); },
       ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
     },
   });
@@ -1119,6 +1121,7 @@ function boot() {
           .map((citation) => ({ type, citation }));
       });
     });
+    entries.push(...toolEvidence(active?.scene, { getTool: (id) => host.getTool(id), resolveToolId: (id) => host.resolveToolId(id) ?? id }).filter(({ citation }) => !entries.some((e) => e.citation === citation)));
     renderList('viewer-evidence', entries, (item, { type, citation, assetId }) => {
       item.textContent = [EVIDENCE_LABELS[type] ?? type, typeof citation === 'string' ? citation : assetId]
         .filter((value) => typeof value === 'string').join(' · ');

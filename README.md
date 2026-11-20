@@ -4,7 +4,7 @@
 
 目标流程：**导入蛋白质等原始资源 → 使用动画/模拟/科研功能插件 → 制作并分享作品**。创意工坊将分资源区与作品区；线粒体、呼吸链等属于作品。执行顺序为**制作基底 → Claude 经典已有功能按功能插件化 → 新增科研插件**。现有专用播放器尚需按此边界拆分，详见 [架构与当前差距](docs/ARCHITECTURE.md)。
 
-**最新进度**：见 [项目现状](docs/STATUS.md)——4.4.0–4.4.6 的功能工具已在新 Viewer/Studio 中接入，测试 390/390，经典对照逐位一致；分析/教学工具（4.4.7）与经典作品回归（4.4.8）尚未做，桌面/GPU 尚未验证。
+**最新进度**：见 [项目现状](docs/STATUS.md)——4.4.0–4.4.7 的功能工具已在新 Viewer/Studio 中接入，测试 390/390，经典对照逐位一致；经典作品回归（4.4.8）尚未做，桌面/GPU 尚未验证。
 
 **Desktop v0.5.0（已发布的旧构建，不含 4.4 之后的功能）**：[Windows 便携 EXE](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/MoleculeGlow-0.5.0-win-x64.exe) · [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.5.0/molecule-glow-viewer-skill-0.5.0.zip)
 

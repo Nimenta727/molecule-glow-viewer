@@ -17,7 +17,7 @@
 | 4.4.4 | 门控与观测 | 完成（通用 Markov/Gillespie 引擎、观测、曲线、CSV） | `markov-model`、`observer`、`process-tool` | KcsA 验收用例 |
 | 4.4.5 | 序列与随机过程 | 完成（核糖体翻译写成数据，药物/浓度计划） | `translation*.mjs` | 5/5（4 万随机状态速率逐位相同） |
 | 4.4.6 | 环境、多过程、跨尺度 | 纯逻辑完成＋多过程工具（拥挤、胶囊细胞几何、尺度阶梯） | `crowding`、`composition*`、`cell-geometry`、`scale-ladder` | 4/4 + 5/5 |
-| 4.4.7 | 经典分析与教学工具 | **大部分完成**：结合位点相互作用、口袋表面、通道搜索与显示、距离/角度测量、自动定膜（纯逻辑逐位对照＋Viewer 面板）；字幕/能量条/书签/图例、残基棍状显示未做 | `plugins/structure/{site-analysis,measure,membrane-placement}.mjs`、`apps/viewer-web/{site-view,analysis-panel,membrane-view}.mjs` | 19/19 + 8/8 |
+| 4.4.7 | 经典分析与教学工具 | **完成主要部分**：结合位点相互作用（含周围残基棍状）、口袋表面、通道搜索与显示、距离/角度测量、自动定膜，以及各工具的证据行（建模/示意）并入标题徽章；能量条、图例、书签沿用 Studio/导航已有的讲解与书签，未另做 | `plugins/structure/{site-analysis,measure,membrane-placement}.mjs`、`apps/viewer-web/{site-view,analysis-panel,membrane-view}.mjs`、`plugins/mechanism-catalog.mjs`（`toolEvidence`） | 19/19 + 8/8 |
 | 4.4.8 | 经典作品回归 | **未做** | — | — |
 
 ## 已注册的工具（`plugins/mechanism-catalog.mjs`）
@@ -35,7 +35,7 @@
 
 ## 验证数字
 
-- `npm test`：401 通过，0 失败。
+- `npm test`：403 通过，0 失败。
 - 经典对照（同种子、同输入，经典代码在 Node `vm` 中原样运行）：结合位点/口袋/通道/测量 19/19、自动定膜 8/8、粒子 24/24、数据动画 6/6、动力学 5/5、翻译 5/5、拥挤 4/4、细胞几何 5/5；报告在 [parity](parity/)。
 - 浏览器端到端（Playwright）：保存→关闭→重开后像素/数值一致；截图在 [images](images/)。
 - 文档/契约检查：`node tools/check-docs.mjs`、`check-feature-parity.mjs`、`check-copies.mjs`。
@@ -50,7 +50,7 @@
 
 ## 下一步（建议顺序）
 
-1. 4.4.7 余下：残基棍状显示、字幕/能量条/书签/图例（偏展示，多数已在 Studio/导航里有对应）。
+1. 4.4.7 收尾：能量转化条（作品配置里的 `energy` 字段，需要在作品里声明）；其余已完成。
 2. 4.4.8：用已有工具把 ATP、KcsA、AdK、呼吸链、光反应、鞭毛、翻译、细胞一角做成“资源＋作品配置”，集中回归。
 3. 并入 KcsA 专用链、Studio 粒子预览、细胞一角空间绘制。
 4. 桌面端验收（用户计划），之后才谈 4.5 工坊完整闭环与 4.7 发布。
