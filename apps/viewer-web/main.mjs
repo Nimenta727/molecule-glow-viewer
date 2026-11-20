@@ -25,6 +25,7 @@ import { createCompositionPanel } from './composition-panel.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { createSiteView } from './site-view.mjs';
+import { createMembraneView } from './membrane-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
@@ -113,6 +114,7 @@ function syncControls() {
   elements['morph-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['clip-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['entry-intro-controls'].hidden = !structureEnabled || !active?.model;
+  elements['membrane-controls'].hidden = !structureEnabled || !active?.model;
   elements['take-apart-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
   elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
@@ -312,6 +314,7 @@ function boot() {
       compositionPanel.reset();
       stateMorph.reset();
       entryIntro.reset();
+      membraneView.reset();
       leaveTakeApart();
       sequenceBar.setModel(active.model);
       resetSiteChips();
@@ -585,6 +588,14 @@ function boot() {
       selection: () => active?.structureSelection,
       ligandOf: (selection) => selectionSpace(active.models?.get(selection.sourceAssetId) ?? active.model).ligands.find((ligand) => ligand.atom === selection.atom),
       template: loadChemicalComponent,
+    },
+  });
+  const membraneView = createMembraneView({
+    viewport, button: elements['membrane-toggle'], note: elements['membrane-note'],
+    context: {
+      model: () => active?.model,
+      entryId: () => { const source = active?.scene.assets.find((asset) => asset.kind === 'file' && asset.provenance?.source)?.provenance.source; return source?.provider === 'RCSB PDB' ? source.accession : null; },
+      residues: () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], asym: r.asym, seq: r.labelSeq, nucleic: r.nucleic, resn: r.resn, entity: r.entity })),
     },
   });
   const siteView = createSiteView({
@@ -1443,6 +1454,7 @@ function boot() {
     compositionPanel.reset();
     stateMorph.reset();
     entryIntro.reset();
+    membraneView.reset();
     leaveTakeApart();
     sequenceBar.setModel(null);
     resetSiteChips();

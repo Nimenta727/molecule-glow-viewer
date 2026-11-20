@@ -206,6 +206,10 @@
               <button id="entry-intro-load" type="button" title="从 RCSB 与 UniProt 读取：物种、方法、分辨率、突变、文献、功能">自动简介</button>
             </div>
             <div id="entry-intro" class="entry-intro" hidden aria-live="polite"></div>
+            <div id="membrane-controls" class="structure-form" hidden>
+              <button id="membrane-toggle" type="button" title="从 RCSB（OPM / PDBTM / MemProtMD）读取跨膜片段，或扫描疏水带，画出膜的两个面">寻找细胞膜</button>
+              <span id="membrane-note" class="intro-source" aria-live="polite"></span>
+            </div>
             <div id="clip-controls" class="clip-controls" hidden>
               <label><input id="clip-enabled" type="checkbox"> 剖切</label>
               <input id="clip-depth" type="range" min="-1" max="1" step="0.01" value="0" aria-label="剖切深度">

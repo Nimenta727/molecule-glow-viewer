@@ -1,0 +1,10 @@
+ok   1K4C KcsA, segments and UniProt topology: 534 residues → membrane from OPM (2 segments), half thickness 16.6 Å, Lys/Arg 1 inside / 0 outside (uniprot, sure), 0 pore axes: record equal, all points after the move differ by at most 0.0e+0
+ok   1K4C KcsA, segments only (positive-inside rule): 534 residues → membrane from PDBTM (2 segments), half thickness 16.6 Å, Lys/Arg 10 inside / 2 outside (near, sure), 0 pore axes: record equal, all points after the move differ by at most 0.0e+0
+ok   2HVK KcsA, segments (another entry, another state): 534 residues → membrane from MemProtMD (2 segments), half thickness 16.5 Å, Lys/Arg 10 inside / 2 outside (near, sure), 0 pore axes: record equal, all points after the move differ by at most 0.0e+0
+ok   1K4C single chain, membrane annotation but no segments: the scan finds no belt on one subunit: no membrane found (534 residues), as in the classic
+ok   6ZPO ATP synthase, membrane annotation only (scan over the whole complex): 5150 residues → membrane from scan (0 segments), half thickness 12.0 Å, Lys/Arg 29 inside / 23 outside (near, unsure), 3 pore axes: record equal, all points after the move differ by at most 0.0e+0
+ok   4AKE adenylate kinase, soluble, no annotation: left alone: no membrane found (428 residues), as in the classic
+ok   4AKE soluble with a (wrong) membrane label: the scan finds no belt: no membrane found (428 residues), as in the classic
+ok   hydrophobic belt of 1K4C alone: none: normal and belt size equal to the classic
+
+8/8 identical

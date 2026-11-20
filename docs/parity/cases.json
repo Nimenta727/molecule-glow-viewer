@@ -229,13 +229,13 @@
     },
     {
       "id": "new.structure.auto-membrane",
-      "kind": "planned",
-      "runner": null,
+      "kind": "partial-automation",
       "steps": [
         "Load membrane and soluble reference entries without preset; inspect membrane and pore."
       ],
       "expected": "Report source/prediction distinction, orientation and algorithm tolerance; soluble negative control not assigned confident membrane.",
-      "scope": "Existing runner covers only part of this full acceptance contract; full parity remains pending."
+      "runner": "tools/membrane-parity.mjs",
+      "scope": "tools/membrane-parity.mjs runs the classic hydroSlab and autoMembrane unchanged and compares the result record and every moved point (8/8: KcsA with segments and topology, segments only, another KcsA entry, belt scan on the ATP synthase, soluble negative controls). Segments for the KcsA cases are written by hand from the published topology (the classic downloads them). The Viewer button (planes drawn, text of the finding) was checked in a software-rendered browser session; full parity remains pending."
     },
     {
       "id": "classic.mechanism.atp-synthase",
