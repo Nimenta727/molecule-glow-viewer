@@ -3,7 +3,7 @@
 ## 做了什么
 - **宿主**（`packages/plugin-host`）：新增 `tools` 能力——`context.registerTool(id, descriptor)`、`host.getTool(id)`、`host.listTools({audience})`（按 `view`/`author` 过滤、按 id 排序）。`tool-descriptor.mjs` 校验描述符（受众、运行时、参数类型/范围/默认值、`author` 块必须声明 `author` 受众、参数受众必须在工具受众之内、`model.assumptions`），返回冻结副本。
 - **共用逻辑**：`tool-model.mjs`（`toolControls`、`validateToolValues`、`authorFields`、`coerceField`、`editAuthorField`、带原型污染防护的 `getPath/setPath`）；`tool-panel.mjs`（`renderControl(s)`、`readControl`、`writeControl`，数字/滑块沿用 Viewer 原有 DOM）。
-- **三个内置播放器登记为工具**（`plugins/*/tool.mjs`）：运行参数取自各自原有的 `PARAMETERS`；制作字段覆盖部件选择、粒子、讲解文案、初始实验条件（ATP 22、AdK 约 33、KcsA 约 44 项，字段列表随配置动态生成，如步骤数）。
+- **三个内置播放器登记为工具**（`plugins/*/tool.mjs`）：运行参数取自各自原有的 `PARAMETERS`；制作字段覆盖部件选择、粒子、讲解文案、初始实验条件（ATP 22、AdK 22、KcsA 51 项，字段列表随配置动态生成，如步骤数）。
 - **Viewer**：机制参数面板改由描述符（view 受众）生成，参数值读写支持布尔/选择/文本；无描述符的播放器回退到面板定义。
 - **Studio**：新增“工具配置”区（`apps/studio-web/tool-config.mjs`）+ `setToolConfig` 会话命令（可撤销/重做）+“导入场景包”。面板完全由描述符生成；缺工具时配置保留并提示。
 
