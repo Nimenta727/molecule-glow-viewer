@@ -238,3 +238,5 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .take-apart-info p { margin: 0.3rem 0; color: var(--dim); }
 .take-apart-title { font-weight: 600; margin-bottom: 0.3rem; }
 .take-apart-partner { display: block; width: 100%; margin-top: 0.2rem; text-align: left; font-size: 0.75rem; }
+.take-apart-bonds { margin: 0.15rem 0 0.3rem 0.4rem; font-size: 0.72rem; color: var(--dim); }
+.take-apart-bonds i { display: inline-block; width: 0.55rem; height: 0.55rem; margin-right: 0.2rem; border-radius: 1px; vertical-align: baseline; }

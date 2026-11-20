@@ -262,22 +262,33 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     invalidate();
   }
 
-  /** Lines between pairs of picked points ({ a, b } are point targets of the structure); they follow the nodes when these move. */
+  /**
+   * Lines between pairs of picked points ({ a, b } are point targets of the structure); they follow the nodes when these move.
+   * A pair may carry `aOffset`/`bOffset` (a vector in the point's node space, viewport units: an atom next to its residue point) and its own `color`.
+   */
   let linkObject, links = [];
-  function locate(target) {
+  function locate(target, offset) {
     for (const mesh of active?.meshes ?? []) {
       const index = mesh.userData.pointTargets?.indexOf(target) ?? -1;
-      if (index >= 0) return { mesh, index };
+      if (index >= 0) return { mesh, index, offset };
     }
     return null;
   }
   function setLinks(pairs = [], { color = '#e5a529' } = {}) {
     if (linkObject) { linkObject.removeFromParent(); linkObject.geometry.dispose(); linkObject.material.dispose(); linkObject = undefined; }
-    links = active ? pairs.map(({ a, b }) => ({ a: locate(a), b: locate(b) })).filter(({ a, b }) => a && b) : [];
+    links = [];
+    if (active) {
+      for (const pair of pairs) {
+        const a = locate(pair.a, pair.aOffset), b = locate(pair.b, pair.bOffset);
+        if (a && b) links.push({ a, b, color: pair.color ?? color });
+      }
+    }
     if (links.length) {
-      const geometry = new THREE.BufferGeometry();
+      const geometry = new THREE.BufferGeometry(), shade = new THREE.Color(), colors = new Float32Array(links.length * 6);
+      links.forEach(({ color: c }, i) => { shade.set(c); colors.set([shade.r, shade.g, shade.b, shade.r, shade.g, shade.b], i * 6); });
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(links.length * 6), 3));
-      linkObject = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 }));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      linkObject = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.95 }));
       linkObject.renderOrder = 11;
       linkObject.frustumCulled = false;
       linkObject.userData.selectionMarker = true;
@@ -294,7 +305,9 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     links.forEach(({ a, b }, i) => {
       for (const [slot, end] of [[0, a], [1, b]]) {
         end.mesh.updateWorldMatrix(true, false);
-        linkPoint.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index).applyMatrix4(end.mesh.matrixWorld);
+        linkPoint.fromBufferAttribute(end.mesh.geometry.getAttribute('position'), end.index);
+        if (end.offset) linkPoint.add(new THREE.Vector3(...end.offset));
+        linkPoint.applyMatrix4(end.mesh.matrixWorld);
         position.setXYZ(i * 2 + slot, linkPoint.x, linkPoint.y, linkPoint.z);
       }
     });

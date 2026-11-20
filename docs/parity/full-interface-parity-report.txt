@@ -1,0 +1,25 @@
+ok   1AKE chain A: 1 partners, 1 classified contacts
+ok   1AKE chain B: 1 partners, 1 classified contacts
+ok   1K4C chain A: 2 partners, 33 classified contacts
+ok   1K4C chain B: 2 partners, 31 classified contacts
+ok   1K4C chain C: 2 partners, 18 classified contacts
+ok   2HVK chain A: 2 partners, 33 classified contacts
+ok   2HVK chain B: 2 partners, 32 classified contacts
+ok   2HVK chain C: 2 partners, 17 classified contacts
+ok   2ITD chain A: 2 partners, 37 classified contacts
+ok   2ITD chain B: 2 partners, 37 classified contacts
+ok   2ITD chain C: 2 partners, 16 classified contacts
+ok   4AKE chain A: 1 partners, 6 classified contacts
+ok   4AKE chain B: 1 partners, 6 classified contacts
+ok   5VK6 chain A: 2 partners, 43 classified contacts
+ok   5VK6 chain B: 2 partners, 42 classified contacts
+ok   5VK6 chain C: 2 partners, 17 classified contacts
+ok   5VKE chain A: 2 partners, 37 classified contacts
+ok   5VKE chain B: 2 partners, 36 classified contacts
+ok   5VKE chain C: 2 partners, 17 classified contacts
+ok   6ZPO chain H: 8 partners, 71 classified contacts
+ok   6ZPO chain U: 8 partners, 71 classified contacts
+ok   6ZPO chain V: 8 partners, 111 classified contacts
+ok   6ZPO chain D: 8 partners, 75 classified contacts
+
+23/23 identical

@@ -1,4 +1,5 @@
 import { PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
+import { fullInterface, INTERFACE_KINDS } from '../../plugins/structure/full-interface.mjs';
 import { buildPieces, computeInterfaces, partnersOf, interfaceResidues, assemblyOrder, pieceOffset } from '../../plugins/structure/pieces.mjs';
 import { chainGroupKey } from '../../plugins/structure/representation.mjs';
 
@@ -8,6 +9,8 @@ import { chainGroupKey } from '../../plugins/structure/representation.mjs';
  * The geometry lives in plugins/structure/pieces.mjs; this file moves nodes (viewport.setNodeOffsets) and draws the little panel.
  */
 const LINKS_PER_SELECTION = 24;
+const KIND_COLORS = { ss: '#e0a800', salt: '#ff4fa3', hbond: '#2f9bff', hydro: '#8d93a3' };
+const HYDROPHOBIC_LINKS_PER_PARTNER = 25;
 
 export function createTakeApart({ viewport, elements, context }) {
   let kit = null, frame = null, last = 0;
@@ -33,7 +36,7 @@ export function createTakeApart({ viewport, elements, context }) {
     const pieces = built.pieces.filter((piece) => context.nodeForChain(piece.groupKey));
     if (pieces.length < 2) { context.setStatus('这个结构只有一条可拆的链（或预览省略了其余链），无法拆装。'); return false; }
     built.pieces = pieces;
-    kit = { model: built, state: new Map(pieces.map((piece) => [piece, { e: 0, eTarget: 0, pull: 0, pullTarget: 0 }])), explode: 0, selected: null, play: null };
+    kit = { model: built, state: new Map(pieces.map((piece) => [piece, { e: 0, eTarget: 0, pull: 0, pullTarget: 0 }])), explode: 0, selected: null, play: null, full: new Map() };
     const { position, target } = viewport.getCamera();
     kit.baseDistance = Math.hypot(...position.map((v, i) => v - target[i]));
     elements.panel.hidden = false;
@@ -120,10 +123,42 @@ export function createTakeApart({ viewport, elements, context }) {
       if (entry) for (const [ri, rj, d] of entry.pairs) pairs.push({ d, a: piece.residues[ri], b: other.residues[rj] });
     }
     pairs.sort((x, y) => x.d - y.d);
-    viewport.setLinks(pairs.slice(0, LINKS_PER_SELECTION).map(({ a, b }) => ({ a: context.targetFor(a), b: context.targetFor(b) })));
+    if (kit.full.get(piece)?.pairs) viewport.setLinks(kit.full.get(piece).pairs);
+    else viewport.setLinks(pairs.slice(0, LINKS_PER_SELECTION).map(({ a, b }) => ({ a: context.targetFor(a), b: context.targetFor(b) })));
     renderInfo();
     renderPieces();
   }
+
+  /** Classifies every atom contact between `piece` and its partners; the classified bonds replace the residue-level lines. */
+  function computeFull(piece) {
+    const partners = partnersOf(kit.model, piece).map(({ piece: other }) => other);
+    const result = fullInterface(context.model(), piece, partners);
+    if (result.unavailable) { kit.full.set(piece, { unavailable: result.unavailable }); return; }
+    const residueAt = new Map();
+    for (const other of [piece, ...partners]) for (const r of other.residues) residueAt.set(`${other.key}|${r.atom.authSeqId}|${r.atom.insertionCode || ''}`, r);
+    const endpoint = (owner, atom) => {
+      const residue = residueAt.get(`${owner.key}|${atom.authSeq}|${atom.insertion}`);
+      const target = residue && context.targetFor(residue);
+      return target ? { target, offset: atom.position.map((v, i) => (v - residue.position[i]) * PRESENTATION_METERS_PER_ANGSTROM) } : null;
+    };
+    const pairs = [];
+    for (const other of partners) {
+      const c = result.byPartner.get(other.index);
+      if (!c || c.unavailable) continue;
+      for (const kind of ['ss', 'salt', 'hbond', 'hydro']) {
+        for (const contact of c[kind].slice(0, kind === 'hydro' ? HYDROPHOBIC_LINKS_PER_PARTNER : Infinity)) {
+          const a = endpoint(piece, contact.a), b = endpoint(other, contact.b);
+          if (a && b) pairs.push({ a: a.target, aOffset: a.offset, b: b.target, bOffset: b.offset, color: KIND_COLORS[kind] });
+        }
+      }
+    }
+    kit.full.set(piece, { byPartner: result.byPartner, pairs });
+    viewport.setLinks(pairs);
+    const total = (kind) => [...result.byPartner.values()].reduce((n, c) => n + c[kind].length, 0);
+    context.setStatus(`全原子界面：盐桥 ${total('salt')}，氢键 ${total('hbond')}，二硫键 ${total('ss')}，疏水接触 ${total('hydro')}`);
+  }
+
+  const residueName = (atom) => `${atom.resn[0]}${atom.resn.slice(1).toLowerCase()}${atom.authSeq}${atom.insertion}`;
 
   function showInterface(piece, partner) {
     const mine = interfaceResidues(piece, partner), theirs = interfaceResidues(partner, piece);
@@ -154,6 +189,15 @@ export function createTakeApart({ viewport, elements, context }) {
     pull.type = 'button';
     pull.addEventListener('click', () => { state.pullTarget = state.pullTarget ? 0 : 1; renderInfo(); run(); });
     elements.info.append(pull);
+    const full = kit.full.get(piece);
+    if (partners.length && !full?.byPartner) {
+      const button = el('button', null, '⚛ 计算全原子界面');
+      button.type = 'button';
+      button.title = '逐个原子判定二硫键、盐桥、氢键和疏水接触，并用彩色线画出';
+      button.addEventListener('click', () => { computeFull(piece); renderInfo(); });
+      elements.info.append(' ', button);
+    }
+    if (full?.unavailable) elements.info.append(el('p', null, full.unavailable));
     if (!partners.length) { elements.info.append(el('p', null, '和其他链没有接触（单独存在的亚基）。')); return; }
     elements.info.append(el('p', null, `和 ${partners.length} 条链相连（界面 ${interfaceCount} 个${piece.nucleic ? '核苷酸' : '残基'}，残基级：Cα 间距 < ${piece.nucleic ? 10 : 8} Å）：`));
     for (const { piece: other, n, nOther } of partners.slice(0, 12)) {
@@ -162,6 +206,21 @@ export function createTakeApart({ viewport, elements, context }) {
       row.title = '选中两条链相互接触的残基';
       row.addEventListener('click', () => showInterface(piece, other));
       elements.info.append(row);
+      const c = full?.byPartner?.get(other.index);
+      if (c && !c.unavailable) {
+        const summary = el('div', 'take-apart-bonds');
+        for (const kind of ['ss', 'salt', 'hbond', 'hydro']) {
+          if (!c[kind].length) continue;
+          const swatch = el('i');
+          swatch.style.background = KIND_COLORS[kind];
+          summary.append(swatch, `${INTERFACE_KINDS[kind]} ${c[kind].length}　`);
+        }
+        if (!summary.childNodes.length) summary.append('只有范德华接触');
+        if (c.clash.size) summary.append(el('span', null, `（另 ${c.clash.size} 对过近，未计：N/O 距离 < 2.5 Å 是沉积模型的几何误差，不是化学键）`));
+        elements.info.append(summary);
+        const examples = [...c.ss, ...c.salt, ...c.hbond].slice(0, 4).map((x) => `${residueName(x.a)}–${residueName(x.b)} ${x.d.toFixed(1)} Å`).join('；');
+        if (examples) elements.info.append(el('div', 'take-apart-bonds', examples));
+      }
     }
     if (partners.length > 12) elements.info.append(el('p', null, `… 另 ${partners.length - 12} 条`));
   }
