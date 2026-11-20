@@ -12,6 +12,11 @@ import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
 import { mechanismPlugins } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
+import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
+import { defaultStyleFor } from './default-style.mjs';
+import { createResourceStore } from '../../packages/schema/resource.mjs';
+import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
+import { prepareWorkScene, storePlayerState } from './work-scene.mjs';
 
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
@@ -25,13 +30,13 @@ const IMPORTER = `${STRUCTURE}.coordinates`;
 const MODEL_SERVICE = `${STRUCTURE}.model`;
 const REPRESENTATION = `${STRUCTURE}.preview`;
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
-const DEFAULT_STYLE = 'blob';   // classic default: flat colour domains with ink outlines
 const STRUCTURE_LABELS = { residue: '残基', ligand: '配体' };
 const EVIDENCE_LABELS = { source: '来源', experimental: '实验', derived: '推导', modelled: '建模', illustrative: '示意' };
 const MODE_LABELS = { cell: '细胞', system: '局部系统', protein: '蛋白质', mechanism: '反应机理' };
 const functionalDescription = (scene, player) => player?.functionalDescription ?? (Array.isArray(scene?.legacy?.scene?.core) && scene.legacy.scene.core.length
   ? '橙色标记显示配体邻域及场景指定的核心残基。其余形状由残基坐标生成低分辨率密度表面。'
   : '橙色标记显示配体重原子 8 Å 内的残基代表点。其余形状由残基坐标生成低分辨率密度表面。');
+const resourceStore = createResourceStore();   // session-wide: every raw structure file seen in this window, deduplicated by hash
 const host = createPluginHost({
   getScene: () => active?.store.getSnapshot() ?? null,
   dispatch: () => { throw new Error('这个入口用于查看。请在制作台编辑场景。'); },
@@ -63,7 +68,7 @@ function syncControls() {
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['representation-controls'].hidden = !structureEnabled || !active?.representationSource;
-  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? DEFAULT_STYLE;
+  elements['representation-style'].value = active?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(active?.scene);
   elements['functional-evidence'].hidden = elements['representation-style'].value !== 'functional';
   if (!elements['functional-evidence'].hidden) elements['functional-evidence'].textContent = functionalDescription(active?.scene, active?.player);
 }
@@ -214,6 +219,7 @@ function boot() {
         if (!loaded.model) restoreStructureModel(loaded);
       }
       if (signal.aborted) return;
+      await prepareWorkScene(loaded);   // current scene format + the tool configuration of the declared mechanism
       await preparePlayer(loaded, signal);
       signal.throwIfAborted();
       const layers = structureLayers(loaded);
@@ -226,6 +232,9 @@ function boot() {
         loaded.scene.presentation ??= { notes: [], bookmarks: [] };
         loaded.scene.presentation.navigation = player.navigation;
       }
+      // Raw structure files become immutable resources; a problem with one file is reported, it does not stop the scene.
+      const { diagnostics: resourceDiagnostics } = await registerSceneResources(resourceStore, loaded.scene, loaded.resources);
+      for (const { message } of resourceDiagnostics) loaded.warnings = [...(loaded.warnings ?? []), message];
       const store = createDocumentStore(toCoreDocument(loaded.scene, new Set(layers.keys())));
       const document = store.getSnapshot();
       const timeline = createTimeline(document.timeline);
@@ -255,6 +264,7 @@ function boot() {
       focusCurrentView(0);
       restoreStructureView();
       showPresentation();
+      showResources();
       if (restoreFocus) (scene.navigation ? elements['navigation-heading'] : elements.open).focus();
       setStatus(scene.name);
       showStructureSummary();
@@ -407,7 +417,7 @@ function boot() {
       if (!previews.length) continue;
       loaded.representationSource ??= source;
       const storedStyle = source.provenance?.viewerStyle;
-      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : DEFAULT_STYLE);
+      const style = (source === sources[0] ? requestedStyle : undefined) ?? (STYLES.has(storedStyle) ? storedStyle : defaultStyleFor(loaded.scene));
       const builds = new Map();
       const build = (mode) => {
         if (!builds.has(mode)) {
@@ -726,6 +736,24 @@ function boot() {
     });
   }
 
+  // Which immutable resources this scene is built from, with their source and licence.
+  function showResources() {
+    const used = new Map();
+    for (const asset of active?.scene.assets ?? []) {
+      const ref = asset.provenance?.resource;
+      if (ref) used.set(`${ref.id}@${ref.version}`, ref);
+    }
+    const summaries = resourceStore.list().filter((record) => used.has(`${record.id}@${record.version}`)).map(summarizeResource);
+    elements.resources.hidden = summaries.length === 0;
+    elements['resource-list'].replaceChildren(...summaries.map((item) => {
+      const li = document.createElement('li');
+      const size = item.files.reduce((total, file) => total + file.bytes, 0);
+      const source = item.source.provider === 'rcsb' ? `RCSB ${item.source.accession}` : `本地文件 ${item.source.accession}`;
+      li.textContent = `${source} · ${item.license === 'unknown' ? '授权未知（不随导出包嵌入）' : item.license} · ${(size / 1048576).toFixed(1)} MB · ${item.id}@${item.version}`;
+      return li;
+    }));
+  }
+
   // Title and evidence badges, as in the classic viewer: how much of what is shown is measured, derived, modelled or schematic.
   function showHud(title, entries) {
     const counts = new Map();
@@ -845,8 +873,7 @@ function boot() {
         }
       } else {
         if (active?.player) {
-          const source = active.scene.assets.find((asset) => asset.provenance?.parserVersion);
-          if (source) source.provenance.playback = active.player.save();
+          storePlayerState(active.scene, active.playerId, active.player.save());
           active.player.dispose();
           active.player = undefined;
         }
@@ -912,13 +939,11 @@ function boot() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
     if (active.player) {
-      const source = scene.assets.find((asset) => asset.provenance?.parserVersion);
-      if (source) source.provenance.playback = active.player.save();
+      storePlayerState(scene, active.playerId, active.player.save());
       if (active.player.evidence) {
         if (!scene.evidence.some(({ citation }) => citation === active.player.evidence.citation)) scene.evidence.push(active.player.evidence);
-      } else if (!scene.evidence.some(({ citation }) => citation === 'ATP 合酶教学播放器')) {
-        scene.evidence.push({ type: 'modelled', citation: 'ATP 合酶教学播放器',
-          details: '牛 c8 环每圈 8 H⁺、3 ATP。β 形状在 6ZPO 三个位点实测坐标之间插值。粒子、路径、膜和时间为示意。' });
+      } else if (!scene.evidence.some(({ citation }) => citation === ATP_6ZPO_TEMPLATE.sceneEvidence.citation)) {
+        scene.evidence.push({ type: 'modelled', ...ATP_6ZPO_TEMPLATE.sceneEvidence });   // wording lives in the work configuration
       }
     }
     if (representationSource) {
@@ -966,7 +991,7 @@ function boot() {
     syncControls();
     showDiagnostics();
     showNavigation();
-    showPresentation();
+    showPresentation(); showResources();
     showStructureSummary();
     setStatus('场景已关闭');
   });
@@ -1105,6 +1130,7 @@ function boot() {
     signal: commandLifetime.signal,
     current: () => active,
     plugins: () => host.listActive(),
+    resources: () => resourceStore.list().map(summarizeResource),
     camera: () => viewport.getCamera({ destination: true }),
     setCamera: (camera) => viewport.setCamera(camera),
     resetCamera: () => {

@@ -42,3 +42,12 @@ test('cancellation and an expired plugin factory cannot prepare coordinates', as
   assert.throws(() => factory.create({}), /已停用/);
   await host.deactivate('org.glow.structure');
 });
+
+test('with the default work configuration the KcsA builder, preparation and player behave exactly as before the extraction (golden trace)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { kcsaTrace } = await import('./golden-trace.mjs');
+  const { KCSA_1K4C_TEMPLATE } = await import('../config.mjs');
+  const golden = JSON.parse(readFileSync(new URL('./golden-default.json', import.meta.url), 'utf8'));
+  assert.deepEqual(await kcsaTrace(), golden);
+  assert.deepEqual(await kcsaTrace({ config: KCSA_1K4C_TEMPLATE }), golden);
+});

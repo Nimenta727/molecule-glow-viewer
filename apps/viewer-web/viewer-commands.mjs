@@ -1,4 +1,5 @@
 import { openSceneFile } from './scene-io.mjs';
+import { defaultStyleFor } from './default-style.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -32,10 +33,10 @@ export function createViewerCommands(host) {
     const snapshot = current?.player?.snapshot();
     return {
       title: current?.name ?? null, sceneId: current?.scene.id ?? null,
-      plugins: host.plugins(), camera: host.camera(),
+      plugins: host.plugins(), resources: host.resources?.() ?? [], camera: host.camera(),
       sources: current?.scene.assets.filter((asset) => asset.provenance?.parserVersion).map(({ id, provenance }) => ({ id, source: provenance.source })) ?? [],
       parts: current?.scene.nodes.filter((node) => node.extensions?.['org.glow.structure']).map(({ id, name, visible }) => ({ id, name, visible })) ?? [],
-      selection: host.selection(), representation: current?.representationSource?.provenance?.viewerStyle ?? 'blob',
+      selection: host.selection(), representation: current?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(current?.scene),
       paused: snapshot ? !snapshot.playing : !current?.timeline.playing,
       time: snapshot?.time ?? current?.timeline.time ?? 0,
       counters: snapshot?.counters ?? {}, seed: snapshot?.seed ?? null,

@@ -1,6 +1,9 @@
 import { centroid, rotateVector, superpose } from '../structure/alignment.mjs';
 import { PRESENTATION_METERS_PER_ANGSTROM as scale, selectCoordinateAtoms } from '../structure/representation.mjs';
 import { matchesPart } from '../structure/functional-preview.mjs';
+import { ATP_6ZPO_TEMPLATE, normalizeAtpConfig } from './config.mjs';
+import { sub as subtract, normalize, cross } from '../motion/vectors.mjs';
+import { displaceVertices } from '../motion/conformation.mjs';
 
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
@@ -17,40 +20,37 @@ export const atpSynthasePlugin = {
       instances.add(player);
       return player;
     } });
+    const { panel } = ATP_6ZPO_TEMPLATE;
     context.registerPanel(ATP_PLAYER, {
-      title: 'ATP 合酶',
-      speed: { label: '转速（转 / 示意秒）', min: 0.05, max: 3, step: 0.05 },
-      seed: { label: '随机种子', min: 0, max: 4294967295, step: 1 },
-      evidence: '结构来自沉积坐标。β 位点在三个实测构象之间插值。粒子、膜和路径为教学示意，时间为示意秒。',
+      title: panel.title,
+      speed: { label: panel.speedLabel, min: 0.05, max: 3, step: 0.05 },
+      seed: { label: panel.seedLabel, min: 0, max: 4294967295, step: 1 },
+      evidence: panel.evidence,
     });
   },
 };
 
-export const ATP_STEPS = [
-  { title: '质子动力势', caption: '膜两侧的电化学梯度驱动 H⁺ 回流。', parts: ['/subunit a$/'] },
-  { title: 'H⁺ 流过 → c 环转动', caption: '牛 c8 环每转一圈对应 8 个 H⁺。', parts: ['/subunit a$/', 'subunit C1'] },
-  { title: 'γ 旋转 → β 变构', caption: 'γ 每转 120°，三个 β 位点交换开放、松弛、紧密状态。', parts: ['subunit gamma', 'subunit beta'] },
-  { title: 'ADP + Pi → ATP', caption: '紧密位点发生 ATP 形成，粒子和反应路径以示意表达。', parts: ['subunit beta'] },
-  { title: '开放位点释放 ATP', caption: '转动驱动位点打开。每圈释放 3 个 ATP。', parts: ['subunit beta', 'subunit gamma'] },
-];
+export const ATP_STEPS = ATP_6ZPO_TEMPLATE.steps;   // kept for callers; the data lives in config.mjs
 const TAU = 2 * Math.PI;
-const subtract = (a, b) => a.map((value, i) => value - b[i]);
-const normalize = (a) => a.map((value) => value / Math.hypot(...a));
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const smooth = (value) => { const f = Math.max(0, Math.min(1, value)); return f * f * (3 - 2 * f); };
 const chainKey = (atom) => JSON.stringify([atom.authChainId, atom.labelChainId, atom.assemblyCopy]);
 const residueKey = (atom) => String(atom.labelSeqId || atom.authSeqId);
 const round = (value) => Math.round(value * 1e9) / 1e9;
 
-export function createAtpPlayer({ model, scene, state = {} }) {
+/** `config` is the work configuration (see config.mjs); omitted = the built-in 6ZPO template, which keeps old packs working. */
+export function createAtpPlayer({ model, scene, state = {}, config }) {
+  const cfg = normalizeAtpConfig(config);
   let disposed = false;
   const atoms = selectCoordinateAtoms(model).map(({ atom }) => atom);
   const nameOf = (atom) => model.chainNames?.[atom.labelChainId] ?? '';
   const ca = atoms.filter((atom) => atom.name === 'CA' && atom.element === 'C');
   const named = (pattern) => ca.filter((atom) => matchesPart(nameOf(atom), pattern));
-  const ring = named('subunit C1'), beta = named('subunit beta');
+  const ring = named(cfg.parts.ring), beta = named(cfg.parts.catalytic);
   if (!ring.length || !beta.length) throw new Error('ATP 合酶需要 c 环和 β 亚基的沉积链名称。');
-  if (new Set(ring.map(chainKey)).size !== 8) throw new Error('此播放器适用于具有 8 个 c 亚基的 ATP 合酶组装体。');
+  const ringCount = new Set(ring.map(chainKey)).size;
+  if (cfg.counts.ringSubunits !== null ? ringCount !== cfg.counts.ringSubunits : ringCount < 3) {
+    throw new Error(cfg.counts.ringSubunits !== null ? `此播放器适用于具有 ${cfg.counts.ringSubunits} 个 c 亚基的 ATP 合酶组装体。` : '此播放器至少需要 3 个 c 亚基。');
+  }
   const betaChains = new Map();
   for (const atom of beta) {
     const key = chainKey(atom);
@@ -95,20 +95,20 @@ export function createAtpPlayer({ model, scene, state = {} }) {
   }
   const nodes = scene.nodes.filter((node) => node.extensions?.['org.glow.structure']?.sourceAssetId ===
     scene.assets.find((asset) => asset.kind === 'file' && asset.mediaType === 'chemical/x-mmcif')?.id);
-  const rotorNames = ['subunit gamma', 'subunit delta', 'subunit epsilon', 'subunit C1'];
-  const rotor = nodes.filter((node) => rotorNames.some((name) => matchesPart(node.extensions['org.glow.structure'].partName, name)));
+  const rotor = nodes.filter((node) => cfg.parts.rotor.some((name) => matchesPart(node.extensions['org.glow.structure'].partName, name)));
   if (!rotor.length) throw new Error('当前预览没有 ATP 合酶转子节点。');
-  const steps = ATP_STEPS.map((step) => ({ ...step, nodeIds: nodes.filter((node) =>
+  const steps = cfg.steps.map((step) => ({ ...step, nodeIds: nodes.filter((node) =>
     step.parts.some((name) => matchesPart(node.extensions['org.glow.structure'].partName, name))).map(({ id }) => id) }));
   const root = rotor[0].parentId ?? rotor[0].id;
   const baseView = { nodeId: root, bookmarkId: null, labelIds: [] };
+  const prefix = cfg.navigation.idPrefix;
   const navigation = {
-    version: 1, entryId: 'atp-system', views: [
-      { ...baseView, id: 'atp-system', mode: 'system', title: 'ATP 合酶系统', parentIds: [] },
-      { ...baseView, id: 'atp-protein', mode: 'protein', title: 'ATP 合酶结构', parentIds: ['atp-system'] },
-      { ...baseView, id: 'atp-mechanism', mode: 'mechanism', title: 'ATP 合酶催化机理',
-        parentIds: ['atp-system', 'atp-protein'], steps: steps.map(({ title, nodeIds }, i) => ({
-          id: `atp-step-${i}`, title, nodeIds: nodeIds.length ? nodeIds : [rotor[0].id],
+    version: 1, entryId: `${prefix}-system`, views: [
+      { ...baseView, id: `${prefix}-system`, mode: 'system', title: cfg.navigation.systemTitle, parentIds: [] },
+      { ...baseView, id: `${prefix}-protein`, mode: 'protein', title: cfg.navigation.proteinTitle, parentIds: [`${prefix}-system`] },
+      { ...baseView, id: `${prefix}-mechanism`, mode: 'mechanism', title: cfg.navigation.mechanismTitle,
+        parentIds: [`${prefix}-system`, `${prefix}-protein`], steps: steps.map(({ title, nodeIds }, i) => ({
+          id: `${prefix}-step-${i}`, title, nodeIds: nodeIds.length ? nodeIds : [rotor[0].id],
         })) },
     ],
   };
@@ -142,10 +142,10 @@ export function createAtpPlayer({ model, scene, state = {} }) {
   }
   const carbonSites = chainList.map((chain) => {
     const coordinates = chain.map(({ position }) => position);
-    const nucleotides = atoms.filter((atom) => ['ADP', 'ATP', 'ANP'].includes(atom.residueName));
+    const nucleotides = atoms.filter((atom) => cfg.nucleotides.bound.includes(atom.residueName));
     let closest, best = Infinity;
     for (const nucleotide of nucleotides) {
-      if (nucleotide.name !== 'PB') continue;
+      if (nucleotide.name !== cfg.nucleotides.anchorAtom) continue;
       for (const coordinate of coordinates) {
         const distance = Math.hypot(...subtract(coordinate, nucleotide.position));
         if (distance < best) { best = distance; closest = nucleotide.position; }
@@ -173,8 +173,8 @@ export function createAtpPlayer({ model, scene, state = {} }) {
     return molecule.map((atom) => ({ element: atom.element, position: subtract(atom.position, center).map((value) => value * scale) }));
   }
   const templates = {
-    ADP: moleculeTemplate('ADP'), ATP: moleculeTemplate('ATP'),
-    Pi: moleculeTemplate('PO4') ?? [
+    ADP: moleculeTemplate(cfg.nucleotides.adp), ATP: moleculeTemplate(cfg.nucleotides.atp),
+    Pi: moleculeTemplate(cfg.nucleotides.phosphate) ?? [
       { element: 'P', position: [0, 0, 0] },
       ...[[1, 1, 1], [-1, -1, 1], [-1, 1, -1], [1, -1, -1]].map((position) =>
         ({ element: 'O', position: position.map((value) => value * 0.045) })),
@@ -193,30 +193,31 @@ export function createAtpPlayer({ model, scene, state = {} }) {
     const stagePhase = (turns * 3) % 1;
     const stage = stagePhase < 0.1 ? 0 : stagePhase < 0.25 ? 1 : stagePhase < 0.8 ? 2 : stagePhase < 0.93 ? 3 : 4;
     const particles = [];
-    for (let i = 0; i < 8; i++) {
-      const fraction = (turns + i / 8 + noise(i) * 0.03) % 1;
+    for (let i = 0; i < ringCount; i++) {
+      const fraction = (turns + i / ringCount + noise(i) * 0.03) % 1;
       const angle = fraction * TAU;
       const position = pivot.map((value, j) => value + ringRadius * (u[j] * Math.cos(angle) + v[j] * Math.sin(angle)) +
         axis[j] * (fraction - 0.5) * 1.4);
-      particles.push({ name: 'H⁺', color: '#d75089', position });
+      particles.push({ name: cfg.particles.proton.name, color: cfg.particles.proton.color, position });
     }
     for (const [index, site] of carbonSites.entries()) {
       const f = (turns + index / 3) % 1;
       const outward = normalize(subtract(site, point(head)));
       const distance = f < 0.3 ? (0.3 - f) * 2 : f > 0.8 ? (f - 0.8) * 4 : 0;
-      particles.push({ name: f > 0.72 ? 'ATP' : 'ADP', molecule: templates[f > 0.72 ? 'ATP' : 'ADP'],
-        color: f > 0.72 ? '#e5a52b' : '#209fb8',
+      const nucleotide = f > 0.72 ? cfg.particles.atp : cfg.particles.adp;
+      particles.push({ name: nucleotide.name, molecule: templates[f > 0.72 ? 'ATP' : 'ADP'],
+        color: nucleotide.color,
         position: site.map((value, j) => value + outward[j] * distance) });
-      particles.push({ name: 'Pi', molecule: templates.Pi, visible: f < 0.72, color: '#9f75bf', position: site.map((value, j) =>
+      particles.push({ name: cfg.particles.phosphate.name, molecule: templates.Pi, visible: f < 0.72, color: cfg.particles.phosphate.color, position: site.map((value, j) =>
         value + outward[j] * (distance + 0.18)) });
     }
     const events = [];
     const completed = Math.floor(turns * 3 + 1e-9);
     for (let i = Math.max(1, completed - 19); i <= completed; i++) events.push({
-      time: round(timeAtTurn(i / 3)), label: '位点打开释放 ATP', ATP: i,
+      time: round(timeAtTurn(i / 3)), label: cfg.eventLabel, ATP: i,
     });
     return { time, speed, seed, playbackRate, playing, stage, transforms, particles, events,
-      turns, counters: { ATP: completed, 'H⁺': Math.floor(turns * 8 + 1e-9) },
+      turns, counters: { [cfg.counterLabels.atp]: completed, [cfg.counterLabels.proton]: Math.floor(turns * ringCount + 1e-9) },
       conformation: { from: Math.floor(turns * 3) % 3, fraction: smooth((stagePhase - 0.25) / 0.6) },
     };
   }
@@ -230,32 +231,9 @@ export function createAtpPlayer({ model, scene, state = {} }) {
       const conformations = [0, 1, 2].map((offset) => alternatives[(ownIndex + offset) % 3]);
       const vertices = layers.get(node.assetId);
       if (!vertices) continue;
-      const representatives = chain.map((atom) => ({ atom, position: point(atom.position) }));
-      for (const layer of vertices) {
-        layer.conformations = conformations.map(() => []);
-        for (let i = 0; i < layer.positions.length; i += 3) {
-          const vertex = layer.positions.slice(i, i + 3);
-          const nearest = [];
-          for (const item of representatives) {
-            const [x, y, z] = item.position;
-            const squared = (x - vertex[0]) ** 2 + (y - vertex[1]) ** 2 + (z - vertex[2]) ** 2;
-            const index = nearest.findIndex((entry) => squared < entry.squared);
-            if (index >= 0) nearest.splice(index, 0, { atom: item.atom, squared });
-            else if (nearest.length < 4) nearest.push({ atom: item.atom, squared });
-            if (nearest.length > 4) nearest.length = 4;
-          }
-          const weights = nearest.map(({ squared }) => 1 / Math.max(1e-12, squared));
-          const total = weights.reduce((sum, value) => sum + value, 0);
-          for (const [index, state] of conformations.entries()) {
-            const delta = [0, 0, 0];
-            nearest.forEach(({ atom }, n) => {
-              const target = state.get(residueKey(atom));
-              for (let j = 0; j < 3; j++) delta[j] += (target[j] - atom.position[j]) * scale * weights[n] / total;
-            });
-            layer.conformations[index].push(...vertex.map((value, j) => value + delta[j]));
-          }
-        }
-      }
+      const anchors = chain.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position }));
+      const resolvers = conformations.map((state) => (anchor) => state.get(residueKey(anchor.ref)));
+      for (const layer of vertices) layer.conformations = displaceVertices(layer.positions, anchors, resolvers, { scale });
     }
     return layers;
   }

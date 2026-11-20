@@ -1,5 +1,5 @@
 import { Validator } from '@cfworker/json-schema';
-import { SchemaValidationError } from './documents.mjs';
+import { SchemaValidationError } from './errors.mjs';
 
 /**
  * Resources are immutable raw material (structures, ligands, sequences) with identity, source and licence.
@@ -53,6 +53,34 @@ export function validateResource(input) {
   return record;
 }
 
+const slug = (text) => String(text).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 60) || 'x';
+
+/**
+ * Describe an imported structure file as a resource. The version is the first 8 hex digits of the file hash, so the same
+ * bytes always give the same record (idempotent) and different bytes can never reuse an id@version.
+ * RCSB PDB archive data is CC0; anything else is "unknown" and is never offered for embedding in exported packages.
+ */
+export function describeStructureAsset(asset, bytes) {
+  const source = asset.provenance?.source ?? { provider: 'local', accession: asset.path };
+  const rcsb = /^rcsb/i.test(source.provider ?? '');
+  const accession = String(source.accession ?? asset.path);
+  const id = rcsb ? `res.rcsb.${slug(accession).toUpperCase()}` : `res.local.${asset.sha256.slice(0, 8)}`;
+  const assemblyId = asset.provenance?.assemblyId;
+  return {
+    id, version: asset.sha256.slice(0, 8),
+    record: {
+      format: 'glow-resource', schemaVersion: 1, id, version: asset.sha256.slice(0, 8), kind: 'structure',
+      files: [{ path: asset.path, sha256: asset.sha256, mediaType: asset.mediaType, bytes: bytes.byteLength }],
+      source: { provider: rcsb ? 'rcsb' : String(source.provider ?? 'local'), accession,
+        ...(assemblyId ? { assemblyId: String(assemblyId) } : {}),
+        ...(rcsb ? { url: `https://www.rcsb.org/structure/${encodeURIComponent(accession)}` } : {}) },
+      attribution: rcsb
+        ? { license: 'CC0-1.0', credit: 'RCSB Protein Data Bank / wwPDB', url: 'https://www.rcsb.org/', embedAllowed: true }
+        : { license: 'unknown', embedAllowed: false },
+    },
+  };
+}
+
 export class ResourceError extends Error {
   constructor(code, message) { super(message); this.name = 'ResourceError'; this.code = code; }
 }
@@ -101,8 +129,17 @@ export function createResourceStore() {
     return { record, files };
   }
 
+  /** Idempotent add: the same id@version with the same bytes is fine; the same id@version with other bytes is refused. */
+  async function ensure(input, files) {
+    const existing = records.get(key(input.id, input.version));
+    if (!existing) return add(input, files);
+    const same = existing.files.length === input.files.length && existing.files.every((file, i) => file.sha256 === input.files[i].sha256);
+    if (!same) throw new ResourceError('res-hash-mismatch', `Resource ${key(input.id, input.version)} already exists with different content.`);
+    return existing;
+  }
+
   return Object.freeze({
-    add, resolve,
+    add, ensure, resolve,
     has: (id, version) => records.has(key(id, version)),
     list: () => [...records.values()],
     get blobCount() { return blobs.size; },

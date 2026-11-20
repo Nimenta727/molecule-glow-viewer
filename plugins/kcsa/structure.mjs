@@ -1,39 +1,40 @@
 import { centroid, superpose } from '../structure/alignment.mjs';
 import { selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM as SCALE } from '../structure/representation.mjs';
+import { normalizeKcsaConfig, numeral } from './config.mjs';
+import { sub, dot, normalize, distance } from '../motion/vectors.mjs';
+import { displaceVertices, hypotSquared } from '../motion/conformation.mjs';
 export const key = (atom) => JSON.stringify([atom.authChainId, atom.labelChainId, atom.assemblyCopy]);
 const residue = (atom) => String(atom.authSeqId || atom.labelSeqId);
-const sub = (a, b) => a.map((v, i) => v - b[i]);
-const distance = (a, b) => Math.hypot(...sub(a, b));
-const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
-const normalize = (a) => a.map((v) => v / Math.hypot(...a));
 const permutations = (list) => list.length <= 1 ? [list] : list.flatMap((value, i) => permutations(list.filter((_, j) => i !== j)).map((rest) => [value, ...rest]));
-function chains(model) {
-  const result = new Map();
+function chains(model, cfg) {
+  const result = new Map(), pattern = new RegExp(cfg.protein.namePattern, 'i');
   for (const { atom } of selectCoordinateAtoms(model)) {
-    if (atom.name !== 'CA' || !/potassium channel|kcsa/i.test(model.chainNames?.[atom.labelChainId] ?? '')) continue;
+    if (atom.name !== 'CA' || !pattern.test(model.chainNames?.[atom.labelChainId] ?? '')) continue;
     const id = key(atom);
     if (!result.has(id)) result.set(id, []);
     result.get(id).push(atom);
   }
-  if (result.size !== 4) throw new Error(`KcsA 需要四条通道链，当前为 ${result.size}。`);
+  if (result.size !== cfg.protein.chains) throw new Error(`KcsA 需要${numeral(cfg.protein.chains)}条通道链，当前为 ${result.size}。`);
   return result;
 }
 
-export function fitState(reference, state) {
-  const ref = chains(reference), other = chains(state), pairs = [...other.values()].map((atoms) => new Map(atoms.map((a) => [residue(a), a.position])));
+/** `config` is the work configuration (see config.mjs); omitted = the built-in KcsA/1K4C template. */
+export function fitState(reference, state, config) {
+  const cfg = normalizeKcsaConfig(config), { fitRange: [lo, hi], minPairs, maxFitRmsd } = cfg.pore;
+  const ref = chains(reference, cfg), other = chains(state, cfg), pairs = [...other.values()].map((atoms) => new Map(atoms.map((a) => [residue(a), a.position])));
   let best;
-  for (const order of permutations([0, 1, 2, 3])) {
+  for (const order of permutations(Array.from({ length: cfg.protein.chains }, (_, i) => i))) {
     const X = [], Y = [];
     [...ref.values()].forEach((atoms, i) => {
-      for (const a of atoms) if (Number(residue(a)) >= 60 && Number(residue(a)) <= 80 && pairs[order[i]].has(residue(a))) {
+      for (const a of atoms) if (Number(residue(a)) >= lo && Number(residue(a)) <= hi && pairs[order[i]].has(residue(a))) {
         X.push(a.position); Y.push(pairs[order[i]].get(residue(a)));
       }
     });
-    if (X.length < 60) continue;
+    if (X.length < minPairs) continue;
     const fit = superpose(X, Y), rmsd = Math.sqrt(X.reduce((s, p, i) => s + distance(p, fit(Y[i])) ** 2, 0) / X.length);
     if (!best || rmsd < best.rmsd) best = { fit, rmsd, order };
   }
-  if (!best || best.rmsd > 2) throw new Error('KcsA 孔区叠合失败或 RMSD 超过 2 Å。');
+  if (!best || best.rmsd > maxFitRmsd) throw new Error(`KcsA 孔区叠合失败或 RMSD 超过 ${maxFitRmsd} Å。`);
   const coordinates = new Map([...ref.keys()].map((id, i) => [id, new Map([...pairs[best.order[i]]].map(([n, p]) => [n, best.fit(p)]))]));
   return { ...best, coordinates, atoms: selectCoordinateAtoms(state).map(({ atom }) => ({ ...atom, position: best.fit(atom.position) })) };
 }
@@ -78,23 +79,26 @@ export function findPorePath(points, start, axis, direction) {
   return path.reverse();
 }
 
-export function buildKcsaStructure(model, states) {
-  const own = chains(model), atoms = selectCoordinateAtoms(model).map(({ atom }) => atom);
-  const closed = states.get('1K4C');
-  const fits = Object.fromEntries(['5VK6', '5VKE', '2HVK', '2ITD'].map((id) => [id, fitState(model, states.get(id))]));
+/** `config` is the work configuration (see config.mjs); omitted = the built-in KcsA/1K4C template. */
+export function buildKcsaStructure(model, states, config) {
+  const cfg = normalizeKcsaConfig(config), roles = cfg.states, { filterResidues: [lowResidue, highResidue], ion } = cfg.pore;
+  const own = chains(model, cfg), atoms = selectCoordinateAtoms(model).map(({ atom }) => atom);
+  for (const id of Object.values(roles)) if (!states.get(id)) throw new Error(`KcsA 缺少构象结构 ${id}。`);
+  const closed = states.get(roles.primary);
+  const fits = Object.fromEntries([roles.open, roles.inactivated, roles.tba, roles.barium].map((id) => [id, fitState(model, states.get(id), cfg)]));
   const polymer = [...own.values()].flat(), at = (n) => centroid(polymer.filter((a) => Number(residue(a)) === n).map((a) => a.position));
-  const axis = normalize(sub(at(79), at(75))), center = centroid(polymer.map((a) => a.position));
+  const axis = normalize(sub(at(highResidue), at(lowResidue))), center = centroid(polymer.map((a) => a.position));
   const project = (p) => dot(sub(p, center), axis);
   const along = (d) => center.map((v, i) => v + axis[i] * d);
   const ions = [];
-  for (const { atom } of selectCoordinateAtoms(closed)) if (atom.element === 'K' && !ions.some((p) => distance(p, atom.position) < 1) && distance(atom.position, along(project(atom.position))) < 3) ions.push(atom.position);
-  const filter = ions.filter((p) => project(p) >= project(at(75)) - 2.5 && project(p) <= project(at(79)) + 2.5).sort((a, b) => project(b) - project(a));
-  if (filter.length < 4) throw new Error('1K4C 结构中未找到四个过滤器 K⁺ 位点。');
+  for (const { atom } of selectCoordinateAtoms(closed)) if (atom.element === ion.element && !ions.some((p) => distance(p, atom.position) < 1) && distance(atom.position, along(project(atom.position))) < 3) ions.push(atom.position);
+  const filter = ions.filter((p) => project(p) >= project(at(lowResidue)) - 2.5 && project(p) <= project(at(highResidue)) + 2.5).sort((a, b) => project(b) - project(a));
+  if (filter.length < 4) throw new Error(`${roles.primary} 结构中未找到四个过滤器 ${ion.label} 位点。`);
   const sites = Object.fromEntries(filter.slice(0, 4).map((p, i) => [`S${i + 1}`, p]));
   sites.S0 = sites.S1.map((v, i) => v + axis[i] * 3.4);
   sites.cav = ions.find((p) => project(p) < project(sites.S4) - 4 && project(p) > project(sites.S4) - 12);
-  if (!sites.cav) throw new Error('1K4C 结构中未找到中央腔 K⁺。');
-  const open = [...fits['5VK6'].coordinates.values()].flatMap((map) => [...map.values()]);
+  if (!sites.cav) throw new Error(`${roles.primary} 结构中未找到中央腔 ${ion.label}。`);
+  const open = [...fits[roles.open].coordinates.values()].flatMap((map) => [...map.values()]);
   const inside = findPorePath(open, sites.cav, axis, -1).reverse(), outside = findPorePath(open, sites.S0, axis, 1);
   const paths = { inside, outside };
   const min = [0, 1, 2].map((i) => Math.min(...atoms.map((a) => a.position[i]))), max = [0, 1, 2].map((i) => Math.max(...atoms.map((a) => a.position[i])));
@@ -107,7 +111,7 @@ export function buildKcsaStructure(model, states) {
     const center = centroid(group.map((a) => a.position));
     return { position: point(center), molecule: group.map((a) => ({ element: a.element, position: sub(a.position, center).map((v) => v * SCALE) })) };
   }
-  const blockers = { TBA: ligand('2HVK', 'TBA'), Ba: ligand('2ITD', 'BA') };
+  const blockers = { TBA: ligand(roles.tba, cfg.blockers.tba.residue), Ba: ligand(roles.barium, cfg.blockers.barium.residue) };
   function decorate(layers, nodes) {
     for (const node of nodes) {
       const refs = [...own.values()].find((list) => {
@@ -116,19 +120,11 @@ export function buildKcsaStructure(model, states) {
           meta.chainKey === `chain:${encodeURIComponent(`${list[0].authChainId ?? ''}|${list[0].labelChainId ?? ''}${list[0].assemblyCopy ? `\u0000${list[0].assemblyCopy}` : ''}`)}`;
       });
       if (!refs) continue;
-      const alternatives = [new Map(refs.map((a) => [residue(a), a.position])), fits['5VK6'].coordinates.get(key(refs[0])), fits['5VKE'].coordinates.get(key(refs[0]))];
+      const alternatives = [new Map(refs.map((a) => [residue(a), a.position])), fits[roles.open].coordinates.get(key(refs[0])), fits[roles.inactivated].coordinates.get(key(refs[0]))];
+      const anchors = refs.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position }));
+      const resolvers = alternatives.map((map) => (anchor) => map.get(residue(anchor.ref)) ?? anchor.from);
       for (const layer of layers.get(node.assetId) ?? []) {
-        layer.conformations = [[], [], []];
-        for (let i = 0; i < layer.positions.length; i += 3) {
-          const vertex = layer.positions.slice(i, i + 3);
-          const nearest = refs.map((atom) => ({ atom, d: distance(vertex, point(atom.position)) ** 2 })).sort((a, b) => a.d - b.d).slice(0, 4);
-          const weights = nearest.map(({ d }) => 1 / Math.max(1e-12, d)), sum = weights.reduce((s, w) => s + w, 0);
-          alternatives.forEach((map, index) => {
-            const delta = [0, 0, 0];
-            nearest.forEach(({ atom }, j) => { const target = map.get(residue(atom)) ?? atom.position; for (let k = 0; k < 3; k++) delta[k] += (target[k] - atom.position[k]) * SCALE * weights[j] / sum; });
-            layer.conformations[index].push(...vertex.map((v, k) => v + delta[k]));
-          });
-        }
+        layer.conformations = displaceVertices(layer.positions, anchors, resolvers, { scale: SCALE, squaredDistance: hypotSquared });
       }
     }
     return layers;

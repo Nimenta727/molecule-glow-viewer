@@ -16,7 +16,7 @@
 | 4.1 | 指定安全风险整改 | 原范围已交付；[安全记录](history/SECURITY_REMEDIATION_2026-11-19.md)，不是完整沙箱 |
 | 4.2 | 经典对照、科学卡、数值与证据基础 | 已建立；[对照记录](history/PARITY_BASELINE_2026-11-19.md)，完整等价仍待验收 |
 | 发行维护 | Desktop/Skill 0.5.0、docs/README 整理 | [固定构建与下载验证](validation/desktop-v0.5.0.json)，不等于新增架构完成 |
-| 4.3 | 软件制作基底 | 进行中：4.3.0 设计稿已写 [CONTRACT_4.3.0](CONTRACT_4.3.0.md)，待维护者确认 §9 三点；4.3.1 已有资源记录与资源库（`packages/schema/resource.mjs`，6 项测试），尚未接入场景/导入流程；4.3.2–4.3.4 未开始 |
+| 4.3 | 软件制作基底 | 进行中：4.3.0 设计稿已写 [CONTRACT_4.3.0](CONTRACT_4.3.0.md)，待维护者确认 §9 三点；4.3.1 已有资源记录与资源库（`packages/schema/resource.mjs`），并已接入新版 Viewer 载入流程（结构文件自动登记、`provenance.resource` 链接、`glow.info().resources`、面板“资源与来源”）；尚未做：Studio 导入、场景 schema 一等公民 `resource` 引用（随 v3）、离线副本/缺失资源的作品级策略；schemaVersion 3（`tools[]` + `resources[]` + 资产 `resource` 引用，v2 自动升级）已落地并在 Viewer 打通：作品配置随场景保存、重开、可被编辑后生效；4.3.2 的 Studio 一侧（导入写 v3、场景树/属性面板）、4.3.3 工具协议、4.3.4 工坊最小闭环未开始 |
 | 4.4 | Claude 历史功能按功能插件化 | 基底之后优先实施 |
 | 4.5 | 作者、API、工坊两区完整闭环 | 最小路径从 4.3 开始，这里补齐全流程 |
 | 4.6 | 新增科研插件 | 后置，具体首项待届时明确 |

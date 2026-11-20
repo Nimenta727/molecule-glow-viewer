@@ -65,6 +65,7 @@
   },
   "outputs": { "state": ["fraction"], "observations": ["rmsd[Å]", "domainAngle[deg]", "domainShift[Å]"] },
   "model": { "kind": "geometric-interpolation", "assumptions": ["中间构象为教学插值，非动力学"], "refs": [] },
+  "audience": ["view", "author"],              // 见 §10：view 工具 Viewer 与 Studio 都能挂；author 工具只挂在 Studio
   "runtime": "player-v1",                      // prepare/create/advance/seek/snapshot/save/dispose
   "dependencies": [{ "id": "org.glow.structure", "version": "1.0.0", "optional": false }]
 }
@@ -111,6 +112,8 @@
   "narrative": { "steps": [{ "title": "…", "caption": "…", "nodeIds": ["…"] }] }
 }]
 ```
+
+> **实现注记（2026-11-19，schemaVersion 3 已落地）**：上面是示意。实际的 `tools[]` 条目是 `{ id, tool: { id, version }, config, state? }`——`config` 是由**该工具自己校验**的 JSON 对象（ATP/AdK/KcsA 的配置分节见各自的 `config.mjs`），`state` 是工具 `save()` 的输出（播放时间、种子、参数历史）。`bindings/selections/params/narrative` 是 `config` 内部的分节，不是 schema 层的固定字段，这样新工具不需要改 schema。`resources[]` 在场景中携带资源记录，文件/外部资产用 `resource: { id, version, sha256 }` 引用，schema 校验引用能解析到记录且哈希一致。
 
 - `bindings` 优先用**节点 ID**；允许"链/组件匹配规则"作为兜底（取代现在的 `/adenylate kinase/i`），解析结果必须写回 `bindings` 并产生诊断，使作品重开时不再依赖正则猜测。
 - `narrative`、证据文案、能量步骤等"教学剧情"属于作品；现有 `scene.presentation.notes/navigation` 继续使用，不重复建设。
@@ -199,6 +202,26 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 2. **能力命名（已确认）**：新增 `tools`，旧 `players` 保留为兼容名。
 3. **物理包粒度（已确认并细化）**：功能相近的合并到同一个包，不过度拆分，按 §3 的 4 个包组织；先在现有 `plugins/` 下提取，是否再细分待 4.4 完成后看依赖。
 
-## 10. 本设计**没有**做的事
+## 10. 前端分工（维护者 2026-11-19 确认）
+
+- **Studio（作品制作平台）**：借鉴专业分子软件（Mol\*、ChimeraX、PyMOL）的面板**结构**——场景树/对象列表 + 选中对象属性 + 按工具分块的面板。工具面板**由工具描述自动生成**（§3 的 `parameters`/`inputs`），所以新增或更新制作类工具时 Studio 无需改界面代码即可跟进。
+- **Viewer（展示界面）**：只采用这类软件的**视觉风格**（紧凑密度、标题条、参数行对齐、扁平按钮）；结构保持自己的（导航/机理/步骤/播放条），不照抄。
+- **工具的 `audience`**：`view` 类（表示切换、着色、选择、测量、视角、截图等）可挂在 Viewer 与 Studio，Viewer 保留这些按钮并随查看类工具更新；`author` 类（构象配置、粒子编排、反应网络编辑等）**只挂在 Studio**，Viewer 不加载、不展示。宿主按 `audience` 过滤，不靠界面代码约定。
+- 画面（蛋白质）始终是主体内置的 `core.ink` 白底墨线，不随面板风格变化。
+- 落地顺序：Viewer 风格改造不依赖工具协议，先做；Studio 结构改造依赖 4.3.3 的工具协议，随其落地。
+
+## 11. 本设计**没有**做的事
 
 不实现代码；不迁移经典 `src/`；不判断任何机制的科学正确性；不设计工坊视觉；不涉及沙箱（受信工具仍由应用内置，任意第三方插件隔离是单独验收）；不选定第二个科学结构对。
+
+## 12. 实施进度（随实现更新）
+
+- **ATP 样板第 1 步（2026-11-19，已完成）**：`plugins/atp-synthase/config.mjs` 把部件名选择器、环亚基数、核苷酸残基名、步骤/导航/粒子/计数标签文案、证据文字抽为带校验的作品配置，内置 `ATP_6ZPO_TEMPLATE` 复现原行为；`index.mjs` 只保留几何与计数算法。H⁺ 数量由检测到的环亚基数得出（不再写死 8）。用同一算法验证了 c10 环与另一套命名，只改配置。这是过渡形态：配置仍在插件目录内、由 `createAtpPlayer({config})` 传入；落入 `scene.tools[]`、合并进 `plugins/motion` 随 4.3.2–4.3.3 完成。
+- 等价性证据：改动前代码生成的黄金输出（9 个时间点的全部快照、步骤、导航、保存状态）与默认配置逐位一致；用真实 6ZPO 重新生成的数值基线只有源码哈希变化。
+- **AdK 样板（2026-11-19，已完成同样的一步）**：`plugins/adenylate-kinase/config.mjs`（`ADK_4AKE_TEMPLATE` + 校验）承接域名称/残基范围/颜色、拟合域与 RMSD 上限、链与残基数、两端结构编号、参考配体、四步文案、导航与证据文字；`structure.mjs`/`index.mjs` 只保留拟合、插值与测量。用与 AdK 无关的合成铰链蛋白（BODY/ARM、B 链、配体 LIG）只改配置就跑通，输出中不含任何 AdK 字样。
+- **共享校验**：`plugins/shared/work-config.mjs` 由 ATP 与 AdK 配置共用。ATP 的“环旋转 + 位点构象插值”与 AdK 的“域拟合 + 两态插值”现在都以“配置 + 几何算法”形态存在，二者共有的“叠合/对应/插值”可在下一步合并为 `plugins/motion` 中的同一工具；合并前先对 KcsA 做同样的抽取。
+- **KcsA 样板（2026-11-19，已完成同样的一步）**：`plugins/kcsa/config.mjs`（`KCSA_1K4C_TEMPLATE` + 校验）承接五个结构态的角色与编号（主结构/开放/失活/TBA/Ba）、通道链识别（名称模式、链数）、孔区叠合与轴线残基、过滤器离子、阻断剂残基名、粒子与计数标签、步骤/导航/证据文字、膜半径和**初始实验条件**（pH、电位、离子浓度等，由动力学模型的参数校验把关）。`structure.mjs`/`index.mjs` 只保留叠合、孔道搜索、位点推导和敲击循环；**门控动力学（`kinetics.mjs`）按契约保持为算法，不进配置**。缺少某个构象结构时给出明确报错。
+- **三个样板的共同结论**：ATP（环旋转 + 位点构象插值）、AdK（域拟合 + 两态插值）、KcsA（多态叠合 + 孔道/位点）都已是“配置 + 几何算法”。三者共有的“结构对应 → 叠合 → 按残基位移插值构象”下一步合并为 `plugins/motion` 的同一工具；KcsA 的门控/渗透计时与阻断留给 `plugins/simulation`。
+- **`plugins/motion` 第一步（2026-11-19，已完成）**：三个播放器里各写一遍的“顶点按最近锚点原子的反距离加权位移移到另一构象”合并为 `plugins/motion/conformation.mjs` 的 `displaceVertices`（连同 `nearestAnchors`、`rotationAngle`、`vectors.mjs` 的向量小工具、`path.mjs` 的 `walkPath`）；ATP（3 态 β 位点）、AdK（两态域）、KcsA（开放/失活）改为调用它。这是**纯重构**：三份黄金输出逐位一致，真实 6ZPO、4AKE/1AKE、五个 KcsA 态上的新旧位移输出逐项一致。仍是库模块，待 4.3.3 工具协议后注册为 `tools`。叠合 `superpose` 本来就在 `plugins/structure/alignment.mjs`，没有重复。
+- **schemaVersion 3（2026-11-19，已完成）**：`packages/schema` 新增 v3 场景（`tools`、`resources` 必填；资产可带 `resource`）、`upgradeSceneToV3`（v2 → v3 只增不删；过渡期的 `provenance.resource` 提升为一等字段；字节缺失/哈希不符只产生诊断，不阻止打开）、`attachStructureResources`。v2 的读写与校验保持原样；v2 文档不得含 v3 字段；工程可同时包含 v2 与 v3 场景。Viewer 在载入边界升级场景，并为声明了内置机制（旧 `process` 或 AdK 两态）的场景写入完整默认配置（`plugins/mechanism-catalog.mjs` 的 `toolEntriesForScene`）；播放器从 `tools[]` 读配置和状态，导出的包携带它们。Studio 编辑 v3 场景时保留 `tools/resources/resource`（撤销/重做亦然）。
+- **已知边界**：① 场景里已保存的 `presentation.navigation` 优先于配置里的导航/步骤文字（保存后的呈现归场景所有；改配置文字要同时清除或改写已保存的导航）；② 生产 v2 场景的代码（结构导入、Studio 新建、旧包迁移）仍写 v2，在 Viewer 载入时升级，尚未让它们直接写 v3；③ 工具 ID 仍是 `org.glow.legacy-process.*`，`org.glow.tool.*` 随工具协议（4.3.3）；④ `scene.dependencies` 尚未为工具条目自动登记；⑤ 导出时按 `embedAllowed` 决定是否嵌入资源字节尚未实现（授权未知的本地文件目前也会随包嵌入）。

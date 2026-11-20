@@ -124,3 +124,23 @@ test('scene and Core document snapshots are deeply immutable', () => {
   assert.ok(Object.isFrozen(session.getCoreDocument().nodes[0].transform.position));
   assert.throws(() => { session.getScene().title = 'Mutated'; }, TypeError);
 });
+
+test('a v3 work keeps its tools, resource records and links through editing, undo and redo', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const { upgradeSceneToV3 } = await import('../../schema/migrate.mjs');
+  const data = new TextEncoder().encode('data_x');
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))].map((n) => n.toString(16).padStart(2, '0')).join('');
+  const asset = { id: 'source', kind: 'file', path: 'assets/source.cif', sha256: hash, mediaType: 'chemical/x-mmcif', provenance: { parserVersion: '1', source: { provider: 'RCSB PDB', accession: '6ZPO' } } };
+  const tools = [{ id: 't', tool: { id: 'x.y', version: '1.0.0' }, config: { a: [1, 2] }, state: { time: 1 } }];
+  const { scene } = await upgradeSceneToV3({ format: 'glow-scene', schemaVersion: 2, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [asset], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [] }, new Map([[asset.path, data]]), { tools });
+  const session = createStudioSession(scene, new Map([[asset.path, data]]));
+  session.dispatch({ type: 'setSceneTitle', title: 'Renamed' });
+  const edited = session.getScene();
+  assert.equal(edited.title, 'Renamed');
+  assert.deepEqual(edited.tools, scene.tools);
+  assert.deepEqual(edited.resources, scene.resources);
+  assert.deepEqual(edited.assets[0].resource, scene.assets[0].resource);
+  session.undo(); assert.deepEqual(session.getScene(), scene);
+  session.redo(); assert.deepEqual(session.getScene().tools, scene.tools);
+});

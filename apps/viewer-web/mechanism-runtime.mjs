@@ -1,4 +1,5 @@
 import { resolveMechanism } from '../../plugins/mechanism-catalog.mjs';
+import { toolEntryFor, readPlayerState } from './work-scene.mjs';
 
 // Adapter only: the loaded scene owns prepared resources and the existing player handle.
 // No parallel scene, timing or simulation state is introduced here.
@@ -9,9 +10,9 @@ export function createMechanismRuntime(host, { loadAccession, onProgress = () =>
     const factory = host.getPlayer(loaded.playerId);
     if (!factory) return;
     try {
-      const source = loaded.scene.assets.find(asset => asset.provenance?.parserVersion);
+      // The work's own configuration (scene.tools) and saved state; old scenes fall back to the built-in default and the asset's playback.
       return factory.create({ ...loaded.playerInputs?.get(loaded.playerId), model: loaded.model, scene: loaded.scene,
-        state: state ?? source?.provenance?.playback });
+        state: state ?? readPlayerState(loaded.scene, loaded.playerId), config: toolEntryFor(loaded.scene, loaded.playerId)?.config });
     } catch (error) {
       loaded.warnings = [...loaded.warnings, `机制播放器无法启动。 ${error.message}`];
     }
@@ -21,7 +22,7 @@ export function createMechanismRuntime(host, { loadAccession, onProgress = () =>
     if (!loaded.model || !factory?.prepare) return;
     try {
       onProgress('正在准备机制构象坐标…');
-      const prepared = await factory.prepare({ loaded, signal, loadAccession,
+      const prepared = await factory.prepare({ loaded, signal, loadAccession, config: toolEntryFor(loaded.scene, id)?.config,
         parse: host.getService('org.glow.structure.model', '1.0.0').parse });
       signal.throwIfAborted();
       loaded.playerInputs ??= new Map();
