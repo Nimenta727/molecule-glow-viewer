@@ -6,6 +6,7 @@
  * See docs/CONTRACT_4.3.0.md §4 and §7.
  */
 import { createValidators, deepFreeze, isObject } from '../shared/work-config.mjs';
+import { OSCILLATING_TEMPLATE, normalizeMachine } from '../motion/conformation-machine.mjs';
 
 const { text, list, color, integer, number, section, fail } = createValidators('AdK 作品配置');
 
@@ -22,6 +23,8 @@ export const ADK_4AKE_TEMPLATE = deepFreeze({
     { name: 'LID', ranges: [[122, 159]], color: '#dba565' },
   ],
   fitDomain: 'CORE',
+  // The swing between the two shapes, as a conformation state machine (plugins/motion/conformation-machine.mjs): how fast the oscillator runs, how long both ends hold, where the stages change.
+  machine: { rate: OSCILLATING_TEMPLATE.rate, lo: OSCILLATING_TEMPLATE.lo, span: OSCILLATING_TEMPLATE.span, stages: OSCILLATING_TEMPLATE.stages },
   maxFitRmsd: 3,
   ligand: { residue: 'AP5', chain: 'A', name: 'Ap5A', color: '#bd6db6' },
   steps: [
@@ -78,6 +81,7 @@ export function normalizeAdkConfig(input) {
     protein: { organism: text(protein.organism, 'protein.organism', 40), chain: text(protein.chain, 'protein.chain', 8),
       residues: integer(protein.residues, 'protein.residues', 10, 5000, { nullable: true }), namePattern },
     domains, fitDomain,
+    machine: (({ rate, lo, span, stages }) => ({ rate, lo, span, stages }))(normalizeMachine({ kind: 'oscillating', ...base.machine, ...(isObject(input.machine) ? input.machine : {}) }, 'AdK 作品配置.machine')),
     maxFitRmsd: number(input.maxFitRmsd ?? base.maxFitRmsd, 'maxFitRmsd', 0.01, 20),
     ligand: { residue: text(ligand.residue, 'ligand.residue', 8), chain: text(ligand.chain, 'ligand.chain', 8),
       name: text(ligand.name, 'ligand.name', 24), color: color(ligand.color, 'ligand.color') },

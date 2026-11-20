@@ -6,6 +6,7 @@ import { matchesPart } from '../structure/functional-preview.mjs';
 import { ATP_6ZPO_TEMPLATE, normalizeAtpConfig } from './config.mjs';
 import { sub as subtract, normalize, cross } from '../motion/vectors.mjs';
 import { displaceVertices } from '../motion/conformation.mjs';
+import { createMachine, normalizeMachine } from '../motion/conformation-machine.mjs';
 
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
@@ -115,33 +116,8 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
     ],
   };
   const seed = Number.isSafeInteger(state.seed) ? state.seed >>> 0 : Number.isSafeInteger(scene.legacy?.scene?.seed) ? scene.legacy.scene.seed >>> 0 : 1;
-  let time = Number.isFinite(state.time) ? Math.max(0, Math.min(120, state.time)) : 0;
-  let speed = Number.isFinite(state.speed) ? Math.max(0.05, Math.min(3, state.speed)) : 0.25;
-  let rates = Array.isArray(state.rates) && state.rates.length <= 1000 && state.rates.every((entry, i) =>
-    Number.isFinite(entry.time) && entry.time >= 0 && entry.time <= 120 &&
-    Number.isFinite(entry.speed) && entry.speed >= 0.05 && entry.speed <= 3 &&
-    (i ? entry.time > state.rates[i - 1].time : entry.time === 0))
-    ? state.rates.map((entry) => ({ ...entry })) : [{ time: 0, speed }];
-  if (!rates.length) rates = [{ time: 0, speed }];
-  let playing = false;
-  let playbackRate = [0.25, 1, 2, 5].includes(state.playbackRate) ? state.playbackRate : 1;
-  function turnsAt(seconds) {
-    let turns = 0;
-    for (let i = 0; i < rates.length && rates[i].time < seconds; i++) {
-      const end = Math.min(seconds, rates[i + 1]?.time ?? seconds);
-      turns += (end - rates[i].time) * rates[i].speed;
-    }
-    return round(turns);
-  }
-  function timeAtTurn(turn) {
-    let previous = 0;
-    for (let i = 0; i < rates.length; i++) {
-      const available = ((rates[i + 1]?.time ?? 120) - rates[i].time) * rates[i].speed;
-      if (previous + available >= turn) return rates[i].time + (turn - previous) / rates[i].speed;
-      previous += available;
-    }
-    return 120;
-  }
+  // the time side is a conformation state machine (rotary profile): the catalytic sites are the three beta subunits, the rotor's own units the c subunits of the ring
+  const machine = createMachine(normalizeMachine({ kind: 'rotary', sites: 3, ...cfg.machine, counters: { cycles: cfg.counterLabels.atp, unit: cfg.counterLabels.proton }, eventLabel: cfg.eventLabel }, 'ATP 播放器'), state, { seed, units: ringCount });
   const carbonSites = chainList.map((chain) => {
     const coordinates = chain.map(({ position }) => position);
     const nucleotides = atoms.filter((atom) => cfg.nucleotides.bound.includes(atom.residueName));
@@ -184,16 +160,13 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
   };
   function snapshot() {
     if (disposed) throw new Error('播放器已释放。');
-    const turns = turnsAt(time);
-    speed = rates.findLast((entry) => entry.time <= time)?.speed ?? rates[0].speed;
+    const core = machine.snapshot(), { time, speed, playbackRate, playing, turns, stage } = core;
     const theta = turns * TAU;
     const quaternion = [...axis.map((value) => value * Math.sin(theta / 2)), Math.cos(theta / 2)];
     const spun = rotateVector(pivot, quaternion);
     const transforms = new Map(rotor.map((node) => [node.id, {
       ...node.transform, position: pivot.map((value, i) => value - spun[i]), rotation: quaternion,
     }]));
-    const stagePhase = (turns * 3) % 1;
-    const stage = stagePhase < 0.1 ? 0 : stagePhase < 0.25 ? 1 : stagePhase < 0.8 ? 2 : stagePhase < 0.93 ? 3 : 4;
     const particles = [];
     for (let i = 0; i < ringCount; i++) {
       const fraction = (turns + i / ringCount + noise(i) * 0.03) % 1;
@@ -213,14 +186,8 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
       particles.push({ name: cfg.particles.phosphate.name, molecule: templates.Pi, visible: f < 0.72, color: cfg.particles.phosphate.color, position: site.map((value, j) =>
         value + outward[j] * (distance + 0.18)) });
     }
-    const events = [];
-    const completed = Math.floor(turns * 3 + 1e-9);
-    for (let i = Math.max(1, completed - 19); i <= completed; i++) events.push({
-      time: round(timeAtTurn(i / 3)), label: cfg.eventLabel, ATP: i,
-    });
-    return { time, speed, seed, playbackRate, playing, stage, transforms, particles, events,
-      turns, counters: { [cfg.counterLabels.atp]: completed, [cfg.counterLabels.proton]: Math.floor(turns * ringCount + 1e-9) },
-      conformation: { from: Math.floor(turns * 3) % 3, fraction: smooth((stagePhase - 0.25) / 0.6) },
+    return { time, speed, seed, playbackRate, playing, stage, transforms, particles, events: core.events,
+      turns, counters: core.counters, conformation: core.conformation,
     };
   }
   function decorate(layers) {
@@ -240,27 +207,16 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
     return layers;
   }
   return {
-    duration: 120, steps, navigation, decorate, snapshot,
+    duration: machine.duration, steps, navigation, decorate, snapshot,
     particleParentId: rotor[0].parentId,
     membrane: { center: pivot, axis, radius: ringRadius * 2.2 },
-    seek(value) { if (!Number.isFinite(value)) throw new TypeError('时间必须是有限数值。'); time = Math.max(0, Math.min(120, value)); return snapshot(); },
-    advance(dt) { if (!Number.isFinite(dt) || dt < 0) throw new TypeError('时间增量无效。'); if (playing) time = Math.min(120, time + dt * playbackRate); if (time === 120) playing = false; return snapshot(); },
-    play() { playing = true; }, pause() { playing = false; },
-    setSpeed(value) {
-      if (!Number.isFinite(value) || value < 0.05 || value > 3) throw new TypeError('转速范围为 0.05–3。');
-      if (rates.length >= 1000) throw new Error('本次播放的转速变更已达上限，请按种子重置。');
-      rates = rates.filter((entry) => entry.time < time);
-      rates.push({ time, speed: value });
-      return snapshot();
-    },
-    stepTime(index) {
-      const phase = [0, 0.17, 0.5, 0.86, 0.96][index];
-      if (phase === undefined) throw new TypeError('无效的机制步骤。');
-      return timeAtTurn((Math.floor(turnsAt(time) * 3) + phase) / 3);
-    },
-    setPlaybackRate(value) { if (![0.25, 1, 2, 5].includes(value)) throw new TypeError('无效的播放倍率。'); playbackRate = value; },
-    save() { return { time, speed, seed, ...(playbackRate !== 1 ? { playbackRate } : {}),
-      ...(rates.length > 1 ? { rates: rates.map((entry) => ({ ...entry })) } : {}) }; },
-    dispose() { disposed = true; playing = false; },
+    seek(value) { machine.seek(value); return snapshot(); },
+    advance(dt) { machine.advance(dt); return snapshot(); },
+    play() { machine.play(); }, pause() { machine.pause(); },
+    setSpeed(value) { machine.setSpeed(value); return snapshot(); },
+    stepTime(index) { return machine.stepTime(index); },
+    setPlaybackRate(value) { machine.setPlaybackRate(value); },
+    save() { return machine.save(); },
+    dispose() { disposed = true; machine.dispose(); },
   };
 }

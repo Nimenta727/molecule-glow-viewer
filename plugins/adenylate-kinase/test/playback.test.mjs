@@ -33,3 +33,12 @@ test('invalid parameters and schedules fail without changing playback', () => {
   assert.throws(() => createAdkPlayback({ schedule: [{ ...before.schedule[0], time: 1 }] }));
   player.dispose(); assert.throws(() => player.snapshot(), /已释放/); assert.throws(() => player.setMorph(0), /已释放/);
 });
+
+test('the swing is declared in the work configuration: a slower oscillator and wider holds change the history; a bad declaration is refused by name', async () => {
+  const { normalizeAdkConfig } = await import('../config.mjs');
+  const slow = createAdkPlayback({}, normalizeAdkConfig({ machine: { rate: 0.1, lo: 0.3, span: 0.4 } }).machine), classic = createAdkPlayback();
+  slow.seek(10); classic.seek(10); assert.notEqual(slow.snapshot().fraction, classic.snapshot().fraction);
+  slow.seek(0); assert.equal(slow.snapshot().fraction, 0);
+  assert.throws(() => normalizeAdkConfig({ machine: { lo: 0.9, span: 0.5 } }), /lo ≥ 0/);
+  assert.deepEqual(normalizeAdkConfig().machine, { rate: 0.35, lo: 0.1, span: 0.8, stages: { low: 0.15, high: 0.85 } });
+});

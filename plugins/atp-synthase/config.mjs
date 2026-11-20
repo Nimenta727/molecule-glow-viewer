@@ -5,6 +5,7 @@
  * See docs/CONTRACT_4.3.0.md §4 and §7. ATP_6ZPO_TEMPLATE reproduces the previous built-in behaviour exactly.
  */
 import { createValidators, deepFreeze, isObject } from '../shared/work-config.mjs';
+import { ROTARY_TEMPLATE, normalizeMachine } from '../motion/conformation-machine.mjs';
 
 const { text, list, color, section } = createValidators('ATP 作品配置');
 const particle = (value, label) => ({ name: text(value?.name, `${label}.name`, 40), color: color(value?.color, `${label}.color`) });
@@ -21,6 +22,9 @@ export const ATP_6ZPO_TEMPLATE = deepFreeze({
     atp: { name: 'ATP', color: '#e5a52b' }, phosphate: { name: 'Pi', color: '#9f75bf' },
   },
   counterLabels: { atp: 'ATP', proton: 'H⁺' },
+  // The time side of the mechanism, as a conformation state machine (plugins/motion/conformation-machine.mjs): the three catalytic sites take turns; the five stages and the window in which the beta shape
+  // changes are fractions of one 1/3-turn site cycle; the speed control is turns per (illustrative) second.
+  machine: { speed: { min: 0.05, max: 3, default: 0.25, label: '转速' }, stageAt: ROTARY_TEMPLATE.stageAt, morph: ROTARY_TEMPLATE.morph, stepPhases: ROTARY_TEMPLATE.stepPhases },
   eventLabel: '位点打开释放 ATP',
   steps: [
     { title: '质子动力势', caption: '膜两侧的电化学梯度驱动 H⁺ 回流。', parts: ['/subunit a$/'] },
@@ -69,6 +73,7 @@ export function normalizeAtpConfig(input) {
       atp: particle(particles.atp, 'particles.atp'), phosphate: particle(particles.phosphate, 'particles.phosphate') },
     counterLabels: { atp: text(counterLabels.atp, 'counterLabels.atp', 20), proton: text(counterLabels.proton, 'counterLabels.proton', 20) },
     eventLabel: text(input.eventLabel ?? base.eventLabel, 'eventLabel', 80),
+    machine: (({ speed, stageAt, morph, stepPhases }) => ({ speed, stageAt, morph, stepPhases }))(normalizeMachine({ kind: 'rotary', ...base.machine, ...(isObject(input.machine) ? input.machine : {}) }, 'ATP 作品配置.machine')),
     steps: steps.map((step, i) => ({ title: text(step?.title, `steps[${i}].title`, 80), caption: text(step?.caption, `steps[${i}].caption`),
       parts: list(step?.parts, `steps[${i}].parts`) })),
     navigation: { idPrefix: text(navigation.idPrefix, 'navigation.idPrefix', 24), systemTitle: text(navigation.systemTitle, 'navigation.systemTitle', 80),

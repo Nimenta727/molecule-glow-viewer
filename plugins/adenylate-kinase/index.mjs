@@ -59,7 +59,7 @@ export async function prepareAdk({ loaded, parse, loadAccession, signal, config 
 export function createAdkPlayer({ model, scene, states, state, config, bindings }) {
   const cfg = normalizeAdkConfig(config);
   if (!states?.structure) throw new Error('AdK 闭合态尚未准备。');
-  const structure = states.structure, playback = createAdkPlayback(state);
+  const structure = states.structure, playback = createAdkPlayback(state, cfg.machine);
   const sourceId = scene.assets.find((a) => a.provenance?.parserVersion)?.id;
   const nodes = boundOrMatched(nodesOfSource(scene, sourceId), bindings, 'protein', adkProteinTest(cfg));   // the saved binding, else the configured chain name
   if (nodes.length !== 1) { playback.dispose(); throw new Error(`AdK 预览需要单个 ${cfg.protein.chain} 链节点。`); }

@@ -9,6 +9,7 @@
 | [ARCHITECTURE](ARCHITECTURE.md) | 当前代码结构/现状、制作基底、经典功能拆分矩阵与兼容方案（主文档） |
 | [AUDIT](AUDIT.md) | 已修风险、证据、剩余差异 |
 | [ROADMAP](ROADMAP.md) | 唯一当前顺序：4.3 制作基底 → 4.4 经典功能插件 → 4.5 作者/工坊 → 4.6 新增科研 → 4.7 验收；4.3 第一版闭环、4.4.0–4.4.7 主要部分已完成，下一项 4.4.8 余下部分 |
+| [CONFORMATION_MACHINE](CONFORMATION_MACHINE.md) | 构象状态机：结构沿循环变形的时间轴与状态（旋转 ATP 酶、AdK 两态播放器），数据声明、两种剖面、怎么接新机理 |
 | [CONTRACT_4.3.0](CONTRACT_4.3.0.md) | 4.3.0 资源/功能插件/作品契约（已确认并实现，§12 为逐步进度记录） |
 | [CODEX_MIGRATION_HANDOFF](CODEX_MIGRATION_HANDOFF.md) | Claude 交接意图、当前回应、分工及完成门槛 |
 | [VIEWER_COMMAND_API](VIEWER_COMMAND_API.md) | 新版 API 与嵌入权限 |

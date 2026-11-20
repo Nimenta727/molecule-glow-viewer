@@ -35,13 +35,13 @@
 | `org.glow.tool.stochastic-process` | layer-v1 | 种子化随机状态过程（门控、通量），参数滑块重放同一种子 |
 | `org.glow.tool.translation` | layer-v1 | 由序列生成的核糖体翻译，药物与浓度计划 |
 | `org.glow.tool.multi-process` | layer-v1 | 多个过程并排，各自时钟/种子/计数，共享控制 |
-| 旧三件 | player-v1 | ATP 合酶 / KcsA / AdK 专用播放器（过渡实现，旧 id 保留别名） |
+| 旧三件 | player-v1 | ATP 合酶 / KcsA / AdK 专用播放器（过渡实现，旧 id 保留别名）；ATP 合酶与 AdK 的时间/状态侧已由通用的构象状态机运行 |
 
 工具配置写进 `scene.tools[].config`，运行状态在 `entry.state`；Studio 按描述符自动生成编辑面板；停用插件只隐藏图层、不丢配置。格式见 [skill/references/tools.md](../skill/references/tools.md)。
 
 ## 验证数字
 
-- `npm test`：473 通过，0 失败（先 `npm ci`）。
+- `npm test`：480 通过，0 失败（先 `npm ci`）。
 - 经典对照（同种子、同输入，经典代码在 Node `vm` 中原样运行）：结合位点/口袋/通道/测量/辅因子链 23/23、自动定膜 8/8、粒子 24/24、数据动画 6/6、动力学 5/5、翻译 5/5、拥挤 4/4、细胞几何 5/5；报告在 [parity](parity/)。
 - 浏览器端到端（Playwright）：保存→关闭→重开后像素/数值一致；截图在 [images](images/)。
 - 文档/契约检查：`node tools/check-docs.mjs`、`check-feature-parity.mjs`、`check-copies.mjs`。
@@ -57,6 +57,6 @@
 
 ## 下一步（建议顺序）
 
-1. 4.4.8 余下：三个旧播放器中 ATP 合酶、AdK 的构象状态机并入通用引擎（要新增“构象状态机”这类通用能力）；区域层级自己的粗糙内容；重复加载稳定性；浏览器/GPU/桌面验收。
+1. 4.4.8 余下：**构象状态机已做**（时间与状态侧；见 [CONFORMATION_MACHINE](CONFORMATION_MACHINE.md)），ATP 合酶/AdK 的**结构侧**（循环对称亚基的构象交换、两态域目标）抽成通用“构象集”；区域层级自己的粗糙内容；重复加载稳定性；浏览器/GPU/桌面验收。
 2. 三个“播放器”并入通用引擎：KcsA 的动力学已跑在通用 Markov 引擎上（同种子逐事件、逐位一致，黄金轨迹不变）；ATP 合酶和 AdK 的算法（旋转、构象插值、叠合）早已用共享的 `plugins/motion`、`plugins/structure`，它们剩下的是各自的时间轴/粒子/事件编排，不是可以再并的算法。KcsA 的体相粒子、水合壳、曲线已恢复（胞外 Na⁺ 无控件、浴液离子与孔道进出不交换为已知差异）；把回退/干预扩展到其它工具；pH 体积着色；能量条接到其它工具（翻译/随机过程/旧三件）。
 3. 桌面端验收（用户计划）：真实 GPU、完整 36 MiB 的 4V6F/7CGO 加载速度；之后才谈 4.5 工坊完整闭环与 4.7 发布。

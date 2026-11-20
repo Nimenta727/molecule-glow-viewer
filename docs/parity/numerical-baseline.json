@@ -10,15 +10,16 @@
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
     "plugins/kcsa/kinetics.mjs": "726dd40b1aefc201efe667d0130782d11e5408ddc8fce866156a328ed1c7487c",
     "plugins/kcsa/config.mjs": "b11f1a3c1724135025acda5ffc15f19350befd544a8ff7dc4470a721b880fcae",
-    "plugins/atp-synthase/index.mjs": "ca119ff5c272205251903be7121e0c880ad39b0f634d64a667c44ac64ecd046b",
-    "plugins/atp-synthase/config.mjs": "81e63d4f8fe7b67760df5bfa813bbbe06d43212ed0d0e787d11ca67d607edefa",
-    "plugins/adenylate-kinase/playback.mjs": "2ff7eedf32c44c5139c0a42e55a2404d38b594fe0d098b361c4f9f552cf35e6b",
+    "plugins/atp-synthase/index.mjs": "ebf362bc7600a90337bbfcf8bd143f02ec831918a6213f5560f4183cdff8d3a0",
+    "plugins/atp-synthase/config.mjs": "bb77f020391959877118e4ba8b2a21f644a02c18cab4b5230e72945087889c6f",
+    "plugins/adenylate-kinase/playback.mjs": "2ec7b3fd96ea93df51787f384ba6dab5af1a8625e811409aaaadb2f905f05985",
+    "plugins/motion/conformation-machine.mjs": "bda98a06e9abd6f798c079d595338213c9e119f658f56718b1c861e410e0f9a6",
     "plugins/adenylate-kinase/structure.mjs": "dddb4ef360f5e49055876fb6d71f257e54b54dd79bb862ba84d1029f8c22e7dc",
-    "plugins/adenylate-kinase/config.mjs": "d920f94894ba55add2c27cf21013fad7608517aa3049ef816d9c2dd052d457c3",
+    "plugins/adenylate-kinase/config.mjs": "226db10302ca9224963378c83ca3910aebe625305c7a7ff997e02ddae114405f",
     "plugins/shared/work-config.mjs": "cedfe70b8d658215fbf4505c3fe15ce9ba4be5942a4e447b033f66d4a63dab94",
     "plugins/shared/bindings.mjs": "07bf45163c0520ea7aa70b88f68d1845833d694bdbdd765e76ddcfbf0d893398",
-    "plugins/atp-synthase/tool.mjs": "2793ae81f557bbac9ded4252f81f3f2e80b2b26506701905a8787f5df84f6472",
-    "plugins/adenylate-kinase/tool.mjs": "2d6077cd4e88eb61d310a2738cc86eb498cffcf8afce026ca79b283a43dd9580",
+    "plugins/atp-synthase/tool.mjs": "582ae01e2e4a3e75906b524423eab6c1c10290c3a3c78339af7a9bc9b5d27431",
+    "plugins/adenylate-kinase/tool.mjs": "0155530a79c6d94ca439a58575302a451b54d388fd57bcf2566b7ddd9dcc91e6",
     "plugins/kcsa/tool.mjs": "532946d2bc533599efce4c8e1ba4177f0ca89f819881db00418f212f84d56a0b",
     "plugins/motion/conformation.mjs": "51557c51ec647458fdf1720633f3f5b5aee7fcab9c3174eca5236f5195d7f068",
     "plugins/motion/path.mjs": "2ebd65e53aa401069e3c562fe330aa87eef45e22e0297c1459dc878641ed4b4b",
@@ -30,7 +31,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "9a0cf9bdbd3fbb63e7158a4c0135e481cc94a448fed5b532792cde30cce9a9b1",
-    "tools/parity-numerics.mjs": "a7847cfe229907ac9ff8724e5a3911810e07d40055ff8af160c5122ec16f09d6"
+    "tools/parity-numerics.mjs": "8f7668f6da4d1f95cede79c8a7ad4db2ccc3430b1f79757bf0edd57c7e7fe073"
   },
   "rows": [
     {

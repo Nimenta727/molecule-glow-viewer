@@ -121,3 +121,12 @@ test('an invalid work configuration is rejected with the offending field named',
   assert.throws(make({ navigation: 3 }), /navigation 必须是对象/);
   assert.throws(() => { ATP_6ZPO_TEMPLATE.parts.ring = 'x'; }, TypeError, 'the built-in template is frozen');
 });
+
+test('the time side is a conformation state machine declared in the work configuration: a different stage window changes the stage at the same moment; a bad one is refused by name', () => {
+  const input = fixture(), at = (config) => createAtpPlayer({ ...input, state: { seed: 1, speed: 0.25 }, config }).seek(0.2667).stage;   // site phase 0.2 (a third of a turn takes 1.333 s at 0.25 turn/s)
+  assert.equal(at(undefined), 1, 'default stage windows: 0.1 – 0.25 is stage 1');
+  assert.equal(at({ machine: { stageAt: [0.3, 0.4, 0.8, 0.93] } }), 0);
+  assert.throws(() => createAtpPlayer({ ...input, state: { seed: 1 }, config: { machine: { stageAt: [0.5, 0.4, 0.8, 0.93] } } }), /stageAt/);
+  const stepped = createAtpPlayer({ ...input, state: { seed: 1, speed: 0.25 }, config: { machine: { stepPhases: [0, 0.1, 0.2, 0.3, 0.4] } } });
+  assert.ok(Math.abs(stepped.stepTime(1) - 0.1 / 3 / 0.25) < 1e-9, 'the step jumps to the configured phase');
+});

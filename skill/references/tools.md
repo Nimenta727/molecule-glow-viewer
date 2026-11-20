@@ -109,3 +109,12 @@ Studio 内粒子预览、细胞一角空间布局/拥挤绘制、70S 核糖体�
 - **派生计数器 `derived`**：`[{ "name": "ATP（合酶产出）", "terms": { "H⁺ 回流（ATP 合酶）": 1 }, "scale": 0.375, "floor": true }]`，由其它计数器的加权和算出；`per` 再除以另一个计数器，`round` 保留小数位。
 - **更多锚点能力**（叶绿体用）：`ring: true`（取叶绿素/血红素环原子的中心；此时 `part` 按环中心最近的残基判断所属蛋白，与经典一致）、`near: { to, min, max }`（或数组：到某锚点的距离范围）、`pick: "cycle"`（第 n 轮取第 n 个，代替经典的随机）、`{ "pairMid": 配体锚点, "maxGap": 12, "else": 锚点 }`（最近一对的中点，如 P680）、`{ "along": { "from", "to", "distance" } }`（从 from 朝 to 走固定距离）、`{ "mirror": { "point", "about" } }`（点关于另一点的对称点）、残基锚点的 `nearest`（同一编号的多个残基取离参考点最近的）、`else`（找不到时改用别的锚点）与 `optional: true`（找不到就不出点，路径跳过它）。动作的 `{ "pause": 秒, "text": ..., "at": 锚点 }` 可以只在某处显示一条事件文字。
 
+## 构象状态机（旋转 ATP 酶、AdK 两态播放器的 `machine`）
+
+这两个播放器的时间轴与状态由“构象状态机”声明：相位时钟 + 日程（可回放的速度/参数变更）+ 剖面。作品配置里写 `machine`：
+
+- 旋转 ATP 酶（`rotary`）：`{ "speed": { "min": 0.05, "max": 3, "default": 0.25 }, "stageAt": [0.1, 0.25, 0.8, 0.93], "morph": { "start": 0.25, "span": 0.6 }, "stepPhases": [0, 0.17, 0.5, 0.86, 0.96] }`。`stageAt` 把 1/3 圈的位点周期切成 5 个阶段（4 个递增的分界）；`morph` 是结构在位点周期的哪一段里变形；`stepPhases` 是 5 个机制步骤各自跳到的位点周期相位。
+- AdK（`oscillating`）：`{ "rate": 0.35, "lo": 0.1, "span": 0.8, "stages": { "low": 0.15, "high": 0.85 } }`：`rate` 是摆动的相位速度（弧度/秒/倍率），`lo` 与 `span` 决定两端保持多久（闭合量 = 缓动(((sin φ + 1)/2 − lo)/span)），`stages` 是“打开/闭合”阶段的分界。
+
+写错（分界不递增、`lo + span > 1` 等）按名称拒绝。完整说明与怎么接新机理见 docs/CONFORMATION_MACHINE.md（仓库里，不在 Skill 包内）。
+
