@@ -61,6 +61,8 @@ export function createComposition({ members, controls = [] }) {
 
   return {
     members: [...byId.values()].map(({ id, label, scale, model }) => ({ id, label, timeScale: scale, parameters: model.parameters, counters: model.counters })),
+    /** The current run of one member and its clock: what a panel needs to read curves, rates and events in the member's own time (`run.at(sceneTime * timeScale)`). */
+    member(id) { const m = byId.get(id); if (!m) throw new Error(`没有过程“${id}”。`); return { run: runOf(m), timeScale: m.scale }; },
     controls: [...controlById.values()],
     /** Each member at scene time `t` (its own time is t × timeScale), the counters of all of them (named member.counter), and the value of every control at `t`. */
     at(t) {

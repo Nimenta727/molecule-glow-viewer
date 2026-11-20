@@ -484,7 +484,7 @@
         "Run translation and KcsA concurrently; intervene in one station; navigate away/back."
       ],
       "expected": "Independent clocks, controls and counters; return restores each state; compartment pH/V/concentrations remain associated with correct station.",
-      "scope": "Runner compares the crowd placement with the classic buildCrowd copy by copy (4 scenarios); the Node tests check that several processes run independently (each equals its own standalone run, a control of one never changes another, interventions restore every member). A Viewer panel, the cell-corner layout and drawing are not built; full parity remains pending."
+      "scope": "Runner compares the crowd placement with the classic buildCrowd copy by copy (4 scenarios); the Node tests check that several processes run independently (each equals its own standalone run, a control of one never changes another, interventions restore every member). The Viewer panel (two stations side by side, shared controls, an erythromycin change at 40 s that leaves the channel untouched and stalls the ribosome at Ile9, jump to a time, save, close, reopen: each station where it was) and editing in Studio were checked in a software-rendered browser session, not by this runner. The cell-corner spatial layout and drawing are not built; full parity remains pending."
     },
     {
       "id": "classic.system.whole-cell",

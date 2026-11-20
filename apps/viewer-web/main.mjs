@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -21,6 +21,7 @@ import { createObjectSpin } from './object-spin.mjs';
 import { createParticleFlow } from './particle-flow.mjs';
 import { createDataAnimation } from './data-animation.mjs';
 import { createProcessPanel } from './process-panel.mjs';
+import { createCompositionPanel } from './composition-panel.mjs';
 import { createStateMorph } from './state-morph.mjs';
 import { createLigandView } from './ligand-view.mjs';
 import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
@@ -35,6 +36,7 @@ import { prepareWorkScene, storePlayerState, toolEntryFor } from './work-scene.m
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
 import { normalizeProcessConfig } from '../../plugins/simulation/process-tool.mjs';
+import { normalizeCompositionConfig } from '../../plugins/simulation/composition-tool.mjs';
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
@@ -71,7 +73,7 @@ function setStatus(message) {
   elements.status.textContent = message;
 }
 
-let setParticlesAvailable = () => {}, setDataAnimationAvailable = () => {}, setProcessAvailable = () => {};   // set once the particle panel exists (it lives in the inner scope)
+let setParticlesAvailable = () => {}, setDataAnimationAvailable = () => {}, setProcessAvailable = () => {}, setCompositionAvailable = () => {};   // set once the particle panel exists (it lives in the inner scope)
 function syncControls() {
   const playback = active?.player?.snapshot();
   const timeline = playback ? { ...playback, duration: active.player.duration } : active?.timeline;
@@ -101,6 +103,9 @@ function syncControls() {
   elements['data-controls'].hidden = !structureEnabled || !active?.model || !dataTool;
   const processTool = [PROCESS_TOOL, TRANSLATION_TOOL].some((id) => host.getTool(id) && active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === id));
   setProcessAvailable(processTool);
+  const compositionTool = Boolean(host.getTool(COMPOSITION_TOOL)) && Boolean(active?.scene.tools?.some((entry) => host.resolveToolId(entry.tool.id) === COMPOSITION_TOOL));
+  setCompositionAvailable(compositionTool);
+  elements['composition-controls'].hidden = !structureEnabled || !active?.model || !compositionTool;
   elements['process-controls'].hidden = !structureEnabled || !active?.model || !processTool;
   elements['particle-controls'].hidden = !structureEnabled || !active?.model || !particlesTool;
   elements['spin-controls'].hidden = !structureEnabled || !active?.model || !active?.representationSource;
@@ -303,6 +308,7 @@ function boot() {
       particleFlow.reset();
       dataAnimation.reset();
       processPanel.reset();
+      compositionPanel.reset();
       stateMorph.reset();
       entryIntro.reset();
       leaveTakeApart();
@@ -649,6 +655,11 @@ function boot() {
     elements: { title: elements['process-title'], speed: elements['process-speed'], speedOut: elements['process-speed-out'], play: elements['process-play'], reset: elements['process-reset'], jump: elements['process-jump'], jumpGo: elements['process-jump-go'],
       csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
+  const compositionPanel = createCompositionPanel({
+    elements: { speed: elements['composition-speed'], speedOut: elements['composition-speed-out'], play: elements['composition-play'], reset: elements['composition-reset'], time: elements['composition-time'],
+      jump: elements['composition-jump'], jumpGo: elements['composition-jump-go'], controls: elements['composition-shared'], members: elements['composition-members'], info: elements['composition-info'] },
+  });
+  setCompositionAvailable = (on) => compositionPanel.setAvailable(on);
   setProcessAvailable = (on) => processPanel.setAvailable(on);
   setParticlesAvailable = (on) => particleFlow.setAvailable(on);
   setDataAnimationAvailable = (on) => dataAnimation.setAvailable(on);
@@ -717,6 +728,8 @@ function boot() {
     if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
     const data = toolEntryFor(active.scene, DATA_TOOL, (id) => host.resolveToolId(id) ?? id);
     const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
+    const multi = toolEntryFor(active.scene, COMPOSITION_TOOL, resolve);
+    if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
     if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { processPanel.load(translationProcessConfig(normalizeTranslationConfig(translation.config))); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config)); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
@@ -1334,6 +1347,11 @@ function boot() {
       scene.tools.push({ id, tool: { id: SOLUTION_TOOL, version: tool.version }, config });
     }
   }
+  /** The composition's runtime state (scene time and controls set so far) goes into its tool entry, so reopening finds each station where it was. */
+  function storeComposition(scene) {
+    const state = compositionPanel.save(), entry = toolEntryFor(scene, COMPOSITION_TOOL, (id) => host.resolveToolId(id) ?? id);
+    if (state && entry) entry.state = state;
+  }
   function sceneForExport() {
     const { representationSource, structureSelection } = active;
     const scene = structuredClone(active.scene);
@@ -1346,6 +1364,7 @@ function boot() {
       }
     }
     storeParticles(scene);
+    storeComposition(scene);
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });
@@ -1411,6 +1430,7 @@ function boot() {
     particleFlow.reset();
     dataAnimation.reset();
     processPanel.reset();
+    compositionPanel.reset();
     stateMorph.reset();
     entryIntro.reset();
     leaveTakeApart();

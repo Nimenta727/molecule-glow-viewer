@@ -1,6 +1,7 @@
 import { DATA_TOOL, dataToolDescriptor } from './data-tool.mjs';
 import { PROCESS_TOOL, processToolDescriptor } from './process-tool.mjs';
 import { TRANSLATION_TOOL, translationToolDescriptor } from './translation-tool.mjs';
+import { COMPOSITION_TOOL, compositionToolDescriptor } from './composition-tool.mjs';
 
 export const SIMULATION_PLUGIN = 'org.glow.simulation';
 /**
@@ -14,6 +15,7 @@ export const simulationPlugin = {
     context.registerTool(DATA_TOOL, dataToolDescriptor(this.manifest.version));
     context.registerTool(PROCESS_TOOL, processToolDescriptor(this.manifest.version));
     context.registerTool(TRANSLATION_TOOL, translationToolDescriptor(this.manifest.version));
+    context.registerTool(COMPOSITION_TOOL, compositionToolDescriptor(this.manifest.version));
   },
 };
-export { DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL };
+export { DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL };

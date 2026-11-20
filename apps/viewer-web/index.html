@@ -127,6 +127,15 @@
               <div class="take-apart-row"><label><input id="spin-play" type="checkbox"> 播放</label><button id="spin-reset" type="button">复位角度</button></div>
               <p id="spin-info" class="structure-summary" aria-live="polite">在“部件显隐”里给要旋转的部件勾上“旋转”。</p>
             </div>
+            <div id="composition-controls" class="morph-controls" hidden>
+              <div class="structure-form"><strong>多过程组合</strong></div>
+              <label class="take-apart-row">速度 <input id="composition-speed" type="range" min="0.1" max="20" step="0.1" value="2" aria-label="播放速度"> <output id="composition-speed-out"></output> 场景秒/秒</label>
+              <div class="take-apart-row"><label><input id="composition-play" type="checkbox"> 播放</label><button id="composition-reset" type="button">从头开始</button><output id="composition-time"></output></div>
+              <div class="take-apart-row"><input id="composition-jump" type="number" min="0" max="3600" step="1" value="60" aria-label="跳到的场景时间（秒）"><button id="composition-jump-go" type="button">跳到（场景秒）</button></div>
+              <div id="composition-shared" aria-label="共享控件"></div>
+              <div id="composition-members"></div>
+              <p id="composition-info" class="structure-summary"></p>
+            </div>
             <div id="process-controls" class="morph-controls" hidden>
               <div class="structure-form"><strong id="process-title">随机状态过程</strong></div>
               <label class="take-apart-row">速度 <input id="process-speed" type="range" min="0.1" max="20" step="0.1" value="2" aria-label="播放速度"> <output id="process-speed-out"></output> 示意秒/秒</label>
