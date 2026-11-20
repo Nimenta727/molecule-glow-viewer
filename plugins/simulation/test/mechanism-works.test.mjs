@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mechanismWorkConfig, MECHANISM_WORK_PROCESSES } from '../works/mechanism-works.mjs';
 import { normalizeDataConfig } from '../data-tool.mjs';
-import { dataAnimationEntry, toolEntriesForScene } from '../../mechanism-catalog.mjs';
+import { dataAnimationEntry, toolEntriesForScene, processEntry } from '../../mechanism-catalog.mjs';
 import { orientedFrame } from '../structure-frame.mjs';
 import { KineticSimulation } from '../kinetic-model.mjs';
 
@@ -53,4 +53,13 @@ test('the flagellar motor: eleven stator channels on a ring, protons flow from t
   const radii = config.animation.flows.map((f) => Math.hypot(f.via[0].offset[0], f.via[0].offset[2])); assert.ok(radii.every((r) => Math.abs(r - 215) < 0.01));
   assert.ok(config.animation.flows.every((f) => f.via[0].offset[1] > f.via[1].offset[1] && f.from === 'top' && f.to === 'bot'));
   assert.equal(new Set(config.animation.flows.map((f) => f.counter)).size, 1, 'one shared proton counter');
+});
+
+test('the classic ribosome scene and cell corner become the translation tool and the multi-process tool', () => {
+  const t = processEntry({ legacy: { scene: { id: '4V6F', process: 'translation' } } }), c = processEntry({ legacy: { scene: { id: '4V6F', process: 'cellCorner' } } });
+  assert.equal(t.tool.id, 'org.glow.tool.translation'); assert.equal(t.config.template, 'ubq');
+  assert.equal(c.tool.id, 'org.glow.tool.multi-process'); assert.deepEqual(c.config.members.map((m) => m.kind), ['translation', 'process']); assert.equal(c.config.controls.length, 2);
+  assert.equal(processEntry({ legacy: { scene: { process: 'wholeCell' } } }), undefined); assert.equal(processEntry({}), undefined);
+  assert.equal(toolEntriesForScene({ legacy: { scene: { process: 'translation' } } }).length, 1);
+  assert.equal(processEntry({ legacy: { scene: { process: 'translation', seed: 11 } } }).config.seed, 11);
 });

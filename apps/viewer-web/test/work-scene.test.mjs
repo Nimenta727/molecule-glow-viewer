@@ -18,7 +18,8 @@ test('each declared built-in mechanism gets its player with the full default con
   assert.equal(toolEntriesForScene(v2({ process: 'kcsa' }))[0].config.id, KCSA_1K4C_TEMPLATE.id);
   const adk = toolEntriesForScene(v2({ id: '4AKE', states: ['4AKE', '1AKE'] }));
   assert.deepEqual(adk[0].config, JSON.parse(JSON.stringify(ADK_4AKE_TEMPLATE)));
-  for (const scene of [v2(), v2({ process: 'translation' }), v2({ id: '4AKE', states: ['4AKE', '1AKE'], components: [{}] })]) assert.deepEqual(toolEntriesForScene(scene), []);
+  assert.deepEqual(toolEntriesForScene(v2({ process: 'translation' })).map(({ tool }) => tool.id), ['org.glow.tool.translation'], 'the classic ribosome scene gets the translation tool (4.4.8)');
+  for (const scene of [v2(), v2({ process: 'wholeCell' }), v2({ id: '4AKE', states: ['4AKE', '1AKE'], components: [{}] })]) assert.deepEqual(toolEntriesForScene(scene), []);
   assert.notEqual(atp[0].config, toolEntriesForScene(v2({ process: 'atpSynthase' }))[0].config, 'every scene gets its own copy');
 });
 

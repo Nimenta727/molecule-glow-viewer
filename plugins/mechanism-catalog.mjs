@@ -14,8 +14,8 @@ import { simulationPlugin } from './simulation/index.mjs';
 import { mechanismWorkConfig } from './simulation/works/mechanism-works.mjs';
 import { DATA_TOOL, normalizeDataConfig } from './simulation/data-tool.mjs';
 import { PROCESS_TOOL } from './simulation/process-tool.mjs';
-import { TRANSLATION_TOOL } from './simulation/translation-tool.mjs';
-import { COMPOSITION_TOOL } from './simulation/composition-tool.mjs';
+import { TRANSLATION_TOOL, TRANSLATION_TEMPLATE, normalizeTranslationConfig } from './simulation/translation-tool.mjs';
+import { COMPOSITION_TOOL, COMPOSITION_TEMPLATE, normalizeCompositionConfig } from './simulation/composition-tool.mjs';
 import { autoBindings } from '../packages/plugin-host/tool-model.mjs';
 export const mechanismPlugins = [atpSynthasePlugin, kcsaPlugin, adenylateKinasePlugin];
 /** Plugins that offer tools other than the mechanism players. They follow the structure plugin (both front ends activate them with it). */
@@ -78,9 +78,22 @@ export function dataAnimationEntry(scene) {
   } catch { return undefined; }
 }
 
+/**
+ * The classic ribosome scene (`process: translation`) and the cell corner (`process: cellCorner`: a translation station and a KcsA station side by side) as tool entries: the
+ * translation tool with its default template, and the multi-process tool with its default members and shared controls. The classic's own seed is kept when it declares one.
+ */
+export function processEntry(scene) {
+  const legacy = scene.legacy?.scene, seed = Number.isSafeInteger(legacy?.seed) ? legacy.seed : undefined, version = simulationPlugin.manifest.version;
+  try {
+    if (legacy?.process === 'translation') return { id: 'translation', tool: { id: TRANSLATION_TOOL, version }, config: normalizeTranslationConfig({ ...TRANSLATION_TEMPLATE, ...(seed !== undefined ? { seed } : {}) }) };
+    if (legacy?.process === 'cellCorner') return { id: 'multi-process', tool: { id: COMPOSITION_TOOL, version }, config: normalizeCompositionConfig(JSON.parse(JSON.stringify(COMPOSITION_TEMPLATE))) };
+  } catch { /* a declaration the tool cannot run stays in the legacy block */ }
+  return undefined;
+}
+
 export function toolEntriesForScene(scene) {
-  const data = dataAnimationEntry(scene);
-  return [...mechanismEntriesForScene(scene), ...(data ? [data] : [])];
+  const data = dataAnimationEntry(scene), process = processEntry(scene);
+  return [...mechanismEntriesForScene(scene), ...(data ? [data] : []), ...(process ? [process] : [])];
 }
 
 function mechanismEntriesForScene(scene) {
