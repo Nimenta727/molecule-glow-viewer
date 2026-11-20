@@ -1,9 +1,10 @@
-import { centroid, superpose } from '../structure/alignment.mjs';
+import { centroid } from '../structure/alignment.mjs';
 import { selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM as SCALE } from '../structure/representation.mjs';
 import { densitySurface } from '../structure/density-surface.mjs';
 import { ADK_4AKE_TEMPLATE, normalizeAdkConfig } from './config.mjs';
-import { sub, distance, lerp } from '../motion/vectors.mjs';
+import { sub } from '../motion/vectors.mjs';
 import { displaceVertices, nearestAnchors, hypotSquared, rotationAngle } from '../motion/conformation.mjs';
+import { twoStateTargets, domainMotion } from '../motion/conformation-set.mjs';
 
 export const DOMAINS = ADK_4AKE_TEMPLATE.domains;   // kept for callers; the data lives in config.mjs
 const number = (a) => Number(a.authSeqId || a.labelSeqId);
@@ -26,13 +27,10 @@ export function buildAdkStructure(model, closedModel, config) {
   const closedAtoms = selectCoordinateAtoms(closedModel).map(({ atom }) => atom);
   const closedCa = caAtoms({ ...closedModel, atoms: closedModel.atoms.filter((a) => a.authChainId === protein.chain) });
   const fitDomain = DOMAINS.find(({ name }) => name === cfg.fitDomain), moving = DOMAINS.filter(({ name }) => name !== cfg.fitDomain);
-  const other = new Map(closedCa.map((a) => [key(a), a.position]));
-  if (open.some((a) => !other.has(key(a)))) throw new Error('AdK 两态残基编号未完整匹配。');
-  const core = open.filter((a) => inDomain(a, fitDomain));
-  const fit = superpose(core.map((a) => a.position), core.map((a) => other.get(key(a))));
-  const rmsd = Math.sqrt(core.reduce((sum, a) => sum + distance(a.position, fit(other.get(key(a)))) ** 2, 0) / core.length);
+  // the closed state fitted onto the open one over the reference domain: a general two-state conformation set (plugins/motion/conformation-set.mjs)
+  const two = (() => { try { return twoStateTargets(open, closedCa, { keyOf: key, inReference: (a) => inDomain(a, fitDomain) }); } catch (error) { throw new Error(error.message === '两态的残基编号没有完整对应。' ? 'AdK 两态残基编号未完整匹配。' : error.message); } })();
+  const { targets, rmsd, fit, core } = two;
   if (rmsd > cfg.maxFitRmsd) throw new Error(`AdK ${cfg.fitDomain} 叠合 RMSD 超过 ${cfg.maxFitRmsd} Å。`);
-  const targets = new Map(open.map((a) => [key(a), fit(other.get(key(a)))]));
   const min = [0, 1, 2].map((i) => Math.min(...atoms.map((a) => a.position[i]))), max = [0, 1, 2].map((i) => Math.max(...atoms.map((a) => a.position[i])));
   const origin = min.map((v, i) => (v + max[i]) / 2);
   const point = (p) => p.map((v, i) => (v - origin[i]) * SCALE);
@@ -41,15 +39,8 @@ export function buildAdkStructure(model, closedModel, config) {
   const ligandCenter = centroid(ap5.map((a) => fit(a.position)));
   const inhibitor = { name: cfg.ligand.name, color: cfg.ligand.color, position: point(ligandCenter),
     molecule: ap5.map((a) => ({ element: a.element, position: sub(fit(a.position), ligandCenter).map((v) => v * SCALE) })) };
-  function measurements(fraction) {
-    const reference = core.map((a) => a.position), current = core.map((a) => lerp(a.position, targets.get(key(a)), fraction));
-    const coreFit = superpose(reference, current);
-    return moving.map((domain) => {
-      const refs = open.filter((a) => inDomain(a, domain)), A = refs.map((a) => a.position);
-      const B = refs.map((a) => coreFit(lerp(a.position, targets.get(key(a)), fraction)));
-      return { name: domain.name, angle: rotationAngle(superpose(A, B)), shift: distance(centroid(A), centroid(B)) };
-    });
-  }
+  const domainsOf = moving.map((domain) => ({ name: domain.name, contains: (a) => inDomain(a, domain) }));
+  const measurements = (fraction) => domainMotion({ open, targets, core, keyOf: key, domains: domainsOf }, fraction);
   const density = new Map();
   function domainSurfaces() {
     if (!density.size) for (const domain of DOMAINS) {

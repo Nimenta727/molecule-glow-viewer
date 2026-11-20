@@ -10,11 +10,12 @@
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
     "plugins/kcsa/kinetics.mjs": "726dd40b1aefc201efe667d0130782d11e5408ddc8fce866156a328ed1c7487c",
     "plugins/kcsa/config.mjs": "b11f1a3c1724135025acda5ffc15f19350befd544a8ff7dc4470a721b880fcae",
-    "plugins/atp-synthase/index.mjs": "ebf362bc7600a90337bbfcf8bd143f02ec831918a6213f5560f4183cdff8d3a0",
+    "plugins/atp-synthase/index.mjs": "07cfb32e5ec5dde2140f2115e4579b9fd758ca99c486f6b91308c9a0bcb7106a",
     "plugins/atp-synthase/config.mjs": "bb77f020391959877118e4ba8b2a21f644a02c18cab4b5230e72945087889c6f",
     "plugins/adenylate-kinase/playback.mjs": "2ec7b3fd96ea93df51787f384ba6dab5af1a8625e811409aaaadb2f905f05985",
     "plugins/motion/conformation-machine.mjs": "bda98a06e9abd6f798c079d595338213c9e119f658f56718b1c861e410e0f9a6",
-    "plugins/adenylate-kinase/structure.mjs": "dddb4ef360f5e49055876fb6d71f257e54b54dd79bb862ba84d1029f8c22e7dc",
+    "plugins/motion/conformation-set.mjs": "a279867341210db7630df0a79c5c153121296dc1e4c58984eacf8490ed294ca3",
+    "plugins/adenylate-kinase/structure.mjs": "a16ad48d393498c84271d2b56303a51a098a4d24560a64dc9b9110d4b8b437bf",
     "plugins/adenylate-kinase/config.mjs": "226db10302ca9224963378c83ca3910aebe625305c7a7ff997e02ddae114405f",
     "plugins/shared/work-config.mjs": "cedfe70b8d658215fbf4505c3fe15ce9ba4be5942a4e447b033f66d4a63dab94",
     "plugins/shared/bindings.mjs": "07bf45163c0520ea7aa70b88f68d1845833d694bdbdd765e76ddcfbf0d893398",
@@ -31,7 +32,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "9a0cf9bdbd3fbb63e7158a4c0135e481cc94a448fed5b532792cde30cce9a9b1",
-    "tools/parity-numerics.mjs": "8f7668f6da4d1f95cede79c8a7ad4db2ccc3430b1f79757bf0edd57c7e7fe073"
+    "tools/parity-numerics.mjs": "5efd4a754baeedca02dffd760c81b527a97d08ae07e5ccceaa52e7dbcd7b23f3"
   },
   "rows": [
     {

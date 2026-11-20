@@ -7,6 +7,7 @@ import { ATP_6ZPO_TEMPLATE, normalizeAtpConfig } from './config.mjs';
 import { sub as subtract, normalize, cross } from '../motion/vectors.mjs';
 import { displaceVertices } from '../motion/conformation.mjs';
 import { createMachine, normalizeMachine } from '../motion/conformation-machine.mjs';
+import { cyclicStates, rotatedStates } from '../motion/conformation-set.mjs';
 
 export const ATP_PLAYER = 'org.glow.legacy-process.atp-synthase';
 export const atpSynthasePlugin = {
@@ -84,19 +85,8 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
   const origin = min.map((value, i) => (value + max[i]) / 2);
   const point = (position) => position.map((value, i) => (value - origin[i]) * scale);
   const pivot = point(center);
-  const nextStates = new Map();
-  for (const own of chainList) {
-    const numbers = own.map(residueKey).map(Number).filter(Number.isFinite);
-    const threshold = Math.min(...numbers) + 0.62 * (Math.max(...numbers) - Math.min(...numbers));
-    const alternatives = chainList.map((other) => {
-      const byNumber = new Map(other.map((atom) => [residueKey(atom), atom]));
-      const shared = own.filter((atom) => Number(residueKey(atom)) < threshold && byNumber.has(residueKey(atom)));
-      const fit = superpose(shared.map(({ position }) => position), shared.map((atom) => byNumber.get(residueKey(atom)).position));
-      return new Map(own.map((atom) => [residueKey(atom), byNumber.has(residueKey(atom))
-        ? fit(byNumber.get(residueKey(atom)).position) : atom.position]));
-    });
-    nextStates.set(chainKey(own[0]), alternatives);
-  }
+  // the three catalytic subunits take turns in the same three states: a general conformation set (plugins/motion/conformation-set.mjs)
+  const alternativesByChain = cyclicStates(chainList, { keyOf: residueKey }), nextStates = new Map(chainList.map((own, i) => [chainKey(own[0]), alternativesByChain[i]]));
   const nodes = nodesOfSource(scene, atpSourceId(scene));
   const rotor = boundOrMatched(nodes, bindings, 'rotor', atpRotorTest(cfg));   // the saved binding, else the configured part names
   if (!rotor.length) throw new Error('当前预览没有 ATP 合酶转子节点。');
@@ -197,7 +187,7 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
       if (!chain) continue;
       const alternatives = nextStates.get(chainKey(chain[0]));
       const ownIndex = chainList.indexOf(chain);
-      const conformations = [0, 1, 2].map((offset) => alternatives[(ownIndex + offset) % 3]);
+      const conformations = rotatedStates(alternatives, ownIndex);
       const vertices = layers.get(node.assetId);
       if (!vertices) continue;
       const anchors = chain.map((atom) => ({ ref: atom, at: point(atom.position), from: atom.position }));

@@ -25,3 +25,11 @@
 - **并入的是时间与状态侧，不是结构侧**：ATP 的"三个 β 亚基两两叠合得到循环交换的三个构象"、AdK 的"两态按 CORE 叠合得到各域目标位置"仍在各自的 `index.mjs`/`structure.mjs` 里（它们已由配置驱动并共用 `plugins/motion`/`plugins/structure` 的算法）。把它们也抽成通用的"构象集"（循环对称亚基的状态交换、两态域目标）是下一步，这次没有做。
 - 两个播放器仍是 `player-v1` 运行时的专用播放器，没有变成 `layer-v1` 的通用工具；新机理要接入仍需写结构侧。
 - 没有再交付第三个真实作品：通用性由单元测试里的第三种机器（四位点旋转机、另一组保持参数的摆动、自注册剖面）证明，没有在浏览器里看。
+
+
+## 第二部分（同日）：构象集（结构侧）
+- `plugins/motion/conformation-set.mjs`（新）：`cyclicStates` / `rotatedStates`（循环对称亚基的状态交换，ATP 合酶的 nextStates 抽出）、`twoStateTargets` / `domainMotion`（两态按参考域叠合的目标位置与域运动测量，AdK 的 buildAdkStructure 核心抽出）。参考域、域划分、残基编号都由调用方传入。
+- `plugins/atp-synthase/index.mjs`、`plugins/adenylate-kinase/structure.mjs` 改用它们（AdK 保留自己的错误文字与 RMSD 上限检查）；**两个播放器的黄金轨迹与原有测试逐位不变**。
+- 测试 `conformation-set.test.mjs`（2 个）：3 与 4 个亚基的循环（自己的状态=自己的坐标、稳定部分在各状态相同、尾部各不相同、轮转顺序）；两态（参考域落在自己上、其它域转角约等于构造值、半程介于其间、换参考域得到不同坐标系、超限/编号不全/残基不足按名称拒绝）。
+- 数值基线登记的源文件有变，基线重跑，数值结果不变。
+- 至此"通用能力"齐了：状态机（时间与状态）+ 构象集（各状态坐标）；两个播放器仍是 player-v1 的专用外壳（面板、节点绑定、粒子、导航），没有变成 layer-v1 的通用工具。

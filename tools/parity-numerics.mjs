@@ -15,7 +15,7 @@ export const codeHash = text => crypto.createHash('sha256').update(text.replace(
 const hash = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 export const SOURCES = ['src/sim/processes/kcsa.js','src/sim/processes/atp-synthase.js','src/view/frame-loop.js',
   'src/derived/geometry.js','src/data/parse.js','src/ui/ligand-focus.js',
-  'plugins/kcsa/kinetics.mjs','plugins/kcsa/config.mjs','plugins/atp-synthase/index.mjs','plugins/atp-synthase/config.mjs','plugins/adenylate-kinase/playback.mjs','plugins/motion/conformation-machine.mjs',
+  'plugins/kcsa/kinetics.mjs','plugins/kcsa/config.mjs','plugins/atp-synthase/index.mjs','plugins/atp-synthase/config.mjs','plugins/adenylate-kinase/playback.mjs','plugins/motion/conformation-machine.mjs','plugins/motion/conformation-set.mjs',
   'plugins/adenylate-kinase/structure.mjs','plugins/adenylate-kinase/config.mjs','plugins/shared/work-config.mjs','plugins/shared/bindings.mjs','plugins/atp-synthase/tool.mjs','plugins/adenylate-kinase/tool.mjs','plugins/kcsa/tool.mjs','plugins/motion/conformation.mjs','plugins/motion/path.mjs','plugins/motion/vectors.mjs','plugins/structure/parser.mjs','plugins/structure/assembly.mjs','plugins/structure/alignment.mjs',
   'plugins/structure/representation.mjs','plugins/structure/functional-preview.mjs','plugins/structure/density-surface.mjs',
   'desktop/package-lock.json','tools/parity-numerics.mjs'];
