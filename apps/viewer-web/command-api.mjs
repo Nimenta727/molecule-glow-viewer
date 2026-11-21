@@ -12,6 +12,7 @@ export const COMMANDS = {
   measure: '测量：measure(a,b) 两个选择 → 距离（Å），measure(a,b,c) 三个 → 角度（°，b 是顶点）；每个选择必须正好是一个残基（Cα，核酸 P）或一个小分子（中心）。也可传 {a,b,c} 或数组；measure("clear") 清除标线。',
   sequence: '序列：无参数返回每条链的一字母序列、残基数和缺失段；{show:true|false} 开关序列条；{select:"表达式"} 用选择语言选中；{sites:...} 暂不支持。',
   color: '上色（按整条链）：color("chain" | "entity" | "rainbow" | "reset")；color("chain A","#e05a4a") 或 color({target,color})；颜色为 #rrggbb 或 red/blue/green…；残基范围上色尚未迁移。',
+  instances: '把当前看到的结构复制成许多份并按细节分级绘制：{copies:1..20000, layout?:"sphere"|"grid", spread?:0.5..4, seed?:整数, budget?:每帧三角形预算}；"clear" 或 null 清除。返回每级的三角形数、本帧各级实例数、被剔除数和不分级时的三角形数。',
   clip: '剖切：{enabled?:布尔, depth?:-1..1, scope?:"all"|"parts", aim?:true（对准当前视线）}；不带参数读取状态。',
   snapshot: '返回视口 PNG data URL，接受 {width:64..4096}。',
   exportPack: '返回 {format:"glow-v2",encoding:"base64",data}，包括原始资源。',

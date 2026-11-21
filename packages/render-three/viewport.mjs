@@ -3,6 +3,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPresentationOverlay } from './presentation-overlay.mjs';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CORE_INK, createInkRenderer } from './ink-style.mjs';
+import { createInstanceSet } from './instance-set.mjs';
+import { icosphereTriangles } from './lod.mjs';
 
 function applyTransform(object, transform) {
   object.position.set(...transform.position);
@@ -617,8 +619,76 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     eventTextures.clear();
   }
 
+  /**
+   * Many copies of one prototype at several levels of detail (instance-set.mjs, lod.mjs): `setInstanceSet(tag, spec)` replaces the set `tag`; the plan is redone for the camera before every draw.
+   * The set hangs on the active root and is part of the picture only (not picked, dimmed or clipped with the parts). Returns { instances, levels, triangles: [per level], plan } or null when
+   * nothing is loaded; `setInstanceSet(tag, null)` removes it. `instanceSetInfo(tag)` is the latest plan (counts per level, drawn triangles, culled, demoted).
+   */
+  const instanceSets = new Map();   // tag -> { set, budget }
+  function removeInstanceSet(tag) {
+    const entry = instanceSets.get(tag); if (!entry) return;
+    entry.set.dispose(); instanceSets.delete(tag);
+  }
+  function setInstanceSet(tag, spec) {
+    removeInstanceSet(tag);
+    if (!active || !spec) { invalidate(); return null; }
+    const set = createInstanceSet(THREE, spec);
+    active.root.add(set.group); instanceSets.set(tag, { set, budget: spec.budget ?? Infinity });
+    const plan = set.update(camera, container.clientHeight || 1, spec.budget ?? Infinity);
+    invalidate();
+    return { instances: set.count, levels: set.levels, triangles: set.triangles, plan };
+  }
+  const instanceSetInfo = (tag) => { const entry = instanceSets.get(tag); return entry ? entry.set.update(camera, container.clientHeight || 1, entry.budget) : null; };
+  function updateInstanceSets() { for (const { set, budget } of instanceSets.values()) set.update(camera, container.clientHeight || 1, budget); }
+
+  /**
+   * The triangles of the structure as drawn now (the chosen representation, in viewport coordinates): { positions: Float32Array xyz, colors: Float32Array rgb per vertex, triangles }.
+   * Instance sets, particles and other marker objects are not part of it. Used to make an instance set from what is on screen.
+   */
+  function collectTriangles({ maxTriangles = 400000 } = {}) {
+    if (!active) return { positions: new Float32Array(0), colors: new Float32Array(0), triangles: 0 };
+    active.root.updateMatrixWorld(true);
+    const parts = [], spheres = []; let total = 0; const point = new THREE.Vector3(), world = new THREE.Matrix4(), one = new THREE.Matrix4(), shade = new THREE.Color();
+    active.root.traverse((object) => {
+      if (object.userData.selectionMarker || !object.visible) return;
+      for (let parent = object.parent; parent; parent = parent.parent) if (parent.visible === false) return;
+      if (object.material?.side === THREE.BackSide) return;   // the ink outline shells (a slightly larger copy facing inwards) are style, not structure
+      if (object.isInstancedMesh) { if (object.geometry.type === 'SphereGeometry' && object.count) spheres.push(object); return; }   // blobs are instanced spheres: re-made below at a chosen detail
+      if (!object.isMesh) return;
+      const geometry = object.geometry, position = geometry.getAttribute('position'); if (!position) return;
+      const index = geometry.index, count = index ? index.count : position.count, tint = geometry.getAttribute('color'), flat = new THREE.Color(object.material?.color ?? '#9aa7bd');
+      const positions = new Float32Array(count * 3), colors = new Float32Array(count * 3);
+      for (let k = 0; k < count; k++) {
+        const v = index ? index.getX(k) : k;
+        point.fromBufferAttribute(position, v).applyMatrix4(object.matrixWorld); positions.set([point.x, point.y, point.z], 3 * k);
+        if (tint) colors.set([tint.getX(v), tint.getY(v), tint.getZ(v)], 3 * k); else colors.set([flat.r, flat.g, flat.b], 3 * k);
+      }
+      parts.push({ positions, colors }); total += count;
+    });
+    // spheres: the finest icosphere whose total fits the budget (what is left after the ordinary meshes)
+    const sphereCount = spheres.reduce((n, mesh) => n + mesh.count, 0);
+    if (sphereCount) {
+      let subdivisions = 0;
+      for (const candidate of [2, 1]) if (sphereCount * 20 * 4 ** candidate * 3 + total <= maxTriangles * 3) { subdivisions = candidate; break; }
+      const unit = icosphereTriangles(subdivisions), vertices = unit.length / 3;
+      for (const mesh of spheres) {
+        const positions = new Float32Array(mesh.count * unit.length), colors = new Float32Array(mesh.count * unit.length), tint = mesh.instanceColor, flat = new THREE.Color(mesh.material?.color ?? '#9aa7bd');
+        for (let i = 0; i < mesh.count; i++) {
+          mesh.getMatrixAt(i, one); world.multiplyMatrices(mesh.matrixWorld, one);
+          if (tint) shade.fromBufferAttribute(tint, i); else shade.copy(flat);
+          for (let k = 0; k < vertices; k++) { point.set(unit[3 * k], unit[3 * k + 1], unit[3 * k + 2]).applyMatrix4(world); const at = (i * vertices + k) * 3; positions.set([point.x, point.y, point.z], at); colors.set([shade.r, shade.g, shade.b], at); }
+        }
+        parts.push({ positions, colors }); total += mesh.count * vertices;
+      }
+    }
+    const positions = new Float32Array(total * 3), colors = new Float32Array(total * 3); let at = 0;
+    for (const part of parts) { positions.set(part.positions, at); colors.set(part.colors, at); at += part.positions.length; }
+    return { positions, colors, triangles: Math.floor(total / 3) };
+  }
+
   function clearParticleClouds() {
     clearEventTags();
+    for (const tag of [...instanceSets.keys()]) removeInstanceSet(tag);
     for (const tag of [...overlays.keys()]) removeOverlay(tag);
     for (const tag of [...clouds.keys()]) removeCloud(tag);
     for (const { texture, material } of cloudLabelTextures.values()) { texture.dispose(); material.dispose(); }
@@ -667,6 +737,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     });
   }
   function draw() {
+    updateInstanceSets();
     if (ink) ink.render();
     else renderer.render(scene, camera);
   }
@@ -1206,7 +1277,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
     stats() {

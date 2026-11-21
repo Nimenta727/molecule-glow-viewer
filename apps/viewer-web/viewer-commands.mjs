@@ -220,6 +220,17 @@ export function createViewerCommands(host) {
       if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
       return host.clip(value);
     },
+    instances(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.instances(null);
+      if (!object(value) || Object.keys(value).some((key) => !['copies', 'layout', 'spread', 'seed', 'budget'].includes(key))) throw new Error('instances 只接受 copies、layout、spread、seed、budget。');
+      if (!Number.isInteger(value.copies) || value.copies < 1 || value.copies > 20000) throw new Error('copies 应为 1–20000 的整数。');
+      if (value.layout != null && !['sphere', 'grid'].includes(value.layout)) throw new Error('layout 应为 sphere 或 grid。');
+      if (value.spread != null) finite(value.spread, 0.5, 4, 'spread');
+      if (value.seed != null && (!Number.isInteger(value.seed) || value.seed < 0 || value.seed > 4294967295)) throw new Error('seed 应为 0–4294967295 的整数。');
+      if (value.budget != null && (!Number.isInteger(value.budget) || value.budget < 1000 || value.budget > 1e9)) throw new Error('budget 应为 1000–1e9 的整数（每帧三角形数）。');
+      return host.instances(value);
+    },
     tools: () => host.tools?.() ?? [],
     snapshot(value) {
       needScene();

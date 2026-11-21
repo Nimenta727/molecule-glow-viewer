@@ -56,6 +56,8 @@ import { normalizeTranslationConfig, translationProcessConfig } from '../../plug
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
+import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
+import { layoutCopies } from './instance-layout.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
 const elements = Object.fromEntries(
@@ -1729,6 +1731,28 @@ function boot() {
     selectSet,
     clearSet,
     tools: () => describeTools(host.listTools({ audience: 'view' })),
+    /** Copies of what is on screen at several levels of detail (packages/render-three/lod.mjs); null clears them. Returns what was built and what the first frame costs. */
+    instances: (spec) => {
+      if (!spec) { viewport.setInstanceSet('copies', null); return { cleared: true }; }
+      const soup = viewport.collectTriangles();
+      if (!soup.triangles) throw new Error('当前没有可以复制的结构几何。');
+      const n = soup.positions.length / 3, centre = [0, 0, 0];
+      for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) centre[k] += soup.positions[3 * i + k] / n;
+      let radius = 0;
+      for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) soup.positions[3 * i + k] -= centre[k]; radius = Math.max(radius, Math.hypot(soup.positions[3 * i], soup.positions[3 * i + 1], soup.positions[3 * i + 2])); }
+      const stride = Math.max(1, Math.floor(n / 6000)), outline = new Float32Array(3 * Math.ceil(n / stride));
+      for (let i = 0, j = 0; i < n; i += stride, j++) outline.set(soup.positions.subarray(3 * i, 3 * i + 3), 3 * j);
+      const levels = buildLevels(soup.positions, outline, { cell: radius / 5 });
+      const outlineColors = new Float32Array(outline.length);
+      for (let i = 0, j = 0; i < n; i += stride, j++) outlineColors.set(soup.colors.subarray(3 * i, 3 * i + 3), 3 * j);
+      const colors = [soup.colors, ...levels.geometries.slice(1).map((g) => colorByNearest(g, outline, outlineColors))];   // each coarser level keeps the colours of the parts it stands for
+      const mean = [0, 0, 0]; for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) mean[k] += soup.colors[3 * i + k] / n;
+      const { matrices } = layoutCopies({ copies: spec.copies, layout: spec.layout ?? 'sphere', radius, spread: spec.spread ?? 1, seed: spec.seed ?? 1 });
+      const tint = '#' + mean.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
+      const built = viewport.setInstanceSet('copies', { geometries: levels.geometries, colors, color: tint, matrices, radius, budget: spec.budget ?? Infinity });
+      if (!built) throw new Error('无法建立实例。');
+      return { copies: spec.copies, layout: spec.layout ?? 'sphere', tint, prototypeRadius: radius, levelTriangles: levels.triangles, plan: built.plan, withoutLevels: spec.copies * levels.triangles[0] };
+    },
     measure: (expressions) => { if (!expressions) { analysisPanel.clearMeasure(); return null; } return analysisPanel.measureNow(expressions); },
     chainIds: () => (active?.model ? [...new Set(selectionSpace(active.model).residues.map((r) => r.chain))] : null),
     colorState: () => active?.colorState ?? createColorState(),
