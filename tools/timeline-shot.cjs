@@ -23,10 +23,11 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   const page = await context.newPage(), errors = []; page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(`${ORIGIN}/apps/viewer-web/index.html?startup=skip&work=${encodeURIComponent(ID)}`);
   await page.waitForFunction(() => window.glow, null, { timeout: 30000 });
-  const playButton = page.locator('button', { hasText: /^播放$/ }).first(); await playButton.waitFor({ timeout: 150000 }); await page.waitForFunction(() => [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === '播放' && !b.disabled), null, { timeout: 400000 });   // big structures keep it disabled while they load
-  const clock = () => page.evaluate(() => (document.body.innerText.match(/(\d+\.\d+) \/ (\d+\.\d+) s/) || [])[0]);
+  const PLAY = process.env.PLAY_SELECTOR, READOUT = process.env.READOUT_SELECTOR, playButton = PLAY ? page.locator(PLAY) : page.locator('button', { hasText: /^播放$/ }).first();   // PLAY_SELECTOR / READOUT_SELECTOR: works driven by the process panel (e.g. #process-play, #process-readout)
+   await playButton.waitFor({ timeout: 150000 }); await page.waitForFunction((sel) => (sel ? [document.querySelector(sel)] : [...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '播放')).some((b) => b && !b.disabled), PLAY, { timeout: 400000 });   // big structures keep it disabled while they load
+  const clock = () => READOUT ? page.$eval(READOUT, (n) => n.innerText.replace(/\s+/g, ' ').slice(0, 160)) : page.evaluate(() => (document.body.innerText.match(/(\d+\.\d+) \/ (\d+\.\d+) s/) || [])[0]);
   await page.screenshot({ path: path.join(OUT, `${ID}-t0.png`) });
   await playButton.click({ timeout: 60000 });
-  for (const wait of [4, 4]) { await page.waitForTimeout(wait * 1000); const t = await clock(); console.log('clock', t); await page.screenshot({ path: path.join(OUT, `${ID}-t${t?.split(' ')[0]}.png`) }); }
+  for (const wait of [4, 4]) { await page.waitForTimeout(wait * 1000); const t = await clock(); console.log('clock', t); await page.screenshot({ path: path.join(OUT, `${ID}-${READOUT ? 'at' + wait : 't' + t?.split(' ')[0]}-${Date.now() % 100000}.png`) }); }
   console.log('errors:', errors.slice(0, 5)); await browser.close();
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });
