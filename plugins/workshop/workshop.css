@@ -39,3 +39,12 @@ dialog.workshop::backdrop { background: rgba(31, 39, 51, 0.35); }
 .workshop-diag-ok { color: var(--dim, #5d6676); margin: 0.5rem 0 0; }
 .workshop-flag { color: #a02b20; margin: 0.3rem 0 0; font-size: 0.85rem; }
 @media (max-width: 560px) { .workshop-details dl { grid-template-columns: 1fr; } .workshop-details dt { margin-top: 0.3rem; } }
+.workshop-plugin-rows { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 0.8rem; margin: 0.5rem 0 0; font-size: 0.84rem; }
+.workshop-plugin-rows dt { color: var(--dim, #5d6676); }
+.workshop-plugin-rows dd { margin: 0; }
+.workshop-plugin-rows ul { margin: 0; padding-left: 1.1rem; }
+.workshop-usage { display: grid; gap: 0.15rem; margin-bottom: 0.4rem; }
+.workshop-usage code { display: block; padding: 0.25rem 0.4rem; background: #f3f4f7; border-radius: 3px; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; }
+.workshop-usage small { color: var(--dim, #5d6676); }
+.workshop-limits li { color: #7a4a12; }
+@media (max-width: 640px) { .workshop-plugin-rows { grid-template-columns: 1fr; } }

@@ -25,8 +25,21 @@ test('the real catalogues load: works and resources of the official source, with
   assert.equal(catalog.resources.length, 29, '11 first, then every structure the official works use, and the maltose-binding protein and Bacillus PS3 ATP synthase of the presets');
   assert.ok([...catalog.templates, ...catalog.works].every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
   assert.ok(catalog.resources.every((entry) => entry.kind === 'resource' && entry.delivery === 'reference' && entry.record.attribution.license === 'CC0-1.0'));
-  assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources'], 'the community source has works (none yet) but no resource catalogue');
+  assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources', 'community/plugins'], 'the community source has works (none yet) but no resource or plugin catalogue');
   assert.ok(Object.isFrozen(catalog.works[0]) && Object.isFrozen(catalog.templates[0]) && Object.isFrozen(catalog.resources[0].record));
+});
+
+test('the plugin zone lists every packaged plugin with its manifest, and a plugin that adds nothing a user can reach is refused', async () => {
+  const catalog = await loadCatalog({ base, fetch: localFetch() });
+  assert.equal(catalog.plugins.length, 17);
+  assert.ok(catalog.plugins.every((entry) => entry.kind === 'plugin' && entry.source === 'official' && /^[a-f0-9]{64}$/.test(entry.sha256) && entry.manifest.status.limits.length >= 1 && Object.isFrozen(entry)));
+  assert.deepEqual(queryCatalog(catalog, { zone: 'plugins', text: 'smoluchowski' }).map(({ id }) => id), ['org.glow.plugin.binding'], 'the search reads the list of added functions');
+  assert.equal(queryCatalog(catalog, { zone: 'plugins', tag: '过程模拟' }).length, 5, 'the category is a tag: binding, filament, motor, reaction networks, transporter');
+  assert.ok(allTags(catalog, 'plugins').includes('渲染与规模'));
+  const raw = JSON.parse(read('official/plugins/index.json').toString()), broken = structuredClone(raw);
+  broken.plugins[0].manifest.provides = broken.plugins[0].manifest.provides.filter((p) => p.type === 'module' || p.type === 'cli');
+  const bad = await loadCatalog({ base, fetch: localFetch({ 'official/plugins/index.json': JSON.stringify(broken) }), sources: ['official'] });
+  assert.equal(bad.plugins.length, 16); assert.match(bad.errors.find(({ zone }) => zone === 'plugins').message, /没有任何用户能直接用的入口/);
 });
 
 test('queries match titles, tags, ids and accessions, by zone, source and tag', async () => {

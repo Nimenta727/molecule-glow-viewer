@@ -56,6 +56,7 @@ import { normalizeCompositionConfig } from '../../plugins/simulation/composition
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
 import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
 import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
 import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
@@ -1295,7 +1296,9 @@ function boot() {
 
   // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
   // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
+  const pluginSwitch = createPluginSwitch((() => { try { return window.localStorage; } catch { return null; } })());
   const workshop = createWorkshopDialog(document, {
+    pluginState: pluginSwitch,
     load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
     toolTitle, toolAvailable: isKnownTool,
     actions: {
@@ -1902,7 +1905,7 @@ function boot() {
   });
 
   const commandLifetime = new AbortController();
-  const commands = createCommandApi(createViewerCommands({
+  const commands = createCommandApi(createViewerCommands(pluginSwitch.guardAll({
     signal: commandLifetime.signal,
     current: () => active,
     plugins: () => host.listActive(),
@@ -2009,7 +2012,7 @@ function boot() {
       showPose();
       if (!paused) elements.play.click();
     },
-  }));
+  })));
   window.glow = commands.api;
   window.__glowStats = () => viewport.stats();   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
   const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });

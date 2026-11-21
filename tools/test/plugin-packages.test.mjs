@@ -47,3 +47,18 @@ test('only the data-source plugin may ask for the network, and the honest limits
     assert.ok(manifest.status.limits.length >= 1 && manifest.status.limits.every((text) => text.length > 6), `${manifest.id} lists what it does not do`);
   }
 });
+
+import { COMMAND_OWNERS, PLUGIN_NAMES, createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
+test('the plugin switch knows exactly the commands the manifests give each plugin, and a disabled plugin refuses with a way back', () => {
+  const byId = new Map(manifests.map(({ manifest }) => [manifest.id, manifest]));
+  for (const [command, owner] of Object.entries(COMMAND_OWNERS)) {
+    const manifest = byId.get(owner); assert.ok(manifest, `${command}: ${owner} has no manifest`);
+    assert.ok(manifest.provides.some((p) => p.type === 'command' && p.name === command), `${owner} does not list the command ${command}`);
+    assert.equal(PLUGIN_NAMES[owner], manifest.name, `the display name of ${owner} drifted from its manifest`);
+  }
+  const store = new Map(), storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) }, gate = createPluginSwitch(storage), run = gate.guard('embed', () => 'ran');
+  assert.equal(run(), 'ran'); gate.set('org.glow.plugin.membrane-embedding', false);
+  assert.throws(run, /已停用.*插件区/); assert.equal(gate.guard('help', () => 'free')(), 'free', 'a command no plugin owns is never blocked');
+  assert.equal(createPluginSwitch(storage).isEnabled('org.glow.plugin.membrane-embedding'), false, 'the choice is remembered'); gate.set('org.glow.plugin.membrane-embedding', true); assert.equal(run(), 'ran');
+  assert.equal(createPluginSwitch({ getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } }).isEnabled('x'), true, 'blocked storage is not an error');
+});
