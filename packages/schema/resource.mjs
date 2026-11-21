@@ -31,6 +31,11 @@ export const RESOURCE_SCHEMA = {
       properties: { license: { type: 'string', minLength: 1 }, credit: { type: 'string' }, url: { type: 'string' },
         embedAllowed: { type: 'boolean' } } },
     card: STRING_MAP,
+    // Only for kind 'map': the grid of a density map, so that a reader can place it without opening the file.
+    map: { type: 'object', additionalProperties: false, required: ['dims', 'voxelSize', 'origin'],
+      properties: { dims: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'integer', minimum: 1 } }, voxelSize: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number', exclusiveMinimum: 0 } },
+        origin: { type: 'array', minItems: 3, maxItems: 3, items: { type: 'number' } },
+        contour: { type: 'object', additionalProperties: false, required: ['level', 'source'], properties: { level: { type: 'number' }, source: { enum: ['depositor', 'heuristic'] } } } } },
     // Only for kind 'predicted-structure': how it was predicted and where its per-residue confidence is kept.
     prediction: { type: 'object', additionalProperties: false, required: ['method', 'confidence'],
       properties: { method: { type: 'string', minLength: 1, maxLength: 120 }, model: { type: 'string', maxLength: 120 },
@@ -51,6 +56,9 @@ export function validateResource(input) {
   if (!result.valid) throw new SchemaValidationError('Resource', result.errors);
   if ((record.kind === 'predicted-structure') !== Boolean(record.prediction)) {
     throw new SchemaValidationError(`Resource ${record.id}: ${record.kind === 'predicted-structure' ? 'a predicted structure must say how it was predicted (prediction)' : 'only a predicted structure carries a prediction block'}`);
+  }
+  if ((record.kind === 'map') !== Boolean(record.map)) {
+    throw new SchemaValidationError(`Resource ${record.id}: ${record.kind === 'map' ? 'a density map must describe its grid (map)' : 'only a density map carries a map block'}`);
   }
   const paths = new Set();
   for (const { path } of record.files) {
@@ -179,3 +187,19 @@ export function describePredictedStructure({ provider, accession, sha256, bytes,
 /** The evidence entry a scene must carry for a predicted structure: it says "modelled", names the resource, and is the sentence a reader sees. */
 export const predictionEvidence = (record) => ({ type: 'modelled', resourceId: record.id,
   citation: `${record.source.accession}：${record.prediction.method} 预测的结构，不是实验测定的。颜色或形状的可信程度要看每个残基的置信度（${record.prediction.confidence.metric}）。` });
+
+/**
+ * A density map as a resource (docs/PLUGIN_ROADMAP.md, A2): its grid (so a reader can place it), where it comes from, and a contour level that says whether it is the depositor's or only a starting
+ * heuristic. `map` is what parseMrc returned. The licence is stated by the caller (EMDB entries are CC0 as the author understands it, which is not checked here).
+ */
+export function describeMapResource({ provider, accession, sha256, bytes, path, map, license, credit, url, contour, mediaType = 'application/x-mrc', embedAllowed = true }) {
+  if (!provider || !accession || !license) throw new TypeError('provider, accession and license are required');
+  const slugOf = (text) => String(text).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 60) || 'x';
+  const id = `res.${slugOf(provider)}.${slugOf(accession)}`;
+  return validateResource({
+    format: 'glow-resource', schemaVersion: 1, id, version: sha256.slice(0, 8), kind: 'map',
+    files: [{ path: path ?? `${accession}.map`, sha256, mediaType, bytes }],
+    source: { provider, accession, ...(url ? { url } : {}) }, attribution: { license, ...(credit ? { credit } : {}), ...(url ? { url } : {}), embedAllowed },
+    map: { dims: [...map.dims], voxelSize: [...map.voxelSize], origin: [...map.origin], ...(contour ? { contour } : {}) },
+  });
+}

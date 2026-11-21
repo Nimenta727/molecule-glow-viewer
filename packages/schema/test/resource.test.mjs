@@ -82,3 +82,15 @@ test('a predicted structure is a resource of its own kind that must say how it w
   assert.throws(() => describePredictedStructure({ provider: 'alphafold', accession: 'x', sha256, bytes: 1, method: 'AlphaFold' }), /license/);
   const evidence = predictionEvidence(record); assert.equal(evidence.type, 'modelled'); assert.equal(evidence.resourceId, record.id); assert.match(evidence.citation, /预测的结构，不是实验测定的/);
 });
+
+test('a density map is a resource that describes its grid; only a map carries that block', async () => {
+  const { describeMapResource } = await import('../resource.mjs');
+  const map = { dims: [64, 64, 64], voxelSize: [1.1, 1.1, 1.1], origin: [-30, -30, -30] };
+  const record = describeMapResource({ provider: 'emdb', accession: 'EMD-0000', sha256: 'f'.repeat(64), bytes: 1048576, map, license: 'CC0-1.0', contour: { level: 0.02, source: 'depositor' } });
+  assert.equal(record.kind, 'map'); assert.equal(record.id, 'res.emdb.emd-0000'); assert.deepEqual(record.map.dims, [64, 64, 64]); assert.deepEqual(record.map.contour, { level: 0.02, source: 'depositor' });
+  const without = { ...record }; delete without.map; assert.throws(() => validateResource(without), /must describe its grid/);
+  assert.throws(() => validateResource({ ...record, kind: 'structure' }), /only a density map/);
+  assert.throws(() => validateResource({ ...record, map: { ...record.map, voxelSize: [0, 1, 1] } }), /Resource/);
+  assert.throws(() => validateResource({ ...record, map: { ...record.map, contour: { level: 1, source: 'guess' } } }), /Resource/);
+  assert.throws(() => describeMapResource({ provider: 'emdb', accession: 'x', sha256: 'f'.repeat(64), bytes: 1, map }), /license/);
+});
