@@ -16,6 +16,7 @@ import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
 import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
 import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
@@ -636,11 +637,20 @@ function openInViewer(entry) {
   window.open(url, '_blank', 'noopener');
   return false;   // the dialog stays open
 }
+const templateLibrary = (() => { try { return createTemplateLibrary({ store: indexedDbStore({ name: 'glow-templates' }) }); } catch { return null; } })();   // the person's own protein templates, on this machine
 const workshop = createWorkshopDialog(document, {
+  ...(templateLibrary ? { templates: { library: templateLibrary,
+    loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
+    actions: [{ label: '用此模板新建作品', title: '这份原文件成为新作品的第一个资源（先核对哈希）', run: async (entry) => {
+      navigationEditor.assertSaved();
+      const structure = { name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
+        source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } };
+      await importStructureAsWork(structure, { title: entry.title, message: `已用模板 ${entry.title} 新建作品。` });
+    } }] } } : {}),
   load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
   toolTitle, toolAvailable: isKnownTool,
   actions: {
-    templates: [{ label: '在 Viewer 中查看', title: '模板是静态的：在 Viewer 里看结构、读解说', run: (entry) => openInViewer(entry) }],
+    templates: [{ label: '在 Viewer 中查看', title: '静态作品：在 Viewer 里看结构、读解说', run: (entry) => openInViewer(entry) }],
     works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => openInViewer(entry) }],
     resources: [{ label: '用此资源新建作品', title: '从来源取回、核对哈希，成为新作品的第一个资源', run: async (entry) => {
       navigationEditor.assertSaved();

@@ -96,7 +96,7 @@ export function diagnose(catalog, entry, { toolAvailable = () => true } = {}) {
     return out;
   }
   const byId = new Map(catalog.resources.map((resource) => [resource.id, resource]));
-  for (const id of entry.tools) if (!toolAvailable(id)) add('error', 'tool-missing', `需要的工具 ${id} 在这个应用里不可用；作品不能按发布时的样子运行（可改用模板区的静态版本）。`);
+  for (const id of entry.tools) if (!toolAvailable(id)) add('error', 'tool-missing', `需要的工具 ${id} 在这个应用里不可用；作品不能按发布时的样子运行（可改用“静态作品”里的静态版本）。`);
   for (const id of entry.resources) {
     const resource = byId.get(id);
     if (!resource) { add('warning', 'resource-missing', `资源 ${id} 不在本目录里，无法核对其哈希与授权。`); continue; }

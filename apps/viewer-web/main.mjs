@@ -57,6 +57,8 @@ import { normalizeTranslationConfig, translationProcessConfig } from '../../plug
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
+import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
 import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
 import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
 import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
@@ -1310,12 +1312,18 @@ function boot() {
   // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
   // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
   const pluginSwitch = createPluginSwitch((() => { try { return window.localStorage; } catch { return null; } })());
+  // the person's own protein templates (originals from the PDB or from disk), kept on this machine; no IndexedDB (a private window) = the zone is not offered
+  const templateLibrary = (() => { try { return createTemplateLibrary({ store: indexedDbStore({ name: 'glow-templates' }) }); } catch { return null; } })();
+  const templateStructure = async (entry) => ({ name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
+    source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } });
   const workshop = createWorkshopDialog(document, {
     pluginState: pluginSwitch,
+    ...(templateLibrary ? { templates: { library: templateLibrary, loadRcsb: (code) => loadAccession(code, new AbortController().signal),
+      actions: [{ label: '打开结构', title: '把这份原文件作为结构打开（先核对哈希）', run: async (entry) => { await setStructureEnabled(true); await openScene({ structure: await templateStructure(entry), assembly: elements['structure-assembly'].checked }, { propagate: true }); } }] } } : {}),
     load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
     toolTitle, toolAvailable: isKnownTool,
     actions: {
-      templates: [{ label: '查看', title: '静态模板：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      templates: [{ label: '查看', title: '静态作品：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       works: [{ label: '打开动态演示', title: '作品：下载、核对哈希后打开，演示作用原理', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       resources: [{ label: '打开结构', title: '从来源取回、核对哈希后作为结构打开', run: (entry) => openWorkshopResource(entry) }],
     },
@@ -2044,7 +2052,7 @@ function boot() {
   if (workId) {
     workshop.catalog().then((catalog) => {
       const entry = [...catalog.works, ...catalog.templates].find(({ id }) => id === workId);
-      if (!entry) throw new Error(`工坊里没有模板或作品 ${workId}。`);
+      if (!entry) throw new Error(`工坊里没有静态作品或作品 ${workId}。`);
       return openWorkshopWork(entry, catalog);
     }).catch((error) => setStatus(`无法打开工坊作品。 ${error.message}`));
   } else openScene();

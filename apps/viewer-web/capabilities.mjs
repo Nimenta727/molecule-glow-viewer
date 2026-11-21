@@ -13,7 +13,7 @@ export function capabilityReport(scene, { isKnown = () => true, resolveToolId = 
   const items = [];
   for (const entry of scene.tools ?? []) {
     const id = entry.tool.id;
-    if (!isKnown(id)) { items.push({ level: 'warning', code: 'tool-missing', toolId: id, entryId: entry.id, message: `作品使用的工具 ${id} 在这个应用里不存在：这一部分不会运行，其余内容照常显示。可以换用较新的版本，或在工坊的模板区看静态版本。` }); continue; }
+    if (!isKnown(id)) { items.push({ level: 'warning', code: 'tool-missing', toolId: id, entryId: entry.id, message: `作品使用的工具 ${id} 在这个应用里不存在：这一部分不会运行，其余内容照常显示。可以换用较新的版本，或在工坊的“静态作品”里看静态版本。` }); continue; }
     const resolved = resolveToolId(id);
     if (resolved && resolved !== id) items.push({ level: 'info', code: 'tool-alias', toolId: id, resolvedId: resolved, entryId: entry.id, message: `工具 ${id} 是旧编号，已按 ${resolved} 运行；重新保存后会写成新编号。` });
   }
