@@ -22,10 +22,10 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await page.waitForFunction(() => document.querySelector('#data-play') && !document.querySelector('#data-play').closest('[hidden]'), null, { timeout: 150000 });
   await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
   const panel = page.locator('#data-controls');
-  const seconds = async () => Number((await page.$eval('#data-time', (n) => n.textContent)).split('/')[1]);   // the furthest time reached
-  const nowT = async () => Number((await page.$eval('#data-time', (n) => n.textContent)).split('/')[0]);
+  const seconds = async () => parseFloat((await page.$eval('#data-time', (n) => n.textContent)).split('/')[1]);   // the furthest time reached
+  const nowT = async () => parseFloat((await page.$eval('#data-time', (n) => n.textContent)).split('/')[0]);
   const snapshot = async () => ({ t: await nowT(), counters: await page.$eval('#data-counters', (n) => n.innerText), kinetics: await page.$eval('#data-kinetics', (n) => n.innerText), log: await page.$$eval('#data-interventions li', (l) => l.map((x) => x.textContent)) });
-  const runUntil = async (target) => { await page.check('#data-play'); await page.waitForFunction((t) => Number(document.querySelector('#data-time').textContent.split('/')[1]) >= t, target, { timeout: 120000 }); await page.uncheck('#data-play'); await page.waitForTimeout(300); };
+  const runUntil = async (target) => { await page.check('#data-play'); await page.waitForFunction((t) => parseFloat(document.querySelector('#data-time').textContent.split('/')[1]) >= t, target, { timeout: 120000 }); await page.uncheck('#data-play'); await page.waitForTimeout(300); };
   const seekTo = async (s) => { await page.$eval('#data-seek', (n, v) => { n.value = String(v); n.dispatchEvent(new Event('input', { bubbles: true })); n.dispatchEvent(new Event('change', { bubbles: true })); }, Math.round(s * 30)); await page.waitForTimeout(500); };
 
   await runUntil(2.0);
