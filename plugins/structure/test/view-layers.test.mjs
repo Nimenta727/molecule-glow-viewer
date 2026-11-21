@@ -82,3 +82,18 @@ test('pick targets are reported for callers that keep them, and the legacy style
   assert.ok(mine.filter((layer) => layer.mode !== 'points' && layer.role !== 'functional-core').every((layer) => layer.color === '#123456'));
   assert.notEqual([...result.layers.entries()].find(([id]) => id !== first)[1][0].representationStyle, 'cartoon');
 });
+
+test('a recolor callback sets the colour of a chain group (not its pick points) and wins over a classic scene colour', async () => {
+  const { scene, model, layers, build } = await imported();
+  const source = structureSources(scene)[0], models = new Map([[source.id, model]]), seen = [];
+  const result = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'blob', recolor: (group, index, count) => { seen.push([group.chainId, index, count]); return index === 0 ? '#abcdef' : undefined; } });
+  assert.ok(seen.length >= 1 && seen.every(([, , count]) => count >= 1));
+  const [first, ...rest] = [...result.layers.entries()].filter(([id]) => layers.has(id));
+  const painted = (entry) => entry[1].filter((layer) => layer.mode !== 'points' && layer.role !== 'functional-core');
+  assert.ok(painted(first).length && painted(first).every((layer) => layer.color === '#abcdef'));
+  assert.ok(first[1].filter((layer) => layer.mode === 'points').every((layer) => layer.color !== '#abcdef'), 'pick points keep their colour');
+  if (rest.length) assert.ok(painted(rest[0]).every((layer) => layer.color !== '#abcdef'), 'other chains keep the plugin palette');
+  const legacy = structuredClone(scene); Object.assign(legacy.assets.find(({ id }) => id === [...layers.keys()][0]).provenance, { legacyStyle: 'cartoon', legacyColor: '#123456' });
+  const both = buildStructureLayers({ scene: legacy, models, layers: new Map(layers), build, style: 'blob', recolor: () => '#fedcba' });
+  assert.ok(painted([null, both.layers.get([...layers.keys()][0])]).every((layer) => layer.color === '#fedcba'));
+});

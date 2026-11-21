@@ -17,17 +17,23 @@ export function createAnalysisPanel({ viewport, elements, context }) {
   const clearMeasure = () => { viewport.setOverlayLines(LINE, []); elements.measureOut.textContent = ''; };
   const clearChannel = () => { viewport.setParticleCloud(PATH, []); elements.channelOut.textContent = ''; };
 
-  elements.measure.addEventListener('click', () => {
+  /** Measure the given selection expressions (two: distance, three: angle), draw the line, write the text; returns the numbers, or throws the reason. */
+  function measureNow(expressions) {
     clearMeasure();
-    const model = context.model(); if (!model) return;
+    const model = context.model(); if (!model) return null;
     try {
-      const result = measure(context.space(), [elements.a.value, elements.b.value, elements.c.value]), convert = toRoot(model);
+      const result = measure(context.space(), expressions), convert = toRoot(model);
       viewport.setOverlayLines(LINE, result.positions.slice(1).map((p, i) => ({ a: convert(result.positions[i]), b: convert(p), color: '#d9a400' })), { dash: 0.01, gap: 0.006 });
       elements.measureOut.textContent = result.distance != null
         ? `${result.points[0]} — ${result.points[1]}：${result.distance.toFixed(2)} Å`
         : `${result.points[0]} — ${result.points[1]} — ${result.points[2]}：${result.angle.toFixed(1)}°（${result.points[1]} 是顶点）`;
-    } catch (error) { elements.measureOut.textContent = error instanceof MeasureError || error.name === 'SelectionError' ? error.message : `测量失败：${error.message}`; }
-  });
+      return result.distance != null ? { kind: 'distance', value: result.distance, unit: 'Å', points: result.points } : { kind: 'angle', value: result.angle, unit: '°', points: result.points, vertex: result.points[1] };
+    } catch (error) {
+      elements.measureOut.textContent = error instanceof MeasureError || error.name === 'SelectionError' ? error.message : `测量失败：${error.message}`;
+      throw error;
+    }
+  }
+  elements.measure.addEventListener('click', () => { try { measureNow([elements.a.value, elements.b.value, elements.c.value]); } catch { /* the reason is written next to the button */ } });
   elements.measureClear.addEventListener('click', clearMeasure);
 
   elements.channel.addEventListener('click', () => {
@@ -73,5 +79,5 @@ export function createAnalysisPanel({ viewport, elements, context }) {
   });
   elements.chainClear.addEventListener('click', clearChain);
 
-  return { reset() { clearMeasure(); clearChannel(); clearChain(); } };
+  return { reset() { clearMeasure(); clearChannel(); clearChain(); }, measureNow, clearMeasure };
 }

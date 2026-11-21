@@ -20,8 +20,12 @@ await glow.load(pack);
 | `load(spec)` | `{pdb,assembly?}`、`{url,assembly?}`、`{packText}` 或 v2 包；按需启用官方结构插件 |
 | `select(spec)` | `{chainId?,residueId?,sourceAssetId?}`；残基可写 `{authSeqId,labelSeqId,insertionCode}`；简写 `chain A`、`resid 8`、`none`；字符串写成选择语言表达式（`chain A and resi 10-50`、`within 5 of ligands`、`sele`…）时选中**全部**匹配的残基/小分子，回包 `{residues,ligands,marked,summary}` |
 | `represent(mode)` | `cartoon`、`backbone`、`blob`、`functional`、`surface`，作用于主结构；分部件设置沿用当前场景规则 |
-| `camera(pose)` | 省略读取，`reset` 重置，或 `{position:[x,y,z],target:[x,y,z]}`，使用场景米制坐标 |
-| `animate(opts)` | `{pause?,time?,speed?,seed?,step?,steps?,parameters?,morph?}`；speed、seed 需要机制插件；领域参数由当前插件校验；morph 为 0–1 或 `auto`，需要两态插件；跳转、数值 morph 或定步后暂停 |
+| `camera(pose)` | 省略读取，`reset` 重置，或 `{position:[x,y,z],target:[x,y,z]}`，使用场景米制坐标；经典写法也可用：`{orbit:度}` 绕竖直轴转、`{az,el,dist}` 按角度（°，el 限 ±89）和距离（米）设定、`{focus:"选择表达式"}` 飞到选择处（保持视线方向，可再给 `dist`）；字符串 `"orbit 90"`、`"focus chain A"`、`"reset"` 同样接受。超范围的值被拒绝而不是截断 |
+| `measure(a,b[,c])` | 两个选择 → 距离（Å），三个 → 角度（°，第二个是顶点）；每个选择必须正好是一个残基（Cα，核酸 P）或一个小分子（中心）。也接受数组或 `{a,b,c}`；`measure('clear')` 清除标线。回包 `{kind,value,unit,points}`；数值与经典逐位相同 |
+| `sequence(opts)` | 无参数：每条链 `{label,chain,length,sequence,gaps}`（一字母码，缺失段）；`{show}` 开关序列条；`{select}` 用选择语言选中并回包 `selected` |
+| `color(...)` | 按**整条链**上色：`color('chain'｜'entity'｜'rainbow'｜'reset')` 换方式（清除单链颜色），`color('chain A','#e05a4a')` 或 `color({target,color})` 给一条链，省略目标或写 `all` 给全部。颜色为 `#rgb`/`#rrggbb` 或 red、blue 等名字。按残基范围上色（如 `chain A and resi 1-9`）尚未迁移，被明确拒绝 |
+| `clip(opts)` | `{enabled?, depth?(-1…1), scope?('all'｜'parts'), aim?}`；无参数读取。回包 `{enabled,depth,scope,direction,wedgeParts}` |
+| `animate(opts)` | `"play"`、`"pause"`，或 `{pause?,time?,speed?,seed?,step?,steps?,parameters?,morph?}`；speed、seed 需要机制插件；领域参数由当前插件校验；morph 为 0–1 或 `auto`，需要两态插件；跳转、数值 morph 或定步后暂停 |
 | `snapshot({width?})` | 当前视口 PNG data URL，宽度 64–4096；不包含控制面板 |
 | `exportPack()` | `{format:'glow-v2',encoding:'base64',data}`；v2 ZIP 包含原坐标、预览及当前保存状态 |
 | `validatePack(pack)` | 检查 v1 JSON 文本或上述 v2 包，返回 `{ok,errors?}` |
@@ -44,6 +48,8 @@ KcsA 插件支持 `glow.animate({parameters:{pH:4,V:50,Ki:140,Ko:5,Nai:10,TBA:0,
 
 AdK 官方两态场景支持 `glow.animate({morph:0.5})`、`glow.animate({morph:'auto',pause:false})` 和 `glow.animate({parameters:{ap5:0}})`。`info()` 返回构象程度与 `domainMeasurements`（相对张开态 CORE 的转角及位移，单位 ° / Å）。自动/手动切换、变速和参考配体设置随包保存。该展示没有反应速率、底物消耗或 ADP 产量；`official.adk-reaction-data.glow` 尚待单独迁移。
 
+`help()` 除命令表外还返回 `tools`：已注册工具（粒子、数据动画、随机过程、翻译、多过程…）的 id、标题、运行方式、运行参数（类型、范围、单位、默认值）与模型假设，来自工具描述符；运行参数用 `animate({parameters})` 设置。仍未迁移的经典命令：`style`（画风）、按选择换表示；`sequence` 的 UniProt 位点类别请用界面按钮。
+
 ## 嵌入
 
 在 URL 显式使用 `?embed=1` 或 `?dev=1` 仅开启消息桥，不授予权限。候选来源是 `https://nimenta727.github.io`，`dev=1` 另外允许同源父窗口；请求必须来自当前父窗口或 opener。`null`、非许可来源、伪造子域、自身发消息及其他同源窗口均被忽略，URL 的 `origin=` 不会扩大权限。
@@ -51,8 +57,8 @@ AdK 官方两态场景支持 `glow.animate({morph:0.5})`、`glow.animate({morph:
 | 权限 | 命令与回包 |
 |---|---|
 | 公开状态 | `ready` / `help` 只含接口版本与静态说明，不含场景身份或文件名 |
-| 场景控制 | `load`、`select`、`represent`、`camera`、`animate`、`validatePack` 需要用户点击允许；回包统一为 `{accepted:true}`，不会转发适配器返回的完整场景信息 |
-| 敏感读取 | `info`、`snapshot`、`exportPack`、`log` 需要另一项明确允许，界面告知可能读取未公开结构数据；远程日志只含时间、命令和成功状态，参数省略，避免跨场景泄露历史文件 |
+| 场景控制 | `load`、`select`、`represent`、`color`、`clip`、`camera`、`animate`、`validatePack` 需要用户点击允许；回包统一为 `{accepted:true}`，不会转发适配器返回的完整场景信息 |
+| 敏感读取 | `info`、`snapshot`、`exportPack`、`log`、`sequence`、`measure` 需要另一项明确允许，界面告知可能读取未公开结构数据；远程日志只含时间、命令和成功状态，参数省略，避免跨场景泄露历史文件 |
 | 日志重放 | `replay` 同时需要控制和敏感读取权限，逐命令检查授权 |
 
 两类授权都绑定 origin、请求窗口和当前场景；拒绝会记住到撤销/换场景，授权后可点击“撤销全部嵌入权限”。换场景尝试、页面关闭会撤销；排队的未执行命令被拒绝，执行中的敏感结果也不能在撤销后返回。已开始的场景操作不能自动回滚，`load` 完成只回确认，新场景须重新授权。直接在页面内调用 `window.glow` 不变。

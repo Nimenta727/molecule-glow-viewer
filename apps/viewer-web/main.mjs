@@ -37,7 +37,11 @@ import { loadChemComp } from '../../plugins/structure/chemical-component.mjs';
 import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
-import { SELECTION_HELP, describeSelection, selectionSpace } from '../../plugins/structure/selection.mjs';
+import { SELECTION_HELP, describeSelection, selectionSpace, evaluateSelection } from '../../plugins/structure/selection.mjs';
+import { sequenceRows } from '../../plugins/structure/sequence.mjs';
+import { displayCenter } from '../../plugins/motion/state-pair.mjs';
+import { createColorState, resolveColor, isDefault } from './color-scheme.mjs';
+import { describeTools } from './tool-help.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -861,6 +865,7 @@ function boot() {
     loaded.models ??= new Map([[first.id, loaded.model]]);
     const result = buildStructureLayers({
       scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
+      recolor: loaded.colorState && !isDefault(loaded.colorState) ? (group, index, count) => resolveColor(loaded.colorState, group.chainId, index, count) : undefined,
       onTarget(target, source, primary) {
         target.sourceAssetId = source.id;
         loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
@@ -1700,6 +1705,39 @@ function boot() {
     select: showStructurePick,
     selectSet,
     clearSet,
+    tools: () => describeTools(host.listTools({ audience: 'view' })),
+    measure: (expressions) => { if (!expressions) { analysisPanel.clearMeasure(); return null; } return analysisPanel.measureNow(expressions); },
+    chainIds: () => (active?.model ? [...new Set(selectionSpace(active.model).residues.map((r) => r.chain))] : null),
+    colorState: () => active?.colorState ?? createColorState(),
+    setColors: (state) => { active.colorState = state; refreshStructureView(); },
+    sequence: () => {
+      if (!active?.model) return null;
+      const { rows, hidden } = sequenceRows(active.model);
+      return { visible: sequenceBar.visible, hidden, chains: rows.map((row) => ({ label: row.label, chain: row.chain, length: row.cells.length, sequence: row.cells.map((cell) => cell.code).join(''),
+        gaps: row.cells.filter((cell) => cell.gapBefore).map((cell) => cell.gapBefore) })) };
+    },
+    showSequence: (flag) => {
+      const on = sequenceBar.setVisible(flag); elements['sequence-toggle'].setAttribute('aria-pressed', String(on));
+      if (on) { sequenceBar.setModel(active?.model); syncSequence(); }
+    },
+    focusPoint: (expression) => {
+      if (!active?.model) return null;
+      let found;
+      try { found = evaluateSelection(expression, selectionSpace(active.model)); } catch (error) { throw new Error(error.message); }
+      const points = [...found.residues.map((r) => r.position), ...found.ligands.flatMap((l) => l.atoms.map((a) => a.position))];
+      if (!points.length) throw new Error(`“${expression}”没有选中任何东西。`);
+      const c = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM, mean = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length);
+      return { point: mean.map((v, i) => (v - c[i]) * k), radius: Math.max(...points.map((p) => Math.hypot(p[0] - mean[0], p[1] - mean[1], p[2] - mean[2]))) * k };
+    },
+    clip: (spec) => {
+      const state = clipState();
+      if (spec.depth != null) state.depth = spec.depth;
+      if (spec.scope != null) state.scope = spec.scope;
+      if (spec.aim || (spec.enabled === true && !state.enabled)) state.direction = normalizeClipping({ direction: viewport.clipFrame().toViewer }).direction;
+      if (spec.enabled != null) state.enabled = spec.enabled;
+      syncClipControls(); applyClipping();
+      return { enabled: state.enabled, depth: state.depth, scope: state.scope, direction: [...state.direction], wedgeParts: [...state.wedgeParts] };
+    },
     selectAtoms: (model, spec) => host.getService(MODEL_SERVICE, '1.0.0').select(model, spec),
     represent: (style) => { refreshStructureView(style); syncControls(); showStructureParts(); },
     enableStructure: () => setStructureEnabled(true, { propagate: true }),

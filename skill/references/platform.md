@@ -31,7 +31,7 @@ feature-parity.json 和 docs/parity/cases.json 绑定经典/新版案例、数�
 
 ## 命令与嵌入
 
-window.glow 是页面内接口，先 help() 了解当前入口。新版复杂选择、color/style/measure/sequence 等尚未完全兼容经典。导出新版返回 glow-v2 的 base64 包装，不能假装是 v1 对象。
+window.glow 是页面内接口，先 help() 了解当前入口：它列出命令，也列出已注册的工具及其运行参数。新版现已支持选择语言、measure、sequence、按整条链的 color、clip 和经典写法的 camera（orbit / az,el,dist / focus）；style（画风）、按残基范围上色、按选择换表示尚未迁移，被明确拒绝而不是静默忽略。导出新版返回 glow-v2 的 base64 包装，不能假装是 v1 对象。
 
 embed=1/dev=1 只启用桥。固定可信 origin 也需要用户明确授权；请求绑定父窗口/opener、origin 和当前场景。控制只回确认，info/snapshot/exportPack/log 为单独敏感权限；撤销/换场景使权限失效。URL origin 参数不能自授权。同源页面仍有原有 DOM 权限；完整插件沙箱待收尾。
 

@@ -1,5 +1,7 @@
 import { openSceneFile } from './scene-io.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
+import { applyColor } from './color-scheme.mjs';
+import { applyCameraSpec } from './camera-spec.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
 const object = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -124,14 +126,33 @@ export function createViewerCommands(host) {
     camera(value) {
       needScene();
       if (value == null) return host.camera();
-      if (value === 'reset') host.resetCamera();
-      else {
-        if (!object(value) || !['position', 'target'].every((key) => Array.isArray(value[key]) && value[key].length === 3 && value[key].every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 1e6)) || Math.hypot(...value.position.map((v, i) => v - value.target[i])) < 0.001) throw new Error('镜头需要有效的 position 和 target 三维坐标。');
+      if (typeof value === 'string') {
+        const text = value.trim(), match = /^(orbit|focus)\s+(.+)$/i.exec(text);
+        if (text === 'reset') value = 'reset';
+        else if (match) value = match[1].toLowerCase() === 'orbit' ? { orbit: Number(match[2]) } : { focus: match[2] };
+        else throw new Error('镜头命令应为 reset、"orbit 90"、"focus <选择>" 或对象。');
+      }
+      if (value === 'reset' || object(value) && value.reset === true && Object.keys(value).length === 1) host.resetCamera();
+      else if (object(value) && ['position', 'target'].some((key) => key in value)) {
+        if (!object(value) || Object.keys(value).some((key) => !['position', 'target'].includes(key)) || !['position', 'target'].every((key) => Array.isArray(value[key]) && value[key].length === 3 && value[key].every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) <= 1e6)) || Math.hypot(...value.position.map((v, i) => v - value.target[i])) < 1e-6) throw new Error('镜头需要不同的 position 与 target（三个有限数）。');
         host.setCamera(value);
+      } else {
+        if (!object(value)) throw new Error('镜头参数无效。');
+        const { focus, ...rest } = value;
+        let spec = { ...rest };
+        if (focus != null) {
+          if (typeof focus !== 'string') throw new Error('focus 应为选择表达式。');
+          const found = host.focusPoint?.(focus);
+          if (!found) throw new Error('相应结构插件或坐标不可用。');
+          spec = { ...spec, focusPoint: found.point, focusRadius: found.radius };
+        }
+        if (!Object.keys(spec).length) throw new Error('镜头参数无效。');
+        host.setCamera(applyCameraSpec(host.camera(), spec));
       }
       return host.camera();
     },
     animate(value = {}) {
+      if (value === 'play' || value === 'pause') value = { pause: value === 'pause' };
       const current = needScene(); const player = current.player;
       if (!object(value) || Object.keys(value).some((key) => !['pause', 'time', 'speed', 'seed', 'step', 'steps', 'parameters', 'morph'].includes(key))) throw new Error('动画参数无效或尚未迁移。');
       if (value.morph != null) {
@@ -151,6 +172,55 @@ export function createViewerCommands(host) {
       host.animate(value);
       return info();
     },
+    measure(value) {
+      needScene();
+      if (value === 'clear') { host.measure(null); return { cleared: true }; }
+      const list = Array.isArray(value) ? value : object(value) ? [value.a, value.b, value.c].filter((item) => item != null) : null;
+      if (!list || list.length < 2 || list.length > 3 || list.some((item) => typeof item !== 'string' || !item.trim() || item.length > 400)) throw new Error('measure 需要两个或三个选择表达式（距离或角度），或 "clear"。');
+      const result = host.measure(list);
+      if (!result) throw new Error('相应结构插件或坐标不可用。');
+      return result;
+    },
+    sequence(value) {
+      needScene();
+      if (value != null && !object(value)) throw new Error('sequence 参数应为 {show?, select?}。');
+      const options = value ?? {};
+      if (Object.keys(options).some((key) => !['show', 'select'].includes(key))) throw new Error('sequence 只接受 show 与 select。');
+      if (options.show != null && typeof options.show !== 'boolean') throw new Error('show 应为布尔值。');
+      if (options.select != null && (typeof options.select !== 'string' || !options.select.trim())) throw new Error('select 应为选择表达式。');
+      let selected;
+      if (options.show != null) host.showSequence(options.show);
+      if (options.select != null) {
+        host.select();
+        selected = host.selectSet(options.select);
+        if (!selected) throw new Error('相应结构插件或坐标不可用。');
+      }
+      const data = host.sequence();
+      if (!data) throw new Error('相应结构插件或坐标不可用。');
+      return { ...data, ...(selected ? { selected } : {}) };
+    },
+    color(value) {
+      needScene();
+      const args = Array.isArray(value) ? value : [value];
+      if (args.length > 2 || value == null) throw new Error('color 需要 (方案) 或 (目标, 颜色)。');
+      const chains = host.chainIds();
+      if (!chains) throw new Error('相应结构插件或坐标不可用。');
+      let outcome;
+      try { outcome = applyColor(host.colorState(), args[0], args[1], chains); } catch (error) { throw new Error(error.message); }
+      host.setColors(outcome.state);
+      return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, note: outcome.note };
+    },
+    clip(value) {
+      needScene();
+      if (value == null) return host.clip({});
+      if (!object(value) || Object.keys(value).some((key) => !['enabled', 'depth', 'scope', 'aim'].includes(key))) throw new Error('clip 只接受 enabled、depth、scope、aim。');
+      if (value.enabled != null && typeof value.enabled !== 'boolean') throw new Error('enabled 应为布尔值。');
+      if (value.depth != null) finite(value.depth, -1, 1, 'depth');
+      if (value.scope != null && !['all', 'parts'].includes(value.scope)) throw new Error('scope 应为 all 或 parts。');
+      if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
+      return host.clip(value);
+    },
+    tools: () => host.tools?.() ?? [],
     snapshot(value) {
       needScene();
       const width = object(value) ? value.width : value;

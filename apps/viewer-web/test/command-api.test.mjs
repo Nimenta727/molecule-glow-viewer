@@ -20,7 +20,7 @@ test('commands serialize mutations, copy arguments, and recover after a failure'
   assert.deepEqual(api.log.map(({ ok }) => ok), [false, true]);
   assert.deepEqual(api.log[0].args, { omitted: true });
   api.log.pop(); assert.equal(api.log.length, 2);
-  await assert.rejects(api.run('color'), /尚不支持/);
+  await assert.rejects(api.run('style'), /尚不支持/);
 });
 
 test('replay skips reads, failed commands and files; disposal rejects queued work', async () => {
@@ -44,7 +44,7 @@ function bridgeHarness({ consent = async () => true, scene = { id: 1 } } = {}) {
     location: { origin: 'http://localhost:8000', search: '?embed=1&origin=https://evil.example' }, parent,
     addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name),
   };
-  const commands = createCommandApi(Object.fromEntries(['info','snapshot','exportPack','camera','animate','load','select'].map(cmd => [cmd, value => { calls.push(cmd); return { secret: 'private.cif', value }; }])));
+  const commands = createCommandApi(Object.fromEntries(['info','snapshot','exportPack','camera','animate','load','select','measure','sequence','color','clip'].map(cmd => [cmd, value => { calls.push(cmd); return { secret: 'private.cif', value }; }])));
   const detach = attachCommandBridge(target, commands.api, { getSceneToken: () => scene, requestConsent: (origin, scope, signal) => { asks.push(scope); return consent(scope, signal); } });
   replies.length = 0;
   const send = (cmd, { origin = 'https://nimenta727.github.io', source = parent, args } = {}) => listeners.get('message')?.({ origin, source, data: { glow: 'cmd', id: 7, cmd, args } });
@@ -148,4 +148,15 @@ test('remote command logs omit arguments from earlier private scenes', async () 
   assert(!JSON.stringify(result).includes('PRIVATE_COORDINATES'));
   assert(!JSON.stringify(result).includes('older-scene'));
   assert(result.result.every(entry=>entry.args.omitted===true));h.detach();
+});
+
+test('commands that return residue names, distances or sequences need the sensitive consent; colour and clip are plain scene control', async () => {
+  const h = bridgeHarness();
+  await h.send('measure', { args: ['a', 'b'] }); await h.send('sequence');
+  assert.deepEqual(h.asks, ['sensitive'], 'asked once for the sensitive scope, memoized for the second');
+  assert.equal(h.replies.at(-1)[0].ok, true); assert.ok(h.replies.at(-1)[0].result.secret, 'a sensitive read gets the result');
+  const control = bridgeHarness();
+  await control.send('color', { args: 'chain' }); await control.send('clip', { args: { enabled: true } });
+  assert.deepEqual(control.asks, ['scene']); assert.deepEqual(control.replies.at(-1)[0].result, { accepted: true }, 'control consent never returns scene data');
+  h.detach(); control.detach();
 });

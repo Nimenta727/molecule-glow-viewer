@@ -10,7 +10,7 @@ function consentPanel(target, revoke) {
       panel.style.cssText = 'position:fixed;top:12px;left:12px;right:12px;z-index:10000;background:white;color:#172033;border:1px solid #677;padding:14px;max-width:650px;box-shadow:0 2px 16px #0004';
       panel.replaceChildren();
       const text = target.document.createElement('p');
-      text.textContent = `网页 ${origin} 请求${scope === 'sensitive' ? '读取当前场景的详细信息、截图、原始结构文件和命令日志。文件可能含有未公开数据。' : '控制当前场景（加载、选择、表示、镜头和动画）。此权限不包含读取结构文件或截图。'}`;
+      text.textContent = `网页 ${origin} 请求${scope === 'sensitive' ? '读取当前场景的详细信息、截图、原始结构文件、序列、测量值和命令日志。文件可能含有未公开数据。' : '控制当前场景（加载、选择、表示、上色、剖切、镜头和动画）。此权限不包含读取结构文件或截图。'}`;
       panel.append(text);
       return new Promise(resolve => {
         const finish = allowed => {
@@ -69,7 +69,7 @@ export function attachScopedCommandBridge(target, api, { getSceneToken = () => n
       if (!commands.includes(message.cmd) && !['log', 'replay'].includes(message.cmd)) throw new Error('不支持的嵌入命令。');
       // No scene identifiers, filenames, camera or logs are public status.
       const scopes = message.cmd === 'help' ? [] : message.cmd === 'replay' ? ['scene', 'sensitive']
-        : [new Set(['info', 'snapshot', 'exportPack', 'log']).has(message.cmd) ? 'sensitive' : 'scene'];
+        : [new Set(['info', 'snapshot', 'exportPack', 'log', 'sequence', 'measure']).has(message.cmd) ? 'sensitive' : 'scene'];
       if (!trusted(event.origin) && scopes.includes('sensitive')) throw new Error('此来源不能读取场景数据。');
       const capturedEpoch = epoch, capturedScene = scene;
       let grant = grants.get(event.source);

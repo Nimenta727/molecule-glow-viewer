@@ -16,9 +16,10 @@ export const structureSources = (scene) => scene.assets.filter(({ kind, mediaTyp
  *   build    representation.build(model, { style, functionalRules }) -> groups
  *   style    the style asked for the primary structure; otherwise the stored style of the structure, then `defaultStyle`
  *   onTarget optional (target, source, isPrimary) for callers that keep pick targets
+ *   recolor  optional (group, index, count) -> colour string or undefined: the colour a chain group is drawn in (the Viewer's `color` command); wins over a classic scene's own colour
  * A preview that cannot be matched to a group keeps its preview geometry. Returns { layers, representationSource }.
  */
-export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget }) {
+export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget, recolor }) {
   const sources = structureSources(scene);
   let representationSource;
   const nodesByAsset = new Map(scene.nodes.map((node) => [node.assetId, node]));
@@ -45,9 +46,10 @@ export function buildStructureLayers({ scene, models, layers, build, style, defa
       const group = metadata?.chainKey ? byKey.get(metadata.chainKey) : groups[index];
       if (!group || metadata?.sourceAssetId !== source.id || metadata.chainId !== group.chainId) continue;
       for (const targets of group.pointTargets) for (const target of targets ?? []) onTarget?.(target, source, source === sources[0]);
+      const tint = recolor?.(group, groups.indexOf(group), groups.length) ?? asset.provenance.legacyColor;
       layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
         ...layer, representationStyle: effective,
-        ...(asset.provenance.legacyColor && layer.mode !== 'points' && layer.role !== 'functional-core' ? { color: asset.provenance.legacyColor } : {}),
+        ...(tint && layer.mode !== 'points' && layer.role !== 'functional-core' ? { color: tint } : {}),
         pointTargets: group.pointTargets[layerIndex],
       })));
     }
