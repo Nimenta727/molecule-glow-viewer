@@ -37,6 +37,7 @@
           <button id="export-scene" type="button">导出场景</button>
         </nav>
       </header>
+      <div id="recovery-banner" class="recovery-banner" role="status" aria-live="polite" hidden><span id="recovery-text"></span> <button id="recovery-restore" type="button">恢复草稿</button> <button id="recovery-discard" type="button">丢弃</button></div>
 
       <div class="workspace">
         <aside class="panel left-panel" aria-label="项目资源与场景">
@@ -96,6 +97,7 @@
             <button id="tab-properties" type="button" role="tab" aria-controls="pane-properties" aria-selected="true">属性</button>
             <button id="tab-tools" type="button" role="tab" aria-controls="pane-tools" aria-selected="false">工具</button>
             <button id="tab-story" type="button" role="tab" aria-controls="pane-story" aria-selected="false">讲解</button>
+            <button id="tab-publish" type="button" role="tab" aria-controls="pane-publish" aria-selected="false">发布</button>
           </div>
 
           <div id="pane-properties" role="tabpanel" aria-labelledby="tab-properties">
@@ -176,6 +178,27 @@
             <button id="add-bookmark" type="button">保存当前视角</button>
             <ul id="bookmark-list" class="text-list" aria-label="视角书签列表"></ul>
           </details>
+          </div>
+
+          <div id="pane-publish" role="tabpanel" aria-labelledby="tab-publish" hidden>
+            <section class="panel-section" id="publish-settings">
+              <h2>发布到工坊</h2>
+              <p class="tool-note">填写作者、授权和主题，检查通过后用“导出场景”得到场景包，投稿到工坊。检查规则和工坊校验是同一套。</p>
+              <label class="wide" for="pub-author">作者名</label><input id="pub-author" type="text" maxlength="80">
+              <label class="wide" for="pub-author-url">作者链接（https，可选）</label><input id="pub-author-url" type="url" maxlength="300">
+              <label class="wide" for="pub-license">授权</label><select id="pub-license"></select>
+              <label class="wide" for="pub-topic">主题</label><select id="pub-topic"><option value="">（请选择）</option></select>
+              <label class="wide" for="pub-description">简介（最多 400 字）</label><textarea id="pub-description" rows="3" maxlength="400"></textarea>
+              <label class="wide" for="pub-tags">标签（最多 8 个，用顿号或逗号分隔）</label><input id="pub-tags" type="text">
+              <label class="wide" for="pub-revision">版本（从 1 开始）</label><input id="pub-revision" type="number" min="1" step="1">
+              <p id="pub-revision-hint" class="tool-note" aria-live="polite"></p>
+              <label class="wide" for="pub-updated">更新日期</label><span><input id="pub-updated" type="date"> <button id="pub-today" type="button">今天</button></span>
+              <label class="wide" for="pub-derived">派生自（工坊里的作品）</label><select id="pub-derived"><option value="">（无）</option></select>
+              <p id="pub-derived-note" class="tool-note" aria-live="polite"></p>
+              <p><button id="pub-catalog" type="button">读取工坊目录</button> <button id="pub-save" type="button">保存发布信息</button> <button id="pub-check" type="button">发布检查</button></p>
+              <p id="pub-note" class="tool-note" role="status" aria-live="polite"></p>
+              <ul id="pub-results" class="text-list" aria-label="发布检查结果"></ul>
+            </section>
           </div>
         </aside>
       </div>

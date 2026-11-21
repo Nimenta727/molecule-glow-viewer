@@ -42,6 +42,7 @@ import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 import { createColorState, resolveColor, isDefault } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
+import { capabilityReport } from './capabilities.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
@@ -287,6 +288,9 @@ function boot() {
       if (signal.aborted) return;
       if (input.template) makeStaticTemplate(loaded);   // a template is static: looking and reading, nothing moves
       await prepareWorkScene(loaded);   // current scene format + the tool configuration of the declared mechanism
+      // what the scene needs that this application lacks (an unknown tool, an old tool id, a missing plugin): said, never a reason to refuse the scene
+      for (const { message } of capabilityReport(loaded.scene, { isKnown: (id) => isKnownTool(id) || Boolean(host.getTool(id)), resolveToolId: (id) => host.resolveToolId(id),
+        knownPlugins: new Set(['org.glow.structure', ...mechanismPlugins.map((plugin) => plugin.manifest.id), ...toolPlugins.map((plugin) => plugin.manifest.id)]) })) loaded.warnings = [...(loaded.warnings ?? []), message];
       await preparePlayer(loaded, signal);
       signal.throwIfAborted();
       const layers = structureLayers(loaded);

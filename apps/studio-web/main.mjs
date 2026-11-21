@@ -7,6 +7,7 @@ import { writeScenePackage } from '../../packages/schema/archive.mjs';
 import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
+import { createRecovery, indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
 import { createNavigationEditor } from './navigation-editor.mjs';
 import { createToolConfigPanel } from './tool-config.mjs';
 import { initTabs } from './panel-tabs.mjs';
@@ -19,6 +20,10 @@ import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
+import { checkPublication, nextRevision } from '../../plugins/workshop/publish.mjs';
+import { TOPICS } from '../../plugins/workshop/catalog.mjs';
+import { readForm, fillForm, licenseChoices, revisionHint, FormError } from './publish-form.mjs';
+import { LICENSES } from '../../plugins/workshop/diagnose.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -88,6 +93,77 @@ initTabs(document.querySelector('.tabs'), {
   },
 });
 
+// ---- Publish tab: the scene's `publication` block (author, licence, topic, revision, derivation) and the publish check the workshop validators also run ---------------------------------
+let publishCatalog = null;   // loaded on demand; the check works without it (it then cannot see existing versions or parents)
+const FIELDS = { license: 'pub-license', authorName: 'pub-author', authorUrl: 'pub-author-url', topic: 'pub-topic', description: 'pub-description', tags: 'pub-tags', revision: 'pub-revision', updated: 'pub-updated' };
+function publishValues() {
+  const [derivedId = '', derivedRevision = ''] = ui['pub-derived'].value.split('@');
+  return { ...Object.fromEntries(Object.entries(FIELDS).map(([key, id]) => [key, ui[id].value])), derivedId, derivedRevision };
+}
+function parentOf(id) { return publishCatalog ? [...publishCatalog.templates, ...publishCatalog.works].find((entry) => entry.id === id) : undefined; }
+function syncLicenseOptions() {
+  const [parentId] = ui['pub-derived'].value.split('@'), parent = parentId ? parentOf(parentId) : null, current = ui['pub-license'].value;
+  const choices = licenseChoices(parent);
+  ui['pub-license'].replaceChildren(...choices.map((choice) => Object.assign(new Option(choice.allowed ? choice.name : `${choice.name}（不可用）`, choice.id), { disabled: !choice.allowed, title: choice.reason ?? '' })));
+  ui['pub-license'].value = choices.find((choice) => choice.id === current && choice.allowed)?.id ?? choices.find((choice) => choice.allowed)?.id ?? current;
+  ui['pub-derived-note'].textContent = parent ? `派生自「${parent.title}」第 ${parent.revision ?? 1} 版（${parent.license}）。` : '';
+}
+function syncRevisionHint() {
+  const scene = project ? session().getScene() : null;
+  ui['pub-revision-hint'].textContent = scene && publishCatalog ? revisionHint(publishCatalog, scene.id, ui['pub-author'].value.trim()).text : (publishCatalog ? '' : '读取工坊目录后会提示已有的版本。');
+}
+function fillDerivedOptions() {
+  const entries = publishCatalog ? [...publishCatalog.templates, ...publishCatalog.works].sort((a, b) => a.title.localeCompare(b.title, 'zh')) : [];
+  const current = ui['pub-derived'].value;
+  ui['pub-derived'].replaceChildren(new Option('（无）', ''), ...entries.map((entry) => new Option(`${entry.title}（第 ${entry.revision ?? 1} 版 · ${entry.license}）`, `${entry.id}@${entry.revision ?? 1}`)));
+  if (current && ![...ui['pub-derived'].options].some((option) => option.value === current)) ui['pub-derived'].append(new Option(current.split('@')[0], current));
+  ui['pub-derived'].value = current;
+}
+let publishSynced = '';
+function syncPublish(scene) {
+  const stamp = JSON.stringify([scene.id, scene.publication ?? null]);   // the form is rewritten only when the scene or its saved publication changed, never over what is being typed
+  if (stamp === publishSynced) return;
+  publishSynced = stamp;
+  const form = fillForm(scene.publication);
+  for (const [key, id] of Object.entries(FIELDS)) ui[id].value = form[key];
+  if (!ui['pub-topic'].options.length || ui['pub-topic'].options.length === 1) for (const [id, name] of Object.entries(TOPICS)) ui['pub-topic'].append(new Option(name, id));
+  ui['pub-topic'].value = form.topic;
+  ui['pub-derived'].value = form.derivedId ? `${form.derivedId}@${form.derivedRevision}` : '';
+  if (form.derivedId && ui['pub-derived'].value !== `${form.derivedId}@${form.derivedRevision}`) { ui['pub-derived'].append(new Option(form.derivedId, `${form.derivedId}@${form.derivedRevision}`)); ui['pub-derived'].value = `${form.derivedId}@${form.derivedRevision}`; }
+  syncLicenseOptions(); ui['pub-license'].value = form.license; syncRevisionHint();
+}
+function renderCheck(result) {
+  const LEVELS = { error: '问题', warning: '注意', info: '说明' };
+  ui['pub-results'].replaceChildren(...result.problems.map((item) => Object.assign(document.createElement('li'), { textContent: `${LEVELS[item.level]}：${item.message}`, className: `pub-${item.level}` })));
+  ui['pub-note'].textContent = result.ok ? '检查通过：可以用“导出场景”得到场景包并投稿。' : '检查没有通过：先处理标为“问题”的项目。';
+}
+function savePublication() {
+  let publication;
+  try { publication = readForm(publishValues()); } catch (error) { if (error instanceof FormError) { ui['pub-note'].textContent = error.message; return null; } throw error; }
+  edit({ type: 'setPublication', publication }, '已保存发布信息。');
+  return publication;
+}
+ui['pub-license'].replaceChildren(...licenseChoices(null).map((choice) => new Option(choice.name, choice.id)));
+for (const [id, name] of Object.entries(TOPICS)) ui['pub-topic'].append(new Option(name, id));
+ui['pub-derived'].addEventListener('change', () => { syncLicenseOptions(); syncRevisionHint(); });
+ui['pub-author'].addEventListener('input', syncRevisionHint);
+onClick('pub-today', () => { ui['pub-updated'].value = new Date().toISOString().slice(0, 10); });
+onClick('pub-catalog', async () => {
+  ui['pub-note'].textContent = '正在读取工坊目录…';
+  publishCatalog = await loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) });
+  fillDerivedOptions(); syncLicenseOptions(); syncRevisionHint();
+  const scene = session().getScene(), mine = [...publishCatalog.templates, ...publishCatalog.works].find((entry) => entry.id === scene.id);
+  if (mine?.author?.name === ui['pub-author'].value.trim() && !ui['pub-revision'].value) ui['pub-revision'].value = String(nextRevision(mine).revision);
+  ui['pub-note'].textContent = `已读取工坊目录（${publishCatalog.templates.length + publishCatalog.works.length} 个作品、${publishCatalog.resources.length} 个资源）。`;
+});
+onClick('pub-save', () => { savePublication(); });
+onClick('pub-check', () => {
+  if (!savePublication()) return;
+  const result = checkPublication(session().getScene(), publishCatalog ?? { templates: [], works: [], resources: [], errors: [] }, { toolAvailable: isKnownTool });
+  if (!publishCatalog) result.problems.push({ level: 'info', code: 'catalog-not-read', message: '还没有读取工坊目录：已有版本、派生来源和资源是否登记没有被检查。' });
+  renderCheck(result);
+});
+
 const host = createPluginHost({
   getScene: () => session().getCoreDocument(),
   dispatch: (command) => session().dispatch(command),
@@ -129,6 +205,35 @@ function installProject(next, resources = new Map()) {
   selection = null;
   editingPose = false;
   refresh({ resetCamera: true, resetTime: true });
+}
+
+// ---- Draft recovery: while the project is edited it is kept in a small local store, so a closed tab or a failed export does not lose the work -------------------------------------------
+const recovery = (() => { try { return createRecovery({ store: indexedDbStore() }); } catch { return null; } })();   // no IndexedDB (a private window): no recovery, nothing else changes
+let draftDirty = false, draftTimer;
+function scheduleDraft() {
+  if (!recovery || !project) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(async () => {
+    try {
+      const resources = new Map([...sessions.entries()].map(([id, entry]) => [id, entry.getResources()]));
+      await recovery.save({ name: project.id, bytes: await encodeProject(snapshotProject(), resources) });
+    } catch { /* a draft that cannot be made is not worth interrupting the work for */ }
+  }, 3000);
+}
+const markDirty = () => { draftDirty = true; scheduleDraft(); };
+async function offerRecovery() {
+  const draft = await recovery?.latest().catch(() => null);
+  if (!draft) return;
+  const when = new Date(draft.savedAt).toLocaleString('zh-CN', { hour12: false });
+  ui['recovery-text'].textContent = `发现 ${when} 自动保存的草稿（${(draft.bytes.byteLength / 1048576).toFixed(1)} MB）。`;
+  ui['recovery-banner'].hidden = false;
+  ui['recovery-restore'].onclick = run(async () => {
+    ui['recovery-banner'].hidden = true;
+    await openProjectBytes(draft.bytes, ++loading);
+    markDirty();
+    status('已恢复草稿。别忘了“保存项目”。');
+  });
+  ui['recovery-discard'].onclick = run(async () => { ui['recovery-banner'].hidden = true; await recovery.clear(); status('已丢弃草稿。'); });
 }
 
 function previewLayers(current) {
@@ -252,6 +357,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   for (const id of ['representation-style', 'representation-label']) ui[id].hidden = !hasStructure;
   if (!hasStructure) ui['representation-note'].textContent = '';
   upgradeRepresentation();
+  if (draftDirty) scheduleDraft();
 }
 
 function select(id) {
@@ -263,6 +369,7 @@ function select(id) {
 }
 
 function renderPanels(scene, document) {
+  syncPublish(scene);
   const tree = new Map(document.nodes.map((node) => [node.id, node]));
   const children = new Map();
   for (const node of document.nodes) {
@@ -360,7 +467,7 @@ function showPose() {
 function edit(command, message, { transform = false } = {}) {
   const changed = session().dispatch(command);
   editingPose = transform;
-  if (changed) refresh();
+  if (changed) { markDirty(); refresh(); }
   status(message);
 }
 
@@ -432,6 +539,7 @@ onClick('save-project', async () => {
   const resources = new Map([...sessions.entries()].map(([id, entry]) => [id, entry.getResources()]));
   const bytes = await encodeProject(current, resources);
   offerDownload(`${current.id}.glow-project`, bytes, 'application/json');
+  draftDirty = false; clearTimeout(draftTimer); recovery?.clear();   // the work is in a file now
   status('工程已生成。');
 });
 onClick('export-scene', async () => {
@@ -460,6 +568,7 @@ async function importStructureAsWork(structure, { title, message }) {
   project = { ...project, activeSceneId: id };
   selection = scene.nodes[0]?.id ?? null;
   editingPose = false;
+  markDirty();
   refresh({ resetCamera: true, resetTime: true });
   status(message);
 }
@@ -514,15 +623,13 @@ watchFile('package-file', async (file) => {
   project = { ...project, activeSceneId: id };
   selection = work.nodes[0]?.id ?? null;
   editingPose = false;
+  markDirty();
   refresh({ resetCamera: true, resetTime: true });
   status(`已导入场景包 ${file.name}。`);
 });
 
-watchFile('project-file', async (file) => {
-  const ticket = ++loading;
-  if (file.size > 128 * 1024 * 1024) throw new Error('工程文件超过 128 MiB。');
-  status('正在打开工程…');
-  const decoded = await decodeProject(new Uint8Array(await file.arrayBuffer()));
+async function openProjectBytes(bytes, ticket) {
+  const decoded = await decodeProject(bytes);
   if (ticket !== loading) return;
   const scenes = [];
   for (const scene of decoded.project.scenes) {
@@ -530,6 +637,12 @@ watchFile('project-file', async (file) => {
   }
   if (ticket !== loading) return;
   installProject({ ...decoded.project, scenes }, decoded.resourcesByScene);
+}
+watchFile('project-file', async (file) => {
+  const ticket = ++loading;
+  if (file.size > 128 * 1024 * 1024) throw new Error('工程文件超过 128 MiB。');
+  status('正在打开工程…');
+  await openProjectBytes(new Uint8Array(await file.arrayBuffer()), ticket);
   status('工程已打开。');
 });
 
@@ -631,3 +744,4 @@ onClick('studio-play', () => {
 });
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { stopPlayback(); viewport.dispose(); } });
 newProject();
+offerRecovery();
