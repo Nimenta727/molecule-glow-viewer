@@ -686,6 +686,26 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     return { positions, colors, triangles: Math.floor(total / 3) };
   }
 
+  /**
+   * Draws the scene for `ms` milliseconds while turning the camera slowly about its target and records how long each frame took; the page's own frame rate (capped by the display's refresh rate) is
+   * what is measured. Returns { rendererName (the GPU string WebGL reports, or the software rasteriser's), frames: [ms per frame] }. Used by the benchmark command (budget.mjs does the reading).
+   */
+  async function benchmark({ ms = 3000 } = {}) {
+    const gl = renderer.getContext(), info = gl.getExtension('WEBGL_debug_renderer_info'), rendererName = String(info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)), frames = [], axis = new THREE.Vector3(0, 1, 0);
+    const home = camera.position.clone(); let last = performance.now(); const start = last;
+    await new Promise((resolve) => {
+      const step = (now) => {
+        frames.push(now - last); last = now;
+        const offset = camera.position.clone().sub(controls.target).applyAxisAngle(axis, 0.01); camera.position.copy(controls.target).add(offset); controls.update(); camera.updateMatrixWorld(); draw();
+        if (now - start < ms) requestAnimationFrame(step); else resolve();
+      };
+      requestAnimationFrame(step);
+    });
+    camera.position.copy(home); controls.update(); invalidate();
+    frames.shift();   // the first interval includes the wait for the first frame
+    return { rendererName, frames };
+  }
+
   function clearParticleClouds() {
     clearEventTags();
     for (const tag of [...instanceSets.keys()]) removeInstanceSet(tag);
@@ -1277,7 +1297,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
     stats() {

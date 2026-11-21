@@ -220,6 +220,13 @@ export function createViewerCommands(host) {
       if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
       return host.clip(value);
     },
+    async benchmark(value) {
+      needScene();
+      if (value != null && (!object(value) || Object.keys(value).some((key) => !['seconds', 'targetFps'].includes(key)))) throw new Error('benchmark 只接受 seconds、targetFps。');
+      if (value?.seconds != null) finite(value.seconds, 1, 30, 'seconds');
+      if (value?.targetFps != null) finite(value.targetFps, 10, 144, 'targetFps');
+      return host.benchmark(value ?? {});
+    },
     membrane(value) {
       needScene();
       if (value == null || value === 'clear') return host.membrane(null);

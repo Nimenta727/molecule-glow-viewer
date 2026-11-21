@@ -61,6 +61,7 @@ import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs
 import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
 import { volumeSurface, volumeSlice } from '../../plugins/structure/volume-view.mjs';
 import { buildMembrane, placePoints, DEFAULT_THICKNESS } from '../../plugins/structure/membrane-builder.mjs';
+import { benchmarkReport } from '../../packages/render-three/budget.mjs';
 import { layoutCopies } from './instance-layout.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
@@ -1791,6 +1792,12 @@ function boot() {
     selectSet,
     clearSet,
     tools: () => describeTools(host.listTools({ audience: 'view' })),
+    /** Measures the real frame rate of what is on screen on this machine and turns it into a triangle budget and plain advice (packages/render-three/budget.mjs). */
+    benchmark: async (spec) => {
+      if (!active) throw new Error('请先打开场景。');
+      const before = viewport.stats(), run = await viewport.benchmark({ ms: Math.round((spec?.seconds ?? 3) * 1000) });
+      return { ...benchmarkReport({ rendererName: run.rendererName, frames: run.frames, targetFps: spec?.targetFps ?? 30, triangles: before.triangles }), drawables: before.drawables, note: '帧率受显示器刷新率限制（通常 60），所以快的机器上预算只会放宽到当前负载的几倍。' };
+    },
     volume: showVolume,
     membrane: showMembrane,
     /** Copies of what is on screen at several levels of detail (packages/render-three/lod.mjs); null clears them. Returns what was built and what the first frame costs. */
