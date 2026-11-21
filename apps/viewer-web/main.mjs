@@ -288,9 +288,12 @@ function boot() {
       if (signal.aborted) return;
       if (input.template) makeStaticTemplate(loaded);   // a template is static: looking and reading, nothing moves
       await prepareWorkScene(loaded);   // current scene format + the tool configuration of the declared mechanism
+      // the migration says an old process "will not run" before the tool that now runs it is attached: once a tool entry exists that line is no longer true
+      if (loaded.scene.tools?.length) loaded.warnings = (loaded.warnings ?? []).filter((message) => !/^已保留过程“.+”的声明；需要兼容能力才能播放/.test(message));
       // what the scene needs that this application lacks (an unknown tool, an old tool id, a missing plugin): said, never a reason to refuse the scene
-      for (const { message } of capabilityReport(loaded.scene, { isKnown: (id) => isKnownTool(id) || Boolean(host.getTool(id)), resolveToolId: (id) => host.resolveToolId(id),
-        knownPlugins: new Set(['org.glow.structure', ...mechanismPlugins.map((plugin) => plugin.manifest.id), ...toolPlugins.map((plugin) => plugin.manifest.id)]) })) loaded.warnings = [...(loaded.warnings ?? []), message];
+      // (an optional plugin the scene could use is not worth a line: the official packs declare one for the old process, which the new tools replace)
+      for (const { level, code, message } of capabilityReport(loaded.scene, { isKnown: (id) => isKnownTool(id) || Boolean(host.getTool(id)), resolveToolId: (id) => host.resolveToolId(id),
+        knownPlugins: new Set(['org.glow.structure', ...mechanismPlugins.map((plugin) => plugin.manifest.id), ...toolPlugins.map((plugin) => plugin.manifest.id)]) })) if (level === 'warning' || code === 'tool-alias') loaded.warnings = [...(loaded.warnings ?? []), message];
       await preparePlayer(loaded, signal);
       signal.throwIfAborted();
       const layers = structureLayers(loaded);
@@ -1776,6 +1779,7 @@ function boot() {
     },
   }));
   window.glow = commands.api;
+  window.__glowStats = () => viewport.stats();   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
   const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;

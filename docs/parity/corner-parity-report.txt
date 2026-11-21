@@ -1,0 +1,10 @@
+4V6F: 10600 residues; 1K4C chain C: 103 residues
+ok   azimuth: atan2(-eA.z, eA.x) = -1.8704 rad (the camera the translation setup gives, E -> A to the right)
+ok   ribosome radius 150.238 Å = the classic's Rr (the farthest residue of the ribosome without tRNAs and mRNA from its centre)
+ok   membrane height: 302.116 Å = top of the ribosome (242.116) + 60
+ok   ribosome centre (the plane the channel is moved into)
+ok   channel shift: [-172.013, 157.279, 133.258] Å (centroid of the channel to 60 Å above the ribosome, 0.3 of the radius left of its centre)
+ok   bottom of the ribosome
+ok   crowd box: below the membrane (34 Å under it), 70 Å under the ribosome, ±(radius + 170) Å around its centre
+ok   after the shift the channel centroid is at the membrane height and 0.3 radius to the left of the ribosome centre, in the plane of the view
+8 of 8 agree
