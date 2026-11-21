@@ -785,7 +785,7 @@ function boot() {
     elements: { title: elements['process-title'], speed: elements['process-speed'], speedOut: elements['process-speed-out'], play: elements['process-play'], reset: elements['process-reset'], jump: elements['process-jump'], jumpGo: elements['process-jump-go'],
       csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
-  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary() }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
+  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary(), statesBetween: (from, to) => processPanel.statesBetween(from, to) }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
   const ribosomeCloseup = createRibosomeCloseup({
     viewport, status: (text) => setStatus(text), process: { summary: () => processPanel.summary() },
     elements: { box: elements['ribosome-closeup'], dc: elements['ribosome-closeup-dc'], ptc: elements['ribosome-closeup-ptc'], off: elements['ribosome-closeup-off'], info: elements['process-info'] },
