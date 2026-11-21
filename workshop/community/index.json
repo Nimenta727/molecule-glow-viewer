@@ -3,6 +3,38 @@
  "version": 1,
  "source": "community",
  "name": "社区",
- "updated": "",
- "packs": []
+ "updated": "2026-11-21",
+ "packs": [
+  {
+   "kind": "work",
+   "title": "血红蛋白：四个亚基与四个血红素",
+   "category": "single",
+   "topic": "protein",
+   "tags": [
+    "血红蛋白",
+    "四级结构",
+    "血红素",
+    "X射线晶体学"
+   ],
+   "author": {
+    "name": "Molecule Glow 项目"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "人脱氧血红蛋白（2HHB，1.74 Å）的组成拆分：两条 α 链、两条 β 链、四个血红素和两个磷酸根，每一部分都命名并附上文件里写的事实。静态，不带动画。",
+   "pdb": [
+    "2HHB"
+   ],
+   "resources": [],
+   "animation": "none",
+   "updated": "2026-11-21",
+   "file": "packs/2hhb-d4e8f138-3f31-4d3f-b219-aec06f657ba8.glow",
+   "cover": null,
+   "size": 767251,
+   "sha256": "a8eb764128e73d2c768420ae113f1c412db6a31d30bc986ffa3ea367e4d96ec5",
+   "zone": "template",
+   "id": "2hhb-d4e8f138-3f31-4d3f-b219-aec06f657ba8",
+   "tools": []
+  }
+ ]
 }

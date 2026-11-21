@@ -1,0 +1,62 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.binding",
+  "version": "1.0.0",
+  "name": "结合/解离的空间过程",
+  "summary": "在盒子里模拟粒子扩散、碰到受体位点就结合、再按解离速率释放（布朗动力学），测结合速率和占有率。",
+  "category": "process",
+  "adds": [
+    "布朗动力学：粒子在周期盒里扩散，碰到位点被吸收（结合），按 koff 释放",
+    "结合速率与理论的 Smoluchowski 速率 4πDRc 对照",
+    "正确处理重结合：释放的粒子放在释放半径上，有效解离速率为 koff×(1−R/r)"
+  ],
+  "usage": [
+    {
+      "title": "测一个位点的结合速率",
+      "how": "await glow.binding({ box: 60, particles: 600, D: 50, radius: 3, microseconds: 40, reinject: true })",
+      "note": "单位：nm、µs，D 的单位 nm²/µs；回包里有模拟速率、理论速率和比值"
+    },
+    {
+      "title": "带解离的占有率",
+      "how": "await glow.binding({ box: 60, particles: 600, D: 50, radius: 3, koff: 4, microseconds: 40 })"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "binding"
+    },
+    {
+      "type": "module",
+      "path": "plugins/simulation/binding.mjs",
+      "exports": [
+        "createBinding",
+        "smoluchowskiRate",
+        "effectiveKoff"
+      ]
+    }
+  ],
+  "dependencies": [],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "单测对照解析解：速率在 Smoluchowski 值的 18% 内、与浓度成正比、占有率符合 kon·c/(kon·c+koff_eff)。",
+    "limits": [
+      "完全吸收：结合是扩散限制的上限；有限本征速率（Collins–Kimball）没有做",
+      "位点是固定的球，粒子是点，不相互作用，没有取向与静电",
+      "粒子数多时很慢，不适合放进交互画面",
+      "没有接到真实结构的结合位点，也没有结合后构象变化",
+      "时间步长偏差与周期盒镜像偏差没有修正（两者方向相反）"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-binding.md"
+  ],
+  "tags": [
+    "结合",
+    "扩散"
+  ]
+}

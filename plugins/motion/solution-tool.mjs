@@ -64,6 +64,8 @@ export function solutionToolDescriptor(version) {
     version, title: '溶液粒子与流', audience: ['view', 'author'], runtime: 'layer-v1',
     parameters: {},   // the Viewer's own panel holds the runtime controls (play, scale, add/remove)
     author: { template: SOLUTION_TEMPLATE, fields: solutionAuthorFields, validate: normalizeSolutionConfig },
+    outputs: [{ key: 'crossings', label: '各路径的跨膜 / 区室流计数', kind: 'count' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '溶液粒子与粒子流示意（布朗扩散 + 避开蛋白的路径）', assumptions: [
       '粒子的个数、速度和流速是示意设定，不是测得的浓度或通量。', '扩散是示意性的随机游走，不是分子动力学；粒子不进入蛋白，但不模拟与蛋白的相互作用。',
       '流的路径是在两组残基之间避开蛋白的随机路线，不是通过真实通道的路径。', '粒子的外观按物种统一设定（颜色和大小是示意）。'] },

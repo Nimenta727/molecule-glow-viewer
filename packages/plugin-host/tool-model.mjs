@@ -62,6 +62,23 @@ export function authorFields(descriptor, config) {
     ...(field.default !== undefined ? { default: field.default } : {}) }));
 }
 
+// Residue ranges as people write them ("1-109, 264-309") and as the configuration keeps them ([[1, 109], [264, 309]]).
+/** [[1, 109], [264, 309]] -> "1-109, 264-309" (a single residue is written alone). */
+export const formatRanges = (ranges) => (Array.isArray(ranges) ? ranges : []).map(([lo, hi]) => (lo === hi ? String(lo) : `${lo}-${hi}`)).join(', ');
+/** "1-109, 264-309" -> [[1, 109], [264, 309]]; throws a readable message for anything else. At least one range, at most `max`. */
+export function parseRanges(raw, { label = '残基范围', max = 16 } = {}) {
+  const parts = String(raw).split(',').map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) throw new Error(`${label}：至少写一段，例如 1-109, 264-309。`);
+  if (parts.length > max) throw new Error(`${label}：最多 ${max} 段。`);
+  return parts.map((part) => {
+    const match = /^(\d+)(?:\s*[-–]\s*(\d+))?$/.exec(part);
+    if (!match) throw new Error(`${label}：“${part}”不是残基编号或范围（例如 1-109, 264-309）。`);
+    const lo = Number(match[1]), hi = match[2] === undefined ? lo : Number(match[2]);
+    if (lo < 1 || hi < lo) throw new Error(`${label}：“${part}”应为 起 ≤ 止，且从 1 开始。`);
+    return [lo, hi];
+  });
+}
+
 /** Converts what an input element yields into the field's value type. `nullable` numbers accept an empty entry as null. */
 export function coerceField(field, raw) {
   if (field.type === 'number') {
@@ -75,6 +92,7 @@ export function coerceField(field, raw) {
   if (field.type === 'boolean') return raw === true || raw === 'true';
   if (field.type === 'select' && !field.options.some((option) => option.value === raw)) throw new Error(`${field.label}：不是可选项。`);
   if (field.type === 'color' && !/^#[0-9a-fA-F]{6}$/.test(String(raw))) throw new Error(`${field.label}：需要 #rrggbb 颜色。`);
+  if (field.type === 'text' && field.format === 'ranges') return parseRanges(raw, { label: field.label });
   if (field.type === 'text' && (typeof raw !== 'string' || !raw.length)) throw new Error(`${field.label}：不能为空。`);
   if (field.type === 'text' && raw.length > (field.maxLength ?? 5000)) throw new Error(`${field.label}：太长。`);
   return raw;
@@ -129,3 +147,20 @@ export function autoBindings(descriptor, scene, entry) {
   }
   return result;
 }
+
+// ---- plugin dependencies of a work's tools ------------------------------------------------------------------------
+
+/**
+ * The scene's `dependencies` list with what its tools need added (each tool descriptor's `dependencies`). Existing entries are kept as they are (the author's recorded
+ * version and `optional` flag win); a tool whose descriptor is unknown, or declares none, adds nothing. Returns a new list; the given one is not changed.
+ */
+export function mergeToolDependencies(dependencies, descriptors) {
+  const out = (dependencies ?? []).map((dependency) => ({ ...dependency }));
+  for (const descriptor of descriptors) for (const { id, version } of descriptor?.dependencies ?? []) {
+    if (!out.some((dependency) => dependency.id === id)) out.push({ id, version, optional: false });
+  }
+  return out;
+}
+
+/** The descriptors of the tools a scene's entries use (by entry order), for `mergeToolDependencies`; `describe(toolId)` returns a descriptor or undefined. */
+export const descriptorsForScene = (scene, describe) => (scene.tools ?? []).map((entry) => describe(entry.tool.id));

@@ -69,3 +69,28 @@ test('instances cannot alter the original bytes: resolve hands out copies', asyn
   const second = await store.resolve({ id: 'res.a', version: '1' });
   assert.equal(new TextDecoder().decode(second.files.get(a.record.files[0].path)), 'original');
 });
+
+test('a predicted structure is a resource of its own kind that must say how it was predicted, and only it may carry that block', async () => {
+  const { describePredictedStructure, validateResource, predictionEvidence } = await import('../resource.mjs');
+  const sha256 = 'c'.repeat(64);
+  const record = describePredictedStructure({ provider: 'alphafold', accession: 'AF-P69441-F1', sha256, bytes: 12345, method: 'AlphaFold', model: 'v4', license: 'CC-BY-4.0', credit: 'DeepMind / EMBL-EBI' });
+  assert.equal(record.kind, 'predicted-structure'); assert.equal(record.id, 'res.alphafold.af-p69441-f1'); assert.equal(record.version, 'cccccccc');
+  assert.deepEqual(record.prediction.confidence, { metric: 'pLDDT', storedIn: 'bfactor' });
+  const without = { ...record }; delete without.prediction;
+  assert.throws(() => validateResource(without), /must say how it was predicted/);
+  assert.throws(() => validateResource({ ...record, kind: 'structure' }), /only a predicted structure carries/);
+  assert.throws(() => describePredictedStructure({ provider: 'alphafold', accession: 'x', sha256, bytes: 1, method: 'AlphaFold' }), /license/);
+  const evidence = predictionEvidence(record); assert.equal(evidence.type, 'modelled'); assert.equal(evidence.resourceId, record.id); assert.match(evidence.citation, /预测的结构，不是实验测定的/);
+});
+
+test('a density map is a resource that describes its grid; only a map carries that block', async () => {
+  const { describeMapResource } = await import('../resource.mjs');
+  const map = { dims: [64, 64, 64], voxelSize: [1.1, 1.1, 1.1], origin: [-30, -30, -30] };
+  const record = describeMapResource({ provider: 'emdb', accession: 'EMD-0000', sha256: 'f'.repeat(64), bytes: 1048576, map, license: 'CC0-1.0', contour: { level: 0.02, source: 'depositor' } });
+  assert.equal(record.kind, 'map'); assert.equal(record.id, 'res.emdb.emd-0000'); assert.deepEqual(record.map.dims, [64, 64, 64]); assert.deepEqual(record.map.contour, { level: 0.02, source: 'depositor' });
+  const without = { ...record }; delete without.map; assert.throws(() => validateResource(without), /must describe its grid/);
+  assert.throws(() => validateResource({ ...record, kind: 'structure' }), /only a density map/);
+  assert.throws(() => validateResource({ ...record, map: { ...record.map, voxelSize: [0, 1, 1] } }), /Resource/);
+  assert.throws(() => validateResource({ ...record, map: { ...record.map, contour: { level: 1, source: 'guess' } } }), /Resource/);
+  assert.throws(() => describeMapResource({ provider: 'emdb', accession: 'x', sha256: 'f'.repeat(64), bytes: 1, map }), /license/);
+});

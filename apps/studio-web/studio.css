@@ -204,3 +204,9 @@ h2 { color: #2f3f86; font-size: 0.9rem; font-weight: 650; }
 #publish-settings textarea { width: 100%; box-sizing: border-box; }
 .recovery-banner { display: flex; gap: 0.6rem; align-items: center; padding: 0.4rem 0.9rem; background: #fff6df; border-bottom: 1px solid #e3cf9a; color: #5b4510; }
 .recovery-banner[hidden] { display: none; }
+
+/* outline drag and drop: the row that would become the parent, and the list itself for "to the scene root" */
+#scene-tree li.drop-target { background: #dfe6fb; outline: 2px dashed #4a5fb0; outline-offset: -2px; }
+#scene-tree.drop-root { outline: 2px dashed #4a5fb0; outline-offset: 2px; }
+#scene-tree li.outline-row[draggable="true"] { cursor: grab; }
+#scene-tree { padding-bottom: 1.6rem; }   /* the empty strip below the last row is where a dragged selection is dropped to go to the scene root */

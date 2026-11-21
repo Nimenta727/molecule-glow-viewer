@@ -225,3 +225,16 @@ test('the publication block is validated, undoable, removable, and survives a pr
   assert.throws(() => session.dispatch({ type: 'setPublication', publication: 'CC0' }), /object or null/);
   assert.equal('publication' in session.getScene(), false, 'a refused edit changes nothing');
 });
+
+test('addToolEntry records the plugins the tool needs once, undoably, and refuses malformed ones', async () => {
+  const { createStudioSession } = await import('../session.mjs');
+  const base = { format: 'glow-scene', schemaVersion: 3, id: 's', title: 'S', units: { length: 'meter', time: 'second' },
+    assets: [], nodes: [], timeline: { duration: 0, tracks: [] }, dependencies: [{ id: 'org.glow.structure', version: '1.0.0', optional: true }], evidence: [], resources: [], tools: [] };
+  const session = createStudioSession(base);
+  const entry = { tool: { id: 'org.glow.tool.data-animation', version: '1.0.0' }, config: {} };
+  const dependencies = [{ id: 'org.glow.structure', version: '1.0.0' }, { id: 'org.glow.simulation', version: '1.0.0' }];
+  session.dispatch({ type: 'addToolEntry', entry, dependencies }); session.dispatch({ type: 'addToolEntry', entry, dependencies });
+  assert.deepEqual(session.getScene().dependencies, [{ id: 'org.glow.structure', version: '1.0.0', optional: true }, { id: 'org.glow.simulation', version: '1.0.0', optional: false }]);
+  session.undo(); session.undo(); assert.deepEqual(session.getScene().dependencies, base.dependencies);
+  assert.throws(() => session.dispatch({ type: 'addToolEntry', entry, dependencies: [{ id: 'x' }] }), /dependencies need/);
+});

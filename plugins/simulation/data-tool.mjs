@@ -73,6 +73,8 @@ export function dataToolDescriptor(version) {
   return {
     version, title: '数据反应动画', audience: ['view', 'author'], runtime: 'layer-v1', parameters: {},
     author: { template: DATA_TEMPLATE, fields: dataAuthorFields, validate: normalizeDataConfig },
+    outputs: [{ key: 'ledger', label: '池与反应的计量账本', kind: 'count' }, { key: 'events', label: '反应事件', kind: 'event' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '数据声明的区室、池、流与反应动画（布朗扩散 + 避开蛋白的路径 + 声明的计量）', assumptions: [
       '区室、池、流和反应是作者声明的示意，速率和时间是示意值，不是测得的动力学。', '反应只按声明的计量转换分子，不模拟化学机理；声明了守恒量时，每个反应都会检查它。',
       '粒子的扩散是示意性的随机游走，不进入蛋白；结构的“上下”由所选的竖直轴决定。', '导入任意结构不意味着自动得到正确的生物机制。'] },

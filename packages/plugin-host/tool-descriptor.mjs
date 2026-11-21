@@ -5,7 +5,9 @@
  *
  *   { version, title, audience: ['view'|'author'...], runtime: 'player-v1' (runs on a clock) | 'layer-v1' (drawn over the structure by the front end),
  *     parameters?: { key: { type, label, default, audience?, ...type details } },   // runtime controls
- *     author?: { template, fields(config) -> field specs, validate(config) -> normalised config },  // edits scene.tools[].config
+ *     author?: { template, presets?, fields(config) -> field specs, validate(config) -> normalised config },  // edits scene.tools[].config; presets: [{ id, label, config }] other ready-made starting configurations
+ *     outputs?: [{ key, label, kind: 'count'|'series'|'state'|'event'|'file', unit? }],   // what the tool produces (counts, curves, states, events, exportable files)
+ *     dependencies?: [{ id, version }],   // plugins the tool needs (exact versions); a tool without any works on the structure alone
  *     model?: { kind, assumptions: [text] } }
  */
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
@@ -16,6 +18,7 @@ export const PARAMETER_TYPES = Object.freeze(['number', 'boolean', 'select', 'te
 const RUNTIMES = new Set(['player-v1', 'layer-v1']);   // a player runs on a clock; a layer is drawn over the structure by the front end
 const TOOL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const MAX_ROLES = 16;
+export const OUTPUT_KINDS = Object.freeze(['count', 'series', 'state', 'event', 'file']);
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 const fail = (id, message) => { throw new TypeError(`Tool ${id}: ${message}`); };
@@ -50,6 +53,10 @@ export function normalizeSpec(id, key, spec, { withDefault = true } = {}) {
   if (type === 'select') {
     if (!Array.isArray(spec.options) || !spec.options.length) fail(id, `${key}.options must list the choices`);
     out.options = spec.options.map((option, i) => ({ value: text(id, option?.value, `${key}.options[${i}].value`, 80), label: text(id, option?.label, `${key}.options[${i}].label`, 120) }));
+  }
+  if (spec.format !== undefined) {
+    if (type !== 'text' || spec.format !== 'ranges') fail(id, `${key}.format must be "ranges" and only on a text field`);
+    out.format = 'ranges';   // shown as "1-109, 264-309" and kept as [[1, 109], [264, 309]]
   }
   if (type === 'text' && spec.maxLength !== undefined) {
     if (!Number.isInteger(spec.maxLength) || spec.maxLength < 1 || spec.maxLength > 5000) fail(id, `${key}.maxLength must be 1-5000`);
@@ -119,7 +126,42 @@ export function validateToolDescriptor(id, descriptor) {
     if (!isObject(author) || !isObject(author.template) || typeof author.validate !== 'function' || typeof author.fields !== 'function') {
       fail(id, 'author needs a template object and fields() and validate() functions');
     }
-    result.author = Object.freeze({ template: author.template, fields: author.fields, validate: author.validate });
+    // Ready-made starting configurations besides the default template (for example another protein for the same tool). Each must pass the tool's own validator now, not when someone picks it.
+    let presets = [];
+    if (author.presets !== undefined) {
+      if (!Array.isArray(author.presets) || author.presets.length > 16) fail(id, 'author.presets must be a list of at most 16 entries');
+      const seen = new Set();
+      presets = author.presets.map((preset, i) => {
+        if (!isObject(preset) || !KEY.test(preset.id ?? '') || seen.has(preset.id) || !isObject(preset.config)) fail(id, `author.presets[${i}] needs a unique valid id and a config object`);
+        seen.add(preset.id);
+        try { author.validate(preset.config); } catch (error) { fail(id, `author.presets[${i}] (${preset.id}) is not a valid configuration: ${error.message}`); }
+        return Object.freeze({ id: preset.id, label: text(id, preset.label, `author.presets[${i}].label`, 120), config: preset.config });
+      });
+    }
+    result.author = Object.freeze({ template: author.template, presets: Object.freeze(presets), fields: author.fields, validate: author.validate });
+  }
+
+  // What the tool produces, so authors and the help listing can tell what a work will report. Declarative; the tool itself fills them at run time.
+  if (descriptor.outputs !== undefined) {
+    if (!Array.isArray(descriptor.outputs) || descriptor.outputs.length > 32) fail(id, 'outputs must be a list of at most 32 entries');
+    const seen = new Set();
+    result.outputs = Object.freeze(descriptor.outputs.map((out, i) => {
+      if (!isObject(out) || !KEY.test(out.key ?? '') || seen.has(out.key)) fail(id, `outputs[${i}] needs a unique valid key`);
+      seen.add(out.key);
+      if (!OUTPUT_KINDS.includes(out.kind)) fail(id, `outputs[${i}].kind must be one of ${OUTPUT_KINDS.join(', ')}`);
+      return Object.freeze({ key: out.key, label: text(id, out.label, `outputs[${i}].label`, 120), kind: out.kind, ...(out.unit !== undefined ? { unit: text(id, out.unit, `outputs[${i}].unit`, 24) } : {}) });
+    }));
+  }
+  // Plugins the tool needs, by exact version (the workshop and the diagnostics read these).
+  if (descriptor.dependencies !== undefined) {
+    if (!Array.isArray(descriptor.dependencies) || descriptor.dependencies.length > 16) fail(id, 'dependencies must be a list of at most 16 entries');
+    const seen = new Set();
+    result.dependencies = Object.freeze(descriptor.dependencies.map((dep, i) => {
+      if (!isObject(dep) || typeof dep.id !== 'string' || !TOOL_ID.test(dep.id) || seen.has(dep.id)) fail(id, `dependencies[${i}] needs a unique valid id`);
+      if (typeof dep.version !== 'string' || !SEMVER.test(dep.version)) fail(id, `dependencies[${i}].version must be an exact x.y.z`);
+      seen.add(dep.id);
+      return Object.freeze({ id: dep.id, version: dep.version });
+    }));
   }
 
   if (descriptor.model !== undefined) {

@@ -131,3 +131,26 @@ test('nascent chain: beads 3.5 Å apart from the tRNA end along the tunnel, the 
   const d = new RibosomeMotion(frame); d.setTunnel([[0, 0, 0], [0, 10, 0]]); d.sync({ st: 'post', chain: codes(3) }); settle(d); d.sync({ st: 'drop', chain: codes(3) }); assert.equal(d.bodies().released.length, 1);
   const none = new RibosomeMotion(frame); none.sync({ st: 'post', chain: codes(3) }); assert.equal(none.bodies().chain.length, 0, 'without a tunnel no chain is drawn');
 });
+
+test('following every state in order keeps the tRNAs, the mRNA and the chain when the process runs faster than the frames (sampling only the newest state loses them)', async () => {
+  const { normalizeTranslationConfig, translationProcessConfig } = await import('../translation-tool.mjs');
+  const { createMarkovRun } = await import('../markov-model.mjs');
+  const tcfg = translationProcessConfig(normalizeTranslationConfig({})), seq = tcfg.strip.sequence;
+  const as = (x) => { const L = Number(x.nums?.L) || 0; return { st: x.vars?.st, E: x.vars?.E === 'on', chain: L ? ['fM', ...seq.slice(1, L).split('')] : [] }; };
+  const play = (everyState) => {
+    const run = createMarkovRun(tcfg.process, tcfg.seed, tcfg.schedule), motion = new RibosomeMotion(frame, { speed: 0.02 });
+    motion.setTunnel([frame.sites.P.t, frame.C0]);
+    let t = 0, withTrna = 0, frames = 0;
+    for (let real = 0; real < 12; real += 0.5) {   // two frames a second, the process at two of its seconds per real second: dozens of states between frames
+      const from = t; t += 1; const now = run.at(t);
+      if (everyState) motion.syncAll([...run.eventsBetween(from, t).map(({ time }) => as(run.at(time))), as(now)]); else motion.sync(as(now));
+      motion.step(0.5); frames++; if (motion.bodies().trna.length) withTrna++;
+    }
+    return { withTrna, frames, end: motion.bodies(), L: Number(run.at(t).nums.L) };
+  };
+  const fixed = play(true), sampled = play(false);
+  assert.ok(fixed.withTrna / fixed.frames > 0.8, `tRNAs shown in ${fixed.withTrna}/${fixed.frames} frames`);
+  assert.ok(fixed.end.mrna.fade > 0.99 && fixed.end.trna.length >= 1, 'the mRNA and a tRNA are there at the end');
+  if (fixed.L > 0) assert.equal(fixed.end.chain.length, fixed.L, 'the chain the view draws is as long as the process says');
+  assert.ok(sampled.withTrna < fixed.withTrna, 'the old way (newest state only) loses tRNAs: the regression this guards against');
+});

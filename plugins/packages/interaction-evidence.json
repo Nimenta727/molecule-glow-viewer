@@ -1,0 +1,67 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.interaction-evidence",
+  "version": "1.0.0",
+  "name": "相互作用证据层",
+  "summary": "列出复合体里每一对相互接触的成员，给出界面（接触原子对、界面残基），并按位置的来源给证据等级。",
+  "category": "interaction",
+  "adds": [
+    "计算两组链之间的界面：4.5 Å 内的重原子对、两侧界面残基",
+    "证据等级：实验 → 推导 → 预测 → 建模 → 示意，一对取较弱的一方，并写出原因",
+    "数每个成员有几个伙伴（环是 2、交替六聚体是 2）"
+  ],
+  "usage": [
+    {
+      "title": "列出当前结构里的相互作用",
+      "how": "await glow.interactions({ minContacts: 10 })",
+      "note": "回包按证据强弱、再按接触数排序；链很多时会提示缩小范围"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "interactions"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/interaction-evidence.mjs",
+      "exports": [
+        "interfaceBetween",
+        "interactionsOfComplex",
+        "pairEvidence",
+        "degrees"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/interaction-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "真实：6N2Y 的拓扑与 ATP 合酶已知结构一致（每个 β 接触 2 个 α、c 环每个恰好 2 个邻居、γ 轴与头部）。",
+    "limits": [
+      "**没有 Viewer 里点选显示**：现在是命令返回数据",
+      "没有接外部相互作用数据库，“数据库”级证据没有实现",
+      "接触只看重原子距离，不区分氢键、盐桥、疏水，不算埋藏面积",
+      "同一条目里的接触被标为“实验”指的是位置是测得的，不是说这个相互作用经过单独验证",
+      "全部成员两两检查，副本很多时（数千）没有空间索引"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-interaction-evidence.md"
+  ],
+  "tags": [
+    "相互作用"
+  ]
+}

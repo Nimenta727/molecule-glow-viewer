@@ -1,5 +1,7 @@
 import { queryCatalog, relatedResources, worksUsing, allTags, TOPICS } from './catalog.mjs';
 import { describeEntry, diagnose } from './diagnose.mjs';
+import { VERIFICATION, PERMISSIONS, CATEGORIES } from '../../packages/plugin-host/plugin-manifest.mjs';
+import { createTemplateZone } from '../templates/zone.mjs';
 
 /**
  * The workshop dialog shared by Viewer and Studio: three zones (模板区 templates: static, for looking and reading; 作品区 works: animated, for how it works; 资源区 resources), a subject filter (机理 / 蛋白质 / 局部系统 / 细胞), a source filter, a text search, and for
@@ -12,7 +14,11 @@ import { describeEntry, diagnose } from './diagnose.mjs';
 const SOURCE_NAMES = { official: '官方', community: '社区' };
 const formatSize = (bytes) => bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
-export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id) => id, toolAvailable = () => true }) {
+const ENTRY_LABELS = { command: 'glow 命令', 'tool-preset': '工具预设', tool: '工具', panel: '面板', module: '代码模块', cli: '检查脚本' };
+const entryText = (p) => p.type === 'command' ? `glow.${p.name}()` : p.type === 'tool-preset' ? `${p.preset}（${p.tool}）` : p.type === 'module' || p.type === 'cli' ? p.path : p.id;
+
+/** `pluginState` ({ isEnabled(id), canToggle(id), set(id, enabled) }) is the app's on/off switch for official plugins; without it the plugin zone is read-only (Studio). */
+export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id) => id, toolAvailable = () => true, pluginState, templates }) {
   const el = (tag, props = {}, ...children) => {
     const node = doc.createElement(tag);
     for (const [key, value] of Object.entries(props)) { if (key === 'class') node.className = value; else if (key === 'text') node.textContent = value; else node.setAttribute(key, value); }
@@ -22,8 +28,10 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
   const dialog = el('dialog', { class: 'workshop', 'aria-labelledby': 'workshop-title' });
   const close = el('button', { type: 'button', class: 'workshop-close', 'aria-label': '关闭工坊', text: '×' });
   const tabs = el('div', { class: 'workshop-tabs', role: 'tablist', 'aria-label': '工坊分区' });
-  const zoneTabs = { templates: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-templates', text: '模板区' }), works: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-works', text: '作品区' }), resources: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-resources', text: '资源区' }) };
-  tabs.append(zoneTabs.templates, zoneTabs.works, zoneTabs.resources);
+  const zoneTabs = { templates: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-templates', text: '静态作品' }), works: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-works', text: '作品区' }), resources: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-resources', text: '资源区' }) };
+  zoneTabs.plugins = el('button', { type: 'button', role: 'tab', id: 'workshop-tab-plugins', text: '插件区' });
+  zoneTabs.mine = el('button', { type: 'button', role: 'tab', id: 'workshop-tab-mine', text: '我的模板' });
+  tabs.append(zoneTabs.templates, zoneTabs.works, zoneTabs.resources, zoneTabs.plugins, ...(templates ? [zoneTabs.mine] : []));
   const source = el('select', { 'aria-label': '来源' });
   const search = el('input', { type: 'search', placeholder: '搜索标题、标签、结构编号…', 'aria-label': '搜索' });
   const topic = el('select', { 'aria-label': '主题' });
@@ -36,6 +44,8 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
   doc.body.append(dialog);
 
   let catalog, zone = 'templates', busy = false;
+  // the zone of the person's own protein templates (originals from the PDB or from disk); it does not depend on the workshop catalogue, so it works offline
+  const mine = templates ? createTemplateZone(doc, { ...templates, close: () => dialog.close(), setNote: (message, kind) => setNote(message, kind), changed: () => { if (zone === 'mine') render(); } }) : null;
 
   function setNote(message, kind = '') { note.textContent = message; note.dataset.kind = kind; }
 
@@ -75,7 +85,34 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
     return box;
   }
 
+  /** A plugin card: what it is for, what it adds, how to use it, its entries, what it needs, how far it was verified and what it does not do. Everything is read from the manifest. */
+  function pluginCard(entry) {
+    const { manifest } = entry, item = el('li', { class: 'workshop-card workshop-plugin', 'data-entry': entry.id });
+    const enabled = pluginState?.isEnabled(entry.id) ?? true;
+    item.append(el('div', { class: 'workshop-card-head' }, el('h3', { text: manifest.name }), el('span', { class: 'workshop-badge', text: `${CATEGORIES[manifest.category]} · v${manifest.version}${pluginState?.canToggle(entry.id) ? (enabled ? ' · 已启用' : ' · 已停用') : ''}` })));
+    item.append(el('p', { class: 'workshop-desc', text: manifest.summary }));
+    const rows = el('dl', { class: 'workshop-plugin-rows' }), add = (label, ...nodes) => { rows.append(el('dt', { text: label }), el('dd', {}, ...nodes)); };
+    add('增加的功能', el('ul', {}, ...manifest.adds.map((text) => el('li', { text }))));
+    add('用法', ...manifest.usage.map((u) => el('div', { class: 'workshop-usage' }, el('strong', { text: u.title }), el('code', { text: u.how }), ...(u.note ? [el('small', { text: u.note })] : []))));
+    add('入口', el('ul', {}, ...manifest.provides.filter((p) => p.type !== 'cli').map((p) => el('li', { text: `${ENTRY_LABELS[p.type]}：${entryText(p)}` }))));
+    if (manifest.dependencies.length) add('依赖', el('span', { text: manifest.dependencies.map((d) => `${d.id} ≥ ${d.version}`).join('、') }));
+    add('权限', el('span', { text: manifest.permissions.length ? manifest.permissions.map((p) => PERMISSIONS[p]).join('、') : '不需要任何特别权限' }));
+    add('验证程度', el('span', { text: `${VERIFICATION[manifest.status.level]}。${manifest.status.summary}` }));
+    add('局限', el('ul', { class: 'workshop-limits' }, ...manifest.status.limits.map((text) => el('li', { text }))));
+    add('授权与作者', el('span', { text: `${manifest.license} · ${manifest.author}` }));
+    item.append(rows);
+    const buttons = el('div', { class: 'workshop-actions' });
+    if (pluginState?.canToggle(entry.id)) {
+      const toggle = el('button', { type: 'button', text: enabled ? '停用' : '启用', title: '官方插件的代码随应用发布，这里只是开关，不下载也不运行新代码' });
+      toggle.addEventListener('click', () => { pluginState.set(entry.id, !enabled); setNote(`${manifest.name}：已${enabled ? '停用' : '启用'}。`); render(); });
+      buttons.append(toggle);
+    } else buttons.append(el('span', { class: 'workshop-meta', text: pluginState ? '入口是工具预设或面板，这里不能关闭。' : '开关在 Viewer 里。' }));
+    item.append(buttons);
+    return item;
+  }
+
   function card(entry) {
+    if (entry.kind === 'plugin') return pluginCard(entry);
     const item = el('li', { class: 'workshop-card', 'data-entry': entry.id });
     const head = el('div', { class: 'workshop-card-head' }, el('h3', { text: entry.title }), el('span', { class: 'workshop-badge', text: [TOPICS[entry.topic], SOURCE_NAMES[entry.source] ?? entry.source].filter(Boolean).join(' · ') }));
     item.append(head);
@@ -122,16 +159,26 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
     return item;
   }
 
+  let renderToken = 0;
   function render() {
     for (const [name, tab] of Object.entries(zoneTabs)) { tab.setAttribute('aria-selected', String(name === zone)); tab.tabIndex = name === zone ? 0 : -1; }
+    mine?.form.remove();
+    if (zone === 'mine' && mine) {
+      topic.hidden = true; tag.hidden = true; source.hidden = true; list.before(mine.form);
+      const mark = ++renderToken;
+      mine.render(search.value).then((nodes) => { if (mark === renderToken && zone === 'mine') list.replaceChildren(...nodes); });
+      return;
+    }
+    tag.hidden = false;
     if (!catalog) { list.replaceChildren(); return; }
     const entries = queryCatalog(catalog, { zone, source: source.value || undefined, text: search.value, tag: tag.value || undefined, topic: topic.value || undefined });
+    topic.hidden = zone === 'plugins'; source.hidden = zone === 'plugins' && catalog.plugins.every((entry) => entry.source === catalog.plugins[0]?.source);
     list.replaceChildren(...entries.map(card));
-    if (!entries.length) list.append(el('li', { class: 'workshop-empty', text: zone === 'templates' ? '没有符合条件的模板。' : zone === 'works' ? '没有符合条件的作品。' : '没有符合条件的资源。' }));
+    if (!entries.length) list.append(el('li', { class: 'workshop-empty', text: zone === 'templates' ? '没有符合条件的静态作品。' : zone === 'works' ? '没有符合条件的作品。' : zone === 'plugins' ? '没有符合条件的插件。' : '没有符合条件的资源。' }));
   }
 
   function fillFilters() {
-    const sources = [...new Set([...catalog.templates, ...catalog.works, ...catalog.resources].map((entry) => entry.source))];
+    const sources = [...new Set([...catalog.templates, ...catalog.works, ...catalog.resources, ...catalog.plugins].map((entry) => entry.source))];
     source.replaceChildren(new doc.defaultView.Option('全部来源', ''), ...sources.map((name) => new doc.defaultView.Option(SOURCE_NAMES[name] ?? name, name)));
     topic.replaceChildren(new doc.defaultView.Option('全部主题', ''), ...Object.entries(TOPICS).map(([id, name]) => new doc.defaultView.Option(name, id)));
     tag.replaceChildren(new doc.defaultView.Option('全部标签', ''), ...allTags(catalog, zone).map((name) => new doc.defaultView.Option(name, name)));
@@ -144,7 +191,7 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
       fillFilters();
       // A missing catalogue of one source (say, the community has no resources yet) is ordinary while something else loaded;
       // when nothing loaded at all, every error is shown so the empty dialog explains itself.
-      const empty = !catalog.templates.length && !catalog.works.length && !catalog.resources.length;
+      const empty = !catalog.templates.length && !catalog.works.length && !catalog.resources.length && !catalog.plugins.length;
       const problems = empty ? catalog.errors : catalog.errors.filter(({ message }) => !/HTTP 404/.test(message));
       setNote(problems.length ? `${empty ? '工坊目录不可用' : '部分目录不可用'}：${problems.map(({ message }) => message).join('；')}` : '', problems.length ? 'error' : '');
       render();

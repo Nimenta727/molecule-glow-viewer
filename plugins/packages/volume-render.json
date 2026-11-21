@@ -1,0 +1,68 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.volume-render",
+  "version": "1.0.0",
+  "name": "体积叠加与切片",
+  "summary": "把密度体积叠在结构上显示：半透明等值面加一张正交切片，与结构在同一个坐标系里。",
+  "category": "render",
+  "adds": [
+    "在结构上叠加半透明等值面，可调阈值和透明度",
+    "显示沿 x / y / z 的任意一层切片（灰度映射，一个特别亮的体素不会压平整张）",
+    "体积与结构自动对齐在同一个坐标系"
+  ],
+  "usage": [
+    {
+      "title": "叠加等值面和一张切片",
+      "how": "await glow.volume({ level: 3.7, opacity: 0.4, slice: { axis: 2, index: 20 } })",
+      "note": "先加载体积（见“体积数据”插件）"
+    },
+    {
+      "title": "清除",
+      "how": "await glow.volume('clear')"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "volume"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/volume-view.mjs",
+      "exports": [
+        "volumeSurface",
+        "volumeSlice"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/volume-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实浏览器里用模拟的体积叠在 4AKE 上：曲面、阈值、切片、拒绝与清除。",
+    "limits": [
+      "**模拟的体积不是实验数据**，只证明软件行为",
+      "只有网格，没有真正的体渲染和混合；一次一个体积、一张切片",
+      "体积没有随作品保存（场景里还没有“体积”这种资产）"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-volume-render.md"
+  ],
+  "tags": [
+    "体积",
+    "显示"
+  ]
+}

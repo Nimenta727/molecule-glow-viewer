@@ -7,6 +7,7 @@ export function describeTool(tool) {
     ...(spec.unit ? { unit: spec.unit } : {}), ...(spec.type === 'number' ? { min: spec.min, max: spec.max, step: spec.step } : {}),
     ...(spec.type === 'select' ? { options: spec.options.map(({ value }) => value) } : {}), default: spec.default }));
   return { id: tool.id, title: tool.title, version: tool.version, runtime: tool.runtime, audience: [...tool.audience], parameters,
+    ...(tool.outputs ? { outputs: tool.outputs.map((out) => ({ ...out })) } : {}), ...(tool.dependencies ? { dependencies: tool.dependencies.map((dep) => ({ ...dep })) } : {}),
     ...(tool.model ? { model: { kind: tool.model.kind, assumptions: [...(tool.model.assumptions ?? [])] } } : {}) };
 }
 export const describeTools = (tools) => tools.map(describeTool);

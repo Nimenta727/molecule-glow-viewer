@@ -8,7 +8,7 @@ import { createMachine, normalizeMachine } from '../motion/conformation-machine.
 export const PARAMETERS = {
   morph: { label: '构象闭合程度（0=张开，1=闭合）', control: 'range', min: 0, max: 1, step: 0.01, value: 0 },
   auto: { label: '自动往复（0=手动，1=自动）', min: 0, max: 1, step: 1, value: 1 },
-  ap5: { label: '显示闭合态 Ap5A 参考（0/1）', min: 0, max: 1, step: 1, value: 1 },
+  ap5: { label: '显示闭合态参考配体（0/1）', min: 0, max: 1, step: 1, value: 1 },
 };
 export const ADK_MACHINE = normalizeMachine({
   kind: 'oscillating', parameters: PARAMETERS, manual: 'morph', auto: 'auto', steps: 4, counters: { percent: '闭合程度（%）' }, eventLabel: '构象展示参数变更',

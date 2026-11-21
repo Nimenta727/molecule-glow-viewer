@@ -88,7 +88,8 @@ test('PDB fixed columns preserve mapping fields, alternate locations and explici
   assert.equal(parsed.atoms[1].element, 'O');
   for (const atom of parsed.atoms) {
     assert.ok(Array.isArray(atom.position) && atom.position.length === 3);
-    for (const [key, value] of Object.entries(atom)) if (key !== 'position') assert.equal(typeof value, 'string', `${key} is a string field`);
+    for (const [key, value] of Object.entries(atom)) if (key !== 'position' && key !== 'bFactor') assert.equal(typeof value, 'string', `${key} is a string field`);
+    assert.ok(atom.bFactor === null || Number.isFinite(atom.bFactor), 'bFactor is a number, or null when the column is empty');
   }
 });
 
@@ -137,7 +138,8 @@ test('mmCIF tokenization handles quoted and semicolon multiline values, auth/lab
   assert.deepEqual(third.position, [0.5, -1.25, 2]);
   for (const atom of parsed.atoms) {
     assert.ok(Array.isArray(atom.position) && atom.position.length === 3);
-    for (const [key, value] of Object.entries(atom)) if (key !== 'position') assert.equal(typeof value, 'string', `${key} is a string field`);
+    for (const [key, value] of Object.entries(atom)) if (key !== 'position' && key !== 'bFactor') assert.equal(typeof value, 'string', `${key} is a string field`);
+    assert.ok(atom.bFactor === null || Number.isFinite(atom.bFactor), 'bFactor is a number, or null when the column is empty');
   }
 });
 
@@ -172,4 +174,11 @@ test('invalid coordinates, empty input and missing coordinate rows fail clearly'
   assert.throws(() => parseMmcif('data_no_atoms\n#'), /No coordinate atoms/);
   const bad = cifFixture().replace('1.0 2.0 3.0 1', 'not-a-number 2.0 3.0 1');
   assert.throws(() => parseMmcif(bad), /Invalid x coordinate/);
+});
+
+test('the B-factor column is read from PDB and mmCIF (for predicted structures it is the confidence, pLDDT)', () => {
+  const pdb = `ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 87.25           C  \nATOM      2  CA  GLY A   2       3.800   0.000   0.000  1.00           C  \n`;
+  assert.deepEqual(parsePdb(pdb).atoms.map((a) => a.bFactor), [87.25, null]);
+  const cif = `data_x\nloop_\n_atom_site.group_PDB\n_atom_site.id\n_atom_site.type_symbol\n_atom_site.label_atom_id\n_atom_site.label_comp_id\n_atom_site.label_asym_id\n_atom_site.label_seq_id\n_atom_site.Cartn_x\n_atom_site.Cartn_y\n_atom_site.Cartn_z\n_atom_site.B_iso_or_equiv\nATOM 1 C CA ALA A 1 0.0 0.0 0.0 91.5\nATOM 2 C CA GLY A 2 3.8 0.0 0.0 ?\n`;
+  assert.deepEqual(parseMmcif(cif).atoms.map((a) => a.bFactor), [91.5, null]);
 });

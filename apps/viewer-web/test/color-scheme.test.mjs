@@ -28,7 +28,7 @@ test('a single chain or all chains can be coloured; explicit colours win over th
   assert.ok(isDefault(applyColor(state, 'reset', undefined, chains).state));
 });
 test('a target that is not a whole chain, or a missing chain, is refused with a reason', () => {
-  assert.throws(() => applyColor(createColorState(), 'chain A and resi 1-10', 'red', chains), /整条链/);
+  assert.throws(() => applyColor(createColorState(), 'chain A and resi 1-10', 'red', chains), /整条链或 all 可以直接上色/, 'without a selection checker a residue target is refused and the way to do it is named');
   assert.throws(() => applyColor(createColorState(), 'within 5 of ligands', 'red', chains), /整条链/);
   assert.throws(() => applyColor(createColorState(), 'chain Z', 'red', chains), /没有链 Z/);
   assert.throws(() => applyColor(createColorState(), { scheme: 'neon' }, undefined, chains), /配色方式/);
@@ -39,4 +39,29 @@ test('a saved colour state is validated on the way back in', () => {
   assert.throws(() => validateColorState({ scheme: 'x', chains: {} }), /配色方式/);
   assert.throws(() => validateColorState({ scheme: 'chain', chains: { A: 'nope' } }), /颜色/);
   assert.throws(() => validateColorState([]), /对象/);
+});
+
+test('residue targets: with a selection checker a selection becomes a rule; unreadable or empty selections are refused; later rules win and are saved with the state', () => {
+  const chains = ['A', 'B'], check = (expr) => { if (/bad/.test(expr)) throw new Error('语法错误'); return /none/.test(expr) ? 0 : 7; };
+  let { state, note } = applyColor(createColorState(), 'chain A and resi 1-10', 'red', chains, { check });
+  assert.deepEqual(state.residues, [{ expr: 'chain A and resi 1-10', color: '#e05a4a' }]); assert.match(note, /7 个残基/); assert.ok(!isDefault(state));
+  ({ state } = applyColor(state, 'resi 5-8', '#00ff00', chains, { check })); assert.equal(state.residues.length, 2); assert.equal(state.residues[1].color, '#00ff00');
+  assert.throws(() => applyColor(state, 'bad bad', 'red', chains, { check }), /无法读取选择“bad bad”：语法错误/);
+  assert.throws(() => applyColor(state, 'none here', 'red', chains, { check }), /没有选中任何残基/);
+  assert.throws(() => applyColor(state, 'chain A and '.repeat(40), 'red', chains, { check }), /太长/);
+  assert.deepEqual(validateColorState(JSON.parse(JSON.stringify(state))), state, 'saved and restored unchanged');
+  assert.throws(() => validateColorState({ scheme: 'entity', chains: {}, residues: [{ expr: '', color: 'red' }] }), /选择表达式无效/);
+  assert.throws(() => validateColorState({ scheme: 'entity', chains: {}, residues: Array.from({ length: 65 }, () => ({ expr: 'all', color: 'red' })) }), /64 条/);
+  assert.ok(isDefault(applyColor(state, 'reset', undefined, chains).state), 'reset clears the rules too');
+  let many = createColorState(); for (let i = 0; i < 64; i++) many = applyColor(many, `resi ${i + 1}`, 'red', chains, { check }).state;
+  assert.throws(() => applyColor(many, 'resi 99', 'red', chains, { check }), /最多 64 条/);
+  assert.deepEqual(validateColorState({ scheme: 'chain', chains: {} }).residues, [], 'an older saved state without rules still loads');
+});
+
+test('the confidence scheme is refused unless the structure is a predicted one', () => {
+  const chains = ['A'];
+  assert.throws(() => applyColor(createColorState(), 'confidence', undefined, chains), /不是预测结构/);
+  assert.throws(() => applyColor(createColorState(), 'confidence', undefined, chains, { confidence: false }), /不是预测结构/);
+  const { state, note } = applyColor(createColorState(), 'confidence', undefined, chains, { confidence: true });
+  assert.equal(state.scheme, 'confidence'); assert.match(note, /pLDDT/); assert.equal(resolveColor(state, 'A', 0, 1), undefined, 'chains keep their own colour; residues carry the confidence');
 });

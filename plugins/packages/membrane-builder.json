@@ -1,0 +1,74 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.membrane-builder",
+  "version": "1.0.0",
+  "name": "脂双层构建",
+  "summary": "生成平面、囊泡、杆状（细菌包膜）和椭球形的脂双层，画成两个半透明小叶面，并能在膜面上均匀取样。",
+  "category": "render",
+  "adds": [
+    "四种膜形状（平面 / 囊泡 / 胶囊 / 椭球），面积与法线为解析精确",
+    "画出外、内两个小叶面，厚度、朝向、位置可调",
+    "在膜面上按面积均匀、带种子地取点（给插膜与组成规划用）"
+  ],
+  "usage": [
+    {
+      "title": "画一个半径 120 Å 的囊泡",
+      "how": "await glow.membrane({ shape: { kind: 'sphere', radius: 120 }, thickness: 36 })",
+      "note": "不给厚度时用默认 40 Å，回包里会提醒“没有核对来源”"
+    },
+    {
+      "title": "平面膜，法线沿 x",
+      "how": "await glow.membrane({ shape: { kind: 'plane', width: 160, height: 160 }, normal: [1, 0, 0] })"
+    },
+    {
+      "title": "清除",
+      "how": "await glow.membrane('clear')"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "membrane"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/membrane-builder.mjs",
+      "exports": [
+        "buildMembrane",
+        "midSurface",
+        "sampleSurface",
+        "placePoints"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/membrane-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "单测验证面积、法线、胶囊几何、取样；真实浏览器在 KcsA 周围画四种形状。",
+    "limits": [
+      "默认厚度 40 Å 是整数，没有核对来源",
+      "只是光滑曲面：没有脂质分子、没有疏水核心与头部的区别、没有嵴",
+      "与结构的相对位置要自己给，没有与自动定膜联通",
+      "一次一个膜；双层膜要调用两次"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-membrane-builder.md"
+  ],
+  "tags": [
+    "膜"
+  ]
+}

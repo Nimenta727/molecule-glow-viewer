@@ -38,6 +38,7 @@ import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP, describeSelection, selectionSpace, evaluateSelection } from '../../plugins/structure/selection.mjs';
+import { residueConfidence, confidenceColor, residueIdentity } from '../../plugins/structure/confidence.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
@@ -46,6 +47,7 @@ import { capabilityReport } from './capabilities.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
+import { hydrateReferences } from '../../packages/schema/export-policy.mjs';
 import { prepareWorkScene, makeStaticTemplate, storePlayerState, toolEntryFor } from './work-scene.mjs';
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
@@ -54,7 +56,23 @@ import { normalizeCompositionConfig } from '../../plugins/simulation/composition
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
-import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
+import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
+import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
+import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
+import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
+import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
+import { volumeSurface, volumeSlice } from '../../plugins/structure/volume-view.mjs';
+import { buildMembrane, midSurface, placePoints, DEFAULT_THICKNESS } from '../../plugins/structure/membrane-builder.mjs';
+import { benchmarkReport } from '../../packages/render-three/budget.mjs';
+import { complexFromStructure, stoichiometry } from '../../packages/schema/complex.mjs';
+import { interactionsOfComplex, degrees } from '../../plugins/structure/interaction-evidence.mjs';
+import { fitOnto, findClashes } from '../../plugins/structure/assembly-compose.mjs';
+import { placeMembrane, applyPlacement } from '../../plugins/structure/membrane-placement.mjs';
+import { embedCopies, planComposition, volumeRegion, matrixFromQuaternion } from '../../plugins/simulation/placement.mjs';
+import { createBinding, smoluchowskiRate, effectiveKoff } from '../../plugins/simulation/binding.mjs';
+import { createSourceClient, resourceFor, memoryStore, SOURCES } from '../../plugins/sources/data-source.mjs';
+import { layoutCopies } from './instance-layout.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
 const elements = Object.fromEntries(
@@ -276,6 +294,14 @@ function boot() {
           const { fourModesDemo } = await import('./four-modes-demo.mjs');
           loaded = { scene: fourModesDemo, resources: new Map(), warnings: [] };
         } else loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
+        if (loaded.scene.assets?.some((asset) => asset.kind === 'external' && asset.resource)) {   // a published package that carries structures as references: fetch, verify the recorded hash
+          setStatus('正在取回引用的结构并核对哈希…');
+          const hydrated = await hydrateReferences(loaded.scene, loaded.resources, async ({ provider, accession }) => {
+            if (!/^rcsb/i.test(provider)) throw new Error(`不支持的来源 ${provider}`);
+            return (await loadAccession(accession, signal)).bytes;
+          });
+          loaded = { ...loaded, scene: hydrated.scene, resources: hydrated.resources, warnings: [...(loaded.warnings ?? []), ...hydrated.diagnostics.map(({ message }) => message)] };
+        }
         if (importer && structureLifetime) {
           const combined = AbortSignal.any([signal, structureLifetime.signal]);
           await loadLegacyStructures(loaded, {
@@ -374,7 +400,9 @@ function boot() {
     elements['mechanism-steps'].hidden = active.navigation?.current().mode === 'mechanism';
     if (active.mechanismUiPlayer !== player) {
       active.mechanismUiPlayer = player;
-      const panel = host.getPanel(active.playerId);
+      const registered = host.getPanel(active.playerId), own = player.panel;   // the work's own wording (from its configuration) wins over the registered default
+      const panel = own ? { ...registered, title: own.title ?? registered?.title, parametersTitle: own.parametersTitle ?? registered?.parametersTitle, evidence: own.evidence ?? registered?.evidence,
+        speed: { ...registered?.speed, ...(own.speedLabel ? { label: own.speedLabel } : {}) }, seed: { ...registered?.seed, ...(own.seedLabel ? { label: own.seedLabel } : {}) } } : registered;
       elements['mechanism-title'].textContent = panel?.title ?? '机制';
       elements['mechanism-evidence'].textContent = panel?.evidence ?? '';
       for (const key of ['speed', 'seed']) {
@@ -594,6 +622,19 @@ function boot() {
       viewport.setClipping(planes && nodeIds.size ? { wedge: { planes, nodeIds } } : {});
     } else viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
   }
+  /**
+   * The tRNAs, mRNA, factors and the growing chain of the translation view sit INSIDE the ribosome (between the subunits), so a closed ribosome hides all of them. When a translation
+   * work opens with no clipping of its own, a wedge is cut out of the ribosome's parts on the side facing the viewer (the classic's 剖开, scope "parts"); tRNA/mRNA parts are never cut.
+   * It is an ordinary clipping state: the clip controls show it and switch it off, and a work that saved its own clipping keeps it.
+   */
+  function openRibosomeCutaway() {
+    if (!active || active.clipping?.enabled) return;
+    const keys = [...computeStructureParts().keys()].filter((key) => { let name = ''; try { name = String(JSON.parse(key)[1] ?? ''); } catch { return false; } return !/trna|^mrna$/i.test(name); });
+    if (!keys.length) return;
+    const state = clipState();
+    Object.assign(state, { enabled: true, scope: 'parts', wedgeParts: keys, direction: normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1] }).direction });
+    syncClipControls(); applyClipping(); showStructureParts();
+  }
   function clipState() {
     if (!active) return null;
     active.clipping ??= normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1], depth: 0 });
@@ -746,7 +787,7 @@ function boot() {
     elements: { title: elements['process-title'], speed: elements['process-speed'], speedOut: elements['process-speed-out'], play: elements['process-play'], reset: elements['process-reset'], jump: elements['process-jump'], jumpGo: elements['process-jump-go'],
       csv: elements['process-csv'], strip: elements['process-strip'], params: elements['process-params'], readout: elements['process-readout'], state: elements['process-state'], events: elements['process-events'], info: elements['process-info'] },
   });
-  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary() }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
+  const ribosomeView = createRibosomeView({ viewport, context: { model: () => active?.model, parts: computeStructureParts }, process: { summary: () => processPanel.summary(), statesBetween: (from, to) => processPanel.statesBetween(from, to) }, speed: () => Number(elements['process-speed'].value) || 0.02, status: (text) => setStatus(text) });
   const ribosomeCloseup = createRibosomeCloseup({
     viewport, status: (text) => setStatus(text), process: { summary: () => processPanel.summary() },
     elements: { box: elements['ribosome-closeup'], dc: elements['ribosome-closeup-dc'], ptc: elements['ribosome-closeup-ptc'], off: elements['ribosome-closeup-off'], info: elements['process-info'] },
@@ -832,7 +873,7 @@ function boot() {
     const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
     const multi = toolEntryFor(active.scene, COMPOSITION_TOOL, resolve);
     if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
-    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); ribosomeCloseup.show(ribosomeView.start(tcfg.strip.sequence)); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
+    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); const started = ribosomeView.start(tcfg.strip.sequence); ribosomeCloseup.show(started); if (started) openRibosomeCutaway(); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config), data.state); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
@@ -864,6 +905,21 @@ function boot() {
     }
   }
 
+  /** Whether the open structure is a predicted one (its resource says so): only then does its B-factor column mean confidence. */
+  function hasConfidence(loaded) {
+    const [first] = structureSources(loaded.scene);
+    return Boolean(first && (loaded.scene.resources ?? []).some((record) => record.kind === 'predicted-structure' && first.resource?.id === record.id));
+  }
+  /** (group, atom) -> colour of one residue, from the colour state's selection rules and, for a predicted structure, the confidence scheme; undefined when nothing colours residues. */
+  function residueColorOf(loaded) {
+    const state = loaded.colorState, model = loaded.model;
+    if (!state || !model || (!state.residues?.length && state.scheme !== 'confidence')) return undefined;
+    const colors = new Map();
+    if (state.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) colors.set(key, confidenceColor(value));
+    const space = selectionSpace(model);
+    for (const rule of state.residues ?? []) for (const residue of evaluateSelection(rule.expr, space).residues) colors.set(residueIdentity(residue.atom), rule.color);
+    return (group, atom) => colors.get(residueIdentity(atom));
+  }
   function structureLayers(loaded, requestedStyle) {
     const layers = geometryLayers(loaded);
     loaded.representationSource = undefined;
@@ -876,6 +932,7 @@ function boot() {
     const result = buildStructureLayers({
       scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
       recolor: loaded.colorState && !isDefault(loaded.colorState) ? (group, index, count) => resolveColor(loaded.colorState, group.chainId, index, count) : undefined,
+      residueColor: residueColorOf(loaded),
       onTarget(target, source, primary) {
         target.sourceAssetId = source.id;
         loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
@@ -1254,11 +1311,19 @@ function boot() {
 
   // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
   // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
+  const pluginSwitch = createPluginSwitch((() => { try { return window.localStorage; } catch { return null; } })());
+  // the person's own protein templates (originals from the PDB or from disk), kept on this machine; no IndexedDB (a private window) = the zone is not offered
+  const templateLibrary = (() => { try { return createTemplateLibrary({ store: indexedDbStore({ name: 'glow-templates' }) }); } catch { return null; } })();
+  const templateStructure = async (entry) => ({ name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
+    source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } });
   const workshop = createWorkshopDialog(document, {
+    pluginState: pluginSwitch,
+    ...(templateLibrary ? { templates: { library: templateLibrary, loadRcsb: (code) => loadAccession(code, new AbortController().signal),
+      actions: [{ label: '打开结构', title: '把这份原文件作为结构打开（先核对哈希）', run: async (entry) => { await setStructureEnabled(true); await openScene({ structure: await templateStructure(entry), assembly: elements['structure-assembly'].checked }, { propagate: true }); } }] } } : {}),
     load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
     toolTitle, toolAvailable: isKnownTool,
     actions: {
-      templates: [{ label: '查看', title: '静态模板：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
+      templates: [{ label: '查看', title: '静态作品：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       works: [{ label: '打开动态演示', title: '作品：下载、核对哈希后打开，演示作用原理', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       resources: [{ label: '打开结构', title: '从来源取回、核对哈希后作为结构打开', run: (entry) => openWorkshopResource(entry) }],
     },
@@ -1435,9 +1500,176 @@ function boot() {
       else setStatus('请拖入 PDB 或 mmCIF 结构文件。');
     });
   }
+  /**
+   * What an instance set is made of, from what is on screen now: the triangles of the structure (centred on their own centroid, in viewport units), four levels of detail with the colours of the parts
+   * they stand for, the bounding radius and a mean tint. `centroid` is where that centre was in viewport units.
+   */
+  function instancePrototype() {
+    const soup = viewport.collectTriangles();
+    if (!soup.triangles) throw new Error('当前没有可以复制的结构几何。');
+    const n = soup.positions.length / 3, centroid = [0, 0, 0];
+    for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) centroid[k] += soup.positions[3 * i + k] / n;
+    let radius = 0;
+    for (let i = 0; i < n; i++) { for (let k = 0; k < 3; k++) soup.positions[3 * i + k] -= centroid[k]; radius = Math.max(radius, Math.hypot(soup.positions[3 * i], soup.positions[3 * i + 1], soup.positions[3 * i + 2])); }
+    const stride = Math.max(1, Math.floor(n / 6000)), outline = new Float32Array(3 * Math.ceil(n / stride)), outlineColors = new Float32Array(outline.length);
+    for (let i = 0, j = 0; i < n; i += stride, j++) { outline.set(soup.positions.subarray(3 * i, 3 * i + 3), 3 * j); outlineColors.set(soup.colors.subarray(3 * i, 3 * i + 3), 3 * j); }
+    const levels = buildLevels(soup.positions, outline, { cell: radius / 5 });
+    const colors = [soup.colors, ...levels.geometries.slice(1).map((g) => colorByNearest(g, outline, outlineColors))];   // each coarser level keeps the colours of the parts it stands for
+    const mean = [0, 0, 0]; for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) mean[k] += soup.colors[3 * i + k] / n;
+    const tint = '#' + mean.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
+    return { levels, colors, radius, tint, centroid };
+  }
+  /** Column-major 4x4 matrices (three.js order) for copies placed by { position (Å), rotation (quaternion) } in a frame where the structure's own coordinates are moved by x' = R x + t: the prototype is in viewport units around its centroid. */
+  function copyMatrices(proto, transforms) {
+    const scale = PRESENTATION_METERS_PER_ANGSTROM, centre = displayCenter(active.model), out = new Float32Array(16 * transforms.length);
+    transforms.forEach(({ position, rotation }, i) => {
+      const R = matrixFromQuaternion(rotation), apply = (v) => [0, 1, 2].map((r) => R[r][0] * v[0] + R[r][1] * v[1] + R[r][2] * v[2]), Rc = apply(centre), Rg = apply(proto.centroid);
+      const m = out.subarray(16 * i, 16 * i + 16);
+      for (let c = 0; c < 3; c++) for (let r = 0; r < 3; r++) m[4 * c + r] = R[r][c];
+      for (let r = 0; r < 3; r++) m[12 + r] = Rg[r] + scale * (Rc[r] + position[r]);
+      m[15] = 1;
+    });
+    return out;
+  }
+
+  // ---- commands added by the packaged plugins (plugins/packages/*.json): each is the entry point of one plugin -----------------------------------------------------------------------------
+  const openResource = () => { const [first] = structureSources(active.scene); if (!first?.resource) throw new Error('这个结构还没有登记为资源：请先打开一个结构。'); return first.resource; };
+  const symbolOf = (name) => name;
+  /** `complex` (plugin: complex-records): the open structure as a complex record, its chains grouped by the name the entry gives them. */
+  function cmdComplex(spec) {
+    if (!active?.model) throw new Error('请先打开一个结构。');
+    const resource = openResource(), complex = complexFromStructure({ model: active.model, resource: { id: resource.id, version: resource.version, ...(resource.sha256 ? { sha256: resource.sha256 } : {}) }, id: spec.id ?? `cx.${resource.id}`, title: spec.title ?? `${resource.id} 的链分组`, citation: `沉积坐标 ${resource.id}` });
+    const copies = complex.members.reduce((n, m) => n + m.copies, 0), include = spec.record ?? copies <= 500;
+    return { id: complex.id, resource: `${resource.id}@${resource.version}`, members: complex.members.length, copies, stoichiometry: Object.fromEntries(stoichiometry(complex)), ...(include ? { record: complex } : { recordOmitted: `共 ${copies} 份，记录较大；给 record: true 才返回完整记录` }) };
+  }
+  /** `assemble` (plugin: assembly): another entry's chains fitted onto the open structure by a shared subunit, with the fit and the clashes. */
+  async function cmdAssemble(spec) {
+    if (!active?.model) throw new Error('请先打开基座结构。');
+    const controller = new AbortController(), parse = host.getService('org.glow.structure.model', '1.0.0').parse, added = parse(await loadAccession(spec.pdb, controller.signal));
+    const fit = fitOnto({ base: active.model, added, baseSelection: spec.baseSelection, addSelection: spec.addSelection, mode: spec.mode ?? 'number', maxRmsd: spec.maxRmsd ?? 4 });
+    const clashes = findClashes({ base: active.model, added, carry: spec.carry, transform: fit.transform, threshold: spec.threshold ?? 2 });
+    return { pdb: spec.pdb.toUpperCase(), rmsd: fit.rmsd, matched: fit.matched, identity: fit.identity, mode: fit.mode, transform: fit.transform, carry: spec.carry, clashes,
+      evidence: { type: 'derived', note: '位置由叠合推导，不是同一个条目里测得的；这不说明这个组合真的存在。' } };
+  }
+  const membraneAtoms = () => selectionSpace(active.model).residues.map((r) => ({ position: [...r.position], asym: r.asym, seq: r.labelSeq, nucleic: r.nucleic, resn: r.resn, entity: r.entity }));
+  /** `embed` (plugin: membrane-embedding): copies of the open membrane protein embedded in a membrane shape, drawn with levels of detail, and the membrane itself. */
+  function cmdEmbed(spec) {
+    if (!active?.model) throw new Error('请先打开一个结构。');
+    if (!spec) { viewport.setInstanceSet('copies', null); showMembrane(null); return { cleared: true }; }
+    const atoms = membraneAtoms(), scan = (list) => placeMembrane(list, { segs: [], memAnn: true, topo: [] });
+    // the whole structure first; a complex with a soluble partner (an antibody fragment, say) dilutes the scan, so then each entity alone, largest first (the orientation found is applied to everything)
+    let found = scan(atoms), usedEntity = null;
+    if (!found) { const byEntity = new Map(); for (const a of atoms) byEntity.set(a.entity, [...(byEntity.get(a.entity) ?? []), a]); for (const [entity, list] of [...byEntity].sort((x, y) => y[1].length - x[1].length)) { found = scan(list); if (found) { usedEntity = entity; break; } } }
+    if (!found) throw new Error('没有找到这个结构的膜朝向（疏水带扫描没有结果）：它可能不是膜蛋白，或只是单体——试试打开它的生物组装体。');
+    const canonical = applyPlacement(atoms.map((a) => a.position), found.placement), radius = Math.max(...canonical.map((q) => Math.hypot(q[0], q[2]))) + 5;
+    const surface = midSurface(spec.shape), result = embedCopies({ steps: found.placement, surface, count: spec.copies, radius, seed: spec.seed ?? 1, inward: Boolean(spec.inward) });
+    const proto = instancePrototype(), built = viewport.setInstanceSet('copies', { geometries: proto.levels.geometries, colors: proto.colors, color: proto.tint, matrices: copyMatrices(proto, result.placements.map((p) => p.transform)), radius: proto.radius, budget: spec.budget ?? Infinity });
+    showMembrane({ shape: spec.shape, thickness: 2 * found.half, opacity: spec.opacity ?? 0.25 });
+    return { placed: result.placed, requested: result.requested, membrane: { source: found.src, thicknessFromStructure: 2 * found.half, radiusOfEachCopy: radius, ...(usedEntity ? { orientedBy: usedEntity } : {}) }, plan: built?.plan ?? null,
+      note: '每份的位置是示意（均匀取点加随机自旋），不是测量；膜厚取自这个结构的疏水带。' };
+  }
+  const PALETTE = ['#e15759', '#4e79a7', '#59a14f', '#edc948', '#b07aa1', '#76b7b2', '#f28e2b', '#9c755f'];
+  let composeTags = [];
+  /** `compose` (plugin: composition-planner): a composition table placed without overlaps; components are drawn as coloured spheres, and one of them may be the open structure. */
+  function cmdCompose(spec) {
+    if (!active) throw new Error('请先打开场景。');
+    for (const tag of composeTags) viewport.setParticleCloud(tag, []);
+    composeTags = [];
+    if (!spec) { viewport.setInstanceSet('copies', null); showMembrane(null); return { cleared: true }; }
+    const region = volumeRegion(spec.region, { inset: spec.inset ?? 0 }), membrane = spec.membrane ? { surface: midSurface(spec.membrane) } : undefined, total = spec.components.reduce((n, c) => n + c.copies, 0);
+    if (total > 20000) throw new Error(`组分一共 ${total} 份，超过 20000：先减少份数。`);
+    const plan = planComposition({ region, membrane, components: spec.components, seed: spec.seed ?? 1 }), scale = PRESENTATION_METERS_PER_ANGSTROM;
+    spec.components.forEach((component, i) => {
+      const mine = plan.placements.filter((p) => p.component === component.id);
+      if (component.useOpenStructure && active.model) {
+        const proto = instancePrototype(), centre = displayCenter(active.model);
+        const transforms = mine.map(({ position, transform }) => { const R = matrixFromQuaternion(transform.rotation), Rc = [0, 1, 2].map((r) => R[r][0] * centre[0] + R[r][1] * centre[1] + R[r][2] * centre[2]); return { position: position.map((v, k) => v - Rc[k]), rotation: transform.rotation }; });
+        viewport.setInstanceSet('copies', { geometries: proto.levels.geometries, colors: proto.colors, color: proto.tint, matrices: copyMatrices(proto, transforms), radius: proto.radius, budget: Infinity });
+      } else {
+        const tag = `compose-${i}`; composeTags.push(tag);
+        viewport.setParticleCloud(tag, mine.map((p) => ({ position: p.position.map((v) => v * scale), radius: component.radius * scale, color: component.color ?? PALETTE[i % PALETTE.length], name: component.name ?? component.id })));
+      }
+    });
+    if (spec.membrane) showMembrane({ shape: spec.membrane, thickness: spec.membraneThickness, opacity: 0.2 });
+    return { report: plan.report, occupancy: plan.occupancy, membraneCoverage: plan.membraneCoverage, crowded: plan.crowded, placed: plan.placements.length,
+      note: '示意图：份数、半径、体积都是你给的，位置是随机但互不重叠的摆放，不是真实细胞的分布。' };
+  }
+  /** `interactions` (plugin: interaction-evidence): which chains of the open structure touch, with the evidence level of each pair. */
+  function cmdInteractions(spec) {
+    if (!active?.model) throw new Error('请先打开一个结构。');
+    const resource = openResource(), complex = complexFromStructure({ model: active.model, resource: { id: resource.id, version: resource.version, ...(resource.sha256 ? { sha256: resource.sha256 } : {}) }, id: 'cx.open', title: '当前结构', citation: `沉积坐标 ${resource.id}` });
+    const copies = complex.members.reduce((n, m) => n + m.copies, 0); if (copies > 120) throw new Error(`有 ${copies} 份成员，两两检查太多（上限 120）：请换一个小一点的结构或组装体。`);
+    const record = (active.scene.resources ?? []).find((r) => r.id === resource.id), kinds = new Map(record ? [[`${record.id}@${record.version}`, record.kind]] : []);
+    const result = interactionsOfComplex({ complex, models: new Map([[`${resource.id}@${resource.version}`, active.model]]), cutoff: spec.cutoff ?? 4.5, minContacts: spec.minContacts ?? 10, kinds });
+    const cut = (list) => (list.length > 30 ? [...list.slice(0, 30), `…另有 ${list.length - 30} 个`] : list), limit = spec.limit ?? 50;
+    return { copies, checked: result.checked, total: result.interactions.length, shown: Math.min(limit, result.interactions.length),
+      interactions: result.interactions.slice(0, limit).map((i) => ({ a: { name: i.a.name, chains: i.a.chains }, b: { name: i.b.name, chains: i.b.chains }, contacts: i.contacts, minDistance: i.minDistance, level: i.level, reasons: i.reasons, residuesA: cut(i.residues.a), residuesB: cut(i.residues.b) })),
+      degrees: Object.fromEntries(degrees(result.interactions)), note: '接触是放置后坐标的几何事实，不代表亲和力；证据等级回答的是“这个相对位置从哪来”。' };
+  }
+  /** `binding` (plugin: binding): Brownian-dynamics association of particles with one receptor site in a periodic box, against the Smoluchowski rate. */
+  function cmdBinding(spec) {
+    const dt = spec.dt ?? 0.002, steps = Math.round(spec.microseconds / dt);
+    if (spec.particles * steps > 1.5e8) throw new Error(`计算量太大（${spec.particles} 个粒子 × ${steps} 步）：减少粒子数或时间，或加大 dt。`);
+    const sim = createBinding({ box: spec.box, particles: spec.particles, D: spec.D, dt, koff: spec.koff ?? 0, seed: spec.seed ?? 1, reinject: Boolean(spec.reinject), sites: [{ position: [spec.box / 2, spec.box / 2, spec.box / 2], radius: spec.radius }] });
+    sim.run(Math.min(5, spec.microseconds / 5)); const before = sim.counts.bindings; let occupied = 0, samples = 0;
+    for (let t = 0; t < spec.microseconds; t += 0.5) { sim.run(Math.min(0.5, spec.microseconds - t)); occupied += sim.boundCount(); samples++; }
+    const concentration = spec.particles / spec.box ** 3, theory = smoluchowskiRate({ D: spec.D, radius: spec.radius, concentration }), rate = (sim.counts.bindings - before) / spec.microseconds;
+    return { microseconds: spec.microseconds, bindings: sim.counts.bindings - before, releases: sim.counts.releases, rate, smoluchowskiRate: theory, ratio: rate / theory, concentrationPerNm3: concentration,
+      ...(spec.koff ? { occupancy: occupied / samples, effectiveKoff: effectiveKoff({ koff: spec.koff }), expectedOccupancy: theory / (theory + effectiveKoff({ koff: spec.koff })) } : {}),
+      note: 'D 的单位 nm²/µs；位点是完全吸收的固定球，粒子是不相互作用的点；时间步长与周期盒子的两个小偏差没有修正。' };
+  }
+  let sourceClient;
+  /** `source` (plugin: data-sources): data fetched from an external source through the trusted client (allow-listed host, size limit, hash recorded, offline cache), with its resource record. */
+  async function cmdSource(spec) {
+    sourceClient ??= createSourceClient({ cache: memoryStore(), book: memoryStore() });
+    const result = await sourceClient.load(spec.source, spec.accession, { expectedSha256: spec.expectedSha256, allowUpdate: Boolean(spec.allowUpdate) }), source = SOURCES[spec.source];
+    return { source: source.id, accession: spec.accession, url: result.url, bytes: result.bytes.byteLength, sha256: result.sha256, fromCache: result.fromCache, recorded: result.recorded, updated: result.updated, verified: source.verified, ...(source.note ? { note: source.note } : {}), resource: resourceFor(result) };
+  }
+  void symbolOf;
+
+  /**
+   * A density map drawn over what is open (plugins/structure/volume-view.mjs): an isosurface and, if asked, one slice, in the structure's own frame. `bytes` (a map file) or `map` (its base64)
+   * loads one; without either the map already loaded is redrawn (new level, opacity or slice). null clears it. Returns the grid, the level used and what was reduced.
+   */
+  function showVolume(spec) {
+      if (!active) throw new Error('请先打开场景。');
+      const clear = () => { viewport.setOverlayMesh('volume', null); viewport.setOverlayMesh('volume-slice', null); };
+      if (!spec) { clear(); delete active.volumeMap; return { cleared: true }; }
+      if (spec.bytes || spec.map) active.volumeMap = parseMrc(spec.bytes ?? Uint8Array.from(atob(spec.map), (c) => c.charCodeAt(0)));
+      const map = active.volumeMap; if (!map) throw new Error('还没有加载体积：先给出 map（MRC/CCP4 文件的 base64）或在界面里打开 .mrc / .map 文件。');
+      const frame = active.model ? { center: displayCenter(active.model) } : undefined;
+      const surface = volumeSurface(map, { level: spec.level ?? 'auto', frame });
+      viewport.setOverlayMesh('volume', surface.triangles ? surface.mesh : null, { opacity: spec.opacity ?? 0.35 });
+      let slice = null;
+      if (spec.slice) { const s = volumeSlice(map, spec.slice.axis, spec.slice.index, { frame }); viewport.setOverlayMesh('volume-slice', s.mesh, { opacity: 0.9 }); slice = { axis: spec.slice.axis, layer: s.layer, of: s.of, lo: s.lo, hi: s.hi }; } else viewport.setOverlayMesh('volume-slice', null);
+      return { dims: map.dims, voxelSize: map.voxelSize, origin: map.origin, stats: map.stats, label: map.label, level: surface.level, auto: surface.auto, triangles: surface.triangles, truncated: surface.truncated, note: surface.note, slice };
+    }
+
+  /**
+   * A lipid bilayer built from a shape (plugins/structure/membrane-builder.mjs), drawn as two translucent leaflets in the structure's frame; null clears it. `shape` is { kind: 'plane'|'sphere'|
+   * 'capsule'|'ellipsoid', ...sizes in Å }, `thickness` the whole bilayer in Å, `normal` where the membrane's +z points, `offset` its centre (Å) from the structure's centre.
+   */
+  function showMembrane(spec) {
+    if (!active) throw new Error('请先打开场景。');
+    if (!spec) { viewport.setOverlayMesh('membrane-outer', null); viewport.setOverlayMesh('membrane-inner', null); return { cleared: true }; }
+    const thickness = spec.thickness ?? DEFAULT_THICKNESS, membrane = buildMembrane(spec.shape, { thickness, resolution: spec.resolution ?? 48 }), place = { normal: spec.normal ?? [0, 0, 1], offset: spec.offset ?? [0, 0, 0], scale: PRESENTATION_METERS_PER_ANGSTROM };
+    for (const [tag, leaflet, tint] of [['membrane-outer', membrane.outer, '#e3b778'], ['membrane-inner', membrane.inner, '#8fb4d9']]) {
+      const colors = new Float32Array(leaflet.pos.length); const c = parseHex(tint); for (let i = 0; i < colors.length; i += 3) colors.set(c, i);
+      viewport.setOverlayMesh(tag, { pos: placePoints(leaflet.pos, place), idx: leaflet.idx, colors }, { opacity: spec.opacity ?? 0.35 });
+    }
+    return { shape: spec.shape.kind, area: membrane.surface.area, thickness, note: spec.thickness ? '' : `厚度用的是默认的 ${DEFAULT_THICKNESS} Å（整个双层），没有对照过来源，请按你的参考值设置。` };
+  }
+  const parseHex = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+
   elements.file.addEventListener('change', () => {
     const [file] = elements.file.files;
     elements.file.value = '';
+    if (file && /\.(mrc|map|ccp4)$/i.test(file.name)) {   // a density map is shown over what is open, not as a scene of its own
+      if (!active) { setStatus('请先打开一个结构或示例，再加载体积（.mrc / .map）。'); return; }
+      file.arrayBuffer().then((buffer) => { const result = showVolume({ bytes: new Uint8Array(buffer) }); setStatus(`体积 ${file.name}：${result.dims.join(' × ')} 体素，阈值 ${result.level.toFixed(4)}${result.note ? '。' + result.note : ''}`); })
+        .catch((error) => setStatus(error instanceof MapError ? `无法读取体积：${error.message}` : `体积失败：${error.message}`));
+      return;
+    }
     if (file) openScene({ file, assembly: elements['structure-assembly'].checked });
   });
   /** The particle set goes into the work as the tool's entry (config), replacing the configuration it was opened with; a set nobody touched leaves the work alone. */
@@ -1479,6 +1711,7 @@ function boot() {
     storeParticles(scene);
     storeComposition(scene);
     storeDataAnimation(scene);
+    scene.dependencies = mergeToolDependencies(scene.dependencies, descriptorsForScene(scene, (id) => host.getTool(host.resolveToolId(id) ?? id)));   // what the work's tools need travels with it
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });
@@ -1693,7 +1926,7 @@ function boot() {
   });
 
   const commandLifetime = new AbortController();
-  const commands = createCommandApi(createViewerCommands({
+  const commands = createCommandApi(createViewerCommands(pluginSwitch.guardAll({
     signal: commandLifetime.signal,
     current: () => active,
     plugins: () => host.listActive(),
@@ -1717,9 +1950,28 @@ function boot() {
     selectSet,
     clearSet,
     tools: () => describeTools(host.listTools({ audience: 'view' })),
+    /** Measures the real frame rate of what is on screen on this machine and turns it into a triangle budget and plain advice (packages/render-three/budget.mjs). */
+    benchmark: async (spec) => {
+      if (!active) throw new Error('请先打开场景。');
+      const before = viewport.stats(), run = await viewport.benchmark({ ms: Math.round((spec?.seconds ?? 3) * 1000) });
+      return { ...benchmarkReport({ rendererName: run.rendererName, frames: run.frames, targetFps: spec?.targetFps ?? 30, triangles: before.triangles }), drawables: before.drawables, note: '帧率受显示器刷新率限制（通常 60），所以快的机器上预算只会放宽到当前负载的几倍。' };
+    },
+    volume: showVolume,
+    membrane: showMembrane,
+    complex: cmdComplex, assemble: cmdAssemble, embed: cmdEmbed, compose: cmdCompose, interactions: cmdInteractions, binding: cmdBinding, source: cmdSource,
+    /** Copies of what is on screen at several levels of detail (packages/render-three/lod.mjs); null clears them. Returns what was built and what the first frame costs. */
+    instances: (spec) => {
+      if (!spec) { viewport.setInstanceSet('copies', null); return { cleared: true }; }
+      const proto = instancePrototype(), { matrices } = layoutCopies({ copies: spec.copies, layout: spec.layout ?? 'sphere', radius: proto.radius, spread: spec.spread ?? 1, seed: spec.seed ?? 1 });
+      const built = viewport.setInstanceSet('copies', { geometries: proto.levels.geometries, colors: proto.colors, color: proto.tint, matrices, radius: proto.radius, budget: spec.budget ?? Infinity });
+      if (!built) throw new Error('无法建立实例。');
+      return { copies: spec.copies, layout: spec.layout ?? 'sphere', tint: proto.tint, prototypeRadius: proto.radius, levelTriangles: proto.levels.triangles, plan: built.plan, withoutLevels: spec.copies * proto.levels.triangles[0] };
+    },
     measure: (expressions) => { if (!expressions) { analysisPanel.clearMeasure(); return null; } return analysisPanel.measureNow(expressions); },
     chainIds: () => (active?.model ? [...new Set(selectionSpace(active.model).residues.map((r) => r.chain))] : null),
     colorState: () => active?.colorState ?? createColorState(),
+    colorCheck: (expression) => (active?.model ? evaluateSelection(expression, selectionSpace(active.model)).residues.length : 0),
+    hasConfidence: () => Boolean(active && hasConfidence(active)),
     setColors: (state) => { active.colorState = state; refreshStructureView(); },
     sequence: () => {
       if (!active?.model) return null;
@@ -1781,9 +2033,9 @@ function boot() {
       showPose();
       if (!paused) elements.play.click();
     },
-  }));
+  })));
   window.glow = commands.api;
-  window.__glowStats = () => viewport.stats();   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
+  window.__glowStats = () => ({ ...viewport.stats(), ribosome: ribosomeView.status() });   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
   const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;
@@ -1800,7 +2052,7 @@ function boot() {
   if (workId) {
     workshop.catalog().then((catalog) => {
       const entry = [...catalog.works, ...catalog.templates].find(({ id }) => id === workId);
-      if (!entry) throw new Error(`工坊里没有模板或作品 ${workId}。`);
+      if (!entry) throw new Error(`工坊里没有静态作品或作品 ${workId}。`);
       return openWorkshopWork(entry, catalog);
     }).catch((error) => setStatus(`无法打开工坊作品。 ${error.message}`));
   } else openScene();

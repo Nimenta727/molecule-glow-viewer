@@ -117,5 +117,11 @@ export function createProcessPanel({ elements }) {
     get active() { return Boolean(run); },
     /** For tests and the command API: the state now. */
     summary: () => (run ? { time: t, ...run.at(t) } : null),
+    /** The state after each event in (from, to], oldest first, at most `limit` (the newest ones when there are more): for views that must follow every transition. */
+    statesBetween(from, to, limit = 400) {
+      if (!run || !(to > from)) return [];
+      const events = run.eventsBetween(from, to), kept = events.length > limit ? events.slice(-limit) : events;
+      return kept.map(({ time }) => ({ time, ...run.at(time) }));
+    },
   };
 }

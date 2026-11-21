@@ -1,0 +1,83 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.predicted-structures",
+  "version": "1.0.0",
+  "name": "预测结构与逐残基着色",
+  "summary": "把预测结构（AlphaFold 式）作为单独的资源类型登记，按置信度分档着色；并提供按选择语言逐残基上色。",
+  "category": "resource",
+  "adds": [
+    "新的资源类型“预测结构”：必须写明预测方法，发布检查强制作品里有一条“建模”类证据，防止预测被当成实验",
+    "按 pLDDT 置信度四档着色（>90、>70、>50、其余），一眼看出哪里可信",
+    "逐残基上色：用选择语言给任意残基上色（最多 64 条规则，随作品保存与重开）"
+  ],
+  "usage": [
+    {
+      "title": "按预测置信度上色",
+      "how": "await glow.color('confidence')",
+      "note": "只对登记为预测结构的资源有效；实验结构会明确拒绝"
+    },
+    {
+      "title": "按选择语言给残基上色",
+      "how": "await glow.color('chain A and resi 30-59', '#e05a4a')",
+      "note": "由“团块”表示画出；其它表示仍显示链的颜色"
+    },
+    {
+      "title": "清除",
+      "how": "await glow.color('reset')"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "color"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/confidence.mjs",
+      "exports": [
+        "confidenceBand",
+        "residueConfidence",
+        "confidenceSummary"
+      ]
+    },
+    {
+      "type": "module",
+      "path": "packages/schema/resource.mjs",
+      "exports": [
+        "describePredictedStructure",
+        "predictionEvidence"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/confidence-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实浏览器里用合成的预测文件验证识别、四档着色、选择着色、对实验结构的拒绝、保存重开。",
+    "limits": [
+      "**浏览器检查用的是合成数据**（真实 4AKE 的 Cα 坐标 + 编造的置信度）；AlphaFold 数据库在开发环境连不上，没有用真实预测条目验证",
+      "逐残基颜色只有“团块”表示能画出；卡通、骨架、表面仍显示链的颜色",
+      "只有 pLDDT，没有 PAE（预测对齐误差）",
+      "AlphaFold 数据库的授权没有核对过"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-predicted-structures.md"
+  ],
+  "tags": [
+    "资源",
+    "AlphaFold"
+  ]
+}

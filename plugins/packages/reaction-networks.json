@@ -1,0 +1,69 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.reaction-networks",
+  "version": "1.0.0",
+  "name": "反应网络",
+  "summary": "把一组质量作用反应（最多 16 个物种、96 个反应）编译成可运行的随机模拟，附米氏酶促的预设。",
+  "category": "process",
+  "adds": [
+    "质量作用反应网络编译器（反应物最多 3 个分子，催化剂、源、汇都支持）",
+    "精确的 Gillespie 采样，种子化，守恒",
+    "预设：E + S ⇌ ES → E + P 的米氏动力学"
+  ],
+  "usage": [
+    {
+      "title": "把酶促反应网络加进作品",
+      "how": "在 Studio 的“工具”页签选“酶促反应网络”预设；代码里用 reactionNetwork({ species, reactions }) 生成别的网络"
+    },
+    {
+      "title": "代码里取现成的配置",
+      "how": "import { PROCESS_PRESETS } from 'plugins/simulation/process-models.mjs'",
+      "note": "预设就是现成的配置对象"
+    }
+  ],
+  "provides": [
+    {
+      "type": "tool-preset",
+      "tool": "org.glow.tool.stochastic-process",
+      "preset": "enzyme"
+    },
+    {
+      "type": "module",
+      "path": "plugins/simulation/process-models.mjs",
+      "exports": [
+        "uniporter",
+        "trackMotor",
+        "dynamicFilament",
+        "reactionNetwork",
+        "PROCESS_PRESETS"
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "用现有随机过程引擎真跑，与解析解对照（单测）。",
+    "limits": [
+      "最多 16 个物种、96 个反应",
+      "单分子精确采样对大数目（上百万个）很慢，没有 τ 跳跃近似",
+      "没有空间与浓度梯度，没有速率常数的来源",
+      "引擎每次运行最多 25 万个事件"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-process-models.md"
+  ],
+  "tags": [
+    "过程",
+    "随机"
+  ]
+}

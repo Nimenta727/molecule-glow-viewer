@@ -28,7 +28,7 @@ test('help lists the new commands and the registered tools, and the limits that 
   const { api } = fake(), help = await api.help();
   for (const cmd of ['measure', 'sequence', 'color', 'clip', 'camera', 'animate']) assert.ok(help.commands.some((item) => item.cmd === cmd), cmd);
   assert.deepEqual(help.tools.map(({ id }) => id), ['org.glow.tool.demo']);
-  assert.ok(help.limitations.some((text) => /残基范围上色/.test(text)));
+  assert.ok(help.limitations.some((text) => /残基上色只有“团块”表示能画出/.test(text)), 'the one limit that remains for residue colours is stated');
   assert.ok(Object.keys(COMMANDS).every((cmd) => typeof api[cmd] === 'function'));
 });
 test('measure takes positional, array or object arguments and "clear"; the wrong count is refused', async () => {

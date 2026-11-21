@@ -72,7 +72,7 @@ const AA_COLOUR = { fM: '#e6c84a', A: '#c9bf99', V: '#c9bf99', L: '#c9bf99', I: 
 const CHAIN_CLOUD = 'ribosome-nascent-chain';
 
 export function createRibosomeView({ viewport, context, process, speed = () => 0.02, status = () => {} }) {
-  let motion = null, frameId = null, last = 0, hidden = [], running = false, token = { cancelled: true }, aaSequence = '';
+  let synced = null, motion = null, frameId = null, last = 0, hidden = [], running = false, token = { cancelled: true }, aaSequence = '';
 
   function build() {
     const model = context.model();
@@ -114,16 +114,24 @@ export function createRibosomeView({ viewport, context, process, speed = () => 0
     if (!running) { frameId = null; return; }
     const dt = Math.min(0.25, last ? (now - last) / 1000 : 0.016); last = now;
     const s = process.summary();
-    if (s && motion) { motion.speed = speed(); const L = Number(s.nums?.L) || 0, chain = L ? ['fM', ...aaSequence.slice(1, L).split('')] : [];
-    motion.sync({ st: s.vars?.st, E: s.vars?.E === 'on', chain, drugs: Object.fromEntries(['TAC', 'PAR', 'CLM', 'ERY'].map((d) => [d, s.vars?.[`b${d}`] === 'on']).concat([['FUA', s.vars?.fua === 'on'], ['KIR', s.vars?.kir === 'on']])) }); motion.step(dt); draw(); }
+    if (s && motion) {
+      motion.speed = speed();
+      const asState = (x) => { const L = Number(x.nums?.L) || 0; return { st: x.vars?.st, E: x.vars?.E === 'on', chain: L ? ['fM', ...aaSequence.slice(1, L).split('')] : [], drugs: Object.fromEntries(['TAC', 'PAR', 'CLM', 'ERY'].map((d) => [d, x.vars?.[`b${d}`] === 'on']).concat([['FUA', x.vars?.fua === 'on'], ['KIR', x.vars?.kir === 'on']])) }; };
+      // every state since the last frame, in order (the moves follow transitions); after a reset or a jump back, only the present state
+      const passed = synced != null && s.time >= synced && process.statesBetween ? process.statesBetween(synced, s.time) : [];
+      motion.syncAll([...passed.map(asState), asState(s)]); synced = s.time;
+      motion.step(dt); draw();
+    }
     frameId = requestAnimationFrame(tick);
   };
   return {
     /** The translation process was loaded: build the poses from the structure and start following it. */
-    start(sequence = '') { this.stop(); aaSequence = String(sequence); if (!build()) return false; hideStatic(); running = true; last = 0; frameId = requestAnimationFrame(tick); return true; },
+    start(sequence = '') { this.stop(); synced = null; aaSequence = String(sequence); if (!build()) return false; hideStatic(); running = true; last = 0; frameId = requestAnimationFrame(tick); return true; },
     stop() { token.cancelled = true; running = false; if (frameId != null) cancelAnimationFrame(frameId); frameId = null; showStatic(); viewport.setParticleCloud(CLOUD, []); viewport.setParticleCloud(FACTOR_CLOUD, []); viewport.setParticleCloud(DRUG_CLOUD, []); viewport.setParticleCloud(CHAIN_CLOUD, []); motion = null; },
     /** After the viewport was rebuilt: hide the static parts again and draw. */
     reapply() { if (running && motion) { hideStatic(); draw(); } },
+    /** Read-only state for checks: whether it follows the process, and how many bodies it would draw now. */
+    status() { let b = null; try { b = motion?.bodies(); } catch { b = null; } return { running, built: Boolean(motion), frameQueued: frameId != null, trna: b?.trna.length ?? 0, mrnaFade: b?.mrna?.fade ?? 0, chain: b?.chain.length ?? 0, factors: b?.factors.length ?? 0 }; },
     get active() { return running; },
     /** The sites of the ribosome (for the close-ups), or null when the view is off. */
     get frame() { return running && motion ? motion.frame : null; },

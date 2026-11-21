@@ -70,6 +70,8 @@ export function translationToolDescriptor(version) {
   return {
     version, title: '核糖体翻译（延伸、校对、终止、抗生素）', audience: ['view', 'author'], runtime: 'layer-v1', parameters: {},
     author: { template: TRANSLATION_TEMPLATE, fields: translationAuthorFields, validate: normalizeTranslationConfig },
+    outputs: [{ key: 'proteins', label: '已合成蛋白', kind: 'count' }, { key: 'length', label: '当前肽链长度', kind: 'state', unit: 'aa' }, { key: 'rate', label: '平均延伸速率', kind: 'series', unit: 'aa/s' }, { key: 'errorRate', label: '错误率', kind: 'series' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '核糖体翻译的随机动力学（连续时间马尔可夫链，精确 Gillespie 采样，种子化）', assumptions: [
       '速率常数是经典模型标定过的有效值（约 13 氨基酸/秒，读错约 5×10⁻⁴；有巴龙霉素时约 10⁻²），不是对某个细胞或实验的拟合预测。', '这是单个核糖体的随机事件序列，不是分子动力学；同一种子重放同一段历史，样本少时统计量波动大。',
       '密码子取各氨基酸的常用大肠杆菌密码子；近同源 tRNA 的具体氨基酸不记录，只记是否 Ala/Ser/Thr（氯霉素的背景依赖）。', '抗生素的结合与解离、黄色霉素/夫西地酸的锁定按文献量级的 kon、koff、Kd 近似；时间是分子时间（秒），不被动画冻结。'] },

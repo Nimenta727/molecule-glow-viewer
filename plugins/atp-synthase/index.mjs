@@ -198,6 +198,7 @@ export function createAtpPlayer({ model, scene, state = {}, config, bindings }) 
   }
   return {
     duration: machine.duration, steps, navigation, decorate, snapshot,
+    panel: cfg.panel,   // the work's own panel wording
     particleParentId: rotor[0].parentId,
     membrane: { center: pivot, axis, radius: ringRadius * 2.2 },
     seek(value) { machine.seek(value); return snapshot(); },

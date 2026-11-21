@@ -10,7 +10,7 @@
 
 - **模板（静态）**：机理、蛋白质、局部系统、细胞各一类，**什么都不动**，用来看具体结构、读知识解说。打开模板时去掉场景包里的过程/动画声明，不挂任何工具，动画面板全部隐藏，只保留结构、组件布局、膜、部件命名与配色、讲解和证据；分析工具（选择、测量、结合位点、定膜、通道、整细胞外壳等）仍可用，因为它们是“看”。
 - **作品（动态）**：同样四类，展示作用原理，挂动画工具。官方 15 个包现在得到 13 个模板和 11 个作品（两个只示范动画格式的包只做作品）。四个主题各有模板，也各有作品：机理（ATP 合酶、KcsA、AdK、呼吸链、叶绿体、鞭毛、翻译…）、局部系统（细胞一角）、细胞（整个细胞：外壳＋核糖体翻译与 KcsA 两个站在细胞里同时运行）；蛋白质只有静态模板。
-- 工坊对话框分“模板区 / 作品区 / 资源区”，可按主题（机理/蛋白质/局部系统/细胞）筛选；Studio 和 Viewer 共用。
+- 工坊对话框分“静态作品（原模板区）/ 作品区 / 资源区 / 插件区 / 我的模板”，可按主题（机理/蛋白质/局部系统/细胞）筛选；Studio 和 Viewer 共用。
 
 ## 4.5 作者、API 与工坊闭环（代码层面已做）
 
@@ -21,6 +21,17 @@
 | 4.5.2 | 工程继续编辑、预览发布、版本升级、兼容与恢复 | 场景新增 `publication` 块；Studio“发布”标签（填写、读取工坊目录、发布检查）；版本升级与“派生自”；工坊校验脚本同时收经典 v1 包和 Studio 导出的 v2/v3 场景包；缺少工具/插件的作品照常打开并说明；编辑时自动留草稿，意外关闭后可恢复 |
 
 浏览器实测（Playwright + Chromium，请求拦截提供文件、不起服务进程）：`node tools/studio-authoring-check.cjs`（发布标签与草稿恢复）、`node tools/workshop-shot.cjs`（工坊详情）；截图在 [images](images/)：`workshop-details.png`、`workshop-details-narrow.png`、`studio-publish.png`。
+
+- **复合体记录（插件规划 A3 的第一步，2026-11-21）**：`packages/schema/complex.mjs`——一种只存引用不存坐标的记录：由哪些资源（`{id, version, sha256}`）、各几份、每份用哪些链、相对位姿（位置/旋转/缩放）和每个摆放的**证据**（实验/推导/建模/示意）组成；`validateComplex`（唯一成员、一份一个摆放、证据序号有效、单位四元数、正缩放）、`stoichiometry`、`resolveComplex`（缺资源或哈希不符时报告而不是悄悄丢掉）、`diagnoseComplex`（给作者看的中文提示）、`complexFromStructure`（把真实条目的链按条目自己的名称分组，保持原坐标，证据就是条目本身）。作者用 `node tools/complex-from-structure.mjs <cif> --accession 6N2Y --id ... --title ...` 生成；真实数据检查 `node tools/complex-check.mjs <结构目录>`：6N2Y 为 α₃β₃γδε、b₂、a、c₁₀，6ZPO 的 c₈，4V6F 59 个成员都能解析；资源引用与工坊目录一致。**未做**：工坊里的复合体分区、Studio 面板、由多个条目装配（C1 才会写入有各自证据的摆放）、实例化渲染（B1）。
+- **官方作品用到的结构全部登记为资源（2026-11-21）**：工坊资源区由 11 个增至 **29 个**：新增 1A70、1FNB、1PLC、5L8R、6FKF、6RQF、1AON、1KX5、5LE5、6VXX、6YKM、7CGO、8YJT、1UCU、4V6F，以及两个预设用到的 1OMP、1ANF、6N2Y。每个都是不带字节的引用型记录（来源、CC0、SHA-256、字节数、物种、方法、文献），文件按需从 RCSB 取回并核对哈希。哈希是我 2026-11-21 从 RCSB 原样下载后计算的，其中 1OMP、1ANF、6N2Y 与此前固定的下载清单逐位一致（说明可复现），**但还没有经过维护者的哈希评审**；最大的 4V6F 为 38 MB（在 64 MiB 上限内）。现在每个官方作品的 `pdb` 都有对应资源（0 个“结构未登记”）。登记时核对了实验方法并更正了我凭印象写的三处：5L8R、4V6F 是 X 射线晶体学，1UCU 是电子显微镜。数据在 `docs/science/structures.json`，文案在 `workshop/tools/build-resources.mjs`，`node workshop/tools/build-resources.mjs && node workshop/tools/build-index.mjs` 重新生成。
+- **回退/干预界面已在真实浏览器里操作过（2026-11-21）**：`node tools/rewind-check.cjs`（呼吸链作品，软件渲染）。流程与断言：播放 → 打开“高耗能”开关（记一条干预，读数随之变化）→ 继续播放 → 用时间滑块回到 1.0 s（面板写“现在在过去”，最远时间被记住）→ 前进回最远处，**时间、计数器、动力学读数、干预记录逐字相同**；“后退 5 秒”“前进 5 秒”（前进不超过最远处）；回到 1.0 s 改“寡霉素”，面板提示旧的干预记录作废，只剩新的一条，最远时间变为当前。截图 [rewind-1-forward.png](images/rewind-1-forward.png)、[rewind-2-rewound.png](images/rewind-2-rewound.png)、[rewind-3-edited-past.png](images/rewind-3-edited-past.png)、[rewind-panel.png](images/rewind-panel.png)。看图发现的小毛病：窄侧栏里“时间 1.0 / 1.0 s”会折行；回退到很早处的读数是暂态（耗氧速率 180% 是起始瞬态，不是稳态）。仍未做：翻译、随机过程、多过程、旧三件播放器没有回退/干预；长时间运行后回退到很早处的重放耗时没测。
+- **第一个用平台做的作品与 GPU 验收（2026-11-21）**：血红蛋白静态作品（Studio 从 PDB 模板制作，工坊社区区）；`tools/gpu-acceptance.cjs` 与给 AI 读的验收提示词 [ACCEPTANCE_GPU_PROMPT](ACCEPTANCE_GPU_PROMPT.md)；真显卡数据待你验收。详见 [routine](routine/2026-11-21-hemoglobin-work-and-gpu-acceptance.md)。
+- **4.4.8：浏览器确认（2026-11-21）**：呼吸链能量条与计数器**已确认**；ATP 合酶作品转子**已确认在转**（计数与圈数一致；转轴与几何轴线的重合未量化）；翻译里 tRNA/mRNA **原先在播放后消失——是真 bug，已修复并在浏览器里确认**（视图只取最新状态、跳过了状态转换；现按顺序重放每个事件；打开时自动剖开核糖体露出 tRNA）。详见 [routine](routine/2026-11-21-448-visual-confirmation.md)。
+- **4.4.8：第二个旋转 ATP 酶（2026-11-21）**：旋转 ATP 酶工具 `org.glow.tool.rotary-atpase` 新增预设 **枯草芽孢杆菌 PS3 F1Fo（6N2Y，冷冻电镜 3.0 Å，c10 环）**（`plugins/atp-synthase/templates.mjs`，纯数据；细菌里转子是 γ、ε 与 c 环，δ 是静止的外周柄，部件名与牛的条目不同）。真实浏览器端到端 `node tools/atp-second-work-check.cjs`：Studio 导入 6N2Y → 选预设添加（适用性检查通过）→ 导出 → 全新 Viewer 打开 → 转一圈得到 **3 ATP、10 H⁺**（牛 c8 是 8 H⁺），面板为作品自己的文字，系统视图含全部 31 个部件（截图 [atp-ps3-work-opened.png](images/atp-ps3-work-opened.png)）。端到端时发现并修了一个真问题：Studio 导入的结构是平铺的（每链一个顶层节点），而工具的导航视图以转子第一条链为根，Viewer 只显示根的子树，结果只画出 γ 一条链；现在准备作品场景时（`ensureStructureRoot`）给带工具的平铺结构补一个总根组，与官方包同形，所有播放器受益。**未做**：这条路径下 β 位点的三个构象仍取自同一个条目的三个催化位点（与牛的做法相同）；每圈 H⁺ 数由 c 环亚基数得出，未对 PS3 实验化学计量单独核对（文献里 PS3 为 c10，条目里确有 10 条 c 链）。
+- **Studio 里直接改结构域残基范围（2026-11-21）**：文本字段新增 `format: 'ranges'`，面板里写 `1-109, 264-309`，配置里保存为 `[[1,109],[264,309]]`；写错（如 `9-3`）给出原因并恢复原值。两态构象工具另外开放了蛋白名称正则、物种、参考域（下拉）、参考配体残基名与链。没写进任何域的残基按参考域上色，不再出错。真实浏览器（`node tools/mbp-work-check.cjs`）：把 C 域改为 114-259 → 导出 → Viewer 的度量（36.00° / 10.65 Å）与独立计算一致，且与未编辑时不同。
+- **4.4.8：第二个蛋白作为“作品”跑在同一个工具上（2026-11-21）**：`org.glow.tool.conformation-pair`（原 AdK 专用播放器的通用名）新增**预设**机制（描述符 `author.presets`，注册时就用工具自己的校验器检查），第一个预设是**麦芽糖结合蛋白 1OMP/1ANF**（`plugins/adenylate-kinase/templates.mjs`，纯数据）。Studio“添加工具”下拉里同一工具出现两项；真实浏览器端到端 `node tools/mbp-work-check.cjs`：Studio 导入 1OMP → 选预设添加 → 导出场景包 → 全新 Viewer 打开 → 播放闭合，度量（RMSD 0.721 Å、C 域 36.21°/10.21 Å、铰链 17.41°）与独立的坐标计算逐位一致，面板用作品自己的标题与证据（截图 [mbp-work-opened.png](images/mbp-work-opened.png)）。顺手修了两处 AdK 专属措辞会漏到别的作品上的问题：机制面板标题/证据改用作品配置里的 `panel`，参数“显示闭合态 Ap5A 参考”改为“参考配体”。两条独立代码路径（通用 `state-pair` 与 AdK 构建器）在 MBP 上数字相同，见 `docs/parity/second-pair-mbp-report.txt`。**未做**：ATP 合酶的同类通用化（它的几何仍围绕“c 环 + 三个 β 亚基”）；AdK 播放器仍是 player-v1。域划分待专业审阅。
+- **4.3 完成门槛与收尾（2026-11-21）**：第二个真实结构对 **MBP 1OMP（开）/ 1ANF（闭）** 用同一个构象工具、只改配置（叠合范围 = N 域 1-109,264-309，结构域 C 域 114-259,317-370、铰链）：N 域刚体 RMSD 0.72 Å（155 残基），C 域转 36.2°、位移 10.2 Å，换成 C 域为核心 N 域同样转 36.2°；`node tools/second-pair-check.mjs desktop/dist/smoke-structures` 7/7，`node tools/second-pair-browser.cjs` 预览→保存→重开数字一致、分子画面逐像素相同（截图 [second-pair-mbp.png](images/second-pair-mbp.png)）。选它的理由：同一条链、370 残基两边一一对应，铰链开合，且 1OMP 的标题就是“配体诱导的大幅铰链-扭转运动”；转角数字是我从坐标算出的，**未经专业人员审阅**。另：Studio 大纲多选/成组/删除/拖拽改父子（`node tools/studio-outline-check.cjs`）；添加工具时自动登记插件依赖。
+- **4.3 收尾（早先）**：工具描述符有 `outputs`/`dependencies`；Studio“发布”标签有“导出发布包”：不许嵌入且有 RCSB 来源的结构改为带哈希的引用，本地文件则拒绝并指出资产；Viewer 打开带引用的包时取回并核对哈希。真实浏览器：`node tools/studio-export-check.cjs`（需先 `node tools/fetch-smoke-structures.mjs --dir desktop/dist/smoke-structures`）。引用取回在真实 RCSB 网络上尚未端到端试过（单元测试用注入的取回函数）。
 
 ## 4.4 各组进度
 
@@ -60,12 +71,14 @@
 
 - Studio 的粒子预览已做（工具页签里勾选“预览粒子”）；细胞一角里核糖体站与通道站的空间联系、整细胞的内膜“洞”与区域层级还没画（拟核、核糖体、鞭毛、肽聚糖、LPS、膜蛋白已画）。
 - 70S 核糖体结构动画未做（原子特写已做）；KcsA 的动力学已跑在通用引擎上，播放器外壳仍是旧 id。
-- pH 体积（均匀半透明盒，不是光线步进的着色器）与作用位点闪光已做，pH 体积盒已在浏览器里看到。回退/干预已做在数据动画工具上（确定性重放＋干预记录，**回退/干预的界面尚未肉眼确认**）；翻译、随机过程、多过程、旧三件播放器还没有。
+- pH 体积（均匀半透明盒，不是光线步进的着色器）与作用位点闪光已做，pH 体积盒已在浏览器里看到。回退/干预已做在数据动画工具上（确定性重放＋干预记录，回退/干预的界面已在真实浏览器里操作并看过（见下））；翻译、随机过程、多过程、旧三件播放器还没有。
 - **没有真实 GPU 验证**。Desktop 0.6.0/0.7.0 的 Windows portable EXE 已由 CI 实际启动并通过六个运行案例与四个安全案例（软件渲染），见 [0.6.0 记录](validation/desktop-v0.6.0.json)；真实 GPU 上的性能与外观仍待维护者检查。
-- **能量条与 pH 体积已在真实 Chromium（软件渲染）里看过**：呼吸链作品打开后顶部显示七步能量条、点亮第一步，结构周围是半透明的 pH 体积盒，动画面板的计数随模型走（截图 [official.respiratory-chain.work-opened.png](images/official.respiratory-chain.work-opened.png)、[running](images/official.respiratory-chain.work-running.png)；方法：`node tools/work-shot.cjs <作品编号>`）。软件渲染每秒只有约一帧，动画走得很慢，所以没能在截图里看完整个周期；回退/干预的外观仍未肉眼确认。
+- **能量条与 pH 体积已在真实 Chromium（软件渲染）里看过**：呼吸链作品打开后顶部显示七步能量条、点亮第一步，结构周围是半透明的 pH 体积盒，动画面板的计数随模型走（截图 [official.respiratory-chain.work-opened.png](images/official.respiratory-chain.work-opened.png)、[running](images/official.respiratory-chain.work-running.png)；方法：`node tools/work-shot.cjs <作品编号>`）。软件渲染每秒只有约一帧，动画走得很慢，所以没能在截图里看完整个周期；回退/干预的外观已看过（软件渲染，见下一条）。
 - 仍悬着的维护者事项：真实 GPU 检查；为 4.3 完成门槛选定真实的第二个结构对；在 GitHub 把 `platform-release-gate` 设为 main 必须通过的检查。（Windows 上的 studio-smoke 已在 CI 的 Windows 作业里运行。）
 
 ## 下一步（建议顺序）
+
+0. **先把 Desktop 0.7.0 发出去**：main 已含 0.7.0 全部内容，但 `desktop-v0.7.0` 标签与 Release 尚未创建（打标签触发闸门与发布，需维护者确认）。详见 [计划](routine/2026-11-21-next-plan-after-0.7.0.md)。
 
 1. 4.4.8 余下：**构象状态机已做**（时间与状态侧；见 [CONFORMATION_MACHINE](CONFORMATION_MACHINE.md)），ATP 合酶/AdK 的**结构侧**也已抽成通用“构象集”（`conformation-set.mjs`）；把它们升成 layer-v1 的通用工具（不再是 player-v1 专用外壳）；区域层级自己的粗糙内容；重复加载稳定性；浏览器/GPU/桌面验收。
 2. 三个“播放器”并入通用引擎：KcsA 的动力学已跑在通用 Markov 引擎上（同种子逐事件、逐位一致，黄金轨迹不变）；ATP 合酶和 AdK 的算法（旋转、构象插值、叠合）早已用共享的 `plugins/motion`、`plugins/structure`，它们剩下的是各自的时间轴/粒子/事件编排，不是可以再并的算法。KcsA 的体相粒子、水合壳、曲线已恢复（胞外 Na⁺ 无控件、浴液离子与孔道进出不交换为已知差异）；把回退/干预扩展到其它工具；pH 体积着色；能量条接到其它工具（翻译/随机过程/旧三件）。

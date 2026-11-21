@@ -1,0 +1,76 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.complex-records",
+  "version": "1.0.0",
+  "name": "复合体登记",
+  "summary": "把“这个复合体由哪些资源、各几份、每份在哪、证据是什么”记成一份可校验的记录，并能从真实结构一键生成。",
+  "category": "resource",
+  "adds": [
+    "新的记录类型“复合体”：只存对资源的引用与每份的位置、旋转，每个位置都带证据（实验 / 推导 / 建模 / 示意）",
+    "从一个真实结构按条目自己的名称分组自动生成（8 条同名亚基 → 一个 8 份的成员）",
+    "校验与化学计量；缺资源或哈希不符时报告而不是悄悄丢"
+  ],
+  "usage": [
+    {
+      "title": "从当前结构生成复合体记录",
+      "how": "await glow.complex({ id: 'cx.mine', title: '我的复合体' })",
+      "note": "回包里有化学计量和完整记录"
+    },
+    {
+      "title": "命令行：从文件生成",
+      "how": "node tools/complex-from-structure.mjs 6N2Y.cif --accession 6N2Y --id cx.x --title 标题"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "complex"
+    },
+    {
+      "type": "module",
+      "path": "packages/schema/complex.mjs",
+      "exports": [
+        "validateComplex",
+        "complexFromStructure",
+        "stoichiometry",
+        "resolveComplex",
+        "diagnoseComplex"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/complex-from-structure.mjs"
+    },
+    {
+      "type": "cli",
+      "path": "tools/complex-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "单测 + 真实结构（6N2Y α₃β₃…c₁₀、6ZPO c₈、4V6F 59 个成员）；资源引用与工坊目录一致。",
+    "limits": [
+      "只是“登记”：还没有工坊分区和编辑界面",
+      "成员按条目自己的名称分组，名称相同的链会被当成同一种成员的多份",
+      "水不登记，离子与小分子登记为成员",
+      "多条目装配的非恒等摆放由“装配”插件写入"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-complex-record.md"
+  ],
+  "tags": [
+    "装配",
+    "记录"
+  ]
+}

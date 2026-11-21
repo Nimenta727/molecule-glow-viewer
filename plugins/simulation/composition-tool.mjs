@@ -75,6 +75,8 @@ export function compositionToolDescriptor(version) {
   return {
     version, title: '多过程组合（同时运行，各有时钟）', audience: ['view', 'author'], runtime: 'layer-v1', parameters: {},
     author: { template: COMPOSITION_TEMPLATE, fields: compositionAuthorFields, validate: normalizeCompositionConfig },
+    outputs: [{ key: 'members', label: '各过程自己的计数与曲线', kind: 'count' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '若干随机过程同时运行，各有自己的引擎、种子、时钟与计数器', assumptions: [
       '每个过程是它自己的随机模型（见各过程的假设）；组合只是让它们同时运行、共用一块控制面板。', '过程之间没有相互作用：一个过程的参数改动不会改变另一个过程的历史（例如核糖体不感知通道所在膜的 pH）。',
       '时钟按每个过程各自的比例换算（例如翻译以毫秒到秒计，离子通过以纳秒计），不是同一个物理时间轴上的真实同步。', '共享控件只设置它指向的那些参数；同一个种子重放同一段历史。'] },

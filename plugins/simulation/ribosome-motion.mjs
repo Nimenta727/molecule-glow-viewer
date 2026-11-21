@@ -153,7 +153,10 @@ export class RibosomeMotion {
   #tween(o, k, to, dur, done) {
     const d = dur * Math.min(1, 0.02 / Math.max(1e-4, this.speed));
     if (d < 1e-3 || this.speed >= 1) { o[k] = to; done?.(); return; }
-    this.tw = this.tw.filter((x) => !(x.o === o && x.k === k));   // a newer move of the same thing replaces the older one
+    // a newer move of the same thing replaces the older one; the older one is finished first (its end value and its completion, which often snaps a tRNA into its site),
+    // so a fast run of states never leaves a tRNA half-way or forgets where it went
+    const older = this.tw.filter((x) => x.o === o && x.k === k); this.tw = this.tw.filter((x) => !(x.o === o && x.k === k));
+    for (const x of older) { x.o[x.k] = x.b; x.done?.(); }
     this.tw.push({ o, k, a: o[k], b: to, t: 0, dur: d, done });
   }
   #leave(tr) { if (tr) this.#tween(tr, 'fade', 0, 0.5, () => { if (this.tr.E === tr) this.tr.E = null; }); if (tr) tr.leaving = true; }
@@ -212,6 +215,12 @@ export class RibosomeMotion {
     if (this.hasE && !E && this.st !== 'gpost' && this.tr.E) { this.#leave(this.tr.E); }
     this.hasE = E;
   }
+  /**
+   * Follow every state the process passed through, in order (`states`: [{ st, E, chain, drugs }] oldest first), not only the last one. The moves are keyed to transitions
+   * (a tRNA enters the A site on "tc → acc", moves on "g → gpost"): sampling only the newest state each frame skips most of them when the process runs faster than the frames
+   * (about ten states per residue at ~11 residues per second), and the tRNAs, the mRNA and the chain then vanish. Moves cut short by later ones are completed at once.
+   */
+  syncAll(states) { for (const state of states) this.sync(state); }
   /** Advance the moves by `dt` real seconds. */
   step(dt) {
     for (let i = this.released.length - 1; i >= 0; i--) { const r = this.released[i]; r.t += dt; if (r.t > 4) this.released.splice(i, 1); }

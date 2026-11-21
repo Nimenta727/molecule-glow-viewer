@@ -24,6 +24,11 @@ function packFile(value) {
   throw new Error('需要 v1 JSON 文本或 exportPack 返回的 v2 包。');
 }
 
+function checkShape(shape, name) {
+  if (!object(shape) || !['plane', 'sphere', 'capsule', 'ellipsoid'].includes(shape.kind)) throw new Error(`${name}.kind 应为 plane / sphere / capsule / ellipsoid。`);
+  const sizes = { plane: ['width', 'height'], sphere: ['radius'], capsule: ['radius', 'length'], ellipsoid: ['a', 'b', 'c'] }[shape.kind];
+  for (const key of sizes) finite(shape[key], key === 'length' ? 0 : 1, 1e6, `${name}.${key}`);
+}
 export function createViewerCommands(host) {
   const needScene = () => {
     const scene = host.current();
@@ -206,9 +211,9 @@ export function createViewerCommands(host) {
       const chains = host.chainIds();
       if (!chains) throw new Error('相应结构插件或坐标不可用。');
       let outcome;
-      try { outcome = applyColor(host.colorState(), args[0], args[1], chains); } catch (error) { throw new Error(error.message); }
+      try { outcome = applyColor(host.colorState(), args[0], args[1], chains, { check: host.colorCheck, confidence: host.hasConfidence?.() }); } catch (error) { throw new Error(error.message); }
       host.setColors(outcome.state);
-      return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, note: outcome.note };
+      return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, residues: outcome.state.residues.length, note: outcome.note };
     },
     clip(value) {
       needScene();
@@ -219,6 +224,127 @@ export function createViewerCommands(host) {
       if (value.scope != null && !['all', 'parts'].includes(value.scope)) throw new Error('scope 应为 all 或 parts。');
       if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
       return host.clip(value);
+    },
+    async benchmark(value) {
+      needScene();
+      if (value != null && (!object(value) || Object.keys(value).some((key) => !['seconds', 'targetFps'].includes(key)))) throw new Error('benchmark 只接受 seconds、targetFps。');
+      if (value?.seconds != null) finite(value.seconds, 1, 30, 'seconds');
+      if (value?.targetFps != null) finite(value.targetFps, 10, 144, 'targetFps');
+      return host.benchmark(value ?? {});
+    },
+    membrane(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.membrane(null);
+      if (!object(value) || Object.keys(value).some((key) => !['shape', 'thickness', 'normal', 'offset', 'opacity', 'resolution'].includes(key))) throw new Error('membrane 只接受 shape、thickness、normal、offset、opacity、resolution。');
+      const shape = value.shape; if (!object(shape) || !['plane', 'sphere', 'capsule', 'ellipsoid'].includes(shape.kind)) throw new Error('shape.kind 应为 plane / sphere / capsule / ellipsoid。');
+      const sizes = { plane: ['width', 'height'], sphere: ['radius'], capsule: ['radius', 'length'], ellipsoid: ['a', 'b', 'c'] }[shape.kind];
+      for (const key of sizes) finite(shape[key], key === 'length' ? 0 : 1, 1e6, `shape.${key}`);
+      if (value.thickness != null) finite(value.thickness, 5, 500, 'thickness');
+      const vec = (v, name) => { if (!Array.isArray(v) || v.length !== 3 || v.some((x) => typeof x !== 'number' || !Number.isFinite(x) || Math.abs(x) > 1e6)) throw new Error(`${name} 应为三个数。`); };
+      if (value.normal != null) { vec(value.normal, 'normal'); if (!Math.hypot(...value.normal)) throw new Error('normal 不能是零向量。'); }
+      if (value.offset != null) vec(value.offset, 'offset');
+      if (value.opacity != null) finite(value.opacity, 0.05, 1, 'opacity');
+      if (value.resolution != null && (!Number.isInteger(value.resolution) || value.resolution < 8 || value.resolution > 128)) throw new Error('resolution 应为 8–128 的整数。');
+      return host.membrane(value);
+    },
+    volume(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.volume(null);
+      if (!object(value) || Object.keys(value).some((key) => !['map', 'level', 'opacity', 'slice'].includes(key))) throw new Error('volume 只接受 map、level、opacity、slice。');
+      if (value.map != null && (typeof value.map !== 'string' || value.map.length > 90 * 1024 * 1024)) throw new Error('map 应为 MRC/CCP4 文件的 base64（不超过约 64 MB 的文件）。');
+      if (value.level != null && value.level !== 'auto') finite(value.level, -1e12, 1e12, 'level');
+      if (value.opacity != null) finite(value.opacity, 0.05, 1, 'opacity');
+      if (value.slice != null && (!object(value.slice) || ![0, 1, 2].includes(value.slice.axis) || !Number.isInteger(value.slice.index))) throw new Error('slice 应为 {axis:0|1|2, index:整数}。');
+      return host.volume(value);
+    },
+    instances(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.instances(null);
+      if (!object(value) || Object.keys(value).some((key) => !['copies', 'layout', 'spread', 'seed', 'budget'].includes(key))) throw new Error('instances 只接受 copies、layout、spread、seed、budget。');
+      if (!Number.isInteger(value.copies) || value.copies < 1 || value.copies > 20000) throw new Error('copies 应为 1–20000 的整数。');
+      if (value.layout != null && !['sphere', 'grid'].includes(value.layout)) throw new Error('layout 应为 sphere 或 grid。');
+      if (value.spread != null) finite(value.spread, 0.5, 4, 'spread');
+      if (value.seed != null && (!Number.isInteger(value.seed) || value.seed < 0 || value.seed > 4294967295)) throw new Error('seed 应为 0–4294967295 的整数。');
+      if (value.budget != null && (!Number.isInteger(value.budget) || value.budget < 1000 || value.budget > 1e9)) throw new Error('budget 应为 1000–1e9 的整数（每帧三角形数）。');
+      return host.instances(value);
+    },
+    complex(value) {
+      needScene();
+      if (value != null && (!object(value) || Object.keys(value).some((key) => !['id', 'title', 'record'].includes(key)))) throw new Error('complex 只接受 id、title、record。');
+      if (value?.record != null && typeof value.record !== 'boolean') throw new Error('record 应为布尔值。');
+      for (const key of ['id', 'title']) if (value?.[key] != null && (typeof value[key] !== 'string' || !value[key].trim() || value[key].length > 120)) throw new Error(`${key} 应为 1–120 字的文字。`);
+      return host.complex(value ?? {});
+    },
+    async assemble(value) {
+      needScene();
+      if (!object(value) || Object.keys(value).some((key) => !['pdb', 'baseSelection', 'addSelection', 'carry', 'mode', 'maxRmsd', 'threshold'].includes(key))) throw new Error('assemble 只接受 pdb、baseSelection、addSelection、carry、mode、maxRmsd、threshold。');
+      if (typeof value.pdb !== 'string' || !/^[0-9][A-Za-z0-9]{3}$/.test(value.pdb)) throw new Error('pdb 应为 4 位 PDB 编号。');
+      for (const key of ['baseSelection', 'addSelection', 'carry']) if (typeof value[key] !== 'string' || !value[key].trim() || value[key].length > 200) throw new Error(`${key} 应为选择表达式（例如 "chain A"）。`);
+      if (value.mode != null && !['number', 'sequence'].includes(value.mode)) throw new Error('mode 应为 number 或 sequence。');
+      if (value.maxRmsd != null) finite(value.maxRmsd, 0.1, 50, 'maxRmsd');
+      if (value.threshold != null) finite(value.threshold, 0.5, 10, 'threshold');
+      return host.assemble(value);
+    },
+    embed(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.embed(null);
+      if (!object(value) || Object.keys(value).some((key) => !['shape', 'copies', 'seed', 'inward', 'opacity', 'budget'].includes(key))) throw new Error('embed 只接受 shape、copies、seed、inward、opacity、budget。');
+      checkShape(value.shape, 'shape');
+      if (!Number.isInteger(value.copies) || value.copies < 1 || value.copies > 5000) throw new Error('copies 应为 1–5000 的整数。');
+      if (value.seed != null && (!Number.isInteger(value.seed) || value.seed < 0 || value.seed > 4294967295)) throw new Error('seed 应为 0–4294967295 的整数。');
+      if (value.inward != null && typeof value.inward !== 'boolean') throw new Error('inward 应为布尔值。');
+      if (value.opacity != null) finite(value.opacity, 0.05, 1, 'opacity');
+      if (value.budget != null && (!Number.isInteger(value.budget) || value.budget < 1000 || value.budget > 1e9)) throw new Error('budget 应为 1000–1e9 的整数。');
+      return host.embed(value);
+    },
+    compose(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.compose(null);
+      if (!object(value) || Object.keys(value).some((key) => !['region', 'components', 'membrane', 'membraneThickness', 'inset', 'seed'].includes(key))) throw new Error('compose 只接受 region、components、membrane、membraneThickness、inset、seed。');
+      const region = value.region; if (!object(region) || !['box', 'sphere', 'ellipsoid', 'capsule'].includes(region.kind)) throw new Error('region.kind 应为 box / sphere / ellipsoid / capsule。');
+      const sizes = { box: ['x', 'y', 'z'], sphere: ['radius'], ellipsoid: ['a', 'b', 'c'], capsule: ['radius', 'length'] }[region.kind];
+      for (const key of sizes) finite(region[key], key === 'length' ? 0 : 1, 1e7, `region.${key}`);
+      if (!Array.isArray(value.components) || value.components.length < 1 || value.components.length > 24) throw new Error('components 应为 1–24 项的数组。');
+      const ids = new Set();
+      for (const c of value.components) {
+        if (!object(c) || typeof c.id !== 'string' || !c.id.trim() || c.id.length > 60 || ids.has(c.id)) throw new Error('每个组分都需要不重复的 id（≤60 字）。');
+        ids.add(c.id);
+        if (!Number.isInteger(c.copies) || c.copies < 1 || c.copies > 20000) throw new Error(`${c.id}：copies 应为 1–20000 的整数。`);
+        finite(c.radius, 0.1, 1e5, `${c.id}.radius`);
+        if (c.color != null && !/^#[0-9a-fA-F]{6}$/.test(c.color)) throw new Error(`${c.id}：color 应为 #rrggbb。`);
+        if (c.useOpenStructure != null && typeof c.useOpenStructure !== 'boolean') throw new Error(`${c.id}：useOpenStructure 应为布尔值。`);
+      }
+      if (value.membrane != null) checkShape(value.membrane, 'membrane');
+      if (value.membraneThickness != null) finite(value.membraneThickness, 5, 500, 'membraneThickness');
+      if (value.inset != null) finite(value.inset, 0, 1e5, 'inset');
+      if (value.seed != null && (!Number.isInteger(value.seed) || value.seed < 0 || value.seed > 4294967295)) throw new Error('seed 应为 0–4294967295 的整数。');
+      return host.compose(value);
+    },
+    interactions(value) {
+      needScene();
+      if (value != null && (!object(value) || Object.keys(value).some((key) => !['cutoff', 'minContacts', 'limit'].includes(key)))) throw new Error('interactions 只接受 cutoff、minContacts、limit。');
+      if (value?.cutoff != null) finite(value.cutoff, 2, 10, 'cutoff');
+      if (value?.minContacts != null && (!Number.isInteger(value.minContacts) || value.minContacts < 1 || value.minContacts > 1000)) throw new Error('minContacts 应为 1–1000 的整数。');
+      if (value?.limit != null && (!Number.isInteger(value.limit) || value.limit < 1 || value.limit > 500)) throw new Error('limit 应为 1–500 的整数。');
+      return host.interactions(value ?? {});
+    },
+    binding(value) {
+      if (!object(value) || Object.keys(value).some((key) => !['box', 'particles', 'D', 'radius', 'microseconds', 'dt', 'koff', 'seed', 'reinject'].includes(key))) throw new Error('binding 只接受 box、particles、D、radius、microseconds、dt、koff、seed、reinject。');
+      finite(value.box, 10, 1e4, 'box'); finite(value.D, 1e-3, 1e4, 'D'); finite(value.radius, 0.1, 100, 'radius'); finite(value.microseconds, 0.1, 1e6, 'microseconds');
+      if (!Number.isInteger(value.particles) || value.particles < 1 || value.particles > 20000) throw new Error('particles 应为 1–20000 的整数。');
+      if (value.dt != null) finite(value.dt, 1e-5, 0.1, 'dt');
+      if (value.koff != null) finite(value.koff, 0, 1e3, 'koff');
+      if (value.seed != null && (!Number.isInteger(value.seed) || value.seed < 0 || value.seed > 4294967295)) throw new Error('seed 应为 0–4294967295 的整数。');
+      if (value.reinject != null && typeof value.reinject !== 'boolean') throw new Error('reinject 应为布尔值。');
+      return host.binding(value);
+    },
+    async source(value) {
+      if (!object(value) || Object.keys(value).some((key) => !['source', 'accession', 'expectedSha256', 'allowUpdate'].includes(key))) throw new Error('source 只接受 source、accession、expectedSha256、allowUpdate。');
+      if (typeof value.source !== 'string' || !/^[a-z][a-z0-9-]{1,30}$/.test(value.source)) throw new Error('source 应为数据源名称（如 alphafold、emdb）。');
+      if (typeof value.accession !== 'string' || !/^[A-Za-z0-9_.-]{1,40}$/.test(value.accession)) throw new Error('accession 只能含字母、数字和 _ . -（≤40 字）。');
+      if (value.expectedSha256 != null && !/^[0-9a-f]{64}$/.test(value.expectedSha256)) throw new Error('expectedSha256 应为 64 位小写十六进制。');
+      if (value.allowUpdate != null && typeof value.allowUpdate !== 'boolean') throw new Error('allowUpdate 应为布尔值。');
+      return host.source(value);
     },
     tools: () => host.tools?.() ?? [],
     snapshot(value) {

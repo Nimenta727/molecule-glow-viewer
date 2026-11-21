@@ -1,0 +1,5 @@
+AdK  : CORE fit of 1AKE onto 4AKE  RMSD 1.9751 Å over 146 residues; the player reports 1.9751 Å
+AdK  : Ap5A (114 atoms) carried into the 4AKE frame, centre at 18.19, -5.15, -17.62
+MBP  : N-domain fit RMSD 0.7212 Å over 155 residues; maltose carried into the open structure: 0 atom pairs closer than 2.0 Å (closest - Å)
+6N2Y : beta E onto beta D (number): RMSD 0.94 Å over 469 residues
+6N2Y : beta E onto beta D (sequence): RMSD 0.94 Å over 469 residues

@@ -1,0 +1,74 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.data-sources",
+  "version": "1.0.0",
+  "name": "外部数据源客户端",
+  "summary": "安全地从外部数据库取回结构和体积：只连白名单主机、限制大小、首次记录哈希、之后被替换就拒绝，断网时从缓存读。",
+  "category": "resource",
+  "adds": [
+    "按数据源取回数据并校验：白名单主机、只许 https、边读边限大小（gzip 也限解压后）、超时与取消",
+    "首次使用记录 SHA-256，之后上游变了就拒绝（除非明确要求更新）",
+    "断网时从缓存读并重新核对哈希，缓存被改过就拒绝",
+    "把取回的数据登记成对应类型的资源记录"
+  ],
+  "usage": [
+    {
+      "title": "从 RCSB 取回一个条目并拿到资源记录",
+      "how": "await glow.source({ source: 'rcsb', accession: '1OMP' })",
+      "note": "回包里有哈希、是否首次记录、是否来自缓存、资源记录"
+    },
+    {
+      "title": "已知哈希时强制核对",
+      "how": "await glow.source({ source: 'rcsb', accession: '1OMP', expectedSha256: '8fc0436a…' })"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "source"
+    },
+    {
+      "type": "module",
+      "path": "plugins/sources/data-source.mjs",
+      "exports": [
+        "createSourceClient",
+        "resourceFor",
+        "SOURCES",
+        "memoryStore"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/datasource-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [
+    "network"
+  ],
+  "status": {
+    "level": "real-data",
+    "summary": "单测（假取回函数）+ 对真实 RCSB：哈希与项目钉住的逐位一致、断网读缓存、篡改被拒。",
+    "limits": [
+      "**只有 RCSB 对真实服务验证过**：AlphaFold 与 EMDB 的 URL 形式和授权没核对（开发环境连不上），标成未验证",
+      "首次使用即信任：第一次拿到的是错的它不知道，要更强保证请给 expectedSha256",
+      "缓存与哈希簿只有内存版本，没有持久化",
+      "没有限速、重试、进度显示"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-data-sources.md"
+  ],
+  "tags": [
+    "数据源",
+    "联网"
+  ]
+}

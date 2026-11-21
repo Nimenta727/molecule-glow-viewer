@@ -208,3 +208,49 @@ test('applicability: the tool proposes candidates and problems, saved bindings w
   // autoBindings respects each role's maximum and leaves out roles with no candidates
   assert.deepEqual(autoBindings(tool, sceneWith(['ring 1', 'ring 2', 'ring 3', 'ring 4', 'ring 5']), {}), { ring: ['n0', 'n1', 'n2', 'n3'] });
 });
+
+test('outputs and dependencies are validated, frozen and optional', () => {
+  const ok = validateToolDescriptor('t', descriptor({ outputs: [{ key: 'n', label: '计数', kind: 'count', unit: '个' }, { key: 'c', label: '曲线', kind: 'series' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }] }));
+  assert.equal(ok.outputs.length, 2); assert.ok(Object.isFrozen(ok.outputs[0])); assert.deepEqual(ok.dependencies, [{ id: 'org.glow.structure', version: '1.0.0' }]);
+  assert.equal(validateToolDescriptor('t', descriptor()).outputs, undefined);
+  const bad = (change, pattern) => assert.throws(() => validateToolDescriptor('t', descriptor(change)), pattern);
+  bad({ outputs: [{ key: 'n', label: 'x', kind: 'nope' }] }, /kind must be one of/);
+  bad({ outputs: [{ key: 'n', label: 'x', kind: 'count' }, { key: 'n', label: 'y', kind: 'count' }] }, /unique valid key/);
+  bad({ dependencies: [{ id: 'org.glow.structure', version: '1' }] }, /exact x\.y\.z/);
+  bad({ dependencies: [{ id: 'a', version: '1.0.0' }, { id: 'a', version: '1.0.0' }] }, /unique valid id/);
+});
+
+test('a work records the plugins its tools declare, keeping what is already there', async () => {
+  const { mergeToolDependencies, descriptorsForScene } = await import('../tool-model.mjs');
+  const tool = validateToolDescriptor('t', descriptor({ dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }, { id: 'org.glow.motion', version: '1.0.0' }] }));
+  const plain = validateToolDescriptor('p', descriptor());
+  const existing = [{ id: 'org.glow.structure', version: '1.0.0', optional: true }];
+  const merged = mergeToolDependencies(existing, [tool, plain, undefined]);
+  assert.deepEqual(merged, [{ id: 'org.glow.structure', version: '1.0.0', optional: true }, { id: 'org.glow.motion', version: '1.0.0', optional: false }]);
+  assert.deepEqual(existing, [{ id: 'org.glow.structure', version: '1.0.0', optional: true }], 'the input is not changed');
+  assert.deepEqual(mergeToolDependencies(undefined, []), []);
+  assert.deepEqual(descriptorsForScene({ tools: [{ tool: { id: 'a' } }, { tool: { id: 'b' } }] }, (id) => (id === 'a' ? tool : undefined)), [tool, undefined]);
+});
+
+test('author presets are validated when the tool is registered, not when someone picks one', () => {
+  const author = (presets) => ({ template: { n: 1 }, presets, fields: () => [], validate: (config) => { if (!(config.n > 0)) throw new Error('n must be positive'); return config; } });
+  const ok = validateToolDescriptor('t', descriptor({ author: author([{ id: 'big', label: '大', config: { n: 5 } }]) }));
+  assert.deepEqual(ok.author.presets.map(({ id }) => id), ['big']); assert.ok(Object.isFrozen(ok.author.presets));
+  assert.deepEqual(validateToolDescriptor('t', descriptor()).author.presets, []);
+  const bad = (presets, pattern) => assert.throws(() => validateToolDescriptor('t', descriptor({ author: author(presets) })), pattern);
+  bad([{ id: 'x', label: '坏', config: { n: -1 } }], /not a valid configuration: n must be positive/);
+  bad([{ id: 'x', label: 'a', config: { n: 1 } }, { id: 'x', label: 'b', config: { n: 2 } }], /unique valid id/);
+  bad([{ id: 'x', label: 'a' }], /config object/);
+});
+
+test('residue ranges are written and read the way people write them', async () => {
+  const { formatRanges, parseRanges, coerceField } = await import('../tool-model.mjs');
+  assert.equal(formatRanges([[1, 109], [264, 309], [5, 5]]), '1-109, 264-309, 5');
+  assert.deepEqual(parseRanges('1-109, 264–309 ,5'), [[1, 109], [264, 309], [5, 5]]);
+  assert.deepEqual(parseRanges(formatRanges([[3, 9], [20, 20]])), [[3, 9], [20, 20]], 'round trip');
+  for (const bad of ['', ' , ', '9-3', 'a-b', '0-5', '1-2-3']) assert.throws(() => parseRanges(bad, { label: 'N 域' }), /N 域/, bad);
+  assert.throws(() => parseRanges('1,2,3', { max: 2 }), /最多 2 段/);
+  assert.deepEqual(coerceField({ type: 'text', format: 'ranges', label: 'N 域' }, '1-5'), [[1, 5]]);
+  assert.throws(() => validateToolDescriptor('t', descriptor({ author: { template: {}, fields: () => [], validate: (c) => c } })) && validateToolDescriptor('t', { ...descriptor(), parameters: { k: { type: 'number', label: 'x', min: 0, max: 1, step: 1, default: 0, format: 'ranges' } } }), /format must be "ranges"/);
+});

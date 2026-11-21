@@ -33,7 +33,7 @@ test('the official resource catalogue holds valid, reproducible records that agr
     assert.ok(entry.title && entry.description && entry.tags.length > 0, `${record.id} has catalogue text`);
     assert.ok(record.card.species && record.card.method, `${record.id} keeps species and method in its card`);
   }
-  assert.equal(ids.size, 11);
+  assert.equal(ids.size, 29);
 });
 
 test('every template and work names resources the catalogue holds and tools the application registers; templates need no tool', () => {
@@ -98,6 +98,7 @@ test('a v3 scene package published from Studio is checked, indexed and found by 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'glow-ws-'));
   try {
     fs.cpSync(new URL('workshop/', root), dir, { recursive: true });
+    fs.rmSync(path.join(dir, 'community'), { recursive: true, force: true });   // this test starts from an empty community source whatever has been published to the real one
     fs.mkdirSync(path.join(dir, 'community/packs'), { recursive: true });
     const scene = (publication, id = 'tester.lab-one') => ({ format: 'glow-scene', schemaVersion: 3, id, title: 'Lab one', units: { length: 'meter', time: 'second' }, assets: [], nodes: [{ id: 'root', name: 'Root', parentId: null, assetId: null, visible: true,
       transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } }], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [{ type: 'illustrative', citation: 'test' }], tools: [], resources: [], publication });
