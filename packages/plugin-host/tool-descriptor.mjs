@@ -5,7 +5,7 @@
  *
  *   { version, title, audience: ['view'|'author'...], runtime: 'player-v1' (runs on a clock) | 'layer-v1' (drawn over the structure by the front end),
  *     parameters?: { key: { type, label, default, audience?, ...type details } },   // runtime controls
- *     author?: { template, fields(config) -> field specs, validate(config) -> normalised config },  // edits scene.tools[].config
+ *     author?: { template, presets?, fields(config) -> field specs, validate(config) -> normalised config },  // edits scene.tools[].config; presets: [{ id, label, config }] other ready-made starting configurations
  *     outputs?: [{ key, label, kind: 'count'|'series'|'state'|'event'|'file', unit? }],   // what the tool produces (counts, curves, states, events, exportable files)
  *     dependencies?: [{ id, version }],   // plugins the tool needs (exact versions); a tool without any works on the structure alone
  *     model?: { kind, assumptions: [text] } }
@@ -122,7 +122,19 @@ export function validateToolDescriptor(id, descriptor) {
     if (!isObject(author) || !isObject(author.template) || typeof author.validate !== 'function' || typeof author.fields !== 'function') {
       fail(id, 'author needs a template object and fields() and validate() functions');
     }
-    result.author = Object.freeze({ template: author.template, fields: author.fields, validate: author.validate });
+    // Ready-made starting configurations besides the default template (for example another protein for the same tool). Each must pass the tool's own validator now, not when someone picks it.
+    let presets = [];
+    if (author.presets !== undefined) {
+      if (!Array.isArray(author.presets) || author.presets.length > 16) fail(id, 'author.presets must be a list of at most 16 entries');
+      const seen = new Set();
+      presets = author.presets.map((preset, i) => {
+        if (!isObject(preset) || !KEY.test(preset.id ?? '') || seen.has(preset.id) || !isObject(preset.config)) fail(id, `author.presets[${i}] needs a unique valid id and a config object`);
+        seen.add(preset.id);
+        try { author.validate(preset.config); } catch (error) { fail(id, `author.presets[${i}] (${preset.id}) is not a valid configuration: ${error.message}`); }
+        return Object.freeze({ id: preset.id, label: text(id, preset.label, `author.presets[${i}].label`, 120), config: preset.config });
+      });
+    }
+    result.author = Object.freeze({ template: author.template, presets: Object.freeze(presets), fields: author.fields, validate: author.validate });
   }
 
   // What the tool produces, so authors and the help listing can tell what a work will report. Declarative; the tool itself fills them at run time.

@@ -76,6 +76,7 @@ export function createAdkPlayer({ model, scene, states, state, config, bindings 
   const originalSnapshot = playback.snapshot;
   return Object.assign(playback, {
     steps, navigation, particleParentId: nodes[0].parentId,
+    panel: cfg.panel,   // the work's own panel wording (title, evidence, labels): another protein run by this tool must not show the adenylate kinase text
     functionalDescription: cfg.functionalDescription,
     evidence: { type: 'derived', citation: cfg.evidence.citation, details: `${cfg.states.open} / ${cfg.states.closed} ${cfg.protein.chain} 链 ${structure.matched} 个 Cα；${cfg.fitDomain} 叠合 RMSD ${structure.rmsd.toFixed(3)} Å。相对 ${cfg.fitDomain} 的闭合端运动：${endpoint.map((d) => `${d.name} ${d.angle.toFixed(2)}° / ${d.shift.toFixed(2)} Å`).join('；')}。${cfg.evidence.note}` },
     decorate(layers) { originalSnapshot(); return structure.decorate(layers, nodes); },

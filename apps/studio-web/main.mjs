@@ -81,8 +81,9 @@ const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
   apply: (id, config) => edit({ type: 'setToolConfig', id, config }, '已更新工具配置。'),
   report: (message) => status(message),
   listTools: () => host.listTools({ audience: 'author' }),
-  addTool: (toolId) => {
-    const tool = host.getTool(toolId), entry = { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) };
+  addTool: (toolId, presetId) => {
+    const tool = host.getTool(toolId), preset = presetId ? tool.author.presets.find(({ id }) => id === presetId) : undefined;
+    const entry = { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(preset ? preset.config : tool.author.template)) };
     const bindings = autoBindings(tool, session().getScene(), entry);   // the tool proposes the objects it works on in this scene
     edit({ type: 'addToolEntry', entry: Object.keys(bindings).length ? { ...entry, bindings } : entry, dependencies: tool.dependencies ?? [] }, Object.keys(bindings).length ? '已添加工具，并按建议绑定对象。' : '已添加工具（场景里没有可绑定的对象）。');
   },

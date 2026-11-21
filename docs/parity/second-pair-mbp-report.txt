@@ -1,0 +1,11 @@
+ok   370 residues matched between 1OMP and 1ANF — 370
+ok   N domain is a rigid core: 155 residues fit within 1 Å — RMSD 0.72 Å
+ok   C domain turns by a large angle relative to the N domain (30–45°) — 36.2°, centre shift 10.2 Å
+ok   the same rotation is found with the C domain as core (symmetric within 0.5°) — 36.2° vs 36.2°
+ok   the hinge residues sit between the two domains: they turn less than the C domain — 17.4° vs 36.2°
+ok   the C domain angle is 0 at fraction 0 and grows monotonically to the full angle — 0.0 → 8.8 → 18.1 → 27.4 → 36.2
+ok   a global fit (no core) is worse for the rigid domain than the core fit — the global fit spreads the domain motion over the whole chain
+ok   the player's structure builder, given only the MBP template, agrees with the generic fit (RMSD, C domain, hinge) — RMSD 0.7212 Å, C 36.21° / 10.21 Å, hinge 17.41°
+ok   the reference ligand (maltose, chain B of 1ANF) is found: 23 atoms — 23
+
+9/9 checks passed (maltose-binding protein, 1OMP open / 1ANF closed; config: {"core":"chain A and resi 1-109,264-309","domains":[["N","chain A and resi 1-109,264-309"],["C","chain A and resi 114-259,317-370"],["hinge","chain A and resi 110-113,260-263,310-316"]]})

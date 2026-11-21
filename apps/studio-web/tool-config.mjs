@@ -18,7 +18,10 @@ export function createToolConfigPanel(container, { getTool, getScene, apply, rep
     select.id = 'tool-add-select';
     select.setAttribute('aria-label', '要添加的工具');
     const tools = listTools();
-    for (const tool of tools) select.append(new doc.defaultView.Option(`${tool.title} · ${tool.version}`, tool.id));
+    for (const tool of tools) {
+      select.append(new doc.defaultView.Option(`${tool.title} · ${tool.version}`, tool.id));
+      for (const preset of tool.author?.presets ?? []) select.append(new doc.defaultView.Option(`${tool.title} · ${preset.label}`, `${tool.id}\n${preset.id}`));   // another ready-made configuration of the same tool
+    }
     if (!tools.length) select.append(new doc.defaultView.Option('（正在加载工具插件…）', ''));
     const button = doc.createElement('button');
     button.id = 'tool-add-button';
@@ -113,7 +116,7 @@ export function createToolConfigPanel(container, { getTool, getScene, apply, rep
   container.addEventListener('click', (event) => {
     const add = event.target.closest('#tool-add-button'), remove = event.target.closest('[data-remove-entry]'), auto = event.target.closest('[data-auto-bind]');
     try {
-      if (add) { const id = container.querySelector('#tool-add-select').value; if (id) addTool(id); }
+      if (add) { const [id, presetId] = container.querySelector('#tool-add-select').value.split('\n'); if (id) addTool(id, presetId); }
       else if (remove) removeTool(remove.dataset.removeEntry);
       else if (auto) {
         const scene = getScene(), entry = scene.tools.find(({ id }) => id === auto.dataset.autoBind), tool = getTool(entry.tool.id);

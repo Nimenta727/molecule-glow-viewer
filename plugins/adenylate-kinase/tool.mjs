@@ -1,4 +1,5 @@
 import { ADK_4AKE_TEMPLATE, normalizeAdkConfig } from './config.mjs';
+import { MBP_1OMP_1ANF_TEMPLATE } from './templates.mjs';
 import { PARAMETERS } from './playback.mjs';
 import { nodesOfSource, partNameOf } from '../shared/bindings.mjs';
 
@@ -44,7 +45,7 @@ export function adkToolDescriptor(version, playerId) {
     version, title: ADK_4AKE_TEMPLATE.panel.title, audience: ['view', 'author'], runtime: 'player-v1', parameters,
     aliases: [playerId], player: playerId,
     inputs: { roles: { protein: { label: '运动的蛋白链', min: 1, max: 1 } }, check: adkCheck },
-    author: { template: ADK_4AKE_TEMPLATE, fields: adkAuthorFields, validate: normalizeAdkConfig },
+    author: { template: ADK_4AKE_TEMPLATE, presets: [{ id: 'mbp', label: '麦芽糖结合蛋白（1OMP 开 / 1ANF 闭）', config: MBP_1OMP_1ANF_TEMPLATE }], fields: adkAuthorFields, validate: normalizeAdkConfig },
     outputs: [{ key: 'state', label: '构象（开 / 闭）', kind: 'state' }, { key: 'events', label: '反应事件', kind: 'event' }],
     dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '两态构象播放器（域拟合 + 按残基位移插值）', assumptions: [

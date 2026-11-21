@@ -232,3 +232,14 @@ test('a work records the plugins its tools declare, keeping what is already ther
   assert.deepEqual(mergeToolDependencies(undefined, []), []);
   assert.deepEqual(descriptorsForScene({ tools: [{ tool: { id: 'a' } }, { tool: { id: 'b' } }] }, (id) => (id === 'a' ? tool : undefined)), [tool, undefined]);
 });
+
+test('author presets are validated when the tool is registered, not when someone picks one', () => {
+  const author = (presets) => ({ template: { n: 1 }, presets, fields: () => [], validate: (config) => { if (!(config.n > 0)) throw new Error('n must be positive'); return config; } });
+  const ok = validateToolDescriptor('t', descriptor({ author: author([{ id: 'big', label: '大', config: { n: 5 } }]) }));
+  assert.deepEqual(ok.author.presets.map(({ id }) => id), ['big']); assert.ok(Object.isFrozen(ok.author.presets));
+  assert.deepEqual(validateToolDescriptor('t', descriptor()).author.presets, []);
+  const bad = (presets, pattern) => assert.throws(() => validateToolDescriptor('t', descriptor({ author: author(presets) })), pattern);
+  bad([{ id: 'x', label: '坏', config: { n: -1 } }], /not a valid configuration: n must be positive/);
+  bad([{ id: 'x', label: 'a', config: { n: 1 } }, { id: 'x', label: 'b', config: { n: 2 } }], /unique valid id/);
+  bad([{ id: 'x', label: 'a' }], /config object/);
+});

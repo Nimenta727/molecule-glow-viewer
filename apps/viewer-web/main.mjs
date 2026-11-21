@@ -383,7 +383,9 @@ function boot() {
     elements['mechanism-steps'].hidden = active.navigation?.current().mode === 'mechanism';
     if (active.mechanismUiPlayer !== player) {
       active.mechanismUiPlayer = player;
-      const panel = host.getPanel(active.playerId);
+      const registered = host.getPanel(active.playerId), own = player.panel;   // the work's own wording (from its configuration) wins over the registered default
+      const panel = own ? { ...registered, title: own.title ?? registered?.title, parametersTitle: own.parametersTitle ?? registered?.parametersTitle, evidence: own.evidence ?? registered?.evidence,
+        speed: { ...registered?.speed, ...(own.speedLabel ? { label: own.speedLabel } : {}) }, seed: { ...registered?.seed, ...(own.seedLabel ? { label: own.seedLabel } : {}) } } : registered;
       elements['mechanism-title'].textContent = panel?.title ?? '机制';
       elements['mechanism-evidence'].textContent = panel?.evidence ?? '';
       for (const key of ['speed', 'seed']) {
