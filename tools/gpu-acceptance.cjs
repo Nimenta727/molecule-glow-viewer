@@ -48,9 +48,9 @@ const phases = [], errors = [];
   const summary = (r) => ({ renderer: r.renderer, software: r.software, fps: r.stats ? +r.stats.fps.toFixed(1) : null, p95Ms: r.stats ? +r.stats.p95Ms.toFixed(1) : null, triangles: r.triangles, budget: r.budget, tier: r.tier });
   async function phase(name, work) {
     if (ONLY && !ONLY.includes(name)) return;
-    const started = Date.now(), entry = { name, ok: false, notes: [] }; console.log(`\n== ${name}`);
-    try { Object.assign(entry, await work(entry)); entry.ok = entry.ok !== false && !entry.failure; }
-    catch (error) { entry.failure = error.message.split('\n')[0]; }
+    const started = Date.now(), entry = { name, notes: [] }; console.log(`\n== ${name}`);
+    try { Object.assign(entry, await work(entry)); entry.ok = !entry.failure; }
+    catch (error) { entry.failure = error.message.split('\n')[0]; entry.ok = false; }
     entry.seconds = +((Date.now() - started) / 1000).toFixed(1); phases.push(entry);
     console.log(`${entry.ok ? 'PASS' : 'FAIL'} ${name}${entry.failure ? ' — ' + entry.failure : ''}${entry.fps != null ? ` (${entry.fps} fps, ${entry.renderer})` : ''}`);
   }
@@ -61,8 +61,9 @@ const phases = [], errors = [];
     await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
     const report = await bench(page), s = summary(report); Object.assign(entry, s); entry.screenshot = await shot(page, name);
     if (report.software && !SOFTWARE_OK) throw new Error(`WebGL 是软件渲染器（${report.renderer}）：没有用到显卡`);
-    const min = MIN_FPS[name]; if (min && s.fps < min) entry.notes.push(`帧率 ${s.fps} 低于这个场景的预期 ${min}`), entry.ok = false, entry.failure = `帧率 ${s.fps} < ${min}`;
-    else if (s.fps != null && s.fps < 15) entry.notes.push(`帧率 ${s.fps}，低于 15：这个场景在这张卡上偏重`);
+    const min = SOFTWARE_OK ? 0 : MIN_FPS[name];   // frame rates mean nothing on a software renderer
+    if (min && s.fps < min) { entry.notes.push(`帧率 ${s.fps} 低于这个场景的预期 ${min}`); entry.failure = `帧率 ${s.fps} < ${min}`; }
+    else if (!SOFTWARE_OK && s.fps != null && s.fps < 15) entry.notes.push(`帧率 ${s.fps}，低于 15：这个场景在这张卡上偏重`);
     await page.close(); return {};
   });
 
@@ -103,10 +104,11 @@ const phases = [], errors = [];
   await phase('embed', async (entry) => {
     const page = await open(); await page.evaluate(() => window.glow.load({ pdb: '1K4C', assembly: true })); await page.waitForTimeout(3000); const rows = [];
     for (const copies of [40, 400]) {
-      const made = await page.evaluate((n) => window.glow.embed({ shape: { kind: 'sphere', radius: 600 }, copies: n, seed: 3 }), copies); await page.waitForTimeout(1500);
-      const r = await bench(page, 3); rows.push({ copies, placed: made.placed, thickness: made.membrane.thicknessFromStructure, ...summary(r) }); entry.screenshot = await shot(page, `embed-${copies}`);
+      const made = await page.evaluate((n) => window.glow.embed({ shape: { kind: 'sphere', radius: 1600 }, copies: n, seed: 3 }), copies); await page.waitForTimeout(1500);
+      const r = await bench(page, 3); rows.push({ copies, placed: made.placed, requested: made.requested, thickness: made.membrane.thicknessFromStructure, ...summary(r) }); entry.screenshot = await shot(page, `embed-${copies}`);
     }
-    entry.rows = rows; entry.fps = rows.at(-1).fps; entry.renderer = rows[0].renderer; entry.software = rows[0].software; entry.notes.push(...rows.map((r) => `${r.placed} 份嵌入膜（膜厚 ${r.thickness} Å）：${r.fps} fps`));
+    entry.rows = rows; entry.fps = rows.at(-1).fps; entry.renderer = rows[0].renderer; entry.software = rows[0].software; entry.notes.push(...rows.map((r) => `放下 ${r.placed}/${r.requested} 份（膜厚 ${r.thickness} Å）：${r.fps} fps`));
+    if (rows.some((r) => r.placed < r.requested)) entry.failure = '有的请求没有全部放下（球不够大，或膜取向有问题）';
     if (rows.some((r) => r.software) && !SOFTWARE_OK) throw new Error('软件渲染');
     await page.close(); return {};
   });
