@@ -17,15 +17,16 @@ const base = 'https://example.test/workshop/';
 
 test('the real catalogues load: works and resources of the official source, with a missing community source reported, not thrown', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
-  assert.equal(catalog.templates.length, 13, 'templates: static, one per pack that is not only an animation demo');
-  assert.equal(catalog.works.length, 11, 'works: the animated versions');
+  assert.equal(catalog.templates.filter((e) => e.source === 'official').length, 13, 'official static works: one per pack that is not only an animation demo');
+  assert.deepEqual(catalog.templates.filter((e) => e.source === 'community').map((e) => e.title), ['血红蛋白：四个亚基与四个血红素'], 'the hemoglobin work made with the Studio (a static work: no tool)');
+  assert.equal(catalog.works.length, 11, 'works: the animated versions (all official)');
   assert.ok(catalog.templates.every((entry) => entry.zone === 'template' && entry.tools.length === 0), 'a template needs no tool');
   assert.ok(catalog.works.every((entry) => entry.zone === 'work' && entry.tools.length > 0), 'a work names the tools it needs');
   assert.deepEqual([...new Set([...catalog.templates, ...catalog.works].map((entry) => entry.topic))].sort(), ['cell', 'local-system', 'mechanism', 'protein'], 'the four subjects');
   assert.equal(catalog.resources.length, 29, '11 first, then every structure the official works use, and the maltose-binding protein and Bacillus PS3 ATP synthase of the presets');
-  assert.ok([...catalog.templates, ...catalog.works].every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
+  assert.ok([...catalog.templates, ...catalog.works].every((work) => work.kind === 'work' && ['official', 'community'].includes(work.source) && /^[a-f0-9]{64}$/.test(work.sha256)));
   assert.ok(catalog.resources.every((entry) => entry.kind === 'resource' && entry.delivery === 'reference' && entry.record.attribution.license === 'CC0-1.0'));
-  assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources', 'community/plugins'], 'the community source has works (none yet) but no resource or plugin catalogue');
+  assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources', 'community/plugins'], 'the community source has a static work but no resource or plugin catalogue');
   assert.ok(Object.isFrozen(catalog.works[0]) && Object.isFrozen(catalog.templates[0]) && Object.isFrozen(catalog.resources[0].record));
 });
 
@@ -54,10 +55,10 @@ test('queries match titles, tags, ids and accessions, by zone, source and tag', 
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', tag: '阻断剂' }).map(({ id }) => id), ['res.rcsb.2HVK', 'res.rcsb.2ITD']);
   assert.equal(queryCatalog(catalog, { zone: 'works', source: 'community' }).length, 0);
   assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'cell' }).map(({ id }) => id), ['official.whole-cell'], 'by subject');
-  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'protein' }).map(({ id }) => id).sort(), ['official.groel', 'official.nucleosome', 'official.proteasome-20s', 'official.spike']);
+  assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'protein', source: 'official' }).map(({ id }) => id).sort(), ['official.groel', 'official.nucleosome', 'official.proteasome-20s', 'official.spike']);
   assert.deepEqual(queryCatalog(catalog, { zone: 'works', topic: 'local-system' }).map(({ id }) => id), ['official.cell-corner.work']);
   assert.equal(queryCatalog(catalog, { zone: 'works', text: 'no-such-thing' }).length, 0);
-  assert.equal(queryCatalog(catalog, { zone: 'templates', text: '  ' }).length, 13, 'blank text matches everything');
+  assert.equal(queryCatalog(catalog, { zone: 'templates', text: '  ' }).length, 14, 'blank text matches everything');
   assert.ok(allTags(catalog, 'resources').includes('钾通道'));
 });
 
