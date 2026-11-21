@@ -1310,6 +1310,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         const geometry = object.geometry, count = geometry.index ? geometry.index.count : (geometry.attributes.position?.count ?? 0), copies = object.isInstancedMesh ? object.count : 1;
         if (object.isMesh) { triangles += count / 3 * copies; drawables++; } else if (object.isPoints) { points += count * copies; drawables++; } else if (object.isLine) { lines += (object.isLineSegments ? count / 2 : Math.max(0, count - 1)) * copies; drawables++; }
       });
-      return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects, triangles: Math.round(triangles), points, lines: Math.round(lines), drawables };
+      return { clouds: Object.fromEntries([...clouds].map(([tag, cloud]) => [tag, cloud.mesh.count])), geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects, triangles: Math.round(triangles), points, lines: Math.round(lines), drawables };
     } };
 }
