@@ -124,6 +124,8 @@ export function createRibosomeView({ viewport, context, process, speed = () => 0
     stop() { token.cancelled = true; running = false; if (frameId != null) cancelAnimationFrame(frameId); frameId = null; showStatic(); viewport.setParticleCloud(CLOUD, []); viewport.setParticleCloud(FACTOR_CLOUD, []); viewport.setParticleCloud(DRUG_CLOUD, []); viewport.setParticleCloud(CHAIN_CLOUD, []); motion = null; },
     /** After the viewport was rebuilt: hide the static parts again and draw. */
     reapply() { if (running && motion) { hideStatic(); draw(); } },
+    /** Read-only state for checks: whether it follows the process, and how many bodies it would draw now. */
+    status() { let b = null; try { b = motion?.bodies(); } catch { b = null; } return { running, built: Boolean(motion), frameQueued: frameId != null, trna: b?.trna.length ?? 0, mrnaFade: b?.mrna?.fade ?? 0, chain: b?.chain.length ?? 0, factors: b?.factors.length ?? 0 }; },
     get active() { return running; },
     /** The sites of the ribosome (for the close-ups), or null when the view is off. */
     get frame() { return running && motion ? motion.frame : null; },

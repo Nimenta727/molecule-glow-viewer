@@ -2027,7 +2027,7 @@ function boot() {
     },
   })));
   window.glow = commands.api;
-  window.__glowStats = () => viewport.stats();   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
+  window.__glowStats = () => ({ ...viewport.stats(), ribosome: ribosomeView.status() });   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
   const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });
   window.addEventListener('pagehide', (event) => {
     if (event.persisted) return;
