@@ -1209,6 +1209,16 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
-    stats() { let objects = 0; scene.traverse(() => { objects++; }); return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects,
-      triangles: renderer.info.render.triangles, drawCalls: renderer.info.render.calls, points: renderer.info.render.points, lines: renderer.info.render.lines }; } };   // the last frame's load, for sizing scenes (docs/PLUGIN_ROADMAP.md)
+    stats() {
+      // read-only render statistics, for leak checks and for sizing scenes (docs/PLUGIN_ROADMAP.md). The drawn load is counted from the scene (visible objects, instances included):
+      // three.js resets its own per-render counters on every pass, and the last pass is a full-screen quad.
+      let objects = 0, triangles = 0, points = 0, lines = 0, drawables = 0;
+      scene.traverse((object) => {
+        objects++;
+        if (!object.visible || !object.geometry) return;
+        const geometry = object.geometry, count = geometry.index ? geometry.index.count : (geometry.attributes.position?.count ?? 0), copies = object.isInstancedMesh ? object.count : 1;
+        if (object.isMesh) { triangles += count / 3 * copies; drawables++; } else if (object.isPoints) { points += count * copies; drawables++; } else if (object.isLine) { lines += (object.isLineSegments ? count / 2 : Math.max(0, count - 1)) * copies; drawables++; }
+      });
+      return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects, triangles: Math.round(triangles), points, lines: Math.round(lines), drawables };
+    } };
 }

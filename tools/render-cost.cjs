@@ -21,6 +21,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
       await page.goto(`${ORIGIN}/apps/viewer-web/index.html?startup=skip&work=${encodeURIComponent(id)}`);
       await page.waitForFunction(() => window.__glowStats, null, { timeout: 30000 });
       await page.waitForFunction(() => window.glow.info().then((i) => i && i.title), null, { timeout: 180000 }).catch(() => {});
+      await page.waitForFunction(() => window.__glowStats().objects > 20, null, { timeout: 280000 }).catch(() => {});   // big structures take a while to parse in software
       await page.waitForTimeout(8000);
       const s = await page.evaluate(() => window.__glowStats());
       console.log(id.padEnd(40), JSON.stringify(s));
