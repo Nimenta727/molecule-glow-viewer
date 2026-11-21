@@ -22,6 +22,8 @@
 
 浏览器实测（Playwright + Chromium，请求拦截提供文件、不起服务进程）：`node tools/studio-authoring-check.cjs`（发布标签与草稿恢复）、`node tools/workshop-shot.cjs`（工坊详情）；截图在 [images](images/)：`workshop-details.png`、`workshop-details-narrow.png`、`studio-publish.png`。
 
+- **4.3 收尾（2026-11-21）**：工具描述符有 `outputs`/`dependencies`；Studio“发布”标签有“导出发布包”：不许嵌入且有 RCSB 来源的结构改为带哈希的引用，本地文件则拒绝并指出资产；Viewer 打开带引用的包时取回并核对哈希。真实浏览器：`node tools/studio-export-check.cjs`（需先 `node tools/fetch-smoke-structures.mjs --dir desktop/dist/smoke-structures`）。引用取回在真实 RCSB 网络上尚未端到端试过（单元测试用注入的取回函数）。
+
 ## 4.4 各组进度
 
 | 编号 | 功能组 | 状态 | 主要位置 | 经典对照 |

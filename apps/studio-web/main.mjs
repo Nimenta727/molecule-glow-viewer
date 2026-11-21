@@ -4,6 +4,7 @@ import { createTimeline } from '../../packages/core/index.mjs';
 import { createPluginHost } from '../../packages/plugin-host/index.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { writeScenePackage } from '../../packages/schema/archive.mjs';
+import { planEmbedding } from '../../packages/schema/export-policy.mjs';
 import { decodeGeometry, GEOMETRY_MEDIA_TYPE } from '../../packages/schema/geometry.mjs';
 import { createStudioSession } from '../../packages/studio-editor/session.mjs';
 import { decodeProject, encodeProject } from '../../packages/studio-editor/project-io.mjs';
@@ -162,6 +163,21 @@ onClick('pub-check', () => {
   const result = checkPublication(session().getScene(), publishCatalog ?? { templates: [], works: [], resources: [], errors: [] }, { toolAvailable: isKnownTool });
   if (!publishCatalog) result.problems.push({ level: 'info', code: 'catalog-not-read', message: '还没有读取工坊目录：已有版本、派生来源和资源是否登记没有被检查。' });
   renderCheck(result);
+});
+
+// A package to hand to others: structures whose licence forbids embedding travel as hash-checked references (packages/schema/export-policy.mjs); the check runs on that result.
+onClick('pub-export', async () => {
+  navigationEditor.assertSaved();
+  if (!savePublication()) return;
+  const current = session(), plan = planEmbedding(current.getScene(), current.getResources(), { mode: 'publish' });
+  const result = checkPublication(plan.scene, publishCatalog ?? { templates: [], works: [], resources: [], errors: [] }, { toolAvailable: isKnownTool });
+  for (const { assetId, reason } of plan.blocked) result.problems.push({ level: 'error', code: 'embed-blocked', message: `${assetId}：${reason}` });
+  if (plan.referenced.length) result.problems.push({ level: 'info', code: 'references', message: `${plan.referenced.length} 个结构不随包嵌入，改为按来源取回并核对哈希。` });
+  result.ok = !result.problems.some(({ level }) => level === 'error');
+  renderCheck(result);
+  if (!result.ok) { status('发布检查有错误，没有生成发布包。'); return; }
+  offerDownload(`${plan.scene.id}.glow`, await writeScenePackage(plan.scene, plan.resources), 'application/zip');
+  status('发布包已生成。');
 });
 
 const host = createPluginHost({

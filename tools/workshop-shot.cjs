@@ -9,7 +9,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await context.route('**/*', (route) => {
     const url = new URL(route.request().url());
     const cdn = /^https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.160\.0\/(.+)$/.exec(url.href);   // the same Three.js version, from the vendored copy
-    if (cdn) { const f = path.join(ROOT, 'desktop/vendor/three', cdn[1]); return fs.existsSync(f) ? route.fulfill({ status: 200, contentType: 'text/javascript', body: fs.readFileSync(f) }) : route.abort(); }
+    if (cdn) { const f = [path.join(ROOT, 'desktop/vendor/three', cdn[1]), path.join(ROOT, 'desktop/node_modules/three', cdn[1])].find((file) => fs.existsSync(file)) ?? ''; return fs.existsSync(f) ? route.fulfill({ status: 200, contentType: 'text/javascript', body: fs.readFileSync(f) }) : route.abort(); }
     if (url.origin !== ORIGIN) { console.log('ABORT', url.href.slice(0, 120)); return route.abort(); }
     const file = path.join(ROOT, decodeURIComponent(url.pathname));
     if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { console.log('404', url.pathname); return route.fulfill({ status: 404, body: 'not found' }); }

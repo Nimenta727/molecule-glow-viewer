@@ -46,6 +46,7 @@ import { capabilityReport } from './capabilities.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
 import { createResourceStore } from '../../packages/schema/resource.mjs';
 import { registerSceneResources, summarizeResource } from './resource-registry.mjs';
+import { hydrateReferences } from '../../packages/schema/export-policy.mjs';
 import { prepareWorkScene, makeStaticTemplate, storePlayerState, toolEntryFor } from './work-scene.mjs';
 import { normalizeSolutionConfig } from '../../plugins/motion/solution-tool.mjs';
 import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
@@ -276,6 +277,14 @@ function boot() {
           const { fourModesDemo } = await import('./four-modes-demo.mjs');
           loaded = { scene: fourModesDemo, resources: new Map(), warnings: [] };
         } else loaded = input.file ? await openSceneFile(input.file) : fromPrototype(exampleScene);
+        if (loaded.scene.assets?.some((asset) => asset.kind === 'external' && asset.resource)) {   // a published package that carries structures as references: fetch, verify the recorded hash
+          setStatus('正在取回引用的结构并核对哈希…');
+          const hydrated = await hydrateReferences(loaded.scene, loaded.resources, async ({ provider, accession }) => {
+            if (!/^rcsb/i.test(provider)) throw new Error(`不支持的来源 ${provider}`);
+            return (await loadAccession(accession, signal)).bytes;
+          });
+          loaded = { ...loaded, scene: hydrated.scene, resources: hydrated.resources, warnings: [...(loaded.warnings ?? []), ...hydrated.diagnostics.map(({ message }) => message)] };
+        }
         if (importer && structureLifetime) {
           const combined = AbortSignal.any([signal, structureLifetime.signal]);
           await loadLegacyStructures(loaded, {
