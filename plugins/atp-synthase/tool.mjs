@@ -52,6 +52,8 @@ export function atpToolDescriptor(version, playerId) {
     inputs: { roles: { rotor: { label: '转子部件（随转轴旋转的亚基）', min: 1 } }, check: atpCheck },
     parameters: {},   // rotation speed and seed are the clock controls the Viewer shows itself
     author: { template: ATP_6ZPO_TEMPLATE, fields: atpAuthorFields, validate: normalizeAtpConfig },
+    outputs: [{ key: 'rotation', label: '转子角度', kind: 'state', unit: '°' }, { key: 'protons', label: '穿过的质子数', kind: 'count' }, { key: 'atp', label: '合成的 ATP 数', kind: 'count' }, { key: 'events', label: '质子 / ATP 事件', kind: 'event' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '旋转 ATP 酶几何播放器（环旋转 + 三位点构象插值）', assumptions: [
       '结构来自沉积坐标；β 位点在三个实测构象之间插值。', '粒子、膜和路径为教学示意，时间为示意秒。', '导入任意结构不意味着自动得到正确的生物机制。'] },
   };

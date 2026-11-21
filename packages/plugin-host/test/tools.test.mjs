@@ -208,3 +208,15 @@ test('applicability: the tool proposes candidates and problems, saved bindings w
   // autoBindings respects each role's maximum and leaves out roles with no candidates
   assert.deepEqual(autoBindings(tool, sceneWith(['ring 1', 'ring 2', 'ring 3', 'ring 4', 'ring 5']), {}), { ring: ['n0', 'n1', 'n2', 'n3'] });
 });
+
+test('outputs and dependencies are validated, frozen and optional', () => {
+  const ok = validateToolDescriptor('t', descriptor({ outputs: [{ key: 'n', label: '计数', kind: 'count', unit: '个' }, { key: 'c', label: '曲线', kind: 'series' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }] }));
+  assert.equal(ok.outputs.length, 2); assert.ok(Object.isFrozen(ok.outputs[0])); assert.deepEqual(ok.dependencies, [{ id: 'org.glow.structure', version: '1.0.0' }]);
+  assert.equal(validateToolDescriptor('t', descriptor()).outputs, undefined);
+  const bad = (change, pattern) => assert.throws(() => validateToolDescriptor('t', descriptor(change)), pattern);
+  bad({ outputs: [{ key: 'n', label: 'x', kind: 'nope' }] }, /kind must be one of/);
+  bad({ outputs: [{ key: 'n', label: 'x', kind: 'count' }, { key: 'n', label: 'y', kind: 'count' }] }, /unique valid key/);
+  bad({ dependencies: [{ id: 'org.glow.structure', version: '1' }] }, /exact x\.y\.z/);
+  bad({ dependencies: [{ id: 'a', version: '1.0.0' }, { id: 'a', version: '1.0.0' }] }, /unique valid id/);
+});

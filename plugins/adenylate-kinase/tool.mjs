@@ -45,6 +45,8 @@ export function adkToolDescriptor(version, playerId) {
     aliases: [playerId], player: playerId,
     inputs: { roles: { protein: { label: '运动的蛋白链', min: 1, max: 1 } }, check: adkCheck },
     author: { template: ADK_4AKE_TEMPLATE, fields: adkAuthorFields, validate: normalizeAdkConfig },
+    outputs: [{ key: 'state', label: '构象（开 / 闭）', kind: 'state' }, { key: 'events', label: '反应事件', kind: 'event' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '两态构象播放器（域拟合 + 按残基位移插值）', assumptions: [
       '中间构象是两套实测坐标的教学插值，不是动力学轨迹。', '不计算反应速率或产物计数；两态开合不等于催化动力学。', '域配色与时间为示意。'] },
   };

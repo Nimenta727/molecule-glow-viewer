@@ -79,6 +79,8 @@ export function processToolDescriptor(version) {
   return {
     version, title: '随机状态过程（门控 / 渗透 / 阻断）', audience: ['view', 'author'], runtime: 'layer-v1', parameters: {},
     author: { template: PROCESS_TEMPLATE, fields: processAuthorFields, validate: normalizeProcessConfig },
+    outputs: [{ key: 'counters', label: '计数器与观测量', kind: 'count' }, { key: 'curves', label: '曲线（可导出 CSV）', kind: 'series' }, { key: 'csv', label: '曲线数据文件', kind: 'file' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '连续时间马尔可夫链（精确 Gillespie 采样，种子化）', assumptions: [
       '转移的速率公式由作品声明，数值是示意设定或来自所引文献，不是对某个实验的拟合预测。', '这是随机状态过程，不是分子动力学轨迹；计数是随机事件，同一种子重放同一段历史。',
       '时间是示意秒，各个时钟（例如渗透纳秒、门控秒）按声明分别累计；画面插值不会阻塞或推进化学过程。', '从计数估算的电流是统计估计，样本少时波动大。'] },

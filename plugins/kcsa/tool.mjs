@@ -54,6 +54,8 @@ export function kcsaToolDescriptor(version, playerId) {
     aliases: [playerId], player: playerId,
     inputs: { roles: { channel: { label: '通道的各条链', min: 1 } }, check: kcsaCheck },
     author: { template: KCSA_1K4C_TEMPLATE, fields: kcsaAuthorFields, validate: normalizeKcsaConfig },
+    outputs: [{ key: 'out', label: '外流计数', kind: 'count' }, { key: 'in', label: '内流计数', kind: 'count' }, { key: 'sodium', label: '排斥计数', kind: 'count' }, { key: 'gate', label: '通道门控状态', kind: 'state' }],
+    dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '四聚体钾通道门控与渗透（教学速率模型 + 孔道几何）', assumptions: [
       '速率模型用于教学，不是分子动力学。', '门控秒与渗透纳秒分别计时；粒子插值不阻塞模拟时钟。', '开放结构为 E71A；野生型选项只改变动力学。'] },
   };
