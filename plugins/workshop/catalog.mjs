@@ -57,12 +57,21 @@ const list = (value, max = 32) => Array.isArray(value) ? value.filter((item) => 
 /** The four subjects a template or a work is about: mechanism, protein, local system, cell. */
 export const TOPICS = Object.freeze({ mechanism: '机理', protein: '蛋白质', 'local-system': '局部系统', cell: '细胞' });
 
+const WORK_ID = /^[a-z0-9][a-z0-9._-]{2,63}$/;
+function derivedFrom(value) {
+  if (!value || typeof value !== 'object' || typeof value.id !== 'string' || !WORK_ID.test(value.id)) return undefined;
+  const revision = Number.isInteger(value.revision) && value.revision >= 1 ? value.revision : undefined;
+  return Object.freeze({ id: value.id, ...(revision ? { revision } : {}) });
+}
 function workEntry(raw, source) {
   if (!raw || typeof raw.id !== 'string' || typeof raw.file !== 'string' || !SHA256.test(raw.sha256 ?? '') || !/^packs\/[A-Za-z0-9._-]+\.glow$/.test(raw.file)) return null;
   return Object.freeze({
     kind: 'work', zone: raw.zone === 'template' ? 'template' : 'work', topic: Object.hasOwn(TOPICS, raw.topic) ? raw.topic : 'protein', source, id: raw.id, title: text(raw.title, 120) || raw.id, description: text(raw.description, 400), category: text(raw.category, 20), tags: list(raw.tags, 8),
     license: text(raw.license, 40), file: raw.file, sha256: raw.sha256, size: Number.isFinite(raw.size) ? raw.size : 0, updated: text(raw.updated, 20),
     pdb: list(raw.pdb), resources: list(raw.resources), tools: list(raw.tools), animation: text(raw.animation, 10),
+    revision: Number.isInteger(raw.revision) && raw.revision >= 1 ? raw.revision : 1,
+    author: Object.freeze({ name: text(raw.author?.name, 80), ...(typeof raw.author?.url === 'string' && /^https:\/\/\S+$/.test(raw.author.url) ? { url: raw.author.url.slice(0, 300) } : {}) }),
+    ...(derivedFrom(raw.derivedFrom) ? { derivedFrom: derivedFrom(raw.derivedFrom) } : {}),
   });
 }
 

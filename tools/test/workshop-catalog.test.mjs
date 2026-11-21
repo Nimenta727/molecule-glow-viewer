@@ -69,3 +69,25 @@ test('the committed catalogues are exactly what the build scripts produce', () =
     assert.doesNotMatch(run.stdout, /↻/, `${script} changed a committed catalogue: run it and commit the result`);
   }
 });
+
+test('a pack may record what it was derived from; the validator checks the shape and the catalogue-wide rules', async () => {
+  const os = await import('node:os'), path = await import('node:path');
+  const { loadRules, checkFile } = await import('../../workshop/tools/glow-lib.mjs');
+  const R = loadRules(), dir = fs.mkdtempSync(path.join(os.tmpdir(), 'glow-derive-'));
+  try {
+    const original = JSON.parse(fs.readFileSync(new URL('workshop/official/packs/official.kcsa.glow', root), 'utf8'));
+    const make = (extra) => {
+      const pack = { ...original, id: 'tester.kcsa-copy', author: { name: 'Tester' }, license: 'CC-BY-4.0', ...extra }, file = path.join(dir, 'tester.kcsa-copy.glow');
+      fs.writeFileSync(file, JSON.stringify(pack)); return checkFile(file, 'community', R);
+    };
+    assert.equal(make({}).ok, true, 'a plain community pack passes');
+    assert.equal(make({ derivedFrom: { id: 'official.kcsa', revision: 1 } }).ok, true);
+    assert.equal(make({ derivedFrom: { id: 'official.kcsa' } }).ok, true, 'revision is optional');
+    for (const bad of ['official.kcsa', null, {}, { id: 5 }, { id: 'X' }, { id: 'official.kcsa', revision: 0 }, { id: 'official.kcsa', revision: 1.5 }, { id: 'official.kcsa', note: 'x' }, [{ id: 'official.kcsa' }]]) {
+      const result = make({ derivedFrom: bad });
+      assert.equal(result.ok, false, JSON.stringify(bad)); assert.ok(result.errors.some((text) => /derivedFrom/.test(text)));
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  const { derivationProblems } = await import('../../workshop/tools/glow-lib.mjs');
+  assert.deepEqual(derivationProblems(), [], 'the packs in the repository have consistent derivation records');
+});

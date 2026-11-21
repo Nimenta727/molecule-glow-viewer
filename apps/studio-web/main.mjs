@@ -18,7 +18,7 @@ import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
-import { toolEntriesForScene, toolTitle } from '../../plugins/mechanism-catalog.mjs';
+import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
 
 const ui = Object.fromEntries([...document.querySelectorAll('[id]')].map((element) => [element.id, element]));
 const AXES = ['x', 'y', 'z'];
@@ -481,7 +481,7 @@ function openInViewer(entry) {
 }
 const workshop = createWorkshopDialog(document, {
   load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
-  toolTitle,
+  toolTitle, toolAvailable: isKnownTool,
   actions: {
     templates: [{ label: '在 Viewer 中查看', title: '模板是静态的：在 Viewer 里看结构、读解说', run: (entry) => openInViewer(entry) }],
     works: [{ label: '在 Viewer 中打开', title: '作品的播放与展示在 Viewer 里', run: (entry) => openInViewer(entry) }],

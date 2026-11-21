@@ -54,6 +54,9 @@ export function toolTitle(id) {
   return id;
 }
 
+/** Whether this application has the built-in tool (by tool id or old player id); the workshop uses it to diagnose works that need tools. */
+export const isKnownTool = (id) => toolTitle(id) !== id;
+
 /** The id of the tool a scene's legacy mechanism declaration stands for, or undefined when it declares none. */
 export function toolIdForScene(scene) {
   const id = resolveMechanism(scene);

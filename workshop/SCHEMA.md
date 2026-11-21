@@ -19,6 +19,7 @@
 | `citations` |  | `[{ "pdb": "1K4C", "ref": "作者 (年份) 期刊 卷, 页" }]` |
 | `cover` |  | 封面，`data:image/jpeg;base64,...`，不超过约 450 KB。查看器导出时自动截取 |
 | `created` / `updated` |  | 日期 `YYYY-MM-DD` |
+| `derivedFrom` |  | 派生自哪个作品：`{ "id": "official.kcsa", "revision": 1 }`（`revision` 可省）。校验要求：来源在工坊里存在、`revision` 不超过它现有的版本、不自己派生、没有循环，且授权必须与来源兼容（来源含 CC BY-SA → 只能 CC BY-SA；来源是 CC BY → CC BY 或 CC BY-SA；CC0 → 三种皆可）。工坊详情里会显示派生链和“来源已更新”提示 |
 | `scene` | ✓ | 场景本身，见下 |
 
 ## `scene`：场景

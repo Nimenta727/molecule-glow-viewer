@@ -27,3 +27,15 @@ dialog.workshop::backdrop { background: rgba(31, 39, 51, 0.35); }
 .workshop-meta, .workshop-deps { color: var(--dim, #5d6676); }
 .workshop-actions { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
 .workshop-empty { color: var(--dim, #5d6676); padding: 1rem 0; }
+.workshop-more { font: inherit; }
+.workshop-details { margin-top: 0.5rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line, #d9dce2); border-radius: 6px; font-size: 0.85rem; }
+.workshop-details dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; margin: 0; }
+.workshop-details dt { color: var(--dim, #5d6676); }
+.workshop-details dd { margin: 0; overflow-wrap: anywhere; }
+.workshop-diagnosis { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+.workshop-diagnosis li { padding: 0.15rem 0 0.15rem 0.6rem; border-left: 3px solid var(--line, #d9dce2); margin-top: 0.2rem; }
+.workshop-diag-error { border-left-color: #c0392b !important; color: #a02b20; }
+.workshop-diag-warning { border-left-color: #c98a1b !important; }
+.workshop-diag-ok { color: var(--dim, #5d6676); margin: 0.5rem 0 0; }
+.workshop-flag { color: #a02b20; margin: 0.3rem 0 0; font-size: 0.85rem; }
+@media (max-width: 560px) { .workshop-details dl { grid-template-columns: 1fr; } .workshop-details dt { margin-top: 0.3rem; } }

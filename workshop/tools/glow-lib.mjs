@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { PRESETS, presetCat } from '../../src/data/presets.js';
 import { sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS } from '../../src/pack/rules.js';
+import { checkDerivation } from '../../plugins/workshop/diagnose.mjs';
 import { buildViewer } from '../../tools/build.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -52,7 +53,21 @@ export function checkFile(file, src, R) {
     if (raw.scene?.process) warnings.push(`${base}: 用了内置过程 ${raw.scene.process}（允许，但社区动画建议用 animation 描述）`);
     if (!['CC-BY-4.0', 'CC-BY-SA-4.0', 'CC0-1.0'].includes(raw.license)) errors.push(`${base}: license 请用 CC-BY-4.0、CC-BY-SA-4.0 或 CC0-1.0`);
   }
+  if (raw.derivedFrom !== undefined) {
+    const from = raw.derivedFrom;
+    if (!from || typeof from !== 'object' || Array.isArray(from) || typeof from.id !== 'string' || !/^[a-z0-9][a-z0-9._-]{2,63}$/.test(from.id) || Object.keys(from).some((key) => !['id', 'revision'].includes(key)) ||
+        from.revision !== undefined && !(Number.isInteger(from.revision) && from.revision >= 1)) errors.push(`${base}: derivedFrom 应为 { id, revision? }（id 是被派生作品的编号，revision 是正整数）`);
+  }
   if (!raw.description) warnings.push(`${base}: 没有 description（工坊卡片上会是空的）`);
   if (raw.title !== pack.title) warnings.push(`${base}: 标题超过 80 字被截短`);
   return { ok: !errors.length, errors, warnings, pack, raw, text };
+}
+
+/* The derivation records of all packs against each other (a parent must exist, the licence must be allowed, no loops): the same rules the workshop dialog shows. Returns the problems. */
+export function derivationProblems() {
+  const byId = new Map();
+  for (const src of SOURCES) for (const file of listPacks(src)) {
+    try { const raw = JSON.parse(fs.readFileSync(file, 'utf8')); if (raw?.id) byId.set(raw.id, { id: raw.id, license: raw.license || '', revision: Number.isInteger(raw.revision) ? raw.revision : 1, derivedFrom: raw.derivedFrom && typeof raw.derivedFrom.id === 'string' ? raw.derivedFrom : undefined }); } catch { /* reported by checkFile */ }
+  }
+  return [...byId.values()].flatMap((entry) => checkDerivation(entry, byId));
 }

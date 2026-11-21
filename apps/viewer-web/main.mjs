@@ -10,7 +10,7 @@ import { createModePanel } from './mode-panel.mjs';
 import { createViewport } from '../../packages/render-three/viewport.mjs';
 import { createCommandApi, attachCommandBridge } from './command-api.mjs';
 import { createViewerCommands } from './viewer-commands.mjs';
-import { mechanismPlugins, toolTitle, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, toolEvidence } from '../../plugins/mechanism-catalog.mjs';
+import { mechanismPlugins, toolTitle, isKnownTool, toolPlugins, SOLUTION_TOOL, DATA_TOOL, PROCESS_TOOL, TRANSLATION_TOOL, COMPOSITION_TOOL, toolEvidence } from '../../plugins/mechanism-catalog.mjs';
 import { createMechanismRuntime } from './mechanism-runtime.mjs';
 import { ATP_6ZPO_TEMPLATE } from '../../plugins/atp-synthase/config.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -1246,7 +1246,7 @@ function boot() {
   // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
   const workshop = createWorkshopDialog(document, {
     load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
-    toolTitle,
+    toolTitle, toolAvailable: isKnownTool,
     actions: {
       templates: [{ label: '查看', title: '静态模板：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
       works: [{ label: '打开动态演示', title: '作品：下载、核对哈希后打开，演示作用原理', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],

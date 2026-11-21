@@ -4,7 +4,7 @@
 // A pack's embedded cover (data URI) is written to covers/<id>.<ext>; a pack without one uses an existing covers/<id>.jpg.
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadRules, listPacks, checkFile, sha256, SOURCES, WS } from './glow-lib.mjs';
+import { loadRules, listPacks, checkFile, sha256, SOURCES, WS, derivationProblems } from './glow-lib.mjs';
 import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
 
 const R = loadRules();
@@ -49,7 +49,7 @@ for (const src of SOURCES) {
     const base = {
       kind: 'work',   /* a pack of the work / template zones; the resource zone is resources/index.json */
       title: P.title, category: P.category, topic: topicOf(P.id, P.category), tags: P.tags, author: { name: P.author?.name || '', ...(P.author?.url ? { url: P.author.url } : {}) },
-      revision: P.revision, license: P.license || '', description: (r.raw.description || '').slice(0, 240),
+      revision: P.revision, license: P.license || '', ...(r.raw.derivedFrom ? { derivedFrom: { id: r.raw.derivedFrom.id, ...(r.raw.derivedFrom.revision ? { revision: r.raw.derivedFrom.revision } : {}) } } : {}), description: (r.raw.description || '').slice(0, 240),
       pdb,
       resources: pdb.filter(id => known.has(id)).map(id => `res.rcsb.${id}`),   /* resources of the catalogue this pack is built from */
       animation: S.animation ? 'data' : S.process ? 'builtin' : 'none',
@@ -65,4 +65,5 @@ for (const src of SOURCES) {
   if (!fs.existsSync(out) || fs.readFileSync(out, 'utf8') !== json) { fs.writeFileSync(out, json); console.log(`↻ ${src}/index.json：${packs.length} 个场景`); }
   else console.log(`= ${src}/index.json 无变化（${packs.length} 个场景）`);
 }
+for (const problem of derivationProblems()) { bad++; console.log('✗ ' + problem); }
 process.exit(bad ? 1 : 0);
