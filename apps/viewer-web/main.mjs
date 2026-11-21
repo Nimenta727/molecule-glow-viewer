@@ -38,6 +38,7 @@ import { createEntryIntro } from './entry-intro.mjs';
 import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP, describeSelection, selectionSpace, evaluateSelection } from '../../plugins/structure/selection.mjs';
+import { residueConfidence, confidenceColor, residueIdentity } from '../../plugins/structure/confidence.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
@@ -877,6 +878,21 @@ function boot() {
     }
   }
 
+  /** Whether the open structure is a predicted one (its resource says so): only then does its B-factor column mean confidence. */
+  function hasConfidence(loaded) {
+    const [first] = structureSources(loaded.scene);
+    return Boolean(first && (loaded.scene.resources ?? []).some((record) => record.kind === 'predicted-structure' && first.resource?.id === record.id));
+  }
+  /** (group, atom) -> colour of one residue, from the colour state's selection rules and, for a predicted structure, the confidence scheme; undefined when nothing colours residues. */
+  function residueColorOf(loaded) {
+    const state = loaded.colorState, model = loaded.model;
+    if (!state || !model || (!state.residues?.length && state.scheme !== 'confidence')) return undefined;
+    const colors = new Map();
+    if (state.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) colors.set(key, confidenceColor(value));
+    const space = selectionSpace(model);
+    for (const rule of state.residues ?? []) for (const residue of evaluateSelection(rule.expr, space).residues) colors.set(residueIdentity(residue.atom), rule.color);
+    return (group, atom) => colors.get(residueIdentity(atom));
+  }
   function structureLayers(loaded, requestedStyle) {
     const layers = geometryLayers(loaded);
     loaded.representationSource = undefined;
@@ -889,6 +905,7 @@ function boot() {
     const result = buildStructureLayers({
       scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
       recolor: loaded.colorState && !isDefault(loaded.colorState) ? (group, index, count) => resolveColor(loaded.colorState, group.chainId, index, count) : undefined,
+      residueColor: residueColorOf(loaded),
       onTarget(target, source, primary) {
         target.sourceAssetId = source.id;
         loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
@@ -1756,6 +1773,8 @@ function boot() {
     measure: (expressions) => { if (!expressions) { analysisPanel.clearMeasure(); return null; } return analysisPanel.measureNow(expressions); },
     chainIds: () => (active?.model ? [...new Set(selectionSpace(active.model).residues.map((r) => r.chain))] : null),
     colorState: () => active?.colorState ?? createColorState(),
+    colorCheck: (expression) => (active?.model ? evaluateSelection(expression, selectionSpace(active.model)).residues.length : 0),
+    hasConfidence: () => Boolean(active && hasConfidence(active)),
     setColors: (state) => { active.colorState = state; refreshStructureView(); },
     sequence: () => {
       if (!active?.model) return null;

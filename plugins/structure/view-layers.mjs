@@ -17,9 +17,30 @@ export const structureSources = (scene) => scene.assets.filter(({ kind, mediaTyp
  *   style    the style asked for the primary structure; otherwise the stored style of the structure, then `defaultStyle`
  *   onTarget optional (target, source, isPrimary) for callers that keep pick targets
  *   recolor  optional (group, index, count) -> colour string or undefined: the colour a chain group is drawn in (the Viewer's `color` command); wins over a classic scene's own colour
+ *   residueColor  optional (group, atom) -> colour string or undefined: the colour of one residue (`atom` is the residue's first atom); only the blob representation, which has one sphere per
+ *            residue, can show it. The sphere layer is split by colour; a layer that carries conformations is left whole.
  * A preview that cannot be matched to a group keeps its preview geometry. Returns { layers, representationSource }.
  */
-export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget, recolor }) {
+/** The layers of one chain group with its blob spheres split by residue colour. Everything else is returned as it is. */
+function splitByResidueColor(mapped, group, residueColor) {
+  const marker = group.pointTargets.findIndex((targets, i) => group.layers[i]?.mode === 'points' && targets?.length && targets[0].kind === 'residue');
+  if (marker < 0) return mapped;
+  const targets = group.pointTargets[marker], out = [];
+  for (const layer of mapped) {
+    if (layer.mode !== 'spheres' || layer.conformations || layer.positions.length / 3 !== targets.length) { out.push(layer); continue; }
+    const colors = targets.map((target) => residueColor(group, target.atom));
+    if (colors.every((c) => c === undefined)) { out.push(layer); continue; }
+    const buckets = new Map();
+    colors.forEach((c, i) => { const key = c ?? layer.color; if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(i); });
+    for (const [color, indices] of buckets) {
+      const positions = []; for (const i of indices) positions.push(layer.positions[3 * i], layer.positions[3 * i + 1], layer.positions[3 * i + 2]);
+      out.push({ ...layer, color, positions, ...(layer.radii ? { radii: indices.map((i) => layer.radii[i]) } : {}), pointTargets: null });
+    }
+  }
+  return out;
+}
+
+export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget, recolor, residueColor }) {
   const sources = structureSources(scene);
   let representationSource;
   const nodesByAsset = new Map(scene.nodes.map((node) => [node.assetId, node]));
@@ -47,11 +68,12 @@ export function buildStructureLayers({ scene, models, layers, build, style, defa
       if (!group || metadata?.sourceAssetId !== source.id || metadata.chainId !== group.chainId) continue;
       for (const targets of group.pointTargets) for (const target of targets ?? []) onTarget?.(target, source, source === sources[0]);
       const tint = recolor?.(group, groups.indexOf(group), groups.length) ?? asset.provenance.legacyColor;
-      layers.set(asset.id, group.layers.map((layer, layerIndex) => ({
+      const mapped = group.layers.map((layer, layerIndex) => ({
         ...layer, representationStyle: effective,
         ...(tint && layer.mode !== 'points' && layer.role !== 'functional-core' ? { color: tint } : {}),
         pointTargets: group.pointTargets[layerIndex],
-      })));
+      }));
+      layers.set(asset.id, residueColor ? splitByResidueColor(mapped, group, residueColor) : mapped);
     }
   }
   return { layers, representationSource };

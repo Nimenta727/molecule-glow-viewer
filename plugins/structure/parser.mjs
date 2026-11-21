@@ -130,6 +130,7 @@ export function parsePdb(text) {
         coordinate(line.slice(46, 54).trim(), 'z', row),
       ],
       name: atomName,
+      bFactor: bFactor(line.slice(60, 66)),
       authAtomId: atomName,
       labelAtomId: atomName,
       residueName,
@@ -253,7 +254,7 @@ function atomSiteRows(loops) {
     const ix = Object.fromEntries([
       'group_PDB', 'id', 'type_symbol', 'label_atom_id', 'auth_atom_id', 'label_alt_id',
       'label_comp_id', 'auth_comp_id', 'label_asym_id', 'auth_asym_id', 'label_seq_id',
-      'auth_seq_id', 'pdbx_PDB_ins_code', 'Cartn_x', 'Cartn_y', 'Cartn_z', 'pdbx_PDB_model_num',
+      'auth_seq_id', 'pdbx_PDB_ins_code', 'Cartn_x', 'Cartn_y', 'Cartn_z', 'pdbx_PDB_model_num', 'B_iso_or_equiv',
     ].map((name) => [name, colIndex(headers, `_atom_site.${name}`)]));
     for (let i = 0; i < loop.rows.length; i += 1) {
       const row = loop.rows[i];
@@ -273,6 +274,7 @@ function atomSiteRows(loops) {
         element: cell(row, ix.type_symbol).toUpperCase(),
         position: [coordinate(x, 'x', context), coordinate(y, 'y', context), coordinate(z, 'z', context)],
         name,
+        bFactor: bFactor(cell(row, ix.B_iso_or_equiv)),
         authAtomId,
         labelAtomId,
         residueName,
@@ -287,6 +289,12 @@ function atomSiteRows(loops) {
     }
   }
   return result;
+}
+
+/** The B-factor column as a number, or null when it is missing or not a number (for predicted structures it is the per-residue confidence, pLDDT). */
+function bFactor(text) {
+  const value = Number.parseFloat(String(text ?? '').trim());
+  return Number.isFinite(value) ? value : null;
 }
 
 function parseCifSecondaryStructure(loops) {
@@ -362,5 +370,10 @@ export function parseMmcif(text) {
   const descriptions = [...asymmetries].filter(([, entity]) => entities.get(entity))
     .map(([chain, entity]) => [chain, entities.get(entity)]);
   if (descriptions.length) model.chainNames = Object.fromEntries(descriptions);
+  // A predicted structure says so in the file: the model-archive quality-metric category names pLDDT (AlphaFold files do), and then the B-factor column holds it.
+  for (const { headers, rows } of loops) {
+    const name = colIndex(headers, '_ma_qa_metric.name');
+    if (name >= 0 && rows.some((row) => /^plddt$/i.test(cell(row, name)))) model.confidenceMetric = 'pLDDT';
+  }
   return model;
 }

@@ -107,6 +107,7 @@ export async function importStructureScene(input, { signal, previewGroupLimit = 
       ...(model.assemblyId ? { assemblyId: model.assemblyId } : {}),
       ...(assemblyDiagnostic ? { assemblyDiagnostic } : {}),
       ...(Array.isArray(chains) && chains.length ? { chains: chains.slice() } : {}),
+      ...(model.confidenceMetric ? { predicted: { metric: model.confidenceMetric } } : {}),   // the file declares a per-residue confidence: a predicted structure
     },
   };
   const resources = new Map([[path, bytes]]);

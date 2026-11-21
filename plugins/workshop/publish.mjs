@@ -48,6 +48,9 @@ export function checkPublication(scene, catalog, { toolAvailable = () => true, s
     if (embedded && attribution.embedAllowed === false) add('error', 'embed-forbidden', `资源 ${record.id} 不允许嵌入作品，但场景包会携带它的文件。`);
     if (!recordTerms) add('warning', 'resource-license-unknown', `资源 ${record.id} 的授权“${attribution.license ?? '未标注'}”不被工坊认可。`);
     else if (recordTerms.shareAlike && !terms?.shareAlike) add('error', 'license-conflict', `资源 ${record.id} 为 CC BY-SA，作品必须以 CC BY-SA 4.0 共享（现为 ${publication.license}）。`);
+    if (record.kind === 'predicted-structure' && !(scene.evidence ?? []).some((item) => item.type === 'modelled' && item.resourceId === record.id)) {
+      add('error', 'prediction-unlabelled', `资源 ${record.id} 是预测结构，作品必须有一条“建模”类证据（resourceId 指向它）说明它不是实验测定的。`);
+    }
     if (!inCatalogue) add('info', 'resource-unlisted', `资源 ${record.id} 不在工坊资源区；作品包会自带它。`);
   }
 

@@ -53,3 +53,12 @@ test('dependencies: a tool this application lacks and a resource that forbids em
   const fine = checkPublication(withResources([record('res.d', { license: 'CC0-1.0' })]), catalog([parent], [{ id: 'res.d' }]), { toolAvailable: () => true });
   assert.equal(fine.ok, true); assert.ok(!codes(fine).includes('resource-unlisted')); assert.deepEqual(fine.entry.tools, ['org.glow.tool.gone']); assert.deepEqual(fine.entry.resources, ['res.d']);
 });
+
+test('a predicted structure needs a "modelled" evidence entry that names it, or the work cannot be published', async () => {
+  const { describePredictedStructure, predictionEvidence } = await import('../../../packages/schema/resource.mjs');
+  const record = describePredictedStructure({ provider: 'alphafold', accession: 'AF-P69441-F1', sha256: 'd'.repeat(64), bytes: 1000, method: 'AlphaFold', license: 'CC-BY-4.0' });
+  const withRecord = (evidence) => scene({ resources: [record], evidence });
+  assert.ok(codes(checkPublication(withRecord([{ type: 'modelled' }]), catalog())).includes('prediction-unlabelled'), 'a modelled entry that does not name the resource is not enough');
+  assert.ok(codes(checkPublication(withRecord([{ type: 'derived', resourceId: record.id }]), catalog())).includes('prediction-unlabelled'), 'nor is another kind of evidence');
+  assert.ok(!codes(checkPublication(withRecord([predictionEvidence(record)]), catalog())).includes('prediction-unlabelled'), 'the evidence the helper writes satisfies the rule');
+});

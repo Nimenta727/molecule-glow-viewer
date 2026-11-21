@@ -97,3 +97,23 @@ test('a recolor callback sets the colour of a chain group (not its pick points) 
   const both = buildStructureLayers({ scene: legacy, models, layers: new Map(layers), build, style: 'blob', recolor: () => '#fedcba' });
   assert.ok(painted([null, both.layers.get([...layers.keys()][0])]).every((layer) => layer.color === '#fedcba'));
 });
+
+test('residue colours split the blob spheres by colour; other styles and untouched residues keep the chain colour', async () => {
+  const { scene, model, layers, build } = await imported();
+  const source = structureSources(scene)[0], models = new Map([[source.id, model]]);
+  const spheres = (result) => [...result.layers.values()].flat().filter((layer) => layer.mode === 'spheres');
+  const plain = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'blob' }), chainColors = new Set(spheres(plain).map((layer) => layer.color));
+  const red = (group, atom) => (Number(atom.authSeqId) <= 3 ? '#ff0000' : undefined);   // residues 1-3 of every chain
+  const split = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'blob', residueColor: red });
+  const after = spheres(split);
+  assert.equal(after.filter((layer) => layer.color === '#ff0000').length, 2, 'one red sphere layer per chain');
+  assert.ok(after.filter((layer) => layer.color === '#ff0000').every((layer) => layer.positions.length === 3 * 3), 'three residues each');
+  const total = (list) => list.reduce((n, layer) => n + layer.positions.length / 3, 0);
+  assert.equal(total(after), total(spheres(plain)), 'no residue is lost or drawn twice');
+  assert.ok(after.filter((layer) => layer.color !== '#ff0000').every((layer) => chainColors.has(layer.color)), 'the others keep the chain colour');
+  assert.ok(after.every((layer) => layer.pointTargets === null), 'a split layer carries no pick targets (the residue markers still do)');
+  const none = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'blob', residueColor: () => undefined });
+  assert.equal(spheres(none).length, spheres(plain).length, 'a colouring that colours nothing changes nothing');
+  const cartoon = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'cartoon', residueColor: red });
+  assert.deepEqual([...cartoon.layers.values()].flat().map((layer) => layer.color), [...buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'cartoon' }).layers.values()].flat().map((layer) => layer.color), 'a style without one sphere per residue is left as it is');
+});

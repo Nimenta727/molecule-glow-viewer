@@ -206,9 +206,9 @@ export function createViewerCommands(host) {
       const chains = host.chainIds();
       if (!chains) throw new Error('相应结构插件或坐标不可用。');
       let outcome;
-      try { outcome = applyColor(host.colorState(), args[0], args[1], chains); } catch (error) { throw new Error(error.message); }
+      try { outcome = applyColor(host.colorState(), args[0], args[1], chains, { check: host.colorCheck, confidence: host.hasConfidence?.() }); } catch (error) { throw new Error(error.message); }
       host.setColors(outcome.state);
-      return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, note: outcome.note };
+      return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, residues: outcome.state.residues.length, note: outcome.note };
     },
     clip(value) {
       needScene();

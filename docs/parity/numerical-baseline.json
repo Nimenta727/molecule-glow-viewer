@@ -25,7 +25,7 @@
     "plugins/motion/conformation.mjs": "51557c51ec647458fdf1720633f3f5b5aee7fcab9c3174eca5236f5195d7f068",
     "plugins/motion/path.mjs": "2ebd65e53aa401069e3c562fe330aa87eef45e22e0297c1459dc878641ed4b4b",
     "plugins/motion/vectors.mjs": "7d005d7115b9e177064cedc91291182318431ae7d1050901865b57f3c4cb25d4",
-    "plugins/structure/parser.mjs": "f40135e28c8adbcb4b929e67af6e2893ff7b5d023bdd0a7fb2172dd29dc6838d",
+    "plugins/structure/parser.mjs": "c0ee113a1fb92f7a8dcaad67150d043023f993c97668134265d1d4277420d0e1",
     "plugins/structure/assembly.mjs": "f7b1c6adf1e60430ca295fd3e4f9049fab7f537adc767de0246e0b7d44325de8",
     "plugins/structure/alignment.mjs": "376b2264c3d6a9f793deb565bf63a7f0022875e331785f300a082df66fa41c68",
     "plugins/structure/representation.mjs": "adef69d9366c4db7b519592b07cf847e350b0e626578dcded482dfdf5365a0a4",

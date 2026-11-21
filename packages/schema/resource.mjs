@@ -10,7 +10,7 @@ const SHA256 = { type: 'string', pattern: '^[a-f0-9]{64}$' };
 const SEMVERISH = { type: 'string', pattern: '^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$' };
 const STRING_MAP = { type: 'object', additionalProperties: { type: ['string', 'number', 'boolean', 'null'] } };
 
-export const RESOURCE_KINDS = Object.freeze(['structure', 'ligand', 'sequence', 'map', 'image']);
+export const RESOURCE_KINDS = Object.freeze(['structure', 'predicted-structure', 'ligand', 'sequence', 'map', 'image']);
 
 export const RESOURCE_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
@@ -31,6 +31,10 @@ export const RESOURCE_SCHEMA = {
       properties: { license: { type: 'string', minLength: 1 }, credit: { type: 'string' }, url: { type: 'string' },
         embedAllowed: { type: 'boolean' } } },
     card: STRING_MAP,
+    // Only for kind 'predicted-structure': how it was predicted and where its per-residue confidence is kept.
+    prediction: { type: 'object', additionalProperties: false, required: ['method', 'confidence'],
+      properties: { method: { type: 'string', minLength: 1, maxLength: 120 }, model: { type: 'string', maxLength: 120 },
+        confidence: { type: 'object', additionalProperties: false, required: ['metric', 'storedIn'], properties: { metric: { enum: ['pLDDT'] }, storedIn: { enum: ['bfactor'] } } } } },
   },
 };
 
@@ -45,6 +49,9 @@ export function validateResource(input) {
   const record = structuredClone(input);
   const result = validator.validate(record);
   if (!result.valid) throw new SchemaValidationError('Resource', result.errors);
+  if ((record.kind === 'predicted-structure') !== Boolean(record.prediction)) {
+    throw new SchemaValidationError(`Resource ${record.id}: ${record.kind === 'predicted-structure' ? 'a predicted structure must say how it was predicted (prediction)' : 'only a predicted structure carries a prediction block'}`);
+  }
   const paths = new Set();
   for (const { path } of record.files) {
     if (paths.has(path)) throw new SchemaValidationError(`Resource ${record.id}: duplicate file path ${path}`);
@@ -66,6 +73,11 @@ export function describeStructureAsset(asset, bytes) {
   const accession = String(source.accession ?? asset.path);
   const id = rcsb ? `res.rcsb.${slug(accession).toUpperCase()}` : `res.local.${asset.sha256.slice(0, 8)}`;
   const assemblyId = asset.provenance?.assemblyId;
+  if (asset.provenance?.predicted) {   // the file itself declares a per-residue confidence: a predicted structure, whatever it is called
+    const predicted = describePredictedStructure({ provider: String(source.provider ?? 'local'), accession, sha256: asset.sha256, bytes: bytes.byteLength, mediaType: asset.mediaType, path: asset.path,
+      method: source.method ?? '预测方法未写明（文件声明了 pLDDT）', license: source.license ?? 'unknown', embedAllowed: Boolean(source.license) });
+    return { id: predicted.id, version: predicted.version, record: predicted };
+  }
   return {
     id, version: asset.sha256.slice(0, 8),
     record: {
@@ -145,3 +157,25 @@ export function createResourceStore() {
     get blobCount() { return blobs.size; },
   });
 }
+
+/**
+ * A predicted structure as a resource (docs/PLUGIN_ROADMAP.md, A1). `provider` names where it comes from ('alphafold' for the AlphaFold database); `accession` is that provider's id
+ * (for example AF-P69441-F1). The record says plainly that it is a prediction and where the confidence is. The licence is what the caller states: the AlphaFold database publishes under
+ * CC BY 4.0 as the author understands it, which has not been checked against the database's current terms, so it is an argument, not a default.
+ */
+export function describePredictedStructure({ provider, accession, sha256, bytes, mediaType = 'chemical/x-mmcif', path, method, model, license, credit, url, retrievedAt, embedAllowed = true }) {
+  if (!provider || !accession || !license) throw new TypeError('provider, accession and license are required');
+  const slugOf = (text) => String(text).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[^a-z0-9]+/, '').slice(0, 60) || 'x';
+  const id = `res.${slugOf(provider)}.${slugOf(accession)}`, version = sha256.slice(0, 8);
+  return validateResource({
+    format: 'glow-resource', schemaVersion: 1, id, version, kind: 'predicted-structure',
+    files: [{ path: path ?? `${accession}.cif`, sha256, mediaType, bytes }],
+    source: { provider, accession, ...(retrievedAt ? { retrievedAt } : {}), ...(url ? { url } : {}) },
+    attribution: { license, ...(credit ? { credit } : {}), ...(url ? { url } : {}), embedAllowed },
+    prediction: { method, ...(model ? { model } : {}), confidence: { metric: 'pLDDT', storedIn: 'bfactor' } },
+  });
+}
+
+/** The evidence entry a scene must carry for a predicted structure: it says "modelled", names the resource, and is the sentence a reader sees. */
+export const predictionEvidence = (record) => ({ type: 'modelled', resourceId: record.id,
+  citation: `${record.source.accession}：${record.prediction.method} 预测的结构，不是实验测定的。颜色或形状的可信程度要看每个残基的置信度（${record.prediction.confidence.metric}）。` });
