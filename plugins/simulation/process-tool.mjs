@@ -12,6 +12,7 @@ const KINDS = ['counter', 'observable', 'clock', 'rate', 'current', 'number'];
 export const PROCESS_LIMITS = Object.freeze({ schedule: 8, display: 8 });
 
 // A small two-state channel: a switch with a rate, so a newly added tool runs out of the box.
+import { PROCESS_PRESETS } from './process-models.mjs';
 export const PROCESS_TEMPLATE = Object.freeze({
   process: Object.freeze({
     version: 1, title: '两态通道：开与关',
@@ -78,7 +79,7 @@ export function processAuthorFields(config) {
 export function processToolDescriptor(version) {
   return {
     version, title: '随机状态过程（门控 / 渗透 / 阻断）', audience: ['view', 'author'], runtime: 'layer-v1', parameters: {},
-    author: { template: PROCESS_TEMPLATE, fields: processAuthorFields, validate: normalizeProcessConfig },
+    author: { template: PROCESS_TEMPLATE, presets: PROCESS_PRESETS.map(({ id, label, config }) => ({ id, label, config })), fields: processAuthorFields, validate: normalizeProcessConfig },
     outputs: [{ key: 'counters', label: '计数器与观测量', kind: 'count' }, { key: 'curves', label: '曲线（可导出 CSV）', kind: 'series' }, { key: 'csv', label: '曲线数据文件', kind: 'file' }],
     dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '连续时间马尔可夫链（精确 Gillespie 采样，种子化）', assumptions: [
