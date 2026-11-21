@@ -620,6 +620,19 @@ function boot() {
       viewport.setClipping(planes && nodeIds.size ? { wedge: { planes, nodeIds } } : {});
     } else viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
   }
+  /**
+   * The tRNAs, mRNA, factors and the growing chain of the translation view sit INSIDE the ribosome (between the subunits), so a closed ribosome hides all of them. When a translation
+   * work opens with no clipping of its own, a wedge is cut out of the ribosome's parts on the side facing the viewer (the classic's 剖开, scope "parts"); tRNA/mRNA parts are never cut.
+   * It is an ordinary clipping state: the clip controls show it and switch it off, and a work that saved its own clipping keeps it.
+   */
+  function openRibosomeCutaway() {
+    if (!active || active.clipping?.enabled) return;
+    const keys = [...computeStructureParts().keys()].filter((key) => { let name = ''; try { name = String(JSON.parse(key)[1] ?? ''); } catch { return false; } return !/trna|^mrna$/i.test(name); });
+    if (!keys.length) return;
+    const state = clipState();
+    Object.assign(state, { enabled: true, scope: 'parts', wedgeParts: keys, direction: normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1] }).direction });
+    syncClipControls(); applyClipping(); showStructureParts();
+  }
   function clipState() {
     if (!active) return null;
     active.clipping ??= normalizeClipping({ direction: viewport.clipFrame()?.toViewer ?? [0, 0, 1], depth: 0 });
@@ -858,7 +871,7 @@ function boot() {
     const resolve = (id) => host.resolveToolId(id) ?? id, translation = toolEntryFor(active.scene, TRANSLATION_TOOL, resolve), process = toolEntryFor(active.scene, PROCESS_TOOL, resolve);
     const multi = toolEntryFor(active.scene, COMPOSITION_TOOL, resolve);
     if (multi && host.getTool(COMPOSITION_TOOL)) Promise.resolve().then(() => { try { compositionPanel.load(normalizeCompositionConfig(multi.config), multi.state); } catch (error) { setStatus(`无法运行多过程组合。 ${error.message}`); } });
-    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); ribosomeCloseup.show(ribosomeView.start(tcfg.strip.sequence)); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
+    if (translation && host.getTool(TRANSLATION_TOOL)) Promise.resolve().then(() => { try { const tcfg = translationProcessConfig(normalizeTranslationConfig(translation.config)); processPanel.load(tcfg); const started = ribosomeView.start(tcfg.strip.sequence); ribosomeCloseup.show(started); if (started) openRibosomeCutaway(); } catch (error) { setStatus(`无法运行翻译。 ${error.message}`); } });
     else if (process && host.getTool(PROCESS_TOOL)) Promise.resolve().then(() => { try { processPanel.load(normalizeProcessConfig(process.config)); } catch (error) { setStatus(`无法运行随机过程。 ${error.message}`); } });
     if (data && host.getTool(DATA_TOOL)) Promise.resolve().then(() => { try { dataAnimation.load(normalizeDataConfig(data.config), data.state); } catch (error) { setStatus(`无法运行数据动画。 ${error.message}`); } });
     syncClipControls();
