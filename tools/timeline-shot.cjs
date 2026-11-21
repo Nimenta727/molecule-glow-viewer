@@ -24,7 +24,8 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await page.goto(`${ORIGIN}/apps/viewer-web/index.html?startup=skip&work=${encodeURIComponent(ID)}`);
   await page.waitForFunction(() => window.glow, null, { timeout: 30000 });
   const PLAY = process.env.PLAY_SELECTOR, READOUT = process.env.READOUT_SELECTOR, playButton = PLAY ? page.locator(PLAY) : page.locator('button', { hasText: /^播放$/ }).first();   // PLAY_SELECTOR / READOUT_SELECTOR: works driven by the process panel (e.g. #process-play, #process-readout)
-   await playButton.waitFor({ timeout: 150000 }); await page.waitForFunction((sel) => (sel ? [document.querySelector(sel)] : [...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '播放')).some((b) => b && !b.disabled), PLAY, { timeout: 400000 });   // big structures keep it disabled while they load
+   for (let i = 0; i < 75; i++) { await page.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; })); if (await playButton.isVisible().catch(() => false)) break; await page.waitForTimeout(2000); }   // the process panel sits in a collapsed section
+  await playButton.waitFor({ timeout: 10000 }); await page.waitForFunction((sel) => (sel ? [document.querySelector(sel)] : [...document.querySelectorAll('button')].filter((b) => b.textContent.trim() === '播放')).some((b) => b && !b.disabled), PLAY, { timeout: 400000 });   // big structures keep it disabled while they load
   const clock = () => READOUT ? page.$eval(READOUT, (n) => n.innerText.replace(/\s+/g, ' ').slice(0, 160)) : page.evaluate(() => (document.body.innerText.match(/(\d+\.\d+) \/ (\d+\.\d+) s/) || [])[0]);
   await page.screenshot({ path: path.join(OUT, `${ID}-t0.png`) });
   await playButton.click({ timeout: 60000 });
