@@ -1,0 +1,4 @@
+22 protein chains, 231 pairs checked, 41 interacting pairs
+pairs by kind: alpha-beta 6, gamma-other 1, c-c 10, other-other 4, alpha-other 4, c-other 6, alpha-gamma 3, beta-gamma 3, beta-other 3, c-gamma 1
+each beta touches 2, 2, 2 alpha(s); each alpha touches 2, 2, 2 beta(s); each c touches 2, 2, 2, 2, 2, 2, 2, 2, 2, 2 other c
+largest interface: ATP synthase subunit alpha (B) with ATP synthase subunit beta (F): 598 atom pairs, 55 + 51 residues
