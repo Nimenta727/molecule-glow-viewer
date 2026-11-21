@@ -8,10 +8,10 @@
 
 ## 下载
 
-**Desktop v0.7.0**（Windows 便携版，免安装，未签名——首次运行如被 SmartScreen 拦截，选择“仍要运行”）：
+**Desktop v0.8.0**（Windows 便携版，免安装，未签名——首次运行如被 SmartScreen 拦截，选择“仍要运行”）：
 
-- [MoleculeGlow-0.7.0-win-x64.exe](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.7.0/MoleculeGlow-0.7.0-win-x64.exe)
-- [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.7.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.7.0/molecule-glow-viewer-skill-0.7.0.zip)
+- [MoleculeGlow-0.8.0-win-x64.exe](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.8.0/MoleculeGlow-0.8.0-win-x64.exe)
+- [发行说明与校验文件](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.8.0) · [制作 Skill ZIP](https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v0.8.0/molecule-glow-viewer-skill-0.7.0.zip)
 - 旧版：[v0.6.0](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.6.0)、[v0.5.0](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.5.0)
 
 默认打开经典 Viewer；在“工作区”菜单里切换到新版 Viewer、Studio 和开发者工作台。在线体验经典版：[nimenta727.github.io/molecule-glow-viewer](https://nimenta727.github.io/molecule-glow-viewer/)。

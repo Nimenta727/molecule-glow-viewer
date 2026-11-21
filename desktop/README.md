@@ -1,6 +1,6 @@
 # 桌面版（Windows exe）
 
-Desktop 0.7.0 用 Electron 提供经典、新 Viewer、Studio 和工作台。当前能力与边界见 [文档首页](../docs/README.md)：
+Desktop 0.8.0 用 Electron 提供经典、新 Viewer、Studio 和工作台。当前能力与边界见 [文档首页](../docs/README.md)：
 - **不用浏览器**：双击 exe 就能打开。
 - **Three.js 打包在程序里**：不依赖 CDN。
 - **结构缓存**：从 RCSB / UniProt 下载过的数据存在 Electron `userData/structure-cache`，实际目录可由 `glowDesktop.cacheInfo()` 查询。再次打开已有缓存的结构可复用数据，断网时也能看缓存中的结构。
@@ -9,11 +9,11 @@ Desktop 0.7.0 用 Electron 提供经典、新 Viewer、Studio 和工作台。当
 - **外部链接**（DOI、UniProt 页面）用系统浏览器打开。
 
 ## 下载
-从 [最新发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/latest) 下载 `MoleculeGlow-0.7.0-win-x64.exe`，双击即可运行。默认打开经典 Viewer，通过「工作区」菜单切换新版 Viewer、Studio 和经典开发者工作台。[0.3.2 历史发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.3.2)继续保留。
+从 [最新发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/latest) 下载 `MoleculeGlow-0.8.0-win-x64.exe`，双击即可运行。默认打开经典 Viewer，通过「工作区」菜单切换新版 Viewer、Studio 和经典开发者工作台。[0.3.2 历史发布](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.3.2)继续保留。
 
 第一次打开某个结构仍需要联网。
 
-0.7.0 发行与当前源码都保留经典默认入口，新平台仍为迁移预览。构建候选的文件名附带源码提交，`-worktree` 表示包含未提交改动。帮助菜单“版本与构建”可查看提交、内容哈希和候选性质。候选不会自动发布或覆盖旧版 EXE，验收流程见 [发布验证](../docs/RELEASE_VALIDATION.md)。
+0.8.0 发行与当前源码都保留经典默认入口，新平台仍为迁移预览。构建候选的文件名附带源码提交，`-worktree` 表示包含未提交改动。帮助菜单“版本与构建”可查看提交、内容哈希和候选性质。候选不会自动发布或覆盖旧版 EXE，验收流程见 [发布验证](../docs/RELEASE_VALIDATION.md)。
 
 ## 自己构建
 需要 Node.js 20 或更高版本。
