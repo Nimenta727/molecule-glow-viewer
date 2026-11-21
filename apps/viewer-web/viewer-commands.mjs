@@ -220,6 +220,16 @@ export function createViewerCommands(host) {
       if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
       return host.clip(value);
     },
+    volume(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.volume(null);
+      if (!object(value) || Object.keys(value).some((key) => !['map', 'level', 'opacity', 'slice'].includes(key))) throw new Error('volume 只接受 map、level、opacity、slice。');
+      if (value.map != null && (typeof value.map !== 'string' || value.map.length > 90 * 1024 * 1024)) throw new Error('map 应为 MRC/CCP4 文件的 base64（不超过约 64 MB 的文件）。');
+      if (value.level != null && value.level !== 'auto') finite(value.level, -1e12, 1e12, 'level');
+      if (value.opacity != null) finite(value.opacity, 0.05, 1, 'opacity');
+      if (value.slice != null && (!object(value.slice) || ![0, 1, 2].includes(value.slice.axis) || !Number.isInteger(value.slice.index))) throw new Error('slice 应为 {axis:0|1|2, index:整数}。');
+      return host.volume(value);
+    },
     instances(value) {
       needScene();
       if (value == null || value === 'clear') return host.instances(null);

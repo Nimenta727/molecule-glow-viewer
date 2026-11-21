@@ -58,6 +58,8 @@ import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
 import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
+import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
+import { volumeSurface, volumeSlice } from '../../plugins/structure/volume-view.mjs';
 import { layoutCopies } from './instance-layout.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
@@ -1465,9 +1467,33 @@ function boot() {
       else setStatus('请拖入 PDB 或 mmCIF 结构文件。');
     });
   }
+  /**
+   * A density map drawn over what is open (plugins/structure/volume-view.mjs): an isosurface and, if asked, one slice, in the structure's own frame. `bytes` (a map file) or `map` (its base64)
+   * loads one; without either the map already loaded is redrawn (new level, opacity or slice). null clears it. Returns the grid, the level used and what was reduced.
+   */
+  function showVolume(spec) {
+      if (!active) throw new Error('请先打开场景。');
+      const clear = () => { viewport.setOverlayMesh('volume', null); viewport.setOverlayMesh('volume-slice', null); };
+      if (!spec) { clear(); delete active.volumeMap; return { cleared: true }; }
+      if (spec.bytes || spec.map) active.volumeMap = parseMrc(spec.bytes ?? Uint8Array.from(atob(spec.map), (c) => c.charCodeAt(0)));
+      const map = active.volumeMap; if (!map) throw new Error('还没有加载体积：先给出 map（MRC/CCP4 文件的 base64）或在界面里打开 .mrc / .map 文件。');
+      const frame = active.model ? { center: displayCenter(active.model) } : undefined;
+      const surface = volumeSurface(map, { level: spec.level ?? 'auto', frame });
+      viewport.setOverlayMesh('volume', surface.triangles ? surface.mesh : null, { opacity: spec.opacity ?? 0.35 });
+      let slice = null;
+      if (spec.slice) { const s = volumeSlice(map, spec.slice.axis, spec.slice.index, { frame }); viewport.setOverlayMesh('volume-slice', s.mesh, { opacity: 0.9 }); slice = { axis: spec.slice.axis, layer: s.layer, of: s.of, lo: s.lo, hi: s.hi }; } else viewport.setOverlayMesh('volume-slice', null);
+      return { dims: map.dims, voxelSize: map.voxelSize, origin: map.origin, stats: map.stats, label: map.label, level: surface.level, auto: surface.auto, triangles: surface.triangles, truncated: surface.truncated, note: surface.note, slice };
+    }
+
   elements.file.addEventListener('change', () => {
     const [file] = elements.file.files;
     elements.file.value = '';
+    if (file && /\.(mrc|map|ccp4)$/i.test(file.name)) {   // a density map is shown over what is open, not as a scene of its own
+      if (!active) { setStatus('请先打开一个结构或示例，再加载体积（.mrc / .map）。'); return; }
+      file.arrayBuffer().then((buffer) => { const result = showVolume({ bytes: new Uint8Array(buffer) }); setStatus(`体积 ${file.name}：${result.dims.join(' × ')} 体素，阈值 ${result.level.toFixed(4)}${result.note ? '。' + result.note : ''}`); })
+        .catch((error) => setStatus(error instanceof MapError ? `无法读取体积：${error.message}` : `体积失败：${error.message}`));
+      return;
+    }
     if (file) openScene({ file, assembly: elements['structure-assembly'].checked });
   });
   /** The particle set goes into the work as the tool's entry (config), replacing the configuration it was opened with; a set nobody touched leaves the work alone. */
@@ -1748,6 +1774,7 @@ function boot() {
     selectSet,
     clearSet,
     tools: () => describeTools(host.listTools({ audience: 'view' })),
+    volume: showVolume,
     /** Copies of what is on screen at several levels of detail (packages/render-three/lod.mjs); null clears them. Returns what was built and what the first frame costs. */
     instances: (spec) => {
       if (!spec) { viewport.setInstanceSet('copies', null); return { cleared: true }; }
