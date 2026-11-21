@@ -220,3 +220,15 @@ test('outputs and dependencies are validated, frozen and optional', () => {
   bad({ dependencies: [{ id: 'org.glow.structure', version: '1' }] }, /exact x\.y\.z/);
   bad({ dependencies: [{ id: 'a', version: '1.0.0' }, { id: 'a', version: '1.0.0' }] }, /unique valid id/);
 });
+
+test('a work records the plugins its tools declare, keeping what is already there', async () => {
+  const { mergeToolDependencies, descriptorsForScene } = await import('../tool-model.mjs');
+  const tool = validateToolDescriptor('t', descriptor({ dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }, { id: 'org.glow.motion', version: '1.0.0' }] }));
+  const plain = validateToolDescriptor('p', descriptor());
+  const existing = [{ id: 'org.glow.structure', version: '1.0.0', optional: true }];
+  const merged = mergeToolDependencies(existing, [tool, plain, undefined]);
+  assert.deepEqual(merged, [{ id: 'org.glow.structure', version: '1.0.0', optional: true }, { id: 'org.glow.motion', version: '1.0.0', optional: false }]);
+  assert.deepEqual(existing, [{ id: 'org.glow.structure', version: '1.0.0', optional: true }], 'the input is not changed');
+  assert.deepEqual(mergeToolDependencies(undefined, []), []);
+  assert.deepEqual(descriptorsForScene({ tools: [{ tool: { id: 'a' } }, { tool: { id: 'b' } }] }, (id) => (id === 'a' ? tool : undefined)), [tool, undefined]);
+});

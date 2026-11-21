@@ -188,6 +188,11 @@ function applyMetadata(scene, command) {
       let id = base, n = 1;
       while (next.tools.some((item) => item.id === id)) id = `${base}-${++n}`;
       next.tools.push({ ...clone(entry), id });
+      // the plugins the tool needs (from its descriptor) are recorded on the work, so a package that carries the tool says what it must be opened with
+      for (const dependency of command.dependencies ?? []) {
+        if (typeof dependency?.id !== 'string' || typeof dependency.version !== 'string') throw new TypeError('addToolEntry dependencies need { id, version }');
+        if (!next.dependencies.some(({ id: have }) => have === dependency.id)) next.dependencies.push({ id: dependency.id, version: dependency.version, optional: false });
+      }
       break;
     }
     case 'removeToolEntry': {

@@ -23,6 +23,7 @@ import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
 import { checkPublication, nextRevision } from '../../plugins/workshop/publish.mjs';
 import { TOPICS } from '../../plugins/workshop/catalog.mjs';
+import { clickSelection, reparentPlan, groupPlan, removePlan } from './outline-edit.mjs';
 import { readForm, fillForm, licenseChoices, revisionHint, FormError } from './publish-form.mjs';
 import { LICENSES } from '../../plugins/workshop/diagnose.mjs';
 
@@ -35,7 +36,10 @@ const status = (message) => { ui.status.textContent = message; };
 
 let project;
 let sessions;
-let selection = null;
+let selection = null;   // the node the inspector shows (the one clicked last)
+let multi = [];         // every selected outline row, in row order (Ctrl/Cmd-click toggles, Shift-click selects a range)
+let rowAnchor = null;
+let rowOrder = [];      // the outline's row order, for range selection
 let timeline;
 let frame;
 let loading = 0;
@@ -80,7 +84,7 @@ const toolConfigPanel = createToolConfigPanel(ui['tool-config'], {
   addTool: (toolId) => {
     const tool = host.getTool(toolId), entry = { tool: { id: toolId, version: tool.version }, config: JSON.parse(JSON.stringify(tool.author.template)) };
     const bindings = autoBindings(tool, session().getScene(), entry);   // the tool proposes the objects it works on in this scene
-    edit({ type: 'addToolEntry', entry: Object.keys(bindings).length ? { ...entry, bindings } : entry }, Object.keys(bindings).length ? '已添加工具，并按建议绑定对象。' : '已添加工具（场景里没有可绑定的对象）。');
+    edit({ type: 'addToolEntry', entry: Object.keys(bindings).length ? { ...entry, bindings } : entry, dependencies: tool.dependencies ?? [] }, Object.keys(bindings).length ? '已添加工具，并按建议绑定对象。' : '已添加工具（场景里没有可绑定的对象）。');
   },
   removeTool: (id) => edit({ type: 'removeToolEntry', id }, '已移除工具条目。'),
   setBindings: (id, bindings) => edit({ type: 'setToolBindings', id, bindings }, '已更新对象绑定。'),
@@ -366,6 +370,8 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   timeline = createTimeline(document.timeline);
   timeline.seek(previousTime);
   if (!document.nodes.some(({ id }) => id === selection)) selection = null;
+  multi = multi.filter((id) => document.nodes.some((node) => node.id === id));
+  if (selection && !multi.length) multi = [selection];
   renderPanels(scene, document);
   showPose();
   syncParticlePreview();
@@ -376,8 +382,11 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   if (draftDirty) scheduleDraft();
 }
 
-function select(id) {
+function select(id, event) {
   selection = id;
+  const result = clickSelection({ order: rowOrder, selected: multi, anchor: rowAnchor }, id, { shift: Boolean(event?.shiftKey), toggle: Boolean(event?.ctrlKey || event?.metaKey) });
+  multi = result.selected.length ? result.selected : [id]; rowAnchor = result.anchor;
+  if (!multi.includes(id)) selection = multi.at(-1);   // ctrl-click that unselects the clicked row: the inspector follows a row that is still selected
   editingPose = false;
   const current = session();
   renderPanels(current.getScene(), current.getCoreDocument());
@@ -401,6 +410,7 @@ function renderPanels(scene, document) {
     const nested = children.get(node.id) ?? [];
     for (let index = nested.length - 1; index >= 0; index--) pending.push([nested[index], depth + 1]);
   }
+  rowOrder = ordered.map(([node]) => node.id);
   ui['scene-picker'].replaceChildren(...[...sessions.values()].map((entry) => {
     const item = entry.getScene();
     return new Option(item.title, item.id, false, item.id === scene.id);
@@ -409,9 +419,10 @@ function renderPanels(scene, document) {
   ui['asset-list'].replaceChildren(...scene.assets.map((asset) =>
     listItem(asset.path || (asset.kind === 'primitive' ? `${asset.shape} ${asset.color}` : asset.id))));
   ui['scene-tree'].replaceChildren(...ordered.map(([node, depth]) => {
-    const item = listItem(node.name || node.id, () => select(node.id));
+    const item = listItem(node.name || node.id, (event) => select(node.id, event));
     item.style.paddingInlineStart = `${Math.min(depth, 10) * 0.85}rem`;
-    item.querySelector('button').setAttribute('aria-pressed', String(node.id === selection));
+    item.querySelector('button').setAttribute('aria-pressed', String(multi.includes(node.id) || node.id === selection));
+    item.dataset.nodeId = node.id; item.draggable = true;   // drag the selection onto a row to make it that row's children
     // Outliner row: visibility toggle (a checkbox, so the selection button stays the only button in the row), then the name.
     const eye = globalThis.document.createElement('input');   // `document` is the scene document in this function
     eye.type = 'checkbox'; eye.className = 'eye'; eye.checked = node.visible; eye.title = '显示 / 隐藏';
@@ -535,17 +546,37 @@ ui['gizmo-mode'].addEventListener('change', () => viewport.setGizmoMode(ui['gizm
 onClick('add-box', () => addPrimitive('box'));
 onClick('add-sphere', () => addPrimitive('sphere'));
 onClick('group-node', () => {
-  const node = session().getCoreDocument().nodes.find(({ id }) => id === selection);
-  if (!node) return;
-  const group = { id: makeId('group'), name: '组', assetId: null, parentId: node.parentId, visible: true, transform: identity() };
-  selection = group.id;
-  edit({ type: 'batch', commands: [
-    { type: 'addNode', node: group },
-    { type: 'updateNode', id: node.id, patch: { parentId: group.id } },
-  ] }, '已将对象加入组。');
+  const plan = groupPlan(session().getCoreDocument().nodes, multi.length ? multi : [selection], { id: makeId('group'), name: '组', assetId: null, visible: true, transform: identity() });
+  if (plan.error) { status(plan.error); return; }
+  selection = plan.commands[0].node.id; multi = [selection]; rowAnchor = selection;
+  edit({ type: 'batch', commands: plan.commands }, multi.length > 1 ? '已将所选对象加入组。' : '已将对象加入组。');
 });
 onClick('remove-node', () => {
-  if (selection) edit({ type: 'removeNode', id: selection }, '已删除对象。');
+  const commands = removePlan(session().getCoreDocument().nodes, multi.length ? multi : [selection]);
+  if (!commands.length) return;
+  edit(commands.length === 1 ? commands[0] : { type: 'batch', commands }, commands.length > 1 ? `已删除 ${commands.length} 个对象。` : '已删除对象。');
+});
+// Outline drag and drop: the selected rows (or the dragged row) become children of the row they are dropped on; dropped on the empty part of the list they go to the scene root. One drop is one undo step.
+const tree = ui['scene-tree'], rowOf = (event) => event.target.closest?.('li[data-node-id]');
+const clearDropMarks = () => { for (const row of tree.querySelectorAll('.drop-target')) row.classList.remove('drop-target'); tree.classList.remove('drop-root'); };
+tree.addEventListener('dragstart', (event) => {
+  const row = rowOf(event); if (!row) return;
+  const id = row.dataset.nodeId;
+  if (!multi.includes(id)) { multi = [id]; rowAnchor = id; selection = id; }
+  event.dataTransfer.setData('text/plain', JSON.stringify(multi)); event.dataTransfer.effectAllowed = 'move';
+});
+tree.addEventListener('dragover', (event) => {
+  event.preventDefault(); clearDropMarks();
+  const row = rowOf(event); (row ?? tree)?.classList.add(row ? 'drop-target' : 'drop-root');
+});
+tree.addEventListener('dragleave', (event) => { if (!tree.contains(event.relatedTarget)) clearDropMarks(); });
+tree.addEventListener('dragend', clearDropMarks);
+tree.addEventListener('drop', (event) => {
+  event.preventDefault(); clearDropMarks();
+  const target = rowOf(event)?.dataset.nodeId ?? null, plan = reparentPlan(session().getCoreDocument().nodes, multi, target);
+  if (plan.error) { status(plan.error); return; }
+  if (!plan.commands.length) { status('这些对象已经在那里了。'); return; }
+  edit(plan.commands.length === 1 ? plan.commands[0] : { type: 'batch', commands: plan.commands }, `已移动 ${plan.moved.length} 个对象。`);
 });
 onClick('undo', () => { navigationEditor.assertSaved(); if (session().undo()) { editingPose = false; refresh(); status('已撤销。'); } });
 onClick('redo', () => { navigationEditor.assertSaved(); if (session().redo()) { editingPose = false; refresh(); status('已重做。'); } });

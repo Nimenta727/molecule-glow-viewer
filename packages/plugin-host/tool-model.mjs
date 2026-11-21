@@ -129,3 +129,20 @@ export function autoBindings(descriptor, scene, entry) {
   }
   return result;
 }
+
+// ---- plugin dependencies of a work's tools ------------------------------------------------------------------------
+
+/**
+ * The scene's `dependencies` list with what its tools need added (each tool descriptor's `dependencies`). Existing entries are kept as they are (the author's recorded
+ * version and `optional` flag win); a tool whose descriptor is unknown, or declares none, adds nothing. Returns a new list; the given one is not changed.
+ */
+export function mergeToolDependencies(dependencies, descriptors) {
+  const out = (dependencies ?? []).map((dependency) => ({ ...dependency }));
+  for (const descriptor of descriptors) for (const { id, version } of descriptor?.dependencies ?? []) {
+    if (!out.some((dependency) => dependency.id === id)) out.push({ id, version, optional: false });
+  }
+  return out;
+}
+
+/** The descriptors of the tools a scene's entries use (by entry order), for `mergeToolDependencies`; `describe(toolId)` returns a descriptor or undefined. */
+export const descriptorsForScene = (scene, describe) => (scene.tools ?? []).map((entry) => describe(entry.tool.id));

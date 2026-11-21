@@ -55,7 +55,7 @@ import { normalizeCompositionConfig } from '../../plugins/simulation/composition
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
-import { toolControls } from '../../packages/plugin-host/tool-model.mjs';
+import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
 const elements = Object.fromEntries(
@@ -1488,6 +1488,7 @@ function boot() {
     storeParticles(scene);
     storeComposition(scene);
     storeDataAnimation(scene);
+    scene.dependencies = mergeToolDependencies(scene.dependencies, descriptorsForScene(scene, (id) => host.getTool(host.resolveToolId(id) ?? id)));   // what the work's tools need travels with it
     if (representationSource) {
       const source = scene.assets.find(({ id }) => id === representationSource.id);
       const camera = viewport.getCamera({ destination: true });

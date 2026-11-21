@@ -22,7 +22,8 @@
 
 浏览器实测（Playwright + Chromium，请求拦截提供文件、不起服务进程）：`node tools/studio-authoring-check.cjs`（发布标签与草稿恢复）、`node tools/workshop-shot.cjs`（工坊详情）；截图在 [images](images/)：`workshop-details.png`、`workshop-details-narrow.png`、`studio-publish.png`。
 
-- **4.3 收尾（2026-11-21）**：工具描述符有 `outputs`/`dependencies`；Studio“发布”标签有“导出发布包”：不许嵌入且有 RCSB 来源的结构改为带哈希的引用，本地文件则拒绝并指出资产；Viewer 打开带引用的包时取回并核对哈希。真实浏览器：`node tools/studio-export-check.cjs`（需先 `node tools/fetch-smoke-structures.mjs --dir desktop/dist/smoke-structures`）。引用取回在真实 RCSB 网络上尚未端到端试过（单元测试用注入的取回函数）。
+- **4.3 完成门槛与收尾（2026-11-21）**：第二个真实结构对 **MBP 1OMP（开）/ 1ANF（闭）** 用同一个构象工具、只改配置（叠合范围 = N 域 1-109,264-309，结构域 C 域 114-259,317-370、铰链）：N 域刚体 RMSD 0.72 Å（155 残基），C 域转 36.2°、位移 10.2 Å，换成 C 域为核心 N 域同样转 36.2°；`node tools/second-pair-check.mjs desktop/dist/smoke-structures` 7/7，`node tools/second-pair-browser.cjs` 预览→保存→重开数字一致、分子画面逐像素相同（截图 [second-pair-mbp.png](images/second-pair-mbp.png)）。选它的理由：同一条链、370 残基两边一一对应，铰链开合，且 1OMP 的标题就是“配体诱导的大幅铰链-扭转运动”；转角数字是我从坐标算出的，**未经专业人员审阅**。另：Studio 大纲多选/成组/删除/拖拽改父子（`node tools/studio-outline-check.cjs`）；添加工具时自动登记插件依赖。
+- **4.3 收尾（早先）**：工具描述符有 `outputs`/`dependencies`；Studio“发布”标签有“导出发布包”：不许嵌入且有 RCSB 来源的结构改为带哈希的引用，本地文件则拒绝并指出资产；Viewer 打开带引用的包时取回并核对哈希。真实浏览器：`node tools/studio-export-check.cjs`（需先 `node tools/fetch-smoke-structures.mjs --dir desktop/dist/smoke-structures`）。引用取回在真实 RCSB 网络上尚未端到端试过（单元测试用注入的取回函数）。
 
 ## 4.4 各组进度
 

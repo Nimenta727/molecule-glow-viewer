@@ -67,6 +67,18 @@
       "bytes": 160446,
       "sha256": "00ddc70047e8eb00d5acf2fa2ab5ab3ba6f942c75212ff2ebe3234130a16e17b",
       "url": "https://files.rcsb.org/download/1HRC.cif"
+    },
+    {
+      "id": "1OMP",
+      "bytes": 331434,
+      "sha256": "8fc0436ac9314dce1c504e6016e1fc05d95f5b71faa245036efb6e3efe670b8f",
+      "url": "https://files.rcsb.org/download/1OMP.cif"
+    },
+    {
+      "id": "1ANF",
+      "bytes": 356558,
+      "sha256": "54a33f49073210a129a74ab256fab4f8dfedc3df5a4d43360d92e5636b93572f",
+      "url": "https://files.rcsb.org/download/1ANF.cif"
     }
   ]
 }

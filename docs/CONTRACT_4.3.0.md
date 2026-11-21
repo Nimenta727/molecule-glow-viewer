@@ -194,6 +194,8 @@ states ["4AKE","1AKE"] 且无 components → { tool: conformation, work-template
 
 **4.3 完成门槛（验证复用，不是只验证一个作品）**：同一个 `tool.conformation` 用第二个构象对重新配置，**不改插件源码**即可预览并保存重开。软件确定性可用合成夹具验证；真实第二结构对（需科学上合适）**待维护者/专业人员选定**，不能由我断言其科学有效性。
 
+**门槛达成记录（2026-11-21）**：第二个构象对用麦芽糖结合蛋白 1OMP/1ANF，配置见 `tools/second-pair-check.mjs` 的 `CONFIG`，没有改任何插件源码；详见 [routine](routine/2026-11-21-4.3-closeout-final.md)。科学有效性需专业审阅。
+
 **必须保持绿的现有测试**：`packages/*/test`、`plugins/*/test` 全部（约 145 项）。
 
 ## 9. 维护者已确认的三点（2026-11-19）
