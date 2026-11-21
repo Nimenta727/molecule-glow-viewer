@@ -210,3 +210,18 @@ test('setToolBindings saves which nodes a tool works on, refuses unknown nodes, 
   added.dispatch({ type: 'addToolEntry', entry: { tool: { id: 'x.z', version: '1.0.0' }, config: {}, bindings: { ring: ['b'] } } });
   assert.deepEqual(added.getScene().tools[1].bindings, { ring: ['b'] });
 });
+
+test('the publication block is validated, undoable, removable, and survives a project round trip of the scene', async () => {
+  const session = createStudioSession(scene());
+  const publication = { license: 'CC-BY-4.0', author: { name: 'Ann', url: 'https://example.org/ann' }, revision: 2, topic: 'mechanism', tags: ['酶'], description: 'x', derivedFrom: { id: 'official.kcsa', revision: 1 } };
+  assert.equal(session.dispatch({ type: 'setPublication', publication }), true);
+  assert.deepEqual(session.getScene().publication, publication);
+  assert.equal(session.dispatch({ type: 'setPublication', publication }), false, 'the same value changes nothing');
+  assert.equal(session.undo(), true); assert.equal(session.getScene().publication, undefined);
+  assert.equal(session.redo(), true); assert.equal(session.dispatch({ type: 'setPublication', publication: null }), true); assert.equal('publication' in session.getScene(), false);
+  for (const bad of [{ license: 'CC0-1.0' }, { license: 'CC0-1.0', author: { name: '' } }, { license: 'CC0-1.0', author: { name: 'A', url: 'http://insecure.example' } }, { license: 'CC0-1.0', author: { name: 'A' }, revision: 0 },
+    { license: 'CC0-1.0', author: { name: 'A' }, topic: 'cooking' }, { license: 'CC0-1.0', author: { name: 'A' }, tags: ['a', 'a'] }, { license: 'CC0-1.0', author: { name: 'A' }, derivedFrom: { id: 'X' } },
+    { license: 'CC0-1.0', author: { name: 'A' }, extra: 1 }]) assert.throws(() => session.dispatch({ type: 'setPublication', publication: bad }), undefined, JSON.stringify(bad));
+  assert.throws(() => session.dispatch({ type: 'setPublication', publication: 'CC0' }), /object or null/);
+  assert.equal('publication' in session.getScene(), false, 'a refused edit changes nothing');
+});

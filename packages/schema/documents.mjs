@@ -109,6 +109,20 @@ const SCENE_PROPERTIES = {
     },
   },
   evidence: { type: 'array', items: { type: 'object', additionalProperties: JSON_VALUE } },
+  // What the workshop needs to publish the scene as a work: who made it, under what licence, which revision, what it was derived from. Optional; the workshop's publish check says what is missing.
+  publication: {
+    type: 'object', additionalProperties: false, required: ['license', 'author'],
+    properties: {
+      license: { type: 'string', minLength: 1, maxLength: 40 },
+      author: { type: 'object', additionalProperties: false, required: ['name'], properties: { name: { type: 'string', minLength: 1, maxLength: 80 }, url: { type: 'string', pattern: '^https://\\S+$', maxLength: 300 } } },
+      revision: { type: 'integer', minimum: 1 },
+      updated: { type: 'string', pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' },
+      topic: { enum: ['mechanism', 'protein', 'local-system', 'cell'] },
+      description: { type: 'string', maxLength: 400 },
+      tags: { type: 'array', maxItems: 8, uniqueItems: true, items: { type: 'string', minLength: 1, maxLength: 20 } },
+      derivedFrom: { type: 'object', additionalProperties: false, required: ['id'], properties: { id: { type: 'string', pattern: '^[a-z0-9][a-z0-9._-]{2,63}$' }, revision: { type: 'integer', minimum: 1 } } },
+    },
+  },
   legacy: { type: 'object', additionalProperties: JSON_VALUE },
   presentation: {
     type: 'object', additionalProperties: false, required: ['notes', 'bookmarks'],

@@ -125,6 +125,13 @@ function mergeCore(scene, coreDocument, renderableAssetIds, assetIntents) {
 function applyMetadata(scene, command) {
   const next = clone(scene);
   switch (command.type) {
+    case 'setPublication': {
+      // null removes the publication block; an object replaces it (validated by the scene schema)
+      if (command.publication === null) delete next.publication;
+      else if (command.publication && typeof command.publication === 'object' && !Array.isArray(command.publication)) next.publication = clone(command.publication);
+      else throw new TypeError('setPublication requires an object or null');
+      break;
+    }
     case 'setSceneTitle':
       if (typeof command.title !== 'string' || !command.title.trim()) throw new TypeError('请输入场景名称。');
       next.title = command.title.trim();
@@ -219,7 +226,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 

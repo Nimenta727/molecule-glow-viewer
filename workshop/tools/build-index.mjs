@@ -4,8 +4,8 @@
 // A pack's embedded cover (data URI) is written to covers/<id>.<ext>; a pack without one uses an existing covers/<id>.jpg.
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadRules, listPacks, checkFile, sha256, SOURCES, WS, derivationProblems } from './glow-lib.mjs';
-import { toolEntriesForScene } from '../../plugins/mechanism-catalog.mjs';
+import { loadRules, listPacks, checkFile, sha256, SOURCES, WS, derivationProblems, isZipFile, checkPackageFile } from './glow-lib.mjs';
+import { toolEntriesForScene, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
 
 const R = loadRules();
 const NAMES = { official: '官方', community: '社区' };
@@ -35,6 +35,18 @@ for (const src of SOURCES) {
   const dir = path.join(WS, src), covers = path.join(dir, 'covers'); fs.mkdirSync(covers, { recursive: true });
   const packs = [], known = resourceIds(src);
   for (const file of listPacks(src)) {
+    if (isZipFile(file)) {   // a v2/v3 scene package: one catalogue entry, from its publication block
+      const z = await checkPackageFile(file, src, { toolAvailable: isKnownTool });
+      if (!z.ok) { bad++; z.errors.forEach(e => console.log('✗ ' + e)); continue; }
+      if (src === 'community' && HELD.has(z.scene.id)) { console.log(`⏸ ${z.scene.id}：被举报暂停展示`); continue; }
+      const e = z.entry, accessions = [...new Set(z.scene.assets.map(a => a.provenance?.source?.accession ?? a.source?.accession).filter(Boolean))];
+      const known = new Set([...resourceIds(src)].map(accession => `res.rcsb.${accession}`));
+      packs.push({ kind: 'work', title: e.title, category: { mechanism: 'mechanism', protein: 'single', 'local-system': 'system', cell: 'cell' }[e.topic] ?? 'single', topic: e.topic, tags: e.tags, author: e.author,
+        revision: e.revision, license: e.license, ...(e.derivedFrom ? { derivedFrom: e.derivedFrom } : {}), description: e.description.slice(0, 240), pdb: accessions, resources: e.resources.filter(id => known.has(id)),
+        animation: e.tools.length ? 'data' : 'none', updated: e.updated, file: `packs/${path.basename(file)}`, cover: null, size: z.buf.length, sha256: sha256(z.buf),
+        zone: e.tools.length ? 'work' : 'template', id: e.id, tools: e.tools });
+      continue;
+    }
     const r = checkFile(file, src, R);
     if (!r.ok) { bad++; r.errors.forEach(e => console.log('✗ ' + e)); continue; }
     const P = r.pack, S = P.scene;

@@ -9,10 +9,13 @@ import { fileURLToPath } from 'node:url';
 import { PRESETS, presetCat } from '../../src/data/presets.js';
 import { sanitizePack, PackError, GLOW_VERSION, ANIM_VERSION, PACK_CATS } from '../../src/pack/rules.js';
 import { checkDerivation } from '../../plugins/workshop/diagnose.mjs';
+import { checkPublication } from '../../plugins/workshop/publish.mjs';
+import { loadCatalog } from '../../plugins/workshop/catalog.mjs';
+import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { buildViewer } from '../../tools/build.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const WS = path.join(ROOT, 'workshop');
+export const WS = process.env.GLOW_WORKSHOP_DIR ? path.resolve(process.env.GLOW_WORKSHOP_DIR) : path.join(ROOT, 'workshop');   // GLOW_WORKSHOP_DIR: a copy of the workshop folder (tests)
 export const SOURCES = ['official', 'community'];
 export const MAX_BYTES = 30 * 1024 * 1024;
 
@@ -70,4 +73,35 @@ export function derivationProblems() {
     try { const raw = JSON.parse(fs.readFileSync(file, 'utf8')); if (raw?.id) byId.set(raw.id, { id: raw.id, license: raw.license || '', revision: Number.isInteger(raw.revision) ? raw.revision : 1, derivedFrom: raw.derivedFrom && typeof raw.derivedFrom.id === 'string' ? raw.derivedFrom : undefined }); } catch { /* reported by checkFile */ }
   }
   return [...byId.values()].flatMap((entry) => checkDerivation(entry, byId));
+}
+
+/* ---- v2/v3 scene packages (what Studio exports) in the workshop, next to the classic v1 packs ------------------------------------------------------------------------------------
+   A package is a ZIP (first bytes "PK"). It is read with the same reader the Viewer uses, then run through the same publish check Studio shows. */
+export const isZipFile = (file) => { const fd = fs.openSync(file, 'r'); try { const head = Buffer.alloc(2); fs.readSync(fd, head, 0, 2, 0); return head[0] === 0x50 && head[1] === 0x4b; } finally { fs.closeSync(fd); } };
+
+/** The catalogue as the workshop folder holds it, loaded through the real client over the file system. `omitSha` leaves out the entry of an already published identical file. */
+export async function localCatalog(omitSha) {
+  const base = 'https://workshop.invalid/';
+  const fetchLocal = async (url) => {
+    const target = path.join(WS, String(url).slice(base.length));
+    if (!fs.existsSync(target)) return { ok: false, status: 404 };
+    const bytes = fs.readFileSync(target);
+    return { ok: true, headers: new Headers(), arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) };
+  };
+  const catalog = await loadCatalog({ base, fetch: fetchLocal });
+  return omitSha ? { ...catalog, works: catalog.works.filter((entry) => entry.sha256 !== omitSha), templates: catalog.templates.filter((entry) => entry.sha256 !== omitSha) } : catalog;
+}
+
+/** Full check of one package file. Returns { ok, errors[], warnings[], scene, entry, buf }. `toolAvailable` says which tools this application has. */
+export async function checkPackageFile(file, src, { toolAvailable } = {}) {
+  const errors = [], warnings = [], base = path.basename(file);
+  const st = fs.statSync(file); if (st.size > MAX_BYTES) return { ok: false, errors: [`${base}: 文件超过 30 MB`], warnings };
+  const buf = fs.readFileSync(file);
+  let scene;
+  try { ({ scene } = await readScenePackage(new Uint8Array(buf))); } catch (e) { return { ok: false, errors: [`${base}: 不是有效的场景包（${e.message}）`], warnings }; }
+  if (base !== scene.id + '.glow') errors.push(`${base}: 文件名应为 ${scene.id}.glow（与场景编号一致）`);
+  const catalog = await localCatalog(sha256(buf));
+  const result = checkPublication(scene, catalog, { toolAvailable, source: src });
+  for (const { level, message } of result.problems) (level === 'error' ? errors : level === 'warning' ? warnings : []).push(`${base}: ${message}`);
+  return { ok: !errors.length, errors, warnings, scene, entry: result.entry, buf };
 }

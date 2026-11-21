@@ -91,3 +91,38 @@ test('a pack may record what it was derived from; the validator checks the shape
   const { derivationProblems } = await import('../../workshop/tools/glow-lib.mjs');
   assert.deepEqual(derivationProblems(), [], 'the packs in the repository have consistent derivation records');
 });
+
+test('a v3 scene package published from Studio is checked, indexed and found by the catalogue client; an update needs a newer revision', async () => {
+  const os = await import('node:os'), path = await import('node:path'), { writeScenePackage } = await import('../../packages/schema/archive.mjs');
+  const { loadCatalog, queryCatalog } = await import('../../plugins/workshop/catalog.mjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'glow-ws-'));
+  try {
+    fs.cpSync(new URL('workshop/', root), dir, { recursive: true });
+    fs.mkdirSync(path.join(dir, 'community/packs'), { recursive: true });
+    const scene = (publication, id = 'tester.lab-one') => ({ format: 'glow-scene', schemaVersion: 3, id, title: 'Lab one', units: { length: 'meter', time: 'second' }, assets: [], nodes: [{ id: 'root', name: 'Root', parentId: null, assetId: null, visible: true,
+      transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } }], timeline: { duration: 0, tracks: [] }, dependencies: [], evidence: [{ type: 'illustrative', citation: 'test' }], tools: [], resources: [], publication });
+    const publish = async (publication, id) => { const s = scene(publication, id); fs.writeFileSync(path.join(dir, 'community/packs', `${s.id}.glow`), await writeScenePackage(s, new Map())); };
+    const run = (script) => spawnSync(process.execPath, [script], { cwd: new URL('.', root).pathname, env: { ...process.env, GLOW_WORKSHOP_DIR: dir }, encoding: 'utf8' });
+    const base = { license: 'CC-BY-4.0', author: { name: 'Tester', url: 'https://example.org/t' }, topic: 'protein', description: 'A lab.', updated: '2026-11-21', tags: ['lab'] };
+    await publish(base);
+    let result = run('workshop/tools/validate.mjs'); assert.equal(result.status, 0, result.stdout); assert.match(result.stdout, /tester\.lab-one\.glow — Lab one（场景包）/);
+    result = run('workshop/tools/build-index.mjs'); assert.equal(result.status, 0, result.stdout);
+    const index = JSON.parse(fs.readFileSync(path.join(dir, 'community/index.json'), 'utf8')), [entry] = index.packs;
+    assert.deepEqual([entry.id, entry.zone, entry.topic, entry.license, entry.revision, entry.author.name, entry.tools], ['tester.lab-one', 'template', 'protein', 'CC-BY-4.0', 1, 'Tester', []]);
+    assert.match(entry.sha256, /^[a-f0-9]{64}$/); assert.equal(entry.file, 'packs/tester.lab-one.glow');
+    const files = (u) => { const f = path.join(dir, String(u).replace('https://x.test/', '')); if (!fs.existsSync(f)) return { ok: false, status: 404 }; const b = fs.readFileSync(f); return { ok: true, headers: new Headers(), arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.length) }; };
+    const catalog = await loadCatalog({ base: 'https://x.test/', fetch: async (u) => files(u) });
+    assert.deepEqual(queryCatalog(catalog, { zone: 'templates', source: 'community', text: 'lab' }).map(({ id }) => id), ['tester.lab-one']);
+    assert.equal(run('workshop/tools/validate.mjs').status, 0, 'validating again after indexing still passes (the identical published file is not an "update")');
+    assert.equal(run('workshop/tools/build-index.mjs').status, 0);
+    assert.equal(fs.readFileSync(path.join(dir, 'community/index.json'), 'utf8'), JSON.stringify(index, null, 1) + '\n', 'indexing is deterministic');
+    await publish({ ...base, description: 'Changed.' });   // the same revision with other content: an update that did not raise the version
+    result = run('workshop/tools/validate.mjs'); assert.equal(result.status, 1); assert.match(result.stdout, /第 1 版.*升级请把版本设为 2/);
+    await publish({ ...base, description: 'Changed.', revision: 2 });
+    assert.equal(run('workshop/tools/validate.mjs').status, 0, 'a newer revision passes');
+    await publish({ ...base, license: 'CC-BY-SA-4.0', revision: 3, derivedFrom: { id: 'official.kcsa', revision: 1 } }, 'tester.derived');
+    assert.equal(run('workshop/tools/validate.mjs').status, 0, 'a BY-SA work derived from a BY work passes');
+    await publish({ ...base, license: 'CC0-1.0', derivedFrom: { id: 'official.kcsa' } }, 'tester.bad-derived');
+    result = run('workshop/tools/validate.mjs'); assert.equal(result.status, 1); assert.match(result.stdout, /不能用于派生/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
