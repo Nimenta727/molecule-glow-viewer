@@ -42,3 +42,14 @@ test('grouping and removing work on top-level nodes only', () => {
   assert.match(groupPlan(nodes, [], { id: 'g' }).error, /没有/);
   assert.deepEqual(removePlan(nodes, ['b', 'c', 'e']), [{ type: 'removeNode', id: 'b' }, { type: 'removeNode', id: 'e' }]);
 });
+
+test('a node added while an older row is selected becomes the whole selection: remove then acts on the new node, not on the older one', async () => {
+  const { reconcileSelection } = await import('../outline-edit.mjs');
+  // before the fix: the new node was "shown" but the older row stayed selected too
+  assert.deepEqual(reconcileSelection({ selection: 'new', multi: ['old'], ids: ['old', 'new'] }), { selection: 'new', multi: ['new'] });
+  // a real multi-selection that includes the shown node is left alone
+  assert.deepEqual(reconcileSelection({ selection: 'b', multi: ['a', 'b'], ids: ['a', 'b', 'c'] }), { selection: 'b', multi: ['a', 'b'] });
+  // removed nodes drop out of both; nothing shown when the shown node is gone
+  assert.deepEqual(reconcileSelection({ selection: 'gone', multi: ['gone', 'a'], ids: ['a'] }), { selection: null, multi: ['a'] });
+  assert.deepEqual(reconcileSelection({ selection: null, multi: [], ids: ['a'] }), { selection: null, multi: [] });
+});

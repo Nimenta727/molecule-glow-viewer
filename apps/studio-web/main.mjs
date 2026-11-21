@@ -24,7 +24,7 @@ import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
 import { checkPublication, nextRevision } from '../../plugins/workshop/publish.mjs';
 import { TOPICS } from '../../plugins/workshop/catalog.mjs';
-import { clickSelection, reparentPlan, groupPlan, removePlan } from './outline-edit.mjs';
+import { clickSelection, reparentPlan, groupPlan, removePlan, reconcileSelection } from './outline-edit.mjs';
 import { readForm, fillForm, licenseChoices, revisionHint, FormError } from './publish-form.mjs';
 import { LICENSES } from '../../plugins/workshop/diagnose.mjs';
 
@@ -371,9 +371,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   if (camera) viewport.setCamera(camera);
   timeline = createTimeline(document.timeline);
   timeline.seek(previousTime);
-  if (!document.nodes.some(({ id }) => id === selection)) selection = null;
-  multi = multi.filter((id) => document.nodes.some((node) => node.id === id));
-  if (selection && !multi.length) multi = [selection];
+  ({ selection, multi } = reconcileSelection({ selection, multi, ids: document.nodes.map((node) => node.id) }));
   renderPanels(scene, document);
   showPose();
   syncParticlePreview();
@@ -504,7 +502,7 @@ function addPrimitive(shape) {
   const name = shape === 'box' ? '方盒' : '球体';
   const asset = { id: makeId('asset'), kind: 'primitive', shape, color: shape === 'box' ? '#31846b' : '#bd7542' };
   const node = { id: makeId('node'), name, assetId: asset.id, parentId: null, visible: true, transform: identity() };
-  selection = node.id;
+  selection = node.id; multi = [node.id]; rowAnchor = node.id;   // the new object is the whole selection
   edit({ type: 'batch', commands: [{ type: 'addAsset', asset }, { type: 'addNode', node }] }, `已添加${name}。`);
 }
 

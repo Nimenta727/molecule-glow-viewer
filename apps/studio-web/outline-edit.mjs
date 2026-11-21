@@ -18,6 +18,18 @@ export function clickSelection({ order, selected, anchor }, id, { shift = false,
   return { selected: [id], anchor: id };
 }
 
+/**
+ * The selection after the document changed (a node was added, removed or replaced): `selection` is the node the inspector shows, `multi` every selected row. Both only keep nodes that still exist, and the
+ * node the inspector shows is always one of the selected rows. Without that last rule a node added while an older row was still selected left the older row selected as well: "remove" then deleted the
+ * older node (or refused because of it) instead of the one the person had just made.
+ */
+export function reconcileSelection({ selection, multi, ids }) {
+  const alive = new Set(ids), shown = alive.has(selection) ? selection : null;
+  let selected = multi.filter((id) => alive.has(id));
+  if (shown && !selected.includes(shown)) selected = [shown];
+  return { selection: shown, multi: selected };
+}
+
 const byId = (nodes) => new Map(nodes.map((node) => [node.id, node]));
 const ancestors = (map, id) => { const out = []; for (let at = map.get(id)?.parentId; at != null && !out.includes(at); at = map.get(at)?.parentId) out.push(at); return out; };
 
