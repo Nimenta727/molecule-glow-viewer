@@ -3,7 +3,11 @@
 **怎么用**：在那台电脑上打开 Claude Code（或别的能执行命令的 AI），把下面“提示词”整段复制进去。它会安装、跑测试、跑 GPU 验收，最后给你一份报告和一张“请你亲眼看”的清单。
 **它做不了的**：判断画面好不好看、动画顺不顺——这些必须你自己看，提示词里已经要求它不替你下结论。
 
-提示词里的分支名 `claude/affectionate-fermat-fxt4cr` 是目前所有工作所在的分支；合并到 main 之后，把它改成 `main`。
+**两条路线，提示词里都有**：
+- **A. 下载桌面版（EXE）验收**（步骤 A）：这是“用户真正拿到手的东西”，包含全部插件。**只有在 v0.8.0 发布之后才有**；如果下载返回 404，说明还没发布，让 AI 停下来告诉你。
+- **B. 源码 + GPU 脚本**（步骤 1–4）：能测出每个场景在这张卡上的真实帧率，自动出报告。EXE 本身不带这个脚本，所以两条路线要一起跑。
+
+提示词里的分支名 `claude/affectionate-fermat-fxt4cr` 是目前所有工作所在的分支；合并到 main 之后，把它改成 `main`。工坊里的“血红蛋白”作品是从 GitHub 的 main 分支读取的，所以 EXE 里要在合并之后才看得到它。
 
 ---
 
@@ -24,6 +28,24 @@
 - 记录：操作系统与版本、CPU、内存、显卡型号与驱动版本（Windows：`Get-CimInstance Win32_VideoController | Select Name,DriverVersion`；有 NVIDIA 卡再跑 `nvidia-smi`）。
 - 笔记本或台式机装了两块显卡（集显 + 独显）时，注意浏览器默认可能用的是集显：记下来，步骤 4 会用到。
 - 确认 Node.js ≥ 20（`node -v`）和 git。缺了就告诉我，不要擅自安装。
+
+【步骤 A：下载桌面版并校验（发布后才有；404 就停下来告诉我“还没发布”）】
+（PowerShell）
+  $v = '0.8.0'; $base = "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v$v"
+  New-Item -ItemType Directory -Force desktop-release | Out-Null; Set-Location desktop-release
+  foreach ($f in "MoleculeGlow-$v-win-x64.exe", 'SHA256SUMS.txt', 'release-manifest.json') { Invoke-WebRequest "$base/$f" -OutFile $f }
+  Get-FileHash "MoleculeGlow-$v-win-x64.exe" -Algorithm SHA256
+  Get-Content SHA256SUMS.txt
+把算出的哈希和 SHA256SUMS.txt 里 EXE 那一行逐字比较，不一致就停下，告诉我，不要运行。再读 release-manifest.json，把 version、sourceCommit、signed（应为 false：未签名）、gate.run（发布闸门那次运行的网址）抄进报告。
+运行：这个程序未签名，Windows SmartScreen 可能拦一下，“仍要运行”要我自己来点——请告诉我，不要替我点。为了能在里面跑 `glow.benchmark()`，用下面的方式启动（开发者工具会在旁边弹出）：
+  $env:GLOW_DEVTOOLS = '1'; Start-Process ".\MoleculeGlow-$v-win-x64.exe"
+在 EXE 里确认并记录：
+  a) 菜单“帮助 → 版本与构建”：版本应为 0.8.0，提交号应等于 release-manifest.json 的 sourceCommit；
+  b) 菜单“工作区”切到新 Viewer，点“工坊”：应有“静态作品 / 作品区 / 资源区 / 插件区 / 我的模板”五个分页；“插件区”应有 17 个插件；“静态作品”里应有“血红蛋白：四个亚基与四个血红素”（需要联网，且要在合并到 main 之后）；
+  c) 开发者工具的控制台里：`await glow.help()`，核对命令列表包含 complex、assemble、embed、compose、interactions、binding、source、instances、volume、membrane、benchmark；
+  d) 打开任意结构后：`await glow.benchmark()`，把返回的 renderer、software、stats.fps、budget、tier 抄进报告（software 为 true 就是没用显卡，按步骤 4 的排查表处理）；
+  e) 关闭程序再打开一次，确认能正常启动（不闪退、不白屏）。
+然后让我做步骤 7 的清单（EXE 里点工坊打开作品，代替 ?work= 地址）。
 
 【步骤 1：取代码并安装】
   git clone https://github.com/Nimenta727/molecule-glow-viewer.git
@@ -108,7 +130,7 @@
 
 ## 给你的说明（不用复制）
 
-- **这份提示词里每条命令都在仓库里真实存在**（`tools/gpu-acceptance.cjs`、`tools/fetch-smoke-structures.mjs`、`desktop/scripts/package-platform.cjs`、`tools/platform-release-smoke.cjs`、`npm test`）。`gpu-acceptance.cjs` 在没有显卡的容器里用 `--software` 试跑过：显卡自检、嵌膜 40/400 份、命令冒烟通过，且正确地把结论标成“NOT A GPU RUN”；**真显卡上的数字没有测过**——那正是这次要你验收的。
+- **步骤 A 的下载地址和资产名来自发布工作流**（`MoleculeGlow-<版本>-win-x64.exe`、`SHA256SUMS.txt`、`release-manifest.json`），在 v0.8.0 真正发布之前它们不存在。**其余每条命令都在仓库里真实存在**（`tools/gpu-acceptance.cjs`、`tools/fetch-smoke-structures.mjs`、`desktop/scripts/package-platform.cjs`、`tools/platform-release-smoke.cjs`、`npm test`）。`gpu-acceptance.cjs` 在没有显卡的容器里用 `--software` 试跑过：显卡自检、嵌膜 40/400 份、命令冒烟通过，且正确地把结论标成“NOT A GPU RUN”；**真显卡上的数字没有测过**——那正是这次要你验收的。
 - 自动判定：血红蛋白、ATP 合酶、呼吸链要求 ≥ 30 fps（场景不重）；其余场景只记录并在低于 15 fps 时提醒。这些阈值是我定的经验值，不是标准；如果你的卡全部低于它，先看 report.md 里的“档位”和预算，再决定阈值是否合理。
 - 翻译作品、整细胞、叶绿体在软件渲染下没有完整跑过（太慢）；真显卡上第一次跑，出现失败请把报告和截图发回来。
 - 官方作品里的结构会按哈希校验：如果 RCSB 之后更新了某个条目的文件，作品会拒绝打开并说明——这是设计行为，请原样记下。
