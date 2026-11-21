@@ -12,6 +12,7 @@ export const COMMANDS = {
   measure: '测量：measure(a,b) 两个选择 → 距离（Å），measure(a,b,c) 三个 → 角度（°，b 是顶点）；每个选择必须正好是一个残基（Cα，核酸 P）或一个小分子（中心）。也可传 {a,b,c} 或数组；measure("clear") 清除标线。',
   sequence: '序列：无参数返回每条链的一字母序列、残基数和缺失段；{show:true|false} 开关序列条；{select:"表达式"} 用选择语言选中；{sites:...} 暂不支持。',
   color: '上色：color("chain" | "entity" | "rainbow" | "confidence" | "reset")；color("chain A","#e05a4a") 整条链；color("chain A and resi 10-50","#e05a4a") 用选择语言按残基上色（最多 64 条，后面的覆盖前面的，由“团块”表示画出）；"confidence" 按预测置信度（pLDDT 四档）上色，只对登记为预测结构的资源有效；颜色为 #rrggbb 或 red/blue/green…。',
+  membrane: '在当前场景上画一个脂双层：{shape:{kind:"plane"{width,height}|"sphere"{radius}|"capsule"{radius,length}|"ellipsoid"{a,b,c}（单位 Å）}, thickness?:Å（默认 40，未核对来源）, normal?:[x,y,z]（膜的 +z 朝向）, offset?:[x,y,z]（Å，相对结构中心）, opacity?, resolution?}；"clear" 清除。画的是两个半透明小叶面。',
   volume: '在当前场景上叠加密度体积（冷冻电镜/断层）：{map:MRC/CCP4 文件的 base64, level?:数值或"auto", opacity?:0.05..1, slice?:{axis:0|1|2,index:整数}}；不带 map 时按新参数重画已加载的体积；"clear" 清除。界面里也可以直接打开 .mrc / .map 文件。返回尺寸、体素大小、统计、所用阈值（"auto" 只是均值+3σ 的启发式）和被降采样/截断的说明。',
   instances: '把当前看到的结构复制成许多份并按细节分级绘制：{copies:1..20000, layout?:"sphere"|"grid", spread?:0.5..4, seed?:整数, budget?:每帧三角形预算}；"clear" 或 null 清除。返回每级的三角形数、本帧各级实例数、被剔除数和不分级时的三角形数。',
   clip: '剖切：{enabled?:布尔, depth?:-1..1, scope?:"all"|"parts", aim?:true（对准当前视线）}；不带参数读取状态。',

@@ -60,6 +60,7 @@ import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../
 import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
 import { parseMrc, MapError } from '../../plugins/structure/density-map.mjs';
 import { volumeSurface, volumeSlice } from '../../plugins/structure/volume-view.mjs';
+import { buildMembrane, placePoints, DEFAULT_THICKNESS } from '../../plugins/structure/membrane-builder.mjs';
 import { layoutCopies } from './instance-layout.mjs';
 import { renderControls, readControl, writeControl } from '../../packages/plugin-host/tool-panel.mjs';
 
@@ -1485,6 +1486,22 @@ function boot() {
       return { dims: map.dims, voxelSize: map.voxelSize, origin: map.origin, stats: map.stats, label: map.label, level: surface.level, auto: surface.auto, triangles: surface.triangles, truncated: surface.truncated, note: surface.note, slice };
     }
 
+  /**
+   * A lipid bilayer built from a shape (plugins/structure/membrane-builder.mjs), drawn as two translucent leaflets in the structure's frame; null clears it. `shape` is { kind: 'plane'|'sphere'|
+   * 'capsule'|'ellipsoid', ...sizes in Å }, `thickness` the whole bilayer in Å, `normal` where the membrane's +z points, `offset` its centre (Å) from the structure's centre.
+   */
+  function showMembrane(spec) {
+    if (!active) throw new Error('请先打开场景。');
+    if (!spec) { viewport.setOverlayMesh('membrane-outer', null); viewport.setOverlayMesh('membrane-inner', null); return { cleared: true }; }
+    const thickness = spec.thickness ?? DEFAULT_THICKNESS, membrane = buildMembrane(spec.shape, { thickness, resolution: spec.resolution ?? 48 }), place = { normal: spec.normal ?? [0, 0, 1], offset: spec.offset ?? [0, 0, 0], scale: PRESENTATION_METERS_PER_ANGSTROM };
+    for (const [tag, leaflet, tint] of [['membrane-outer', membrane.outer, '#e3b778'], ['membrane-inner', membrane.inner, '#8fb4d9']]) {
+      const colors = new Float32Array(leaflet.pos.length); const c = parseHex(tint); for (let i = 0; i < colors.length; i += 3) colors.set(c, i);
+      viewport.setOverlayMesh(tag, { pos: placePoints(leaflet.pos, place), idx: leaflet.idx, colors }, { opacity: spec.opacity ?? 0.35 });
+    }
+    return { shape: spec.shape.kind, area: membrane.surface.area, thickness, note: spec.thickness ? '' : `厚度用的是默认的 ${DEFAULT_THICKNESS} Å（整个双层），没有对照过来源，请按你的参考值设置。` };
+  }
+  const parseHex = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+
   elements.file.addEventListener('change', () => {
     const [file] = elements.file.files;
     elements.file.value = '';
@@ -1775,6 +1792,7 @@ function boot() {
     clearSet,
     tools: () => describeTools(host.listTools({ audience: 'view' })),
     volume: showVolume,
+    membrane: showMembrane,
     /** Copies of what is on screen at several levels of detail (packages/render-three/lod.mjs); null clears them. Returns what was built and what the first frame costs. */
     instances: (spec) => {
       if (!spec) { viewport.setInstanceSet('copies', null); return { cleared: true }; }

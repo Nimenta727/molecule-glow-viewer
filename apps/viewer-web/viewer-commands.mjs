@@ -220,6 +220,21 @@ export function createViewerCommands(host) {
       if (value.aim != null && typeof value.aim !== 'boolean') throw new Error('aim 应为布尔值。');
       return host.clip(value);
     },
+    membrane(value) {
+      needScene();
+      if (value == null || value === 'clear') return host.membrane(null);
+      if (!object(value) || Object.keys(value).some((key) => !['shape', 'thickness', 'normal', 'offset', 'opacity', 'resolution'].includes(key))) throw new Error('membrane 只接受 shape、thickness、normal、offset、opacity、resolution。');
+      const shape = value.shape; if (!object(shape) || !['plane', 'sphere', 'capsule', 'ellipsoid'].includes(shape.kind)) throw new Error('shape.kind 应为 plane / sphere / capsule / ellipsoid。');
+      const sizes = { plane: ['width', 'height'], sphere: ['radius'], capsule: ['radius', 'length'], ellipsoid: ['a', 'b', 'c'] }[shape.kind];
+      for (const key of sizes) finite(shape[key], key === 'length' ? 0 : 1, 1e6, `shape.${key}`);
+      if (value.thickness != null) finite(value.thickness, 5, 500, 'thickness');
+      const vec = (v, name) => { if (!Array.isArray(v) || v.length !== 3 || v.some((x) => typeof x !== 'number' || !Number.isFinite(x) || Math.abs(x) > 1e6)) throw new Error(`${name} 应为三个数。`); };
+      if (value.normal != null) { vec(value.normal, 'normal'); if (!Math.hypot(...value.normal)) throw new Error('normal 不能是零向量。'); }
+      if (value.offset != null) vec(value.offset, 'offset');
+      if (value.opacity != null) finite(value.opacity, 0.05, 1, 'opacity');
+      if (value.resolution != null && (!Number.isInteger(value.resolution) || value.resolution < 8 || value.resolution > 128)) throw new Error('resolution 应为 8–128 的整数。');
+      return host.membrane(value);
+    },
     volume(value) {
       needScene();
       if (value == null || value === 'clear') return host.volume(null);
