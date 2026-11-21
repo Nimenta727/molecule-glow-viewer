@@ -325,7 +325,7 @@ export class DataAnimation {
     r.travelled += Math.abs(turns); r.angle += 2 * Math.PI * turns;
     for (const f of this.flows) {
       if (!f.perTurn) continue;
-      const due = r.travelled >= f.phase ? Math.floor((r.travelled - f.phase) * f.perTurn + 1e-9) + 1 : 0;
+      const due = r.travelled > 0 && r.travelled >= f.phase ? Math.floor((r.travelled - f.phase) * f.perTurn + 1e-9) + 1 : 0;   // a rotor that has not moved at all lets nothing through, not even the stator whose phase is 0
       for (; f.fired < due; f.fired++) {
         if (this.scale() === 'fast') { if (f.counter) this.counters[f.counter]++; } else this.#runFlow(f, () => {});   // the fast scale shows no journeys: the counters keep the stoichiometry
       }

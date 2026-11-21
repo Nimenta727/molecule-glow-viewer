@@ -64,3 +64,37 @@ test('the rotor stops without substrate (no flux, no protons); a rewind and repl
   r.advance(30 * 60); assert.ok(r.engine.rotor.travelled - turns < 0.5, 'the rotor has (nearly) stopped without substrate');
   const end = r.engine.rotor.angle; r.seek(30 * 300); assert.equal(r.engine.rotor.angle, angle); r.seek(30 * 360); assert.equal(r.engine.rotor.angle, end);
 });
+
+test('flagellar motor controls: the default is the motor as before; CheY-P reverses it with the same protons per turn; the gradient sets the speed; no gradient, no turn, no proton', () => {
+  const config = normalizeDataConfig(mechanismWorkConfig(scene('flagellarMotor', { spin: ['rod', 'C 环'] })));
+  assert.equal(config.animation.rotor.by, 'rotor'); assert.deepEqual(config.kinetics.controls.map(({ id, default: value }) => [id, value]), [['pmf', 150], ['cw', false]]);
+  const make = (kinetics) => new DataAnimation(config.animation, structure, { rng: seededRng(7), kinetics, scale: () => 'fast' });
+  const run = (engine, seconds) => { for (let i = 0; i < 30 * seconds; i++) engine.step(1 / 30); return engine; };
+  const plain = run(make(null), 40), withControls = run(make(config.kinetics), 40);
+  assert.equal(withControls.rotor.angle, plain.rotor.angle, 'default controls: the angle is exactly what it was without them');
+  assert.equal(withControls.summary().counters['H⁺（示意）'], plain.summary().counters['H⁺（示意）']);
+  const reverse = make(config.kinetics); reverse.kinetics.setControl('cw', true); run(reverse, 40);
+  assert.ok(Math.abs(reverse.rotor.angle + plain.rotor.angle) < 1e-9, 'clockwise is the same turns the other way');
+  assert.equal(reverse.rotor.travelled, plain.rotor.travelled, 'the turns made are counted without sign');
+  assert.equal(reverse.summary().counters['H⁺（示意）'], plain.summary().counters['H⁺（示意）'], 'the protons follow the turns, in either direction');
+  const half = make(config.kinetics); half.kinetics.setControl('pmf', 75); run(half, 40);
+  assert.ok(Math.abs(half.rotor.travelled - plain.rotor.travelled / 2) < 1e-9, 'half the gradient, half the speed');
+  assert.ok(half.summary().counters['H⁺（示意）'] <= plain.summary().counters['H⁺（示意）'] / 2 + 1);
+  const stalled = make(config.kinetics); stalled.kinetics.setControl('pmf', 0); run(stalled, 40);
+  assert.equal(stalled.rotor.travelled, 0); assert.equal(stalled.rotor.angle, 0); assert.equal(stalled.summary().counters['H⁺（示意）'], 0, 'no gradient: nothing turns, nothing passes');
+  const stalledReverse = make(config.kinetics); stalledReverse.kinetics.setControl('pmf', 0); stalledReverse.kinetics.setControl('cw', true); run(stalledReverse, 10);
+  assert.equal(stalledReverse.rotor.travelled, 0, 'reversing a motor with no gradient does not make it turn');
+});
+
+test('flagellar motor: reversing in the middle of a run turns the rotor back and a replay of the log gives the same angle', () => {
+  const config = normalizeDataConfig(mechanismWorkConfig(scene('flagellarMotor', { spin: ['rod'] })));
+  const host = { pace: 1, scale: 'fast' }, make = (h) => new DataAnimation(config.animation, structure, { rng: seededRng(7), kinetics: config.kinetics, pace: () => h.pace, scale: () => h.scale });
+  const replay = new Replay({ make, host }); replay.seek(30 * 20);
+  const forward = replay.engine.rotor.angle; assert.ok(forward > 0);
+  replay.intervene({ kind: 'control', id: 'cw', value: true }); replay.seek(30 * 40);
+  assert.ok(replay.engine.rotor.angle < forward, 'after the reversal the angle goes back');
+  const angle = replay.engine.rotor.angle, travelled = replay.engine.rotor.travelled;
+  replay.seek(30 * 10); replay.seek(30 * 40);
+  assert.equal(replay.engine.rotor.angle, angle, 'rewinding and running on again, the log makes the same reversal at the same step');
+  assert.equal(replay.engine.rotor.travelled, travelled);
+});

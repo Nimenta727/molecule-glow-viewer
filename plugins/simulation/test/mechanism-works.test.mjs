@@ -45,9 +45,9 @@ test('orientation: the flattest direction of the named parts becomes vertical an
   }
 });
 
-test('the flagellar motor: eleven stator channels on a ring, protons flow from the periplasm to the cytoplasm, no kinetics', () => {
+test('the flagellar motor: eleven stator channels on a ring, protons flow from the periplasm to the cytoplasm; the direction and driving-gradient controls are the work\'s kinetics', () => {
   const config = normalizeDataConfig(mechanismWorkConfig({ process: 'flagellarMotor', axis: 'long', up: 'hook protein', membranes: [{ at: 'M-ring', offset: 18 }, { at: 'L-ring', offset: 0 }] }));
-  assert.equal(config.animation.flows.length, 11); assert.equal(config.kinetics, undefined);
+  assert.equal(config.animation.flows.length, 11); assert.deepEqual(config.kinetics.controls.map(({ id }) => id), ['pmf', 'cw']);
   assert.deepEqual([config.axis, config.up], ['long', 'hook protein']);
   assert.ok(config.animation.flows.every((f) => f.perTurn === 4), 'each stator passes 4 protons per turn: 44 in all');
   assert.deepEqual(config.animation.flows.map((f) => f.phase), Array.from({ length: 11 }, (_, k) => +(k / 44).toFixed(6)), 'the stators take turns, 1/44 turn apart');

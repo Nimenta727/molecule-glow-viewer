@@ -87,3 +87,26 @@ export const CHLOROPLAST_KINETICS = {
     { when: 'cef', text: '光照稳态：腔 pH ≈ {7 - 0.55 * dpH|1}，基质 pH ≈ {7 + 0.45 * dpH|1}，ΔpH ≈ {dpH|1}（叶绿体的质子动力势主要是 ΔpH）。ATP 和 NADPH 被卡尔文循环按 3 : 2 消耗，环式电子流补足 ATP。' },
     { text: '光照稳态：腔 pH ≈ {7 - 0.55 * dpH|1}，基质 pH ≈ {7 + 0.45 * dpH|1}，ΔpH ≈ {dpH|1}（叶绿体的质子动力势主要是 ΔpH）。ATP 和 NADPH 被卡尔文循环按 3 : 2 消耗。' }],
 };
+
+/* The flagellar motor's two controls (the classic only said, in a text, that CheY-P "can switch the direction"; there was no switch and no gradient control): the driving gradient (the proton motive
+   force) sets the speed, linearly as in the low-load regime of the real motor, and zero gradient means no proton passes, so no turn; CheY-P bound to the C ring switches the rotation from counter-clockwise
+   (CCW: the flagella bundle, the cell swims straight) to clockwise (CW: they fly apart, the cell tumbles). `rotor` is the signed pace of the rotor; the protons follow the turns made, in either direction. */
+export const FLAGELLAR_KINETICS = {
+  version: 1, title: '鞭毛马达：驱动梯度与转向',
+  constants: { pmf0: 150 },
+  state: {},
+  controls: [
+    { id: 'pmf', type: 'range', label: '质子动力势（驱动梯度）', tip: '梯度越大转得越快；降到 0 时没有质子流过，马达停转——质子才是动力，只转不过质子是不可能的', min: 0, max: 200, step: 10, default: 150, unit: 'mV' },
+    toggle('cw', 'CheY-P 结合 C 环（顺时针）', 'CheY-P 结合 C 环上的 FliG，使马达从逆时针（鞭毛成束、细菌直线游动）切换为顺时针（鞭毛散开、细菌翻滚转向）', false),
+  ],
+  step: [{ let: 'rotor', expr: '(cw ? -1 : 1) * pmf / pmf0' }],
+  series: [
+    { label: '转速', range: [-0.2, 0.2], color: '#d9480f', expr: 'rotor', format: { digits: 2, scale: 0.1, unit: ' 转/示意秒' } },
+    { label: '方向', range: [-1, 1], color: '#4f8ff0', expr: 'cw ? -1 : 1', format: { digits: 0, scale: 1 } },
+  ],
+  explain: [
+    { when: 'pmf < 1', text: '没有质子动力势：没有质子流过定子，马达停转。鞭毛马达直接用这个梯度，不用 ATP。' },
+    { when: 'cw', text: 'CheY-P 结合 C 环（FliG）：马达切换为顺时针转动（CW），鞭毛散开，细菌翻滚改变方向。质子仍然一圈一圈地流过，转得和逆时针一样快，只是方向相反。' },
+    { when: '1', text: '逆时针转动（CCW）：多条鞭毛成束，细菌直线游动。转速随质子动力势（现为 {pmf|0} mV）变化，质子每转 44 个按顺序流过 11 个定子（示意）。' },
+  ],
+};

@@ -1,4 +1,4 @@
-import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS } from './mechanism-kinetics.mjs';
+import { RESPIRATORY_CHAIN_KINETICS, CHLOROPLAST_KINETICS, FLAGELLAR_KINETICS } from './mechanism-kinetics.mjs';
 import { MECHANISM_ENERGY } from './mechanism-energy.mjs';
 import { CHLOROPLAST_ANCHORS, CHLOROPLAST_RELAY, CHLOROPLAST_ATP_FLOWS, chloroplastRotor } from './chloroplast-relay.mjs';
 import { RESPIRATORY_ANCHORS, RESPIRATORY_RELAY, ATP_SYNTHASE_ANCHORS, ATP_SYNTHASE_FLOWS, RESPIRATORY_LEDGER, respiratoryRotor } from './respiratory-relay.mjs';
@@ -32,7 +32,7 @@ const flagellarAnimation = (legacy) => ({
       labelVia: 'H⁺（经定子 MotA/MotB）', perTurn: 4, phase: +(k / (4 * STATORS)).toFixed(6), counter: 'H⁺（示意）' };
   }),
   reactions: [],
-  ...(Array.isArray(legacy?.spin) && legacy.spin.length ? { rotor: { parts: legacy.spin.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 80)).slice(0, 12), mode: 'long', turnsPerSecond: 0.1 } } : {}),
+  ...(Array.isArray(legacy?.spin) && legacy.spin.length ? { rotor: { parts: legacy.spin.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 80)).slice(0, 12), mode: 'long', turnsPerSecond: 0.1, by: 'rotor' } } : {}),
 });
 export const MECHANISM_WORK_PROCESSES = Object.freeze([...Object.keys(WORKS), 'flagellarMotor']);
 
@@ -44,7 +44,7 @@ export function mechanismWorkConfig(legacy) {
   const text = (v) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 120) : undefined);
   if (legacy?.process === 'flagellarMotor') {
     return { animation: flagellarAnimation(legacy), axis: ['sym', 'long', 'short', 'native'].includes(legacy.axis) ? legacy.axis : 'long', ...(text(legacy.up) ? { up: text(legacy.up) } : text(legacy.down) ? { down: text(legacy.down) } : {}),
-      membranes: Array.isArray(legacy.membranes) && legacy.membranes.length ? legacy.membranes.slice(0, 2).map((m) => ({ at: String(m.at ?? ''), offset: Number(m.offset) || 0 })) : [{ at: 'M-ring', offset: 18 }], seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7, scale: 'slow', energy: structuredClone(MECHANISM_ENERGY.flagellarMotor) };
+      membranes: Array.isArray(legacy.membranes) && legacy.membranes.length ? legacy.membranes.slice(0, 2).map((m) => ({ at: String(m.at ?? ''), offset: Number(m.offset) || 0 })) : [{ at: 'M-ring', offset: 18 }], seed: Number.isSafeInteger(legacy.seed) ? legacy.seed : 7, scale: 'slow', kinetics: structuredClone(FLAGELLAR_KINETICS), energy: structuredClone(MECHANISM_ENERGY.flagellarMotor) };
   }
   const work = WORKS[legacy?.process];
   if (!work) return undefined;
