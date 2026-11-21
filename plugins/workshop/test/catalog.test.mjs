@@ -22,7 +22,7 @@ test('the real catalogues load: works and resources of the official source, with
   assert.ok(catalog.templates.every((entry) => entry.zone === 'template' && entry.tools.length === 0), 'a template needs no tool');
   assert.ok(catalog.works.every((entry) => entry.zone === 'work' && entry.tools.length > 0), 'a work names the tools it needs');
   assert.deepEqual([...new Set([...catalog.templates, ...catalog.works].map((entry) => entry.topic))].sort(), ['cell', 'local-system', 'mechanism', 'protein'], 'the four subjects');
-  assert.equal(catalog.resources.length, 11);
+  assert.equal(catalog.resources.length, 29, '11 first, then every structure the official works use, and the maltose-binding protein and Bacillus PS3 ATP synthase of the presets');
   assert.ok([...catalog.templates, ...catalog.works].every((work) => work.kind === 'work' && work.source === 'official' && /^[a-f0-9]{64}$/.test(work.sha256)));
   assert.ok(catalog.resources.every((entry) => entry.kind === 'resource' && entry.delivery === 'reference' && entry.record.attribution.license === 'CC0-1.0'));
   assert.deepEqual(catalog.errors.map(({ source, zone }) => `${source}/${zone}`), ['community/resources'], 'the community source has works (none yet) but no resource catalogue');
@@ -37,7 +37,7 @@ test('queries match titles, tags, ids and accessions, by zone, source and tag', 
   assert.deepEqual(queryCatalog(catalog, { zone: 'templates', text: 'atp 合酶' }).map(({ id }) => id).includes('official.kcsa'), false, 'every word must match');
   assert.deepEqual(queryCatalog(catalog, { zone: 'templates', text: '6zpo' }).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.respiratory-chain'], 'by the structure a template uses');
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', text: 'kcsa' }).map(({ id }) => id).sort(), ['res.rcsb.1K4C', 'res.rcsb.2HVK', 'res.rcsb.2ITD', 'res.rcsb.5VK6', 'res.rcsb.5VKE']);
-  assert.deepEqual(queryCatalog(catalog, { zone: 'resources', text: 'escherichia' }).map(({ id }) => id), ['res.rcsb.1AKE', 'res.rcsb.4AKE'], 'by species');
+  assert.deepEqual(queryCatalog(catalog, { zone: 'resources', text: 'escherichia' }).map(({ id }) => id).sort(), ['res.rcsb.1AKE', 'res.rcsb.1ANF', 'res.rcsb.1AON', 'res.rcsb.1OMP', 'res.rcsb.4AKE', 'res.rcsb.4V6F'], 'by species');
   assert.deepEqual(queryCatalog(catalog, { zone: 'resources', tag: '阻断剂' }).map(({ id }) => id), ['res.rcsb.2HVK', 'res.rcsb.2ITD']);
   assert.equal(queryCatalog(catalog, { zone: 'works', source: 'community' }).length, 0);
   assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'cell' }).map(({ id }) => id), ['official.whole-cell'], 'by subject');
@@ -54,7 +54,8 @@ test('a work shows the resources it is built from, and a resource shows the work
   assert.deepEqual(relatedResources(catalog, adk).found.map(({ id }) => id), ['res.rcsb.4AKE', 'res.rcsb.1AKE']);
   assert.deepEqual(adk.tools, ['org.glow.tool.conformation-pair']);
   const spike = catalog.templates.find(({ id }) => id === 'official.spike');
-  assert.deepEqual(relatedResources(catalog, { ...spike, resources: ['res.rcsb.6VXX'] }), { found: [], missing: ['res.rcsb.6VXX'] });
+  assert.deepEqual(relatedResources(catalog, { ...spike, resources: ['res.rcsb.6VXX', 'res.rcsb.9ZZZ'] }).missing, ['res.rcsb.9ZZZ'], 'an id the catalogue does not hold is reported missing');
+  assert.deepEqual(relatedResources(catalog, spike).found.map(({ id }) => id), ['res.rcsb.6VXX'], 'the spike template is built from its registered resource');
   const atpResource = catalog.resources.find(({ id }) => id === 'res.rcsb.6ZPO');
   assert.deepEqual(worksUsing(catalog, atpResource).map(({ id }) => id).sort(), ['official.atp-synthase', 'official.atp-synthase.work', 'official.respiratory-chain', 'official.respiratory-chain.work']);
 });

@@ -3,8 +3,53 @@
  "version": 1,
  "source": "official",
  "name": "官方资源",
- "updated": "2026-11-20",
+ "updated": "2026-11-21",
  "resources": [
+  {
+   "kind": "resource",
+   "title": "菠菜铁氧还蛋白",
+   "description": "叶绿体光反应里的小型铁硫电子载体：把光系统 I 出来的电子交给铁氧还蛋白-NADP⁺ 还原酶。",
+   "tags": [
+    "铁氧还蛋白",
+    "电子载体",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1A70",
+    "version": "6734c041",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1A70.cif",
+      "sha256": "6734c041a144157d6511b4ba7f46bfadc0fb1236730c433a890fabe69bf9adba",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 141648
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1A70",
+     "url": "https://www.rcsb.org/structure/1A70"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "SPINACH FERREDOXIN",
+     "species": "Spinacia oleracea",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Structure of the mutant E92K of [2Fe-2S] ferredoxin I from Spinacia oleracea at 1.7 A resolution. (1998)",
+     "doi": "10.1107/S0907444998005137"
+    }
+   }
+  },
   {
    "kind": "resource",
    "title": "大肠杆菌腺苷酸激酶与 Ap5A（闭合态）",
@@ -48,6 +93,143 @@
      "method": "X-RAY DIFFRACTION",
      "citation": "Structure of the complex between adenylate kinase from Escherichia coli and the inhibitor Ap5A refined at 1.9 A resolution. A model for a catalytic transition state. (1992)",
      "doi": "10.1016/0022-2836(92)90582-5"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "麦芽糖结合蛋白与麦芽糖（闭合态）",
+   "description": "结合麦芽糖后的结构：糖被夹在两个结构域之间，裂缝闭合。",
+   "tags": [
+    "麦芽糖结合蛋白",
+    "构象变化",
+    "晶体结构",
+    "配体"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1ANF",
+    "version": "54a33f49",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1ANF.cif",
+      "sha256": "54a33f49073210a129a74ab256fab4f8dfedc3df5a4d43360d92e5636b93572f",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 356558
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1ANF",
+     "url": "https://www.rcsb.org/structure/1ANF"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "MALTODEXTRIN BINDING PROTEIN WITH BOUND MALTOSE",
+     "species": "Escherichia coli K-12",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Extensive features of tight oligosaccharide binding revealed in high-resolution structures of the maltodextrin transport/chemosensory receptor. (1997)",
+     "doi": "10.1016/S0969-2126(97)00253-0"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "大肠杆菌 GroEL/GroES 伴侣蛋白复合体",
+   "description": "不对称的 GroEL–GroES–ADP7 复合体：GroEL 桶状腔帮助蛋白折叠，GroES 做盖子。",
+   "tags": [
+    "分子伴侣",
+    "蛋白折叠",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1AON",
+    "version": "6b202f34",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1AON.cif",
+      "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 6293816
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1AON",
+     "url": "https://www.rcsb.org/structure/1AON"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "CRYSTAL STRUCTURE OF THE ASYMMETRIC CHAPERONIN COMPLEX GROEL/GROES/(ADP)7",
+     "species": "Escherichia coli",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "The crystal structure of the asymmetric GroEL-GroES-(ADP)7 chaperonin complex. (1997)",
+     "doi": "10.1038/41944"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "菠菜铁氧还蛋白-NADP⁺ 还原酶",
+   "description": "接收铁氧还蛋白的电子、把 NADP⁺ 还原为 NADPH 的黄素酶（1.7 Å）。",
+   "tags": [
+    "光合作用",
+    "电子载体",
+    "酶",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1FNB",
+    "version": "5ff9e006",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1FNB.cif",
+      "sha256": "5ff9e006f10b97a3ee62042679272769c9d6737972eeeaef0a8a90828991cdf2",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 329667
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1FNB",
+     "url": "https://www.rcsb.org/structure/1FNB"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "REFINED CRYSTAL STRUCTURE OF SPINACH FERREDOXIN REDUCTASE AT 1.7 ANGSTROMS RESOLUTION: OXIDIZED, REDUCED, AND 2'-PHOSPHO-5'-AMP BOUND STATES",
+     "species": "Spinacia oleracea",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Refined crystal structure of spinach ferredoxin reductase at 1.7 A resolution: oxidized, reduced and 2'-phospho-5'-AMP bound states. (1995)",
+     "doi": "10.1006/jmbi.1994.0127"
     }
    }
   },
@@ -138,6 +320,186 @@
      "method": "X-RAY DIFFRACTION",
      "citation": "Chemistry of ion coordination and hydration revealed by a K+ channel-Fab complex at 2.0 A resolution. (2001)",
      "doi": "10.1038/35102009"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "核小体核心颗粒（1.9 Å）",
+   "description": "147 个碱基对的 DNA 绕在组蛋白八聚体上的核小体核心颗粒。",
+   "tags": [
+    "染色质",
+    "核小体",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1KX5",
+    "version": "a55dc600",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1KX5.cif",
+      "sha256": "a55dc600553caf7b7b14f217768fed1566c5101ab0543dc86895224238b284a0",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 2016248
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1KX5",
+     "url": "https://www.rcsb.org/structure/1KX5"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "X-Ray Structure of the Nucleosome Core Particle, NCP147, at 1.9 A Resolution",
+     "species": "Homo sapiens; Xenopus laevis",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Solvent Mediated Interactions in the Structure of the Nucleosome Core Particle at 1.9 A Resolution (2002)",
+     "doi": "10.1016/S0022-2836(02)00386-8"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "麦芽糖结合蛋白（无配体，张开态）",
+   "description": "不带配体的结构，两个结构域之间的裂缝张开；条目标题说明它与结合麦芽糖后的结构相比有大幅铰链-扭转运动。",
+   "tags": [
+    "麦芽糖结合蛋白",
+    "构象变化",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1OMP",
+    "version": "8fc0436a",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1OMP.cif",
+      "sha256": "8fc0436ac9314dce1c504e6016e1fc05d95f5b71faa245036efb6e3efe670b8f",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 331434
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1OMP",
+     "url": "https://www.rcsb.org/structure/1OMP"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "CRYSTALLOGRAPHIC EVIDENCE OF A LARGE LIGAND-INDUCED HINGE-TWIST MOTION BETWEEN THE TWO DOMAINS OF THE MALTODEXTRIN-BINDING PROTEIN INVOLVED IN ACTIVE TRANSPORT AND CHEMOTAXIS",
+     "species": "Escherichia coli",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Crystallographic evidence of a large ligand-induced hinge-twist motion between the two domains of the maltodextrin binding protein involved in active transport and chemotaxis. (1992)",
+     "doi": "10.1021/bi00159a003"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "杨树质体蓝素",
+   "description": "含铜的小蛋白，在叶绿体里把电子从细胞色素 b6f 复合体带给光系统 I。",
+   "tags": [
+    "光合作用",
+    "电子载体",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1PLC",
+    "version": "ff6dea63",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1PLC.cif",
+      "sha256": "ff6dea63f20ee33eddffa2c7eaf599ab65562b92918feec0da49f7a282d48778",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 207672
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1PLC",
+     "url": "https://www.rcsb.org/structure/1PLC"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "ACCURACY AND PRECISION IN PROTEIN CRYSTAL STRUCTURE ANALYSIS: RESTRAINED LEAST-SQUARES REFINEMENT OF THE CRYSTAL STRUCTURE OF POPLAR PLASTOCYANIN AT 1.33 ANGSTROMS RESOLUTION",
+     "species": "Populus nigra",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Accuracy and precision in protein structure analysis: restrained least-squares refinement of the structure of poplar plastocyanin at 1.33 A resolution. (1992)",
+     "doi": "10.1107/S0108768192004270"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "沙门氏菌 R 型直鞭毛丝",
+   "description": "由全长鞭毛蛋白组成的 R 型直鞭毛丝（电子显微镜）。",
+   "tags": [
+    "鞭毛",
+    "鞭毛蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.1UCU",
+    "version": "b3ccb308",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "1UCU.cif",
+      "sha256": "b3ccb308371210b2c6c4fdd7d452d8c865c854faf67f05b7c183a31dcae26068",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 391726
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "1UCU",
+     "url": "https://www.rcsb.org/structure/1UCU"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "R-type straight flagellar filament made of full-length flagellin",
+     "species": "Salmonella enterica subsp. enterica serovar Typhimurium",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Complete atomic model of the bacterial flagellar filament by electron cryomicroscopy (2003)",
+     "doi": "10.1038/nature01830"
     }
    }
   },
@@ -322,6 +684,52 @@
   },
   {
    "kind": "resource",
+   "title": "70S 核糖体延伸复合体（三个 tRNA 与 mRNA）",
+   "description": "嗜热栖热菌 70S 核糖体与 mRNA、三个 tRNA 的延伸复合体：同一条目里有两个核糖体拷贝。",
+   "tags": [
+    "核糖体",
+    "翻译",
+    "晶体结构",
+    "tRNA"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.4V6F",
+    "version": "a48b6f98",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "4V6F.cif",
+      "sha256": "a48b6f9865ed1dff0e45d1992b9d20633582de6675c16d0b9a4abc75d595e56f",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 38137644
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "4V6F",
+     "url": "https://www.rcsb.org/structure/4V6F"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Elongation complex of the 70S ribosome with three tRNAs and mRNA.",
+     "species": "Thermus thermophilus HB8; Escherichia coli; Thermus thermophilus",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Structural aspects of messenger RNA reading frame maintenance by the ribosome. (2010)",
+     "doi": "10.1038/nsmb.1790"
+    }
+   }
+  },
+  {
+   "kind": "resource",
    "title": "哺乳动物呼吸链超复合体 I1III2IV1（呼吸体）",
    "description": "复合体 I、III 二聚体和 IV 组成的呼吸体。呼吸链作品使用的主结构（与 ATP 合酶 6ZPO、细胞色素 c 1HRC 同场景）。",
    "tags": [
@@ -363,6 +771,97 @@
      "method": "ELECTRON MICROSCOPY",
      "citation": "Structure of Mammalian Respiratory Supercomplex I1III2IV1 (2016)",
      "doi": "10.1016/j.cell.2016.11.012"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "豌豆光系统 I 超复合体",
+   "description": "植物光系统 I 与其天线蛋白组成的超复合体（2.6 Å，X 射线晶体学）。",
+   "tags": [
+    "光合作用",
+    "膜蛋白",
+    "晶体结构",
+    "光系统"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.5L8R",
+    "version": "1d92d036",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "5L8R.cif",
+      "sha256": "1d92d03686465da89d15a701882cbdabea7431e642451771b96c180b0c4a790e",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 8138861
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "5L8R",
+     "url": "https://www.rcsb.org/structure/5L8R"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "The structure of plant photosystem I super-complex at 2.6 angstrom resolution.",
+     "species": "Lathyrus oleraceus",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "Structure of the plant photosystem I supercomplex at 2.6 angstrom resolution. (2017)",
+     "doi": "10.1038/nplants.2017.14"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "人 20S 蛋白酶体（1.8 Å）",
+   "description": "天然人 20S 蛋白酶体：四层环叠成的桶状蛋白降解机器。",
+   "tags": [
+    "蛋白酶体",
+    "蛋白降解",
+    "晶体结构"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.5LE5",
+    "version": "e3f4fbd1",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "5LE5.cif",
+      "sha256": "e3f4fbd1ac6d9182a394bf857454d84dccc4cf3ae18852bb9fb3e5c832ca848a",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 9818704
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "5LE5",
+     "url": "https://www.rcsb.org/structure/5LE5"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Native human 20S proteasome at 1.8 Angstrom",
+     "species": "Homo sapiens",
+     "method": "X-RAY DIFFRACTION",
+     "citation": "The inhibition mechanism of human 20S proteasomes enables next-generation inhibitor design. (2016)",
+     "doi": "10.1126/science.aaf8993"
     }
    }
   },
@@ -459,6 +958,234 @@
   },
   {
    "kind": "resource",
+   "title": "菠菜叶绿体 F1Fo ATP 合酶（构象 1）",
+   "description": "叶绿体的 F1Fo ATP 合酶，类囊体膜上用质子梯度合成 ATP。",
+   "tags": [
+    "ATP 合酶",
+    "光合作用",
+    "膜蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6FKF",
+    "version": "b4ceec41",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6FKF.cif",
+      "sha256": "b4ceec414fe8e6b4913f2c99a8193b4c5c7b865b4cb4368b22248116a7047cc6",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 4187781
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6FKF",
+     "url": "https://www.rcsb.org/structure/6FKF"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Chloroplast F1Fo conformation 1",
+     "species": "Spinacia oleracea",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure, mechanism, and regulation of the chloroplast ATP synthase. (2018)",
+     "doi": "10.1126/science.aat4318"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "枯草芽孢杆菌 PS3 ATP 合酶（c10 环）",
+   "description": "细菌 F1Fo ATP 合酶（3.0 Å 冷冻电镜），c 环有 10 个亚基。",
+   "tags": [
+    "ATP 合酶",
+    "膜蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6N2Y",
+    "version": "cd24029e",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6N2Y.cif",
+      "sha256": "cd24029e8075a2dc36413fc67565d06df98f75ed0460d2c8907df9c2159a3984",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 3936053
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6N2Y",
+     "url": "https://www.rcsb.org/structure/6N2Y"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Bacillus PS3 ATP synthase class 1",
+     "species": "Bacillus sp. PS3",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure of a bacterial ATP synthase. (2019)",
+     "doi": "10.7554/eLife.43128"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "菠菜二聚体细胞色素 b6f 复合体",
+   "description": "连接光系统 II 与光系统 I 的细胞色素 b6f 复合体二聚体（3.6 Å 冷冻电镜）。",
+   "tags": [
+    "光合作用",
+    "膜蛋白",
+    "冷冻电镜",
+    "电子传递"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6RQF",
+    "version": "b0cb6dc6",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6RQF.cif",
+      "sha256": "b0cb6dc68a6b31d1824792bfd9c4365ecdb586c1c816778857470cef443465d6",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 1803142
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6RQF",
+     "url": "https://www.rcsb.org/structure/6RQF"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "3.6 Angstrom cryo-EM structure of the dimeric cytochrome b6f complex from Spinacia oleracea with natively bound thylakoid lipids and plastoquinone molecules",
+     "species": "Spinacia oleracea",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Cryo-EM structure of the spinach cytochrome b6f complex at 3.6 angstrom resolution. (2019)",
+     "doi": "10.1038/s41586-019-1746-6"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "SARS-CoV-2 刺突糖蛋白（关闭态）",
+   "description": "SARS-CoV-2 刺突糖蛋白三聚体，三个受体结合域都处于关闭状态。",
+   "tags": [
+    "病毒",
+    "刺突蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6VXX",
+    "version": "74ceac62",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6VXX.cif",
+      "sha256": "74ceac62dc45e34818f7c6f32fc12690f250ad803b999c1d7399a362ecd86984",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 2560152
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6VXX",
+     "url": "https://www.rcsb.org/structure/6VXX"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Structure of the SARS-CoV-2 spike glycoprotein (closed state)",
+     "species": "Severe acute respiratory syndrome coronavirus 2",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure, Function, and Antigenicity of the SARS-CoV-2 Spike Glycoprotein. (2020)",
+     "doi": "10.1016/j.cell.2020.02.058"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "空肠弯曲菌 MotAB 定子",
+   "description": "鞭毛马达定子单元 MotAB：质子顺梯度通过它驱动转子转动。",
+   "tags": [
+    "鞭毛马达",
+    "定子",
+    "膜蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.6YKM",
+    "version": "103e10b8",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "6YKM.cif",
+      "sha256": "103e10b885c130846ab357a9f3a533a68b4d01e29703eba5a648e313af7ccf32",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 1208354
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "6YKM",
+     "url": "https://www.rcsb.org/structure/6YKM"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Structure of C. jejuni MotAB",
+     "species": "Campylobacter jejuni subsp. jejuni 81-176",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structure and Function of Stator Units of the Bacterial Flagellar Motor. (2020)",
+     "doi": "10.1016/j.cell.2020.08.016"
+    }
+   }
+  },
+  {
+   "kind": "resource",
    "title": "牛线粒体 ATP 合酶（整体，状态 1）",
    "description": "完整的 F1Fo ATP 合酶：F1 头部、中央柄、c 环和 a 亚基。ATP 合酶作品使用的主结构。",
    "tags": [
@@ -499,6 +1226,97 @@
      "method": "ELECTRON MICROSCOPY",
      "citation": "Structure of the dimeric ATP synthase from bovine mitochondria. (2020)",
      "doi": "10.1073/pnas.2013998117"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "沙门氏菌鞭毛马达—钩复合体",
+   "description": "鞭毛马达与钩（hook）的复合体冷冻电镜结构。",
+   "tags": [
+    "鞭毛马达",
+    "膜蛋白",
+    "冷冻电镜"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.7CGO",
+    "version": "998672b6",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "7CGO.cif",
+      "sha256": "998672b6add5b32d32044fb76158a6484a608515e5d726ca480c12a65a43b019",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 36253003
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "7CGO",
+     "url": "https://www.rcsb.org/structure/7CGO"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Cryo-EM structure of the flagellar motor-hook complex from Salmonella",
+     "species": "Salmonella enterica subsp. enterica serovar Typhimurium str. LT2",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structural basis of assembly and torque transmission of the bacterial flagellar motor. (2021)",
+     "doi": "10.1016/j.cell.2021.03.057"
+    }
+   }
+  },
+  {
+   "kind": "resource",
+   "title": "沙门氏菌鞭毛 C 环（逆时针态）",
+   "description": "鞭毛马达的 C 环（转子的胞质部分）处于逆时针（CCW）状态。",
+   "tags": [
+    "鞭毛马达",
+    "C 环",
+    "冷冻电镜",
+    "换向"
+   ],
+   "delivery": "reference",
+   "updated": "2026-11-21",
+   "record": {
+    "format": "glow-resource",
+    "schemaVersion": 1,
+    "id": "res.rcsb.8YJT",
+    "version": "5dfc090a",
+    "kind": "structure",
+    "files": [
+     {
+      "path": "8YJT.cif",
+      "sha256": "5dfc090aafa211d8542c2b40eab235f2032b68ae51bbd031e3c80ff755ff1c1f",
+      "mediaType": "chemical/x-mmcif",
+      "bytes": 25170491
+     }
+    ],
+    "source": {
+     "provider": "rcsb",
+     "accession": "8YJT",
+     "url": "https://www.rcsb.org/structure/8YJT"
+    },
+    "attribution": {
+     "license": "CC0-1.0",
+     "credit": "RCSB Protein Data Bank / wwPDB",
+     "url": "https://www.rcsb.org/",
+     "embedAllowed": true
+    },
+    "card": {
+     "title": "Cryo-EM structure of the flagellar C ring in the CCW state",
+     "species": "Salmonella enterica subsp. enterica serovar Typhimurium str. LT2",
+     "method": "ELECTRON MICROSCOPY",
+     "citation": "Structural basis of the bacterial flagellar motor rotational switching. (2024)",
+     "doi": "10.1038/s41422-024-01017-z"
     }
    }
   }

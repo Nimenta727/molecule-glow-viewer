@@ -713,6 +713,831 @@
           "canonical_url": "https://www.rcsb.org/structure/1HRC"
         }
       ]
+    },
+    {
+      "id": "1A70",
+      "coordinate": {
+        "id": "1A70",
+        "bytes": 141648,
+        "sha256": "6734c041a144157d6511b4ba7f46bfadc0fb1236730c433a890fabe69bf9adba",
+        "url": "https://files.rcsb.org/download/1A70.cif"
+      },
+      "title": "SPINACH FERREDOXIN",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of the mutant E92K of [2Fe-2S] ferredoxin I from Spinacia oleracea at 1.7 A resolution.",
+        "year": 1998,
+        "pdbx_database_id_PubMed": 10089511,
+        "pdbx_database_id_DOI": "10.1107/S0907444998005137"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Spinacia oleracea",
+          "ncbi_taxonomy_id": 3562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1A70",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1A70",
+          "canonical_url": "https://www.rcsb.org/structure/1A70"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1AON",
+      "coordinate": {
+        "id": "1AON",
+        "bytes": 6293816,
+        "sha256": "6b202f340ffb9a1924d5315ce9e837e02cee1dbd745df675be76f6d4e1b8e66f",
+        "url": "https://files.rcsb.org/download/1AON.cif"
+      },
+      "title": "CRYSTAL STRUCTURE OF THE ASYMMETRIC CHAPERONIN COMPLEX GROEL/GROES/(ADP)7",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "The crystal structure of the asymmetric GroEL-GroES-(ADP)7 chaperonin complex.",
+        "year": 1997,
+        "pdbx_database_id_PubMed": 9285585,
+        "pdbx_database_id_DOI": "10.1038/41944"
+      },
+      "polymer_entity_checked": "all 2 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Escherichia coli",
+          "ncbi_taxonomy_id": 562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1AON",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1AON",
+          "canonical_url": "https://www.rcsb.org/structure/1AON"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1FNB",
+      "coordinate": {
+        "id": "1FNB",
+        "bytes": 329667,
+        "sha256": "5ff9e006f10b97a3ee62042679272769c9d6737972eeeaef0a8a90828991cdf2",
+        "url": "https://files.rcsb.org/download/1FNB.cif"
+      },
+      "title": "REFINED CRYSTAL STRUCTURE OF SPINACH FERREDOXIN REDUCTASE AT 1.7 ANGSTROMS RESOLUTION: OXIDIZED, REDUCED, AND 2'-PHOSPHO-5'-AMP BOUND STATES",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Refined crystal structure of spinach ferredoxin reductase at 1.7 A resolution: oxidized, reduced and 2'-phospho-5'-AMP bound states.",
+        "year": 1995,
+        "pdbx_database_id_PubMed": 7897656,
+        "pdbx_database_id_DOI": "10.1006/jmbi.1994.0127"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Spinacia oleracea",
+          "ncbi_taxonomy_id": 3562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1FNB",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1FNB",
+          "canonical_url": "https://www.rcsb.org/structure/1FNB"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1KX5",
+      "coordinate": {
+        "id": "1KX5",
+        "bytes": 2016248,
+        "sha256": "a55dc600553caf7b7b14f217768fed1566c5101ab0543dc86895224238b284a0",
+        "url": "https://files.rcsb.org/download/1KX5.cif"
+      },
+      "title": "X-Ray Structure of the Nucleosome Core Particle, NCP147, at 1.9 A Resolution",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Solvent Mediated Interactions in the Structure of the Nucleosome Core Particle at 1.9 A Resolution",
+        "year": 2002,
+        "pdbx_database_id_PubMed": 12079350,
+        "pdbx_database_id_DOI": "10.1016/S0022-2836(02)00386-8"
+      },
+      "polymer_entity_checked": "all 6 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Homo sapiens",
+          "ncbi_taxonomy_id": 9606,
+          "source_type": "genetically engineered"
+        },
+        {
+          "ncbi_scientific_name": "Xenopus laevis",
+          "ncbi_taxonomy_id": 8355,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1KX5",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1KX5",
+          "canonical_url": "https://www.rcsb.org/structure/1KX5"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1PLC",
+      "coordinate": {
+        "id": "1PLC",
+        "bytes": 207672,
+        "sha256": "ff6dea63f20ee33eddffa2c7eaf599ab65562b92918feec0da49f7a282d48778",
+        "url": "https://files.rcsb.org/download/1PLC.cif"
+      },
+      "title": "ACCURACY AND PRECISION IN PROTEIN CRYSTAL STRUCTURE ANALYSIS: RESTRAINED LEAST-SQUARES REFINEMENT OF THE CRYSTAL STRUCTURE OF POPLAR PLASTOCYANIN AT 1.33 ANGSTROMS RESOLUTION",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Accuracy and precision in protein structure analysis: restrained least-squares refinement of the structure of poplar plastocyanin at 1.33 A resolution.",
+        "year": 1992,
+        "pdbx_database_id_PubMed": 1492962,
+        "pdbx_database_id_DOI": "10.1107/S0108768192004270"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Populus nigra",
+          "ncbi_taxonomy_id": 3691,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1PLC",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1PLC",
+          "canonical_url": "https://www.rcsb.org/structure/1PLC"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1UCU",
+      "coordinate": {
+        "id": "1UCU",
+        "bytes": 391726,
+        "sha256": "b3ccb308371210b2c6c4fdd7d452d8c865c854faf67f05b7c183a31dcae26068",
+        "url": "https://files.rcsb.org/download/1UCU.cif"
+      },
+      "title": "R-type straight flagellar filament made of full-length flagellin",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Complete atomic model of the bacterial flagellar filament by electron cryomicroscopy",
+        "year": 2003,
+        "pdbx_database_id_PubMed": 12904785,
+        "pdbx_database_id_DOI": "10.1038/nature01830"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Salmonella enterica subsp. enterica serovar Typhimurium",
+          "ncbi_taxonomy_id": 90371,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1UCU",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1UCU",
+          "canonical_url": "https://www.rcsb.org/structure/1UCU"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "4V6F",
+      "coordinate": {
+        "id": "4V6F",
+        "bytes": 38137644,
+        "sha256": "a48b6f9865ed1dff0e45d1992b9d20633582de6675c16d0b9a4abc75d595e56f",
+        "url": "https://files.rcsb.org/download/4V6F.cif"
+      },
+      "title": "Elongation complex of the 70S ribosome with three tRNAs and mRNA.",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structural aspects of messenger RNA reading frame maintenance by the ribosome.",
+        "year": 2010,
+        "pdbx_database_id_PubMed": 20400952,
+        "pdbx_database_id_DOI": "10.1038/nsmb.1790"
+      },
+      "polymer_entity_checked": "all 58 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Thermus thermophilus HB8",
+          "ncbi_taxonomy_id": 300852,
+          "source_type": "natural"
+        },
+        {
+          "ncbi_scientific_name": "Escherichia coli",
+          "ncbi_taxonomy_id": 562,
+          "source_type": "natural"
+        },
+        {
+          "ncbi_scientific_name": "Thermus thermophilus",
+          "ncbi_taxonomy_id": 274,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/4V6F",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/4V6F",
+          "canonical_url": "https://www.rcsb.org/structure/4V6F"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "5L8R",
+      "coordinate": {
+        "id": "5L8R",
+        "bytes": 8138861,
+        "sha256": "1d92d03686465da89d15a701882cbdabea7431e642451771b96c180b0c4a790e",
+        "url": "https://files.rcsb.org/download/5L8R.cif"
+      },
+      "title": "The structure of plant photosystem I super-complex at 2.6 angstrom resolution.",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of the plant photosystem I supercomplex at 2.6 angstrom resolution.",
+        "year": 2017,
+        "pdbx_database_id_PubMed": 28248295,
+        "pdbx_database_id_DOI": "10.1038/nplants.2017.14"
+      },
+      "polymer_entity_checked": "all 16 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Lathyrus oleraceus",
+          "ncbi_taxonomy_id": 3888,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/5L8R",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/5L8R",
+          "canonical_url": "https://www.rcsb.org/structure/5L8R"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "5LE5",
+      "coordinate": {
+        "id": "5LE5",
+        "bytes": 9818704,
+        "sha256": "e3f4fbd1ac6d9182a394bf857454d84dccc4cf3ae18852bb9fb3e5c832ca848a",
+        "url": "https://files.rcsb.org/download/5LE5.cif"
+      },
+      "title": "Native human 20S proteasome at 1.8 Angstrom",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "The inhibition mechanism of human 20S proteasomes enables next-generation inhibitor design.",
+        "year": 2016,
+        "pdbx_database_id_PubMed": 27493187,
+        "pdbx_database_id_DOI": "10.1126/science.aaf8993"
+      },
+      "polymer_entity_checked": "all 14 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Homo sapiens",
+          "ncbi_taxonomy_id": 9606,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/5LE5",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/5LE5",
+          "canonical_url": "https://www.rcsb.org/structure/5LE5"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "6FKF",
+      "coordinate": {
+        "id": "6FKF",
+        "bytes": 4187781,
+        "sha256": "b4ceec414fe8e6b4913f2c99a8193b4c5c7b865b4cb4368b22248116a7047cc6",
+        "url": "https://files.rcsb.org/download/6FKF.cif"
+      },
+      "title": "Chloroplast F1Fo conformation 1",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure, mechanism, and regulation of the chloroplast ATP synthase.",
+        "year": 2018,
+        "pdbx_database_id_PubMed": 29748256,
+        "pdbx_database_id_DOI": "10.1126/science.aat4318"
+      },
+      "polymer_entity_checked": "all 9 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Spinacia oleracea",
+          "ncbi_taxonomy_id": 3562,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6FKF",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6FKF",
+          "canonical_url": "https://www.rcsb.org/structure/6FKF"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "6RQF",
+      "coordinate": {
+        "id": "6RQF",
+        "bytes": 1803142,
+        "sha256": "b0cb6dc68a6b31d1824792bfd9c4365ecdb586c1c816778857470cef443465d6",
+        "url": "https://files.rcsb.org/download/6RQF.cif"
+      },
+      "title": "3.6 Angstrom cryo-EM structure of the dimeric cytochrome b6f complex from Spinacia oleracea with natively bound thylakoid lipids and plastoquinone molecules",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Cryo-EM structure of the spinach cytochrome b6f complex at 3.6 angstrom resolution.",
+        "year": 2019,
+        "pdbx_database_id_PubMed": 31723268,
+        "pdbx_database_id_DOI": "10.1038/s41586-019-1746-6"
+      },
+      "polymer_entity_checked": "all 8 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Spinacia oleracea",
+          "ncbi_taxonomy_id": 3562,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6RQF",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6RQF",
+          "canonical_url": "https://www.rcsb.org/structure/6RQF"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "6VXX",
+      "coordinate": {
+        "id": "6VXX",
+        "bytes": 2560152,
+        "sha256": "74ceac62dc45e34818f7c6f32fc12690f250ad803b999c1d7399a362ecd86984",
+        "url": "https://files.rcsb.org/download/6VXX.cif"
+      },
+      "title": "Structure of the SARS-CoV-2 spike glycoprotein (closed state)",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure, Function, and Antigenicity of the SARS-CoV-2 Spike Glycoprotein.",
+        "year": 2020,
+        "pdbx_database_id_PubMed": 32155444,
+        "pdbx_database_id_DOI": "10.1016/j.cell.2020.02.058"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Severe acute respiratory syndrome coronavirus 2",
+          "ncbi_taxonomy_id": 2697049,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6VXX",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6VXX",
+          "canonical_url": "https://www.rcsb.org/structure/6VXX"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "6YKM",
+      "coordinate": {
+        "id": "6YKM",
+        "bytes": 1208354,
+        "sha256": "103e10b885c130846ab357a9f3a533a68b4d01e29703eba5a648e313af7ccf32",
+        "url": "https://files.rcsb.org/download/6YKM.cif"
+      },
+      "title": "Structure of C. jejuni MotAB",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure and Function of Stator Units of the Bacterial Flagellar Motor.",
+        "year": 2020,
+        "pdbx_database_id_PubMed": 32931735,
+        "pdbx_database_id_DOI": "10.1016/j.cell.2020.08.016"
+      },
+      "polymer_entity_checked": "all 2 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Campylobacter jejuni subsp. jejuni 81-176",
+          "ncbi_taxonomy_id": 354242,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6YKM",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6YKM",
+          "canonical_url": "https://www.rcsb.org/structure/6YKM"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "7CGO",
+      "coordinate": {
+        "id": "7CGO",
+        "bytes": 36253003,
+        "sha256": "998672b6add5b32d32044fb76158a6484a608515e5d726ca480c12a65a43b019",
+        "url": "https://files.rcsb.org/download/7CGO.cif"
+      },
+      "title": "Cryo-EM structure of the flagellar motor-hook complex from Salmonella",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structural basis of assembly and torque transmission of the bacterial flagellar motor.",
+        "year": 2021,
+        "pdbx_database_id_PubMed": 33882274,
+        "pdbx_database_id_DOI": "10.1016/j.cell.2021.03.057"
+      },
+      "polymer_entity_checked": "all 16 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Salmonella enterica subsp. enterica serovar Typhimurium str. LT2",
+          "ncbi_taxonomy_id": 99287,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/7CGO",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/7CGO",
+          "canonical_url": "https://www.rcsb.org/structure/7CGO"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "8YJT",
+      "coordinate": {
+        "id": "8YJT",
+        "bytes": 25170491,
+        "sha256": "5dfc090aafa211d8542c2b40eab235f2032b68ae51bbd031e3c80ff755ff1c1f",
+        "url": "https://files.rcsb.org/download/8YJT.cif"
+      },
+      "title": "Cryo-EM structure of the flagellar C ring in the CCW state",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structural basis of the bacterial flagellar motor rotational switching.",
+        "year": 2024,
+        "pdbx_database_id_PubMed": 39179739,
+        "pdbx_database_id_DOI": "10.1038/s41422-024-01017-z"
+      },
+      "polymer_entity_checked": "all 4 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Salmonella enterica subsp. enterica serovar Typhimurium str. LT2",
+          "ncbi_taxonomy_id": 99287,
+          "source_type": "natural"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/8YJT",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/8YJT",
+          "canonical_url": "https://www.rcsb.org/structure/8YJT"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1OMP",
+      "coordinate": {
+        "id": "1OMP",
+        "bytes": 331434,
+        "sha256": "8fc0436ac9314dce1c504e6016e1fc05d95f5b71faa245036efb6e3efe670b8f",
+        "url": "https://files.rcsb.org/download/1OMP.cif"
+      },
+      "title": "CRYSTALLOGRAPHIC EVIDENCE OF A LARGE LIGAND-INDUCED HINGE-TWIST MOTION BETWEEN THE TWO DOMAINS OF THE MALTODEXTRIN-BINDING PROTEIN INVOLVED IN ACTIVE TRANSPORT AND CHEMOTAXIS",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Crystallographic evidence of a large ligand-induced hinge-twist motion between the two domains of the maltodextrin binding protein involved in active transport and chemotaxis.",
+        "year": 1992,
+        "pdbx_database_id_PubMed": 1420181,
+        "pdbx_database_id_DOI": "10.1021/bi00159a003"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Escherichia coli",
+          "ncbi_taxonomy_id": 562,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1OMP",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1OMP",
+          "canonical_url": "https://www.rcsb.org/structure/1OMP"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "1ANF",
+      "coordinate": {
+        "id": "1ANF",
+        "bytes": 356558,
+        "sha256": "54a33f49073210a129a74ab256fab4f8dfedc3df5a4d43360d92e5636b93572f",
+        "url": "https://files.rcsb.org/download/1ANF.cif"
+      },
+      "title": "MALTODEXTRIN BINDING PROTEIN WITH BOUND MALTOSE",
+      "method": [
+        {
+          "method": "X-RAY DIFFRACTION"
+        }
+      ],
+      "primary_citation": {
+        "title": "Extensive features of tight oligosaccharide binding revealed in high-resolution structures of the maltodextrin transport/chemosensory receptor.",
+        "year": 1997,
+        "pdbx_database_id_PubMed": 9309217,
+        "pdbx_database_id_DOI": "10.1016/S0969-2126(97)00253-0"
+      },
+      "polymer_entity_checked": "all 1 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Escherichia coli K-12",
+          "ncbi_taxonomy_id": 83333,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/1ANF",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/1ANF",
+          "canonical_url": "https://www.rcsb.org/structure/1ANF"
+        }
+      ],
+      "checked_sources": []
+    },
+    {
+      "id": "6N2Y",
+      "coordinate": {
+        "id": "6N2Y",
+        "bytes": 3936053,
+        "sha256": "cd24029e8075a2dc36413fc67565d06df98f75ed0460d2c8907df9c2159a3984",
+        "url": "https://files.rcsb.org/download/6N2Y.cif"
+      },
+      "title": "Bacillus PS3 ATP synthase class 1",
+      "method": [
+        {
+          "method": "ELECTRON MICROSCOPY"
+        }
+      ],
+      "primary_citation": {
+        "title": "Structure of a bacterial ATP synthase.",
+        "year": 2019,
+        "pdbx_database_id_PubMed": 30724163,
+        "pdbx_database_id_DOI": "10.7554/eLife.43128"
+      },
+      "polymer_entity_checked": "all 9 polymer entities",
+      "organisms": [
+        {
+          "ncbi_scientific_name": "Bacillus sp. PS3",
+          "ncbi_taxonomy_id": 2334,
+          "source_type": "genetically engineered"
+        }
+      ],
+      "entity_poly": {
+        "pdbx_mutation": null
+      },
+      "mutation": null,
+      "sources": [
+        {
+          "name": "RCSB Protein Data Bank",
+          "url": "https://www.rcsb.org/structure/6N2Y",
+          "retrieved_at": "2026-11-21T06:54:19.138Z",
+          "supports_claim": true,
+          "kind": "evidence",
+          "request_url": "https://data.rcsb.org/rest/v1/core/entry/6N2Y",
+          "canonical_url": "https://www.rcsb.org/structure/6N2Y"
+        }
+      ],
+      "checked_sources": []
     }
   ]
 }

@@ -24,7 +24,9 @@
    "pdb": [
     "5LE5"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.5LE5"
+   ],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.proteasome-20s.glow",
@@ -58,7 +60,12 @@
     "6YKM",
     "1UCU"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.7CGO",
+    "res.rcsb.8YJT",
+    "res.rcsb.6YKM",
+    "res.rcsb.1UCU"
+   ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.flagellar-motor.glow",
@@ -92,7 +99,12 @@
     "6YKM",
     "1UCU"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.7CGO",
+    "res.rcsb.8YJT",
+    "res.rcsb.6YKM",
+    "res.rcsb.1UCU"
+   ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.flagellar-motor.glow",
@@ -125,7 +137,9 @@
    "pdb": [
     "4V6F"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.4V6F"
+   ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.translation.glow",
@@ -157,7 +171,9 @@
    "pdb": [
     "4V6F"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.4V6F"
+   ],
    "animation": "builtin",
    "updated": "2026-11-16",
    "file": "packs/official.translation.glow",
@@ -189,7 +205,9 @@
    "pdb": [
     "1KX5"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.1KX5"
+   ],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.nucleosome.glow",
@@ -324,6 +342,7 @@
     "1K4C"
    ],
    "resources": [
+    "res.rcsb.4V6F",
     "res.rcsb.1K4C"
    ],
    "animation": "builtin",
@@ -360,6 +379,7 @@
     "1K4C"
    ],
    "resources": [
+    "res.rcsb.4V6F",
     "res.rcsb.1K4C"
    ],
    "animation": "builtin",
@@ -582,7 +602,13 @@
     "1FNB"
    ],
    "resources": [
-    "res.rcsb.3JCU"
+    "res.rcsb.3JCU",
+    "res.rcsb.6RQF",
+    "res.rcsb.5L8R",
+    "res.rcsb.6FKF",
+    "res.rcsb.1PLC",
+    "res.rcsb.1A70",
+    "res.rcsb.1FNB"
    ],
    "animation": "builtin",
    "updated": "2026-11-16",
@@ -623,7 +649,13 @@
     "1FNB"
    ],
    "resources": [
-    "res.rcsb.3JCU"
+    "res.rcsb.3JCU",
+    "res.rcsb.6RQF",
+    "res.rcsb.5L8R",
+    "res.rcsb.6FKF",
+    "res.rcsb.1PLC",
+    "res.rcsb.1A70",
+    "res.rcsb.1FNB"
    ],
    "animation": "builtin",
    "updated": "2026-11-16",
@@ -656,6 +688,7 @@
     "1K4C"
    ],
    "resources": [
+    "res.rcsb.4V6F",
     "res.rcsb.1K4C"
    ],
    "animation": "builtin",
@@ -689,6 +722,7 @@
     "1K4C"
    ],
    "resources": [
+    "res.rcsb.4V6F",
     "res.rcsb.1K4C"
    ],
    "animation": "builtin",
@@ -790,7 +824,9 @@
    "pdb": [
     "1AON"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.1AON"
+   ],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.groel.glow",
@@ -820,7 +856,9 @@
    "pdb": [
     "6VXX"
    ],
-   "resources": [],
+   "resources": [
+    "res.rcsb.6VXX"
+   ],
    "animation": "none",
    "updated": "2026-11-16",
    "file": "packs/official.spike.glow",
