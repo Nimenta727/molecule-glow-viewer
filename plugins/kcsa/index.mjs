@@ -146,7 +146,7 @@ export function createKcsaPlayer({ model, scene, state = {}, states, config, bin
   const baths = [
     { key: 'Ko', species: 'K⁺', where: '胞外', color: cfg.particles.potassium.color, r: 1.9, h: [hOut + 24, hOut + 80], salt: 11, count: (c) => Math.min(60, Math.round(c.Ko * 0.4)) },
     { key: 'Ki', species: 'K⁺', where: '胞内', color: cfg.particles.potassium.color, r: 1.9, h: [hCav - 85, hCav - 50], salt: 23, count: (c) => Math.min(60, Math.round(c.Ki * 0.4)) },
-    { key: 'Nao', species: 'Na⁺', where: '胞外', color: cfg.particles.sodium.color, r: 1.6, h: [hOut + 24, hOut + 80], salt: 37, count: () => Math.min(60, Math.round(140 * 0.4)) },   // extracellular Na⁺ is not a parameter here (140 mM)
+    { key: 'Nao', species: 'Na⁺', where: '胞外', color: cfg.particles.sodium.color, r: 1.6, h: [hOut + 24, hOut + 80], salt: 37, count: (c) => Math.min(60, Math.round(c.Nao * 0.4)) },   // like the classic, the outside Na⁺ bath only follows its concentration
     { key: 'Nai', species: 'Na⁺', where: '胞内', color: cfg.particles.sodium.color, r: 1.6, h: [hCav - 85, hCav - 50], salt: 41, count: (c) => Math.min(60, Math.round(c.Nai * 0.4)) },
   ];
   let extrasKey = '', extrasValue = null;

@@ -98,7 +98,7 @@ export async function compare({fixtures}={}) {
   }
   result.unresolved=[
     {id:'kcsa-clock-rng',status:'pending',reason:'Classic separate gate/permeation RNG consumption and blocking tweens differ from continuous-time, non-blocking candidate scheduling. Seed 7 is not a cross-engine event equivalence proof.'},
-    {id:'atp-atp-counter-phase',status:'pending',reason:'Classic synth() counts formation inside occupied sites; candidate counts completed release sectors. Empty-site proton probe does not measure ATP production or full classic event phase.'},
+    {id:'atp-atp-counter-phase',status:'pending',reason:'Measured in tools/atp-parity.mjs (docs/parity/atp-parity-report.txt): the classic forms an ATP at 88 % of a site cycle, the candidate counts the completed cycle (exactly one apart inside that 12 % window, equal elsewhere; H+ and the 9 ATP / 24 H+ per three turns equal). The empty-site proton probe here still does not measure ATP production; particle choreography is not compared.'},
     {id:'adk-initial-and-intermediate',status:'pending',reason:'Classic oscillator starts at phase 0 and persists between loads; candidate starts open at -pi/2. Classic morph uses whole-chain fit, candidate CORE fit; endpoint relative-domain invariants do not prove intermediate geometry parity.'},
     {id:'whole-feature-and-experiment',status:'pending',reason:'Bulk particles, hydration, curves, full workflows and experimental validation remain outside these selected software comparisons.'}];
   result.ok=result.rows.concat(result.coordinate_rows).every(r=>r.status==='passed')&&result.aggregates.kcsa_max_rate_relative_error<=1e-12&&result.aggregates.kcsa_max_gate_rate_absolute_error<=1e-10;

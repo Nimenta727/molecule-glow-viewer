@@ -22,6 +22,18 @@ test('free ions fill the two baths in proportion to their concentrations, every 
   assert.equal(changed.filter((i) => i.name.startsWith('K⁺（胞内')).length, 8); assert.equal(changed.filter((i) => i.name.startsWith('K⁺（胞外')).length, 40);
 });
 
+test('the extracellular Na⁺ control sets the size of the Na⁺ bath outside and nothing else (as in the classic: no rate depends on it)', () => {
+  const p = player({ seed: 3 }), na = (bath) => p.extras().clouds['kcsa-bulk'].filter((i) => i.name.startsWith('Na⁺（' + bath)).length;
+  p.seek(30); const outside = na('胞外');
+  assert.equal(outside, 56, 'default 140 mM → 56');
+  p.setParameters({ Nao: 0 }); p.seek(31); assert.equal(na('胞外'), 0, '0 mM → no Na⁺ outside');
+  p.setParameters({ Nao: 50 }); p.seek(32); assert.equal(na('胞外'), 20, '50 mM → 20');
+  assert.equal(na('胞内'), 4, 'the inside bath does not follow it');
+  const control = player({ seed: 3 }); control.seek(32);
+  assert.deepEqual(p.snapshot().counters, control.snapshot().counters, 'the channel events and counters are the same whatever the outside Na⁺');
+  assert.throws(() => p.setParameters({ Nao: 151 }), /Nao/);
+});
+
 test('hydration shells circle ions in solution and are gone in the filter; empty filter sites hold water', () => {
   const p = player({ seed: 3 });
   let withShell = 0, filterOnly = 0, waters = 0;

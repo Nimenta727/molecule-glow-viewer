@@ -1,0 +1,8 @@
+ok   H⁺ count equals floor(rotor angle / (pi/4)) in classic and floor(turns x 8) in the candidate at all 361 sample angles (0..3 turns)
+ok   ATP count: the classic forms an ATP when a loose site closes (f > 0.88 of a 120 degree step); the candidate counts completed site cycles. Equal at every sample except inside that 12 % window, where the classic is exactly one ahead
+ok   the classic never counts fewer ATP than the candidate at the same angle
+ok   after three exact turns: classic 9 ATP / 24 H⁺, candidate 9 ATP / 24 H⁺ (9 ATP, 24 H⁺ per three turns, the 8 : 3 stoichiometry of the bovine c8 ring)
+stage boundaries (fraction of one 120 degree site cycle): classic [0.15,0.8,0.93], candidate [0.1005,0.2505,0.8,0.9305]
+ok   the two late boundaries agree (within the 1/2000 sweep step): stage changes at f = 0.8 and f = 0.93 in both
+ok   known difference, recorded: the classic has stages 1-4 with its first boundary at f = 0.15; the candidate has stages 0-4 with boundaries at 0.1 and 0.25 (so the candidate lights step 2 from f = 0.25, the classic from 0.15)
+6 of 6 agree

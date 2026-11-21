@@ -8,7 +8,7 @@
     "src/derived/geometry.js": "55c6970feed02b97cb00e0aca41a91bf2cc3f374bcf2aec73f9b05ae2b28b42d",
     "src/data/parse.js": "8ce50230f6b273ec8142ff7db6f5e180db7a799c1ffd7d231a3fd9e8f1a8ec4f",
     "src/ui/ligand-focus.js": "75e41e170715239600ad5e2ff0cd538717fcf514d8f8591c871b7706fd25b8c3",
-    "plugins/kcsa/kinetics.mjs": "726dd40b1aefc201efe667d0130782d11e5408ddc8fce866156a328ed1c7487c",
+    "plugins/kcsa/kinetics.mjs": "165d2c2897746acd78acde01b267739e6ea9cdc00b43f22fcbf9d487895f36c1",
     "plugins/kcsa/config.mjs": "b11f1a3c1724135025acda5ffc15f19350befd544a8ff7dc4470a721b880fcae",
     "plugins/atp-synthase/index.mjs": "07cfb32e5ec5dde2140f2115e4579b9fd758ca99c486f6b91308c9a0bcb7106a",
     "plugins/atp-synthase/config.mjs": "bb77f020391959877118e4ba8b2a21f644a02c18cab4b5230e72945087889c6f",
@@ -21,7 +21,7 @@
     "plugins/shared/bindings.mjs": "07bf45163c0520ea7aa70b88f68d1845833d694bdbdd765e76ddcfbf0d893398",
     "plugins/atp-synthase/tool.mjs": "582ae01e2e4a3e75906b524423eab6c1c10290c3a3c78339af7a9bc9b5d27431",
     "plugins/adenylate-kinase/tool.mjs": "0155530a79c6d94ca439a58575302a451b54d388fd57bcf2566b7ddd9dcc91e6",
-    "plugins/kcsa/tool.mjs": "532946d2bc533599efce4c8e1ba4177f0ca89f819881db00418f212f84d56a0b",
+    "plugins/kcsa/tool.mjs": "2fd33e1885bef60e8592b094402b81e021c4307097edbdcd37415bc2d868177b",
     "plugins/motion/conformation.mjs": "51557c51ec647458fdf1720633f3f5b5aee7fcab9c3174eca5236f5195d7f068",
     "plugins/motion/path.mjs": "2ebd65e53aa401069e3c562fe330aa87eef45e22e0297c1459dc878641ed4b4b",
     "plugins/motion/vectors.mjs": "7d005d7115b9e177064cedc91291182318431ae7d1050901865b57f3c4cb25d4",
@@ -32,7 +32,7 @@
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "3e15b687e8870ae4b58a3a002243d9343b1ddca1931d87e06ab2410b519551d1",
-    "tools/parity-numerics.mjs": "5efd4a754baeedca02dffd760c81b527a97d08ae07e5ccceaa52e7dbcd7b23f3"
+    "tools/parity-numerics.mjs": "783e7babcee275c62e15d035547768d7bf623f1d97ab61d00ddd558555b1eacf"
   },
   "rows": [
     {
@@ -491,7 +491,7 @@
     {
       "id": "atp-atp-counter-phase",
       "status": "pending",
-      "reason": "Classic synth() counts formation inside occupied sites; candidate counts completed release sectors. Empty-site proton probe does not measure ATP production or full classic event phase."
+      "reason": "Measured in tools/atp-parity.mjs (docs/parity/atp-parity-report.txt): the classic forms an ATP at 88 % of a site cycle, the candidate counts the completed cycle (exactly one apart inside that 12 % window, equal elsewhere; H+ and the 9 ATP / 24 H+ per three turns equal). The empty-site proton probe here still does not measure ATP production; particle choreography is not compared."
     },
     {
       "id": "adk-initial-and-intermediate",

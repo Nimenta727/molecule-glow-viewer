@@ -9,7 +9,7 @@ export const KCSA_GATING = {
   parameters: [
     { id: 'pH', label: '胞内 pH', min: 3.5, max: 8, step: 0.1, default: 4 }, { id: 'V', label: '膜电位（mV）', min: -160, max: 150, step: 5, default: 50, unit: 'mV' },
     { id: 'Ki', label: '胞内 K⁺（mM）', min: 1, max: 300, step: 1, default: 140, unit: 'mM' }, { id: 'Ko', label: '胞外 K⁺（mM）', min: 1, max: 300, step: 1, default: 5, unit: 'mM' },
-    { id: 'Nai', label: '胞内 Na⁺（mM）', min: 0, max: 150, step: 5, default: 10, unit: 'mM' }, { id: 'TBA', label: '胞内 TBA（µM）', min: 0, max: 100, step: 1, default: 0, unit: 'µM' },
+    { id: 'Nai', label: '胞内 Na⁺（mM）', min: 0, max: 150, step: 5, default: 10, unit: 'mM' }, { id: 'Nao', label: '胞外 Na⁺（mM）', min: 0, max: 150, step: 5, default: 140, unit: 'mM' }, { id: 'TBA', label: '胞内 TBA（µM）', min: 0, max: 100, step: 1, default: 0, unit: 'µM' },
     { id: 'Ba', label: '胞内 Ba²⁺（µM）', min: 0, max: 100, step: 1, default: 0, unit: 'µM' }, { id: 'wt', label: '野生型失活动力学（0=E71A，1=野生型）', min: 0, max: 1, step: 1, default: 0, integer: true },
     { id: 'ionSpeed', label: '渗透时钟（ns/示意秒）', min: 2, max: 50, step: 1, default: 10 }, { id: 'gateSpeed', label: '门控时钟（s/示意秒）', min: 0.01, max: 1, step: 0.01, default: 0.05 },
     { id: 'speed', label: '模拟速度', min: 0.01, max: 100, step: 0.01, default: 1 }],

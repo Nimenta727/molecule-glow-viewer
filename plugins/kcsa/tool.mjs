@@ -15,7 +15,7 @@ export function kcsaCheck(scene, config) {
   return { problems, candidates: { channel: found.map(({ id }) => id) } };
 }
 
-const UNITS = { V: 'mV', Ki: 'mM', Ko: 'mM', Nai: 'mM', TBA: 'µM', Ba: 'µM', ionSpeed: 'ns/示意秒', gateSpeed: 's/示意秒' };
+const UNITS = { V: 'mV', Ki: 'mM', Ko: 'mM', Nai: 'mM', Nao: 'mM', TBA: 'µM', Ba: 'µM', ionSpeed: 'ns/示意秒', gateSpeed: 's/示意秒' };
 
 export function kcsaAuthorFields(config) {
   const text = (path, label, group, maxLength = 120) => ({ path, type: 'text', label, group, maxLength });

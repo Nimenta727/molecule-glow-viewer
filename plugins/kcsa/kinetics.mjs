@@ -7,6 +7,8 @@ export const PARAMETERS = {
   Ki: { label: '胞内 K⁺（mM）', min: 1, max: 300, step: 1, value: 140 },
   Ko: { label: '胞外 K⁺（mM）', min: 1, max: 300, step: 1, value: 5 },
   Nai: { label: '胞内 Na⁺（mM）', min: 0, max: 150, step: 5, value: 10 },
+  // Like the classic, the extracellular Na⁺ only sets the size of the Na⁺ bath outside; no rate depends on it (Na⁺ entering from outside is not modelled).
+  Nao: { label: '胞外 Na⁺（mM）', min: 0, max: 150, step: 5, value: 140 },
   TBA: { label: '胞内 TBA（µM）', min: 0, max: 100, step: 1, value: 0 },
   Ba: { label: '胞内 Ba²⁺（µM）', min: 0, max: 100, step: 1, value: 0 },
   wt: { label: '野生型失活动力学（0=E71A，1=野生型）', min: 0, max: 1, step: 1, value: 0 },
