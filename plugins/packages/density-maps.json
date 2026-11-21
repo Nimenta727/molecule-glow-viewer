@@ -1,0 +1,79 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.density-maps",
+  "version": "1.0.0",
+  "name": "体积数据（冷冻电镜/断层）",
+  "summary": "读取冷冻电镜与电子断层的体积文件（MRC/CCP4），生成等值面，登记为体积资源。",
+  "category": "resource",
+  "adds": [
+    "读 MRC/CCP4 体积（4 种体素类型、两种字节序、任意轴顺序），超大体积先降采样",
+    "用“行进四面体”生成水密的等值面",
+    "新的资源类型“体积”：记录网格、体素大小、原点和阈值的来源（沉积者推荐 / 启发式）"
+  ],
+  "usage": [
+    {
+      "title": "在界面里打开体积文件",
+      "how": "在 Viewer 里选“打开”，选择 .mrc / .map / .ccp4 文件",
+      "note": "需要先打开一个结构或示例"
+    },
+    {
+      "title": "用命令加载并设阈值",
+      "how": "await glow.volume({ map: base64, level: 'auto' })",
+      "note": "level 为 auto 时是均值 + 3σ 的启发式起点，会在回包里说明"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "volume"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/density-map.mjs",
+      "exports": [
+        "parseMrc",
+        "downsample",
+        "isosurface",
+        "suggestLevel"
+      ]
+    },
+    {
+      "type": "module",
+      "path": "packages/schema/resource.mjs",
+      "exports": [
+        "describeMapResource"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/volume-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "单测覆盖解析、降采样、曲面的水密性（曾抓出一个朝向 bug）；真实浏览器用模拟的体积验证。",
+    "limits": [
+      "**没有用任何真实 EMDB 文件验证**（环境连不上），解析按 MRC2014 规范",
+      "只读直角晶胞；超过 3355 万体素要先降采样",
+      "等值面是示意级网格，不平滑",
+      "默认阈值只是启发式，不是沉积者的推荐值"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-density-maps.md"
+  ],
+  "tags": [
+    "冷冻电镜",
+    "体积"
+  ]
+}

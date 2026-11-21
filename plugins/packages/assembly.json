@@ -1,0 +1,68 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.assembly",
+  "version": "1.0.0",
+  "name": "装配（按共有亚基叠合）",
+  "summary": "把不同条目里的结构，按两边共有的亚基叠合，摆进同一个坐标系，并给出叠合质量和空间冲突报告。",
+  "category": "assembly",
+  "adds": [
+    "按作者编号或序列比对匹配共有亚基的残基，做四元数叠合",
+    "把另一个条目里指定的链（因子、配体、别的亚基）带到基座的坐标系里",
+    "每个摆放带“推导”证据（叠合了什么、RMSD、多少对残基）和 2.0 Å 以内的冲突数"
+  ],
+  "usage": [
+    {
+      "title": "把 1ANF 里的麦芽糖带到 1OMP 里",
+      "how": "await glow.assemble({ pdb: '1ANF', baseSelection: 'chain A and resi 1-109,264-309', addSelection: 'chain A and resi 1-109,264-309', carry: ['B'] })",
+      "note": "需要先打开基座结构；回包里有 RMSD、匹配对数、冲突数和放置变换"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "assemble"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/assembly-compose.mjs",
+      "exports": [
+        "fitOnto",
+        "findClashes",
+        "composeAssembly",
+        "matchByNumber",
+        "matchBySequence"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/assembly-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "与 AdK 播放器的 CORE 叠合 RMSD 逐位相同（1.9751 Å）、与 MBP 通用叠合相同（0.7212 Å）、6N2Y 三个 β 亚基。",
+    "limits": [
+      "**位置是推导的**：两个条目共有一个亚基只说明可以这样对齐，不说明这个组合存在，也不说明新增组分在基座构象下还能结合",
+      "按编号匹配会把编号与残基名恰好相同的别的链也匹配上，匹配对数和 RMSD 要看",
+      "冲突只看重原子间距（2.0 Å），不做能量评估、不做柔性拟合",
+      "只用 Cα/磷原子叠合"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-assembly-compose.md"
+  ],
+  "tags": [
+    "装配",
+    "叠合"
+  ]
+}

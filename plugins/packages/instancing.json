@@ -1,0 +1,91 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.instancing",
+  "version": "1.0.0",
+  "name": "实例化与细节分级",
+  "summary": "把一个结构复制成成百上千份，按距离自动降低细节，让大场景画得动。",
+  "category": "render",
+  "adds": [
+    "把当前看到的结构复制成许多份（球壳或网格布局，随机朝向）",
+    "按每份在屏幕上的大小在 4 级细节间切换（完整 / 团块 / 椭球 / 标记），并按每帧三角形预算降级",
+    "复制出的份数不再受场景包 256 条资源的限制（只是画面层面的实例，不写进场景包）"
+  ],
+  "usage": [
+    {
+      "title": "复制 400 份并按距离分级",
+      "how": "await glow.instances({ copies: 400, layout: 'sphere' })",
+      "note": "回包里有每级的三角形数、本帧各级的实例数、被剔除数和“不分级时的三角形数”"
+    },
+    {
+      "title": "限定每帧三角形预算",
+      "how": "await glow.instances({ copies: 400, budget: 500000 })"
+    },
+    {
+      "title": "清除",
+      "how": "await glow.instances('clear')"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "instances"
+    },
+    {
+      "type": "module",
+      "path": "packages/render-three/lod.mjs",
+      "exports": [
+        "planLevels",
+        "buildLevels",
+        "blobProxy",
+        "ellipsoidProxy",
+        "markerProxy",
+        "colorByNearest"
+      ]
+    },
+    {
+      "type": "module",
+      "path": "packages/render-three/instance-set.mjs",
+      "exports": [
+        "createInstanceSet"
+      ]
+    },
+    {
+      "type": "module",
+      "path": "apps/viewer-web/instance-layout.mjs",
+      "exports": [
+        "layoutCopies"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/instancing-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实浏览器里用 6N2Y 复制 400 份：不分级 1.5 亿个三角形，分级后首帧 13.9 万；预算 50 万时实际画 49.9 万。",
+    "limits": [
+      "没有帧率数据：软件渲染的帧率不能代表显卡，只证明了三角形数量与预算的关系",
+      "分级阈值（60/12/3/0.6 像素）是经验默认值，没有在真实显卡上调过",
+      "副本不能拾取，也不随结构一起被剖切或变暗",
+      "每个实例集目前只有一种原型；替身（团块、椭球）是示意几何"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-instancing-lod.md"
+  ],
+  "tags": [
+    "性能",
+    "大场景"
+  ]
+}

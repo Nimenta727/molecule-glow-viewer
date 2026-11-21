@@ -1,0 +1,73 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.hardware-budget",
+  "version": "1.0.0",
+  "name": "硬件预算与基准测试",
+  "summary": "在你自己的机器上测当前画面的真实帧率，判断是不是软件渲染，并给出能保持目标帧率的三角形预算。",
+  "category": "render",
+  "adds": [
+    "一条命令测出当前画面的帧率、渲染器名称（显卡型号）、是否软件渲染",
+    "把测量变成“每帧三角形预算”和一两句建议",
+    "提供自适应预算的控制器（慢了缩小、有余地放大）"
+  ],
+  "usage": [
+    {
+      "title": "测 5 秒，目标 30 帧",
+      "how": "await glow.benchmark({ seconds: 5, targetFps: 30 })",
+      "note": "在有显卡的电脑上打开 Viewer，载入想评估的作品，在控制台运行；把返回的内容发给开发者"
+    },
+    {
+      "title": "只看预算",
+      "how": "（返回值里的 budget 与 tier）",
+      "note": "软件渲染的数字不能代表显卡，回包里会明说"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "benchmark"
+    },
+    {
+      "type": "module",
+      "path": "packages/render-three/budget.mjs",
+      "exports": [
+        "summarizeFrames",
+        "isSoftwareRenderer",
+        "budgetForTarget",
+        "adaptBudget",
+        "benchmarkReport"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/benchmark-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "单测验证公式与控制器；真实浏览器里确认能跑、读到真实渲染器名称（SwiftShader）并标出软件渲染。",
+    "limits": [
+      "**没有任何真实显卡的数据**：开发环境是软件渲染",
+      "模型很粗：假定帧时间与三角形数成正比",
+      "帧率被显示器刷新率封顶（通常 60），快的机器测不出上限",
+      "自适应控制器还没有接进实例集的绘制循环"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-hardware-budget.md"
+  ],
+  "tags": [
+    "性能",
+    "基准"
+  ]
+}

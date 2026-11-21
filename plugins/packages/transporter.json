@@ -1,0 +1,69 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.transporter",
+  "version": "1.0.0",
+  "name": "膜转运体模型",
+  "summary": "四态交替访问转运体：底物浓度、膜电位可调，保持细致平衡，测净通量。",
+  "category": "process",
+  "adds": [
+    "四态（外开空 / 外开结合 / 内开结合 / 内开空）的交替访问转运体",
+    "外/内浓度和膜电位是参数，可用时间表随时间变化",
+    "细致平衡由构造保证：平衡点处净通量为零"
+  ],
+  "usage": [
+    {
+      "title": "把转运体加进作品",
+      "how": "在 Studio 的“工具”页签，“添加工具”里选“交替访问转运体”预设；在 Viewer 里调外侧/内侧浓度与膜电位看净通量"
+    },
+    {
+      "title": "代码里取现成的配置",
+      "how": "import { PROCESS_PRESETS } from 'plugins/simulation/process-models.mjs'",
+      "note": "预设就是现成的配置对象"
+    }
+  ],
+  "provides": [
+    {
+      "type": "tool-preset",
+      "tool": "org.glow.tool.stochastic-process",
+      "preset": "uniporter"
+    },
+    {
+      "type": "module",
+      "path": "plugins/simulation/process-models.mjs",
+      "exports": [
+        "uniporter",
+        "trackMotor",
+        "dynamicFilament",
+        "reactionNetwork",
+        "PROCESS_PRESETS"
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "用现有随机过程引擎真跑，与解析解对照（单测）。",
+    "limits": [
+      "速率常数是教学用的整数，不是任何真实转运体的测量值",
+      "单底物单向转运体，不做共转运/反向转运",
+      "没有空间：不知道自己在哪个膜上",
+      "引擎每次运行最多 25 万个事件，限制了模拟时长"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-process-models.md"
+  ],
+  "tags": [
+    "过程",
+    "随机"
+  ]
+}

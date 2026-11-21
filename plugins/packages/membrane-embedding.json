@@ -1,0 +1,70 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.membrane-embedding",
+  "version": "1.0.0",
+  "name": "膜蛋白插膜",
+  "summary": "把膜蛋白按自动定膜得到的朝向与深度，成批地嵌进一张膜里，每份带种子化的自旋，互不重叠。",
+  "category": "assembly",
+  "adds": [
+    "用项目自己的自动定膜（疏水带扫描）确定蛋白的膜朝向",
+    "把 N 份嵌在指定形状的膜上：膜中面点落在目标点、膜轴沿法线、互相不重叠",
+    "可选朝内或朝外",
+    "嵌入结果用实例化（细节分级）画出来"
+  ],
+  "usage": [
+    {
+      "title": "在半径 400 Å 的囊泡上嵌 40 份当前的膜蛋白",
+      "how": "await glow.embed({ shape: { kind: 'sphere', radius: 400 }, copies: 40, seed: 11 })",
+      "note": "当前结构必须是膜蛋白（有生物组装体的四聚体等）；单体可能找不到膜"
+    },
+    {
+      "title": "朝内",
+      "how": "await glow.embed({ shape: { kind: 'sphere', radius: 400 }, copies: 40, inward: true })"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "embed"
+    },
+    {
+      "type": "module",
+      "path": "plugins/simulation/placement.mjs",
+      "exports": [
+        "embedTransform",
+        "embedCopies",
+        "rigidFromSteps"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/embed-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "real-data",
+    "summary": "单测 + 真实：KcsA 四聚体 40 份嵌在半径 400 Å 的囊泡上，膜内残基 7400/7400 落在膜厚内，通道轴与法线偏差 0.00002°。",
+    "limits": [
+      "依赖项目已有的自动定膜：没有跨膜注释时只能用疏水带扫描，对小的、非典型的膜蛋白可能找不到",
+      "排斥只按包围球，不做原子级碰撞检测",
+      "每份的位置是示意，不是测量"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-placement.md"
+  ],
+  "tags": [
+    "膜",
+    "插膜"
+  ]
+}

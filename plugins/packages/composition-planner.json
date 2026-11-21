@@ -1,0 +1,65 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.composition-planner",
+  "version": "1.0.0",
+  "name": "组成规划器",
+  "summary": "按“组成表”（每种组分多少份、多大、放在体积里还是膜上）生成互不重叠的摆放，画出一个细胞器的静态示意。",
+  "category": "assembly",
+  "adds": [
+    "把组成表变成摆放：大的先放、小的填缝，球形包围体互不重叠，全部种子化",
+    "区域可以是球、椭球、胶囊、盒；膜上的组分放在膜面上",
+    "报告每种组分要求多少、放了多少、份数的依据（实测 / 估计 / 示意）、体积占有率与膜覆盖率、放不下的组分"
+  ],
+  "usage": [
+    {
+      "title": "一个囊泡里放核糖体、酶和膜通道的示意",
+      "how": "await glow.compose({ region: { kind: 'sphere', radius: 700 }, components: [{ id: 'ribosome', copies: 30, radius: 125, where: 'volume', basis: 'estimated' }, { id: 'channel', copies: 40, radius: 30, where: 'membrane' }] })",
+      "note": "组分画成示意的彩色球；加 useOpenStructure 可以让某一种用当前打开的结构"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "compose"
+    },
+    {
+      "type": "module",
+      "path": "plugins/simulation/placement.mjs",
+      "exports": [
+        "planComposition",
+        "volumeRegion",
+        "volumeFromMass"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/embed-check.mjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "logic",
+    "summary": "单测：不重叠、膜组分在膜上、占有率与缺口如实、可复现。",
+    "limits": [
+      "**没有任何真实的细胞组成数据**：份数、半径、体积都是调用者给的，每份摆放都是示意",
+      "排斥只按包围球；没有区室化、浓度梯度、与骨架的相互作用",
+      "组分在界面里画成示意的球，不是真实结构（除非用 useOpenStructure）"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-21-placement.md"
+  ],
+  "tags": [
+    "细胞器",
+    "组成"
+  ]
+}
