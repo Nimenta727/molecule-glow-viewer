@@ -1,5 +1,6 @@
 import { PRESENTATION_METERS_PER_ANGSTROM as scale } from '../../plugins/structure/representation.mjs';
 import { matchesPart } from '../../plugins/structure/functional-preview.mjs';
+import { cornerLayout } from '../../plugins/simulation/corner-layout.mjs';
 export { matchesPart };
 
 const identity = [0, 0, 0, 1];
@@ -110,6 +111,7 @@ export function createLegacyLayout(main, configuration, warnings) {
   if (configuration.rowFlip) row = times(row, -1);
   rows.push(...original);
 
+  let corner = false;   // the first component of a cell corner is the channel
   function place(groups, config, maxCopies = 160) {
     const pose = orient(groups, config, true);
     const staged = apply(groups, pose);
@@ -157,6 +159,15 @@ export function createLegacyLayout(main, configuration, warnings) {
         else if (config.side === 'above') shift[1] += maximum - bottom + distance(config.gap);
         else shift[1] += mean(target)[1] - (bottom + top) / 2;
       } else warn(config.anchor);
+    }
+    // The cell corner (classic cellCorner): the channel goes into the plane of the ribosome's cross-section, 60 Å above the ribosome and 0.3 of its radius left of the centre (the
+    // arithmetic of plugins/simulation/corner-layout.mjs, equal to the classic on the real structures). The classic takes "the plane" from the ribosome's E -> A direction; this layout has no
+    // residue names, so the plane is the one of the scene's default view (the camera azimuth), which is how the classic framed it too.
+    if (configuration.process === 'cellCorner' && config.corner !== false && !corner) {
+      corner = true;
+      const k = 1 / scale, toAngstrom = (p) => p.map((v) => v * k), az = Number.isFinite(configuration.camera?.az) ? configuration.camera.az : -0.9;
+      const placed = cornerLayout({ ribosome: all(original).map(toAngstrom), eToA: [Math.cos(az), 0, -Math.sin(az)], channel: points.map(toAngstrom) });
+      shift = times(placed.shift, scale);
     }
     const arrangement = config.arrange;
     const repeated = ['ring', 'helix'].includes(arrangement?.kind) && Number.isInteger(arrangement.n) && arrangement.n > 0;

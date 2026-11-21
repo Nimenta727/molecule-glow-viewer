@@ -38,7 +38,7 @@ export function createViewerCommands(host) {
       plugins: host.plugins(), resources: host.resources?.() ?? [], camera: host.camera(),
       sources: current?.scene.assets.filter((asset) => asset.provenance?.parserVersion).map(({ id, provenance }) => ({ id, source: provenance.source })) ?? [],
       parts: current?.scene.nodes.filter((node) => node.extensions?.['org.glow.structure']).map(({ id, name, visible }) => ({ id, name, visible })) ?? [],
-      selection: host.selection(), representation: current?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(current?.scene),
+      selection: host.selection(), colors: host.colorState?.() ?? null, representation: current?.representationSource?.provenance?.viewerStyle ?? defaultStyleFor(current?.scene),
       paused: snapshot ? !snapshot.playing : !current?.timeline.playing,
       time: snapshot?.time ?? current?.timeline.time ?? 0,
       counters: snapshot?.counters ?? {}, seed: snapshot?.seed ?? null,

@@ -40,7 +40,7 @@ import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP, describeSelection, selectionSpace, evaluateSelection } from '../../plugins/structure/selection.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
-import { createColorState, resolveColor, isDefault } from './color-scheme.mjs';
+import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
 import { buildStructureLayers, structureSources, STRUCTURE_STYLES } from '../../plugins/structure/view-layers.mjs';
@@ -822,6 +822,9 @@ function boot() {
       Promise.resolve().then(() => stateMorph.restore(loaded, typeof saved.label === 'string' ? saved.label : second.path, Number(saved.fraction) || 0, saved.config));
     }
     active.clipping = normalizeClipping(view?.clipping) ?? undefined;
+    if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
+      try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
+    }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
     if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
@@ -1482,6 +1485,7 @@ function boot() {
       source.provenance = { ...source.provenance, viewerState: {
         camera,
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
+        ...(active.colorState && !isDefault(active.colorState) ? { colors: active.colorState } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };

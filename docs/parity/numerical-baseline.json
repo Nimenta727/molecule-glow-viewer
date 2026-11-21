@@ -31,7 +31,7 @@
     "plugins/structure/representation.mjs": "adef69d9366c4db7b519592b07cf847e350b0e626578dcded482dfdf5365a0a4",
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
-    "desktop/package-lock.json": "3e15b687e8870ae4b58a3a002243d9343b1ddca1931d87e06ab2410b519551d1",
+    "desktop/package-lock.json": "edc7555c7edf71f664a6025f833dc0aba550631bf4f0930bde9fe98588b995a0",
     "tools/parity-numerics.mjs": "783e7babcee275c62e15d035547768d7bf623f1d97ab61d00ddd558555b1eacf"
   },
   "rows": [

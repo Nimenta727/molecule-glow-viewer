@@ -51,3 +51,20 @@ test('the v1 broadside camera looks across the static row of structures', () => 
   closeTo(layout.camera().direction, [0, 0, 1]);
   assert.equal(layout.camera().distanceScale, 0.92);
 });
+
+test('a cell corner puts the channel in the plane of the view, 60 Å above the ribosome and 0.3 radius left of its centre (the classic rule)', () => {
+  const scale = 0.05, ribosome = []; for (let i = -5; i <= 5; i++) for (let j = -5; j <= 5; j++) for (let k = -5; k <= 5; k++) if (i * i + j * j + k * k <= 25) ribosome.push([i * 20 * scale, j * 20 * scale, k * 20 * scale]);   // radius 100 Å in metres
+  const channel = [group('KcsA', [[8, 8, 8], [9, 8, 8], [8, 9, 8], [8, 8, 9]])];
+  const layout = createLegacyLayout([group('ribosome', ribosome)], { axis: 'native', process: 'cellCorner', camera: { az: 0 } }, []);
+  const [pose] = layout.place(channel, { id: '1K4C', axis: 'native' });
+  const turn = (v, q) => { const t = [q[1] * v[2] - q[2] * v[1], q[2] * v[0] - q[0] * v[2], q[0] * v[1] - q[1] * v[0]].map((x) => 2 * x); return [v[0] + q[3] * t[0] + (q[1] * t[2] - q[2] * t[1]), v[1] + q[3] * t[1] + (q[2] * t[0] - q[0] * t[2]), v[2] + q[3] * t[2] + (q[0] * t[1] - q[1] * t[0])]; };
+  const mean = [0, 1, 2].map((i) => channel[0].points.reduce((sum, p) => sum + p[i], 0) / 4), turned = turn(mean, pose.rotation), centre = turned.map((v, i) => v + pose.position[i]);
+  const top = Math.max(...ribosome.map((p) => p[1]));
+  assert.ok(Math.abs(centre[1] - (top + 60 * scale)) < 1e-9, 'the membrane height: the top of the ribosome plus 60 Å');
+  assert.ok(Math.abs(centre[0] + 100 * 0.3 * scale) < 1e-9, 'with the view along -z the plane is z = 0 and left is -x: 0.3 of the radius');
+  assert.ok(Math.abs(centre[2]) < 1e-9, 'in the plane through the ribosome centre');
+  const second = layout.place(channel, { id: '1K4C', axis: 'native', beside: { dir: 'row', gap: 20 } });
+  assert.ok(second[0].position[1] !== pose.position[1] || second[0].position[0] !== pose.position[0], 'only the first component is the channel; later ones use their own rules');
+  const plain = createLegacyLayout([group('ribosome', ribosome)], { axis: 'native' }, []).place(channel, { id: '1K4C', axis: 'native' });
+  assert.notDeepEqual(plain[0].position, pose.position, 'without the cell corner declaration the generic rule applies');
+});

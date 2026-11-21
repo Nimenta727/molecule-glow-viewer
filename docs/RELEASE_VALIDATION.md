@@ -8,7 +8,7 @@
 
 `node desktop/scripts/package-platform.cjs --stage-only` 输出独立暂存目录。脚本复制官方 `plugins/` 整体以及共享工作区/Shell 辅助模块，不再通过字符串替换注入入口。临时默认经典 Viewer；`GLOW_PAGE=viewer.html`、`studio.html`、`dev.html` 和菜单仍选择对应入口，`GLOW_QUERY` 保留。原工程没有声明 OS 文件关联，本轮不宣称新增文件关联；导入文件通过实际 UI 验证。
 
-每个候选包含 `build-info.json`：源码提交、是否有工作区改动、时间、Electron 版本、逐文件 SHA-256 和内容集合哈希。帮助菜单可查看摘要；预加载器只提供只读构建信息。`node desktop/scripts/package-platform.cjs` 生成 `desktop/dist/release/candidate.json` 和带提交短号的 portable EXE；不会发布 GitHub Release。当前发行系列为 `0.6.0`；候选文件名带源码提交。最终公共文件名、标签、原始候选和哈希由 Release 清单关联，不能把旧版本下载文件算作当前源码。
+每个候选包含 `build-info.json`：源码提交、是否有工作区改动、时间、Electron 版本、逐文件 SHA-256 和内容集合哈希。帮助菜单可查看摘要；预加载器只提供只读构建信息。`node desktop/scripts/package-platform.cjs` 生成 `desktop/dist/release/candidate.json` 和带提交短号的 portable EXE；不会发布 GitHub Release。当前发行系列为 `0.7.0`；候选文件名带源码提交。最终公共文件名、标签、原始候选和哈希由 Release 清单关联，不能把旧版本下载文件算作当前源码。
 
 `check-platform-stage.cjs` 使用 V8 编译但不执行模块，检查本地静态依赖、字面量动态 import、import map、外部模块、本地 CommonJS require 和入口资源均在暂存根内，并核对清单哈希。负例包括缺失机制模块、越界、远程模块与内容篡改。计算式动态路径、运行时生成的 Worker 等仍需浏览器回归覆盖，静态扫描不被称为完整运行证明。
 
