@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - run: npm ci   # the workshop tools read scene packages and resources (zip.js, the JSON-schema validator): without the install they fail to import
       - name: Check the attached pack
         id: check
         env:
