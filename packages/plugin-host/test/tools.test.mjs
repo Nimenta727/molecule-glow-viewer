@@ -243,3 +243,14 @@ test('author presets are validated when the tool is registered, not when someone
   bad([{ id: 'x', label: 'a', config: { n: 1 } }, { id: 'x', label: 'b', config: { n: 2 } }], /unique valid id/);
   bad([{ id: 'x', label: 'a' }], /config object/);
 });
+
+test('residue ranges are written and read the way people write them', async () => {
+  const { formatRanges, parseRanges, coerceField } = await import('../tool-model.mjs');
+  assert.equal(formatRanges([[1, 109], [264, 309], [5, 5]]), '1-109, 264-309, 5');
+  assert.deepEqual(parseRanges('1-109, 264–309 ,5'), [[1, 109], [264, 309], [5, 5]]);
+  assert.deepEqual(parseRanges(formatRanges([[3, 9], [20, 20]])), [[3, 9], [20, 20]], 'round trip');
+  for (const bad of ['', ' , ', '9-3', 'a-b', '0-5', '1-2-3']) assert.throws(() => parseRanges(bad, { label: 'N 域' }), /N 域/, bad);
+  assert.throws(() => parseRanges('1,2,3', { max: 2 }), /最多 2 段/);
+  assert.deepEqual(coerceField({ type: 'text', format: 'ranges', label: 'N 域' }, '1-5'), [[1, 5]]);
+  assert.throws(() => validateToolDescriptor('t', descriptor({ author: { template: {}, fields: () => [], validate: (c) => c } })) && validateToolDescriptor('t', { ...descriptor(), parameters: { k: { type: 'number', label: 'x', min: 0, max: 1, step: 1, default: 0, format: 'ranges' } } }), /format must be "ranges"/);
+});

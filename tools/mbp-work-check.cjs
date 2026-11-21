@@ -31,6 +31,17 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await studio.waitForFunction(() => /已添加工具/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
   const applicability = await studio.$eval('#tool-config', (n) => n.textContent);
   assert.match(applicability, /适用于此场景/, 'the tool finds the maltose-binding protein chain by the preset\'s name pattern: ' + applicability.slice(0, 300));
+  // a domain's residue range is edited in the panel: a malformed entry is refused with a reason and changes nothing; a valid one is kept and drives the measurement
+  const ranges = studio.locator('#tool-config input[data-path="domains.1.ranges"]');
+  await studio.locator('#tool-config details', { hasText: '域残基范围' }).first().evaluate((n) => { n.open = true; });
+  assert.equal(await ranges.inputValue(), '114-259, 317-370', 'the C domain range is shown the way people write it');
+  await ranges.fill('9-3'); await ranges.dispatchEvent('change'); await studio.waitForTimeout(500);
+  assert.match(await studio.$eval('#status', (n) => n.textContent), /起 ≤ 止/, 'a bad range is refused with the reason');
+  assert.equal(await studio.locator('#tool-config input[data-path="domains.1.ranges"]').inputValue(), '114-259, 317-370', 'and the old value is put back');
+  await studio.locator('#tool-config details', { hasText: '域残基范围' }).first().evaluate((n) => { n.open = true; });
+  await studio.locator('#tool-config input[data-path="domains.1.ranges"]').fill('114-259'); await studio.locator('#tool-config input[data-path="domains.1.ranges"]').dispatchEvent('change');
+  await studio.waitForFunction(() => /已更新工具配置/.test(document.querySelector('#status').textContent), null, { timeout: 30000 });
+  assert.equal(await studio.locator('#tool-config input[data-path="domains.1.ranges"]').inputValue(), '114-259');
   const [download] = await Promise.all([studio.waitForEvent('download', { timeout: 60000 }), studio.click('#export-scene')]);
   const pack = path.join(os.tmpdir(), 'mbp-work-' + process.pid + '.glow'); await download.saveAs(pack);
   await studio.close();
@@ -42,10 +53,15 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await page.waitForFunction(() => !document.querySelector('#mechanism-controls').hidden, null, { timeout: 120000 });
   const title = await page.$eval('#mechanism-title', (n) => n.textContent), evidence = await page.$eval('#mechanism-evidence', (n) => n.textContent);
   assert.equal(title, '麦芽糖结合蛋白', 'the panel carries the work\'s own title'); assert.match(evidence, /1OMP/); assert.doesNotMatch(evidence + title, /AdK|腺苷酸/, 'no adenylate kinase wording');
+  const { parseMmcif } = await import('../plugins/structure/parser.mjs'), { selectionSpace, evaluateSelection } = await import('../plugins/structure/selection.mjs'), { fitStates, domainMotions } = await import('../plugins/motion/state-pair.mjs');
+  const A = parseMmcif(fs.readFileSync(path.join(FIXTURES, '1OMP.cif'), 'utf8')), B = parseMmcif(fs.readFileSync(path.join(FIXTURES, '1ANF.cif'), 'utf8')), space = selectionSpace(A), res = (e) => new Set(evaluateSelection(e, space).residues);
+  const expected = domainMotions(fitStates(A, B, { core: res('chain A and resi 1-109,264-309') }), [{ name: 'C', residues: res('chain A and resi 114-259') }], 1)[0];   // the C domain as edited: 114-259 only
   const info = await page.evaluate(() => window.glow.animate({ morph: 1 }));
   const c = info.domainMeasurements.find(({ name }) => name === 'C'), h = info.domainMeasurements.find(({ name }) => name === '铰链');
   console.log('C domain', c.angle.toFixed(2), '°', c.shift.toFixed(2), 'Å; hinge', h.angle.toFixed(2), '°');
-  assert.ok(Math.abs(c.angle - 36.21) < 0.05 && Math.abs(c.shift - 10.21) < 0.05 && Math.abs(h.angle - 17.41) < 0.05, 'the same numbers as the coordinate computation');
+  assert.ok(Math.abs(c.angle - expected.angle) < 1e-6 && Math.abs(c.shift - expected.shift) < 1e-6, `the edited C range gives the numbers of the independent computation (${expected.angle.toFixed(3)}° / ${expected.shift.toFixed(3)} Å)`);
+  assert.ok(Math.abs(c.angle - 36.2124) > 1e-3 || Math.abs(c.shift - 10.2115) > 1e-3, 'and they differ from the unedited domain, so the edit really reached the player');
+  assert.ok(Math.abs(h.angle - 17.41) < 0.05, 'the untouched hinge is unchanged');
   await page.waitForTimeout(1500);
   assert.match(await page.$eval('#mechanism-metrics', (n) => n.textContent), /N 叠合 RMSD 0\.721 Å/);
   const time = (await page.evaluate(() => window.glow.info())).time;

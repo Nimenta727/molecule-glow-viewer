@@ -20,16 +20,20 @@ export function adkAuthorFields(config) {
   const text = (path, label, group, maxLength = 120) => ({ path, type: 'text', label, group, maxLength });
   return [
     text('states.open', '张开态结构编号', '结构态', 12), text('states.closed', '闭合态结构编号', '结构态', 12),
-    text('protein.chain', '蛋白链', '蛋白', 8),
+    text('protein.chain', '蛋白链', '蛋白', 8), text('protein.namePattern', '蛋白名称（正则，不分大小写，用来认出这条链）', '蛋白', 80), text('protein.organism', '物种', '蛋白', 40),
     { path: 'protein.residues', type: 'number', integer: true, nullable: true, min: 10, max: 5000, step: 1, label: 'Cα 残基数（留空 = 不限）', group: '蛋白' },
     { path: 'maxFitRmsd', type: 'number', min: 0.01, max: 20, step: 0.1, unit: 'Å', label: '叠合 RMSD 上限', group: '蛋白' },
-    ...config.domains.map((domain, i) => ({ path: `domains.${i}.color`, type: 'color', label: `${domain.name} 域颜色`, group: '域' })),
+    { path: 'fitDomain', type: 'select', label: '参考域（先叠合它，其余域相对它测量）', group: '域', options: config.domains.map(({ name }) => ({ value: name, label: name })) },
+    ...config.domains.flatMap((domain, i) => [
+      { path: `domains.${i}.ranges`, type: 'text', format: 'ranges', label: `${domain.name} 域残基范围（作者编号，如 1-109, 264-309）`, group: '域', maxLength: 200 },
+      { path: `domains.${i}.color`, type: 'color', label: `${domain.name} 域颜色`, group: '域' },
+    ]),
     { path: 'machine.rate', type: 'number', min: 0.01, max: 10, step: 0.05, label: '往复相位速度（弧度 / 秒 / 倍率）', group: '状态机' },
     { path: 'machine.lo', type: 'number', min: 0, max: 0.9, step: 0.01, label: '两端保持：下限', group: '状态机' },
     { path: 'machine.span', type: 'number', min: 0.05, max: 1, step: 0.01, label: '两端保持：中间过渡的宽度', group: '状态机' },
     { path: 'machine.stages.low', type: 'number', min: 0.01, max: 0.98, step: 0.01, label: '“打开态”阶段的上界', group: '状态机' },
     { path: 'machine.stages.high', type: 'number', min: 0.02, max: 0.99, step: 0.01, label: '“闭合态”阶段的下界', group: '状态机' },
-    text('ligand.name', '参考配体名称', '配体', 24), { path: 'ligand.color', type: 'color', label: '参考配体颜色', group: '配体' },
+    text('ligand.residue', '参考配体残基名（闭合态结构里的三字母名）', '配体', 8), text('ligand.chain', '参考配体所在链', '配体', 8), text('ligand.name', '参考配体名称', '配体', 24), { path: 'ligand.color', type: 'color', label: '参考配体颜色', group: '配体' },
     text('navigation.proteinTitle', '蛋白质视图标题', '讲解', 80), text('navigation.mechanismTitle', '机理视图标题', '讲解', 80),
     text('functionalDescription', '功能分区说明', '讲解', 1000), text('evidence.note', '证据说明', '讲解', 500),
     ...config.steps.flatMap((_, i) => [text(`steps.${i}.title`, `第 ${i + 1} 步标题`, '讲解步骤', 80), text(`steps.${i}.caption`, `第 ${i + 1} 步说明`, '讲解步骤', 500)]),

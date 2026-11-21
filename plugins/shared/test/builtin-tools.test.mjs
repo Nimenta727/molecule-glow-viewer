@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPluginHost } from '../../../packages/plugin-host/index.mjs';
-import { toolControls, authorFields, getPath, editAuthorField, validateToolValues } from '../../../packages/plugin-host/tool-model.mjs';
+import { toolControls, authorFields, getPath, editAuthorField, validateToolValues, formatRanges } from '../../../packages/plugin-host/tool-model.mjs';
 import { structurePlugin } from '../../structure/index.mjs';
 import { mechanismPlugins } from '../../mechanism-catalog.mjs';
 import { ATP_PLAYER, createAtpPlayer } from '../../atp-synthase/index.mjs';
@@ -74,7 +74,7 @@ test('every author field of every built-in tool resolves, and writing the curren
       const value = getPath(config, field.path);
       if (field.path.startsWith('conditions.')) { assert.equal(value, undefined); assert.ok(Number.isFinite(field.default), `${field.path} shows the model default`); continue; }
       assert.notEqual(value, undefined, `${tool.id} ${field.path} exists in the configuration`);
-      const raw = value === null ? '' : field.type === 'boolean' ? value : String(value);
+      const raw = value === null ? '' : field.type === 'boolean' ? value : field.format === 'ranges' ? formatRanges(value) : String(value);   // what the input element shows
       assert.deepEqual(editAuthorField(tool, config, field.path, raw), config, `${tool.id} ${field.path}: re-entering the current value is a no-op`);
     }
   }

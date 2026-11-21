@@ -73,7 +73,7 @@ export function buildAdkStructure(model, closedModel, config) {
     const result = new Map();
     for (let i = 0; i < layer.positions.length; i += stride) {
       const vertices = Array.from({ length: stride / 3 }, (_, j) => layer.positions.slice(i + j * 3, i + j * 3 + 3));
-      const atom = nearest(centroid(vertices))[0].anchor.ref, domain = DOMAINS.find((d) => inDomain(atom, d));
+      const atom = nearest(centroid(vertices))[0].anchor.ref, domain = DOMAINS.find((d) => inDomain(atom, d)) ?? fitDomain;   // a residue written into no domain moves with the reference domain's colour
       if (!result.has(domain.name)) result.set(domain.name, { ...layer, color: domain.color, positions: [], adkDomain: domain.name,
         ...(layer.radii ? { radii: [] } : {}), ...(layer.pointTargets ? { pointTargets: [] } : {}) });
       const group = result.get(domain.name); group.positions.push(...vertices.flat());

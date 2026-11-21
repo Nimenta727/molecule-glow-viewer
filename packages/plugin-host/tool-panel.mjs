@@ -1,3 +1,4 @@
+import { formatRanges } from './tool-model.mjs';
 /**
  * Builds the input controls of a tool from its descriptor (DOM only). Number and range controls keep the markup the
  * Viewer's mechanism panel always used: <label>text<input data-parameter="key" ...></label>.
@@ -21,7 +22,7 @@ export function renderControl(doc, spec, value, { attribute = 'parameter', key =
     if (spec.type === 'number') for (const name of ['min', 'max', 'step']) input.setAttribute(name, String(spec[name]));
     if (spec.type === 'text' && spec.maxLength) input.setAttribute('maxlength', String(spec.maxLength));
     if (spec.type === 'boolean') input.checked = Boolean(value ?? spec.default);
-    else input.value = value === null ? '' : String(value ?? spec.default ?? '');
+    else input.value = spec.format === 'ranges' ? formatRanges(value) : value === null ? '' : String(value ?? spec.default ?? '');
   }
   input.dataset[attribute] = key;
   if (spec.unit) input.title = spec.unit;

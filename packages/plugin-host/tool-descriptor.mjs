@@ -54,6 +54,10 @@ export function normalizeSpec(id, key, spec, { withDefault = true } = {}) {
     if (!Array.isArray(spec.options) || !spec.options.length) fail(id, `${key}.options must list the choices`);
     out.options = spec.options.map((option, i) => ({ value: text(id, option?.value, `${key}.options[${i}].value`, 80), label: text(id, option?.label, `${key}.options[${i}].label`, 120) }));
   }
+  if (spec.format !== undefined) {
+    if (type !== 'text' || spec.format !== 'ranges') fail(id, `${key}.format must be "ranges" and only on a text field`);
+    out.format = 'ranges';   // shown as "1-109, 264-309" and kept as [[1, 109], [264, 309]]
+  }
   if (type === 'text' && spec.maxLength !== undefined) {
     if (!Number.isInteger(spec.maxLength) || spec.maxLength < 1 || spec.maxLength > 5000) fail(id, `${key}.maxLength must be 1-5000`);
     out.maxLength = spec.maxLength;
