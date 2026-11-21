@@ -41,6 +41,23 @@ export function makeStaticTemplate(loaded) {
 }
 
 /**
+ * A structure imported on its own is a flat list: one top-level node per chain. The tools' navigation views name one node as their root and the Viewer shows only that node's subtree,
+ * so on a flat scene a tool that roots its view at its own part (the rotor's first chain) would show that single chain. The official packs have a root group; this gives an imported work
+ * the same shape: one group over the structure's top-level part nodes (same ids, identity transform, nothing moves). Applies only to a scene that carries tools and has at least two flat
+ * structure nodes; a scene that is already grouped, or has no tool, is left as it is. Mutates `scene`; returns the group's id or null.
+ */
+export function ensureStructureRoot(scene) {
+  if (!scene.tools?.length) return null;
+  const flat = scene.nodes.filter((node) => node.parentId === null && node.extensions?.['org.glow.structure']);
+  if (flat.length < 2 || scene.nodes.some((node) => node.parentId !== null && flat.some(({ id }) => id === node.parentId))) return null;
+  let id = 'structure-root', n = 1;
+  while (scene.nodes.some((node) => node.id === id)) id = `structure-root-${++n}`;
+  scene.nodes.unshift({ id, name: scene.title, assetId: null, parentId: null, visible: true, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } });
+  for (const node of flat) node.parentId = id;
+  return id;
+}
+
+/**
  * Brings a freshly loaded scene to the current format and gives it the tool configuration of its declared mechanism.
  * v2 scenes are upgraded (nothing is removed); a v3 work that carries no entry for its mechanism gets the default one.
  * Problems with individual resources become warnings; the scene still opens.
@@ -51,6 +68,7 @@ export async function prepareWorkScene(loaded) {
   if (!scene.tools.length && tools.length) scene.tools = tools;
   loaded.scene = scene;
   if (loaded.isTemplate) loaded.scene.tools = [];   // a template carries no tool at all
+  ensureStructureRoot(loaded.scene);
   for (const { message } of diagnostics) loaded.warnings = [...(loaded.warnings ?? []), message];
 }
 

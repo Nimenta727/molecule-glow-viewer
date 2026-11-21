@@ -119,3 +119,17 @@ test('a template is static: opening a pack as a template removes the process, an
   await prepareWorkScene(work);
   assert.equal(work.scene.tools.length, 1, 'the same pack opened as a work gets its tool');
 });
+
+test('a flat imported structure with tools gets one root group over its part nodes; grouped, tool-less and tiny scenes are left alone', async () => {
+  const { ensureStructureRoot } = await import('../work-scene.mjs');
+  const part = (id, parentId = null) => ({ id, name: id, assetId: id, parentId, visible: true, transform: { position: [1, 2, 3], rotation: [0, 0, 0, 1], scale: [1, 1, 1] }, extensions: { 'org.glow.structure': { chainId: id } } });
+  const scene = () => ({ title: 'T', tools: [{ id: 'a' }], nodes: [part('A'), part('B'), { id: 'marker', name: 'm', assetId: null, parentId: null, visible: true, transform: { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] } }] });
+  const flat = scene(), id = ensureStructureRoot(flat);
+  assert.equal(id, 'structure-root'); assert.equal(flat.nodes[0].id, id); assert.equal(flat.nodes[0].name, 'T');
+  assert.deepEqual(flat.nodes.filter((n) => n.parentId === id).map((n) => n.id), ['A', 'B'], 'only the structure parts move under the group');
+  assert.deepEqual(flat.nodes.find((n) => n.id === 'A').transform.position, [1, 2, 3], 'nothing else changes');
+  assert.equal(ensureStructureRoot(flat), null, 'a second call finds it already grouped');
+  const taken = scene(); taken.nodes.push({ ...part('C'), id: 'structure-root', name: 'x' }); assert.equal(ensureStructureRoot(taken), 'structure-root-2', 'the id never collides');
+  const none = scene(); none.tools = []; assert.equal(ensureStructureRoot(none), null); assert.equal(none.nodes.length, 3);
+  const one = scene(); one.nodes = [part('A')]; assert.equal(ensureStructureRoot(one), null);
+});

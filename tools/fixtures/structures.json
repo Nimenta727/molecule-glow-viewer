@@ -79,6 +79,12 @@
       "bytes": 356558,
       "sha256": "54a33f49073210a129a74ab256fab4f8dfedc3df5a4d43360d92e5636b93572f",
       "url": "https://files.rcsb.org/download/1ANF.cif"
+    },
+    {
+      "id": "6N2Y",
+      "bytes": 3936053,
+      "sha256": "cd24029e8075a2dc36413fc67565d06df98f75ed0460d2c8907df9c2159a3984",
+      "url": "https://files.rcsb.org/download/6N2Y.cif"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { ATP_PS3_6N2Y_TEMPLATE } from './templates.mjs';
 import { ATP_6ZPO_TEMPLATE, normalizeAtpConfig } from './config.mjs';
 import { matchesPart } from '../structure/functional-preview.mjs';
 import { nodesOfSource, partNameOf } from '../shared/bindings.mjs';
@@ -51,7 +52,7 @@ export function atpToolDescriptor(version, playerId) {
     aliases: [playerId], player: playerId,   // works saved before the rename name the tool by its player id
     inputs: { roles: { rotor: { label: '转子部件（随转轴旋转的亚基）', min: 1 } }, check: atpCheck },
     parameters: {},   // rotation speed and seed are the clock controls the Viewer shows itself
-    author: { template: ATP_6ZPO_TEMPLATE, fields: atpAuthorFields, validate: normalizeAtpConfig },
+    author: { template: ATP_6ZPO_TEMPLATE, presets: [{ id: 'ps3', label: '细菌 PS3 F1Fo（6N2Y，c10 环）', config: ATP_PS3_6N2Y_TEMPLATE }], fields: atpAuthorFields, validate: normalizeAtpConfig },
     outputs: [{ key: 'rotation', label: '转子角度', kind: 'state', unit: '°' }, { key: 'protons', label: '穿过的质子数', kind: 'count' }, { key: 'atp', label: '合成的 ATP 数', kind: 'count' }, { key: 'events', label: '质子 / ATP 事件', kind: 'event' }],
     dependencies: [{ id: 'org.glow.structure', version: '1.0.0' }],
     model: { kind: '旋转 ATP 酶几何播放器（环旋转 + 三位点构象插值）', assumptions: [
