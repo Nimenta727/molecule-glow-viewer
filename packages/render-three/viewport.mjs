@@ -1209,5 +1209,6 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
-    stats() { let objects = 0; scene.traverse(() => { objects++; }); return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects }; } };
+    stats() { let objects = 0; scene.traverse(() => { objects++; }); return { geometries: renderer.info.memory.geometries, textures: renderer.info.memory.textures, programs: renderer.info.programs?.length ?? 0, objects,
+      triangles: renderer.info.render.triangles, drawCalls: renderer.info.render.calls, points: renderer.info.render.points, lines: renderer.info.render.lines }; } };   // the last frame's load, for sizing scenes (docs/PLUGIN_ROADMAP.md)
 }
