@@ -53,7 +53,7 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     await call('note', '【实验结构】衣壳、门户-尾部、核心三部分的原子坐标均来自已发表的冷冻电镜结构，原样使用，未改动坐标。 【示意/假设】三部分之间的相对位置（核心放进头部、头部相对门户的距离）、DNA 的缠绕方式都是作图时的假设：核心的位置按“不碰撞且与门户相接”扫描选定，DNA 画成绕核心的同轴盘绕线轴（线轴模型），具体缠绕并非测得；序列没有表示。表面是高斯分子表面，不是严格的溶剂排除面。');
     await call('note', `来源：${PAPERS.head}；${PAPERS.tail}；${PAPERS.old}。门户-尾部和核心的两个结构来自同一份 2025 年成熟噬菌体工作。已知：头壳 gp10A 共 415 个拷贝；核心由 gp14、gp15（8 聚体环）与 gp16（4 聚体环）堆叠于门户之上（文献描述，8/4 重对称的归属在原文中有不确定之处）。`);
     await call('note', `本画面剖开面按镜头方向取过场景中心，只是为了看内部；剖面本身没有物理意义。表面三角面：头 ${a.surface.triangles}，尾 ${b.surface.triangles}，核心 ${c.surface.triangles}。`);
-    await call('publication', { ...AUTHOR, topic: 'virus', description: '噬菌体 T7 成熟病毒颗粒的静态示意装配：由已发表的冷冻电镜结构拼成，剖开显示核酸线轴与内部核心，位置关系为示意。', tags: ['噬菌体', 'T7', '病毒', '冷冻电镜', '示意装配'] });
+    await call('publication', { ...AUTHOR, topic: 'local-system', description: '噬菌体 T7 成熟病毒颗粒的静态示意装配：由已发表的冷冻电镜结构拼成，剖开显示核酸线轴与内部核心，位置关系为示意。', tags: ['噬菌体', 'T7', '病毒', '冷冻电镜', '示意装配'] });
   });
 
   await work('t7-capsid-gp10a', async (call) => {
@@ -67,7 +67,7 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     await call('note', `主衣壳蛋白 gp10A：一个不对称单元含 7 个亚基（每个二十面体面的一个位置），共 ${comp.residues} 个残基；完整衣壳是 60 个这样的单元，共 415 个亚基（T=7）。颜色只区分亚基，不表示数值。`);
     await call('note', `二级结构按文件登记：螺旋占比约 ${sec.chains.map((c) => c.helixPercent).join('、')}%。整体是 HK97 型折叠（文献中的归类）。组成统计是按个数数的，没有 pKa 与环境。`);
     await call('note', `来源：${PAPERS.head}。注意 3J7W 是 DNA 包装中间体（capsid II），不是成熟衣壳；本作品用的是 3J7X。`);
-    await call('publication', { ...AUTHOR, topic: 'virus', description: 'T7 噬菌体成熟衣壳（3J7X）主衣壳蛋白 gp10A 的 7 个亚基表面。', tags: ['噬菌体', 'T7', '衣壳', 'gp10A'] });
+    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 噬菌体成熟衣壳（3J7X）主衣壳蛋白 gp10A 的 7 个亚基表面。', tags: ['噬菌体', 'T7', '衣壳', 'gp10A'] });
   });
 
   await work('t7-portal-tail', async (call) => {
@@ -81,7 +81,7 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     const comp = await call('composition', { part: 'protein', write: ['record'] });
     await call('note', `门户-尾部复合体：${chains.length} 条链、${comp.residues} 个残基。文件里的组分有 gp8 门户、gp11 衔接蛋白、gp12 喷嘴、尾丝 gp17、gp6.7、gp7.3（以文件登记的名称为准）。`);
     await call('note', `来源：${PAPERS.tail}；早期结构 ${PAPERS.old}。本作品只用一种颜色画整体表面，尚未按组分分色。`);
-    await call('publication', { ...AUTHOR, topic: 'virus', description: 'T7 成熟噬菌体门户-尾部复合体（9JYZ）的分子表面。', tags: ['噬菌体', 'T7', '门户', '尾部'] });
+    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体门户-尾部复合体（9JYZ）的分子表面。', tags: ['噬菌体', 'T7', '门户', '尾部'] });
   });
 
   await work('t7-core-proteins', async (call) => {
@@ -93,7 +93,7 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     const comp = await call('composition', { part: 'protein', write: ['record'] });
     await call('note', `核心蛋白复合体：${chains.length} 条链、${comp.residues} 个残基。文献描述核心由 gp16（4 聚体环）、gp15（8 聚体环）、gp14（8 聚体环）堆叠在门户之上，射出时经尾部通道进入宿主；其中 gp14 的对称归属在原文中不完全确定。`);
     await call('note', `来源：${PAPERS.tail}。单一颜色，尚未按组分分色。`);
-    await call('publication', { ...AUTHOR, topic: 'virus', description: 'T7 成熟噬菌体内部核心蛋白（9JYY）的分子表面。', tags: ['噬菌体', 'T7', '核心蛋白'] });
+    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体内部核心蛋白（9JYY）的分子表面。', tags: ['噬菌体', 'T7', '核心蛋白'] });
   });
 
   await browser.close(); console.log('phage works written to', OUT);
