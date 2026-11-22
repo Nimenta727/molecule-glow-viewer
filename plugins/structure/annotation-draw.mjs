@@ -12,10 +12,10 @@ export function clearAnnotations(viewport) {
   viewport.setParticleCloud(ANNOTATION_TEXTS, []);
 }
 
-export function drawAnnotations(viewport, model, { measures = [], labels = [] } = {}, convert) {
-  if (!model || (!measures.length && !labels.length)) { clearAnnotations(viewport); return []; }
-  const { lines, texts, problems } = computeAnnotations(model, { measures, labels });
-  viewport.setOverlayLines(ANNOTATION_LINES, lines.map(({ a, b }) => ({ a: convert(a), b: convert(b), color: MEASURE_COLOR })), { dash: 0.01, gap: 0.006 });
-  viewport.setParticleCloud(ANNOTATION_TEXTS, texts.map(({ position, text, kind }) => ({ position: convert(position), radius: 0.03, color: kind === 'measure' ? MEASURE_COLOR : LABEL_COLOR, alpha: 0.95, name: text, label: text })), { overlay: true });
+export function drawAnnotations(viewport, model, { measures = [], labels = [], bonds = [] } = {}, convert) {
+  if (!model || (!measures.length && !labels.length && !bonds.length)) { clearAnnotations(viewport); return []; }
+  const { lines, texts, problems } = computeAnnotations(model, { measures, labels, bonds });
+  viewport.setOverlayLines(ANNOTATION_LINES, lines.map(({ a, b, color }) => ({ a: convert(a), b: convert(b), color: color ?? MEASURE_COLOR })), { dash: 0.01, gap: 0.006 });
+  viewport.setParticleCloud(ANNOTATION_TEXTS, texts.map(({ position, text, kind, quiet, color }) => ({ position: convert(position), radius: quiet ? 0.012 : 0.03, color: color ?? (kind === 'measure' ? MEASURE_COLOR : LABEL_COLOR), alpha: 0.95, name: text, ...(quiet ? {} : { label: text }) })), { overlay: true });
   return problems;
 }

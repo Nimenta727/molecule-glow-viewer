@@ -6,7 +6,7 @@ import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.m
 import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
 import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
-import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
+import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { Euler, MathUtils, Quaternion } from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -413,13 +413,13 @@ const lookPanelContext = {
   selectionChanged: () => selectionChanged(),
   annotations() {
     const view = primarySource(session().getScene())?.provenance?.viewerState ?? {};
-    let measures = [], labels = []; try { measures = validateMeasures(view.measures); labels = validateLabels(view.labels); } catch { /* a damaged block is shown as empty */ }
-    return { measures, labels };
+    let measures = [], labels = [], bonds = []; try { measures = validateMeasures(view.measures); labels = validateLabels(view.labels); bonds = validateBonds(view.bonds); } catch { /* a damaged block is shown as empty */ }
+    return { measures, labels, bonds };
   },
   applyAnnotations(patch, message) {
     const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
     const viewer = {};
-    for (const key of ['measures', 'labels']) if (patch[key]) viewer[key] = patch[key].length ? patch[key] : null;
+    for (const key of ['measures', 'labels', 'bonds']) if (patch[key]) viewer[key] = patch[key].length ? patch[key] : null;
     edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
   },
   apply(patch, message) {
@@ -463,6 +463,7 @@ const panelEnv = {
       const state = lookPanelContext.annotations(), next = {};
       if (patch.measures) next.measures = validateMeasures([...state.measures, ...patch.measures]);
       if (patch.labels) next.labels = validateLabels([...state.labels, ...patch.labels]);
+      if (patch.bonds) next.bonds = validateBonds([...state.bonds, ...patch.bonds]);
       lookPanelContext.applyAnnotations(next, message);
     },
     placePart({ chain, reset, quaternion, from, to }, message) {

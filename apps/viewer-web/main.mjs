@@ -43,7 +43,7 @@ import { lookFor, applyStyle, validateStyles } from '../../plugins/structure/loo
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 import { cameraAt } from '../../packages/schema/camera-track.mjs';
-import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
+import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
@@ -874,7 +874,7 @@ function boot() {
     if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
       try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
     }
-    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels) }; Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
+    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels), bonds: validateBonds(view?.bonds) }; Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
     if (Array.isArray(view?.styles)) { try { active.styleState = validateStyles(view.styles); Promise.resolve().then(() => { if (active?.styleState?.length) refreshStructureView(); }); } catch { /* a damaged block is ignored */ } }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
@@ -1751,6 +1751,7 @@ function boot() {
         ...(active.styleState?.length ? { styles: active.styleState } : {}),
         ...(active.annotationState?.measures.length ? { measures: active.annotationState.measures } : {}),
         ...(active.annotationState?.labels.length ? { labels: active.annotationState.labels } : {}),
+        ...(active.annotationState?.bonds.length ? { bonds: active.annotationState.bonds } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };

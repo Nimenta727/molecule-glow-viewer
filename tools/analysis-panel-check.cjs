@@ -26,6 +26,9 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   const shown = (await studio.$$('#contacts-list li')).length; assert.ok(shown >= 1 && shown <= 10);
   await studio.fill('#contacts-b', 'banana'); await studio.click('#contacts-run'); assert.match(await studio.$eval('#contacts-out', (n) => n.textContent), /B 部分：.*不认识/);
   await studio.fill('#contacts-b', 'chain B'); await studio.click('#contacts-run');
+  await studio.click('#contacts-classify'); await studio.waitForFunction(() => /盐桥 \d+、氢键 \d+、疏水接触 \d+/.test(document.querySelector('#contacts-out').textContent), null, { timeout: 15000 });
+  const typedText = await studio.$eval('#contacts-out', (n) => n.textContent); console.log(typedText.slice(typedText.indexOf('分类'))); const hb = Number(/氢键 (\d+)/.exec(typedText)[1]); assert.ok(hb >= 1, `4AKE chains A and B share hydrogen bonds (${hb})`);
+  await studio.click('#contacts-draw'); await studio.waitForFunction(() => /已画出 \d+ 条线/.test(document.querySelector('#contacts-out').textContent));
   await studio.click('#contacts-paint'); await studio.waitForFunction(() => /已涂色/.test(document.querySelector('#contacts-out').textContent));
   await studio.click('#contacts-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#contacts-out').textContent));
   // the second panel: composition of a part, coloured by hydrophobicity, recorded
@@ -44,6 +47,7 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.evaluate(() => document.querySelector('[data-panel="org.glow.panel.secondary"]').scrollIntoView()); await studio.waitForTimeout(1200); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
   const pack = await exportPack('contacts'); const { readScenePackage } = await import(path.join(ROOT, 'packages/schema/archive.mjs'));
   const { scene } = await readScenePackage(new Uint8Array(fs.readFileSync(pack))), state = scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)).provenance.viewerState;
+  assert.ok(state.bonds.length >= 1 && state.bonds.every((b) => ['salt', 'hbond'].includes(b.type)), 'typed lines are saved with the work'); console.log('saved bond lines:', state.bonds.length);
   const colours = state.colors.residues.map((r) => r.color); assert.ok(colours.includes('#e1873a') && colours.includes('#3b9ae6'), 'both sides are painted');
   const data = state.plugins['org.glow.panel.contacts']; assert.deepEqual([data.a, data.b, data.cutoff], ['chain A', 'chain B', 4.5]);
   const evidence = scene.evidence.filter((e) => e.source === 'org.glow.panel.contacts'); assert.equal(evidence.length, 1); assert.equal(evidence[0].type, 'derived'); assert.match(evidence[0].citation, /界面接触.*chain A 与 chain B.*≤ 4\.5 Å/);
@@ -53,6 +57,7 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   assert.equal(scene.evidence.filter((e) => e.source === 'org.glow.panel.secondary' && e.type === 'derived').length, 1);
   await studio.click('#undo'); await studio.click('#undo'); await studio.click('#redo'); await studio.click('#redo');
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
-  await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack); await viewer.waitForTimeout(3000);
+  await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack); await viewer.waitForSelector('#structure-offer-enable', { state: 'visible', timeout: 60000 }); await viewer.click('#structure-offer-enable'); await viewer.waitForTimeout(4000);
+  const clouds = await viewer.evaluate(() => window.__glowStats().clouds); console.log('viewer clouds:', JSON.stringify(clouds)); assert.ok(clouds['annotation-texts'] >= state.bonds.length, 'the Viewer draws the saved bond lines');
   assert.deepEqual(errors, [], 'no page errors'); await browser.close(); console.log('analysis panel: ok');
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -1,13 +1,17 @@
 import { selectionSpace, evaluateSelection } from './selection.mjs';
 import { measure, MeasureError } from './measure.mjs';
+import { selectCoordinateAtoms } from './representation.mjs';
+import { residueIdentity } from './confidence.mjs';
+import { TYPES as BOND_TYPES } from './interactions.mjs';
 
 /**
  * Measurements and labels the author keeps with a work (in the structure file's viewer state, next to the look): a MEASUREMENT is the distance between two parts or the angle at the middle one of three
- * (each part: one residue or one small molecule, written in the selection language), a LABEL is a text put on a part. Plain data; no executable content. `computeAnnotations` turns them into what is
+ * (each part: one residue or one small molecule, written in the selection language), a LABEL is a text put on a part, a BOND is a typed line between two named atoms of two residues
+ * (hydrogen bond, salt bridge, hydrophobic contact; the line is coloured by its type and the distance is shown when it is pointed at). Plain data; no executable content. `computeAnnotations` turns them into what is
  * drawn (dashed lines and texts, in the structure's own coordinates, Å); the Studio and the Viewer put them in their own scene. A rule whose selection no longer picks what it should (another file) is reported
  * in `problems` and left out, never guessed.
  */
-export const MAX_MEASURES = 24, MAX_LABELS = 48, MAX_EXPRESSION = 400, MAX_TEXT = 60;
+export const MAX_MEASURES = 24, MAX_LABELS = 48, MAX_BONDS = 200, MAX_EXPRESSION = 400, MAX_TEXT = 60;
 export class AnnotationError extends Error { constructor(message) { super(message); this.name = 'AnnotationError'; } }
 
 const expression = (value, what) => {
@@ -37,6 +41,20 @@ export function validateLabels(value) {
   });
 }
 
+/** Checks and cleans the atom-level bonds: [{ a: { expr, atom }, b: { expr, atom }, type }], at most 200. Each expr names ONE residue. */
+export function validateBonds(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_BONDS) throw new AnnotationError(`相互作用线应为不超过 ${MAX_BONDS} 条的列表。`);
+  const end = (side) => {
+    if (!side || typeof side.atom !== 'string' || !/^[A-Za-z0-9'*]{1,4}$/.test(side.atom)) throw new AnnotationError('相互作用线的原子名应为 1–4 个字符。');
+    return { expr: expression(side.expr, '相互作用线'), atom: side.atom };
+  };
+  return value.map((item) => {
+    if (!item || !Object.hasOwn(BOND_TYPES, item.type)) throw new AnnotationError(`相互作用线的类型应为 ${Object.keys(BOND_TYPES).join(' / ')}。`);
+    return { a: end(item.a), b: end(item.b), type: item.type };
+  });
+}
+
 const centroid = (points) => points.reduce((sum, p) => [sum[0] + p[0], sum[1] + p[1], sum[2] + p[2]], [0, 0, 0]).map((v) => v / points.length);
 const middle = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 
@@ -44,9 +62,9 @@ const middle = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 
  * What to draw for the given measurements and labels on `model`: { lines: [{ a, b }], texts: [{ position, text, kind, index }], problems: [{ kind, index, message }] }; positions in Å.
  * A measurement draws its segments and puts its value at the middle of the first one ("12.34 Å", "95.0°"); a label sits at the centre of the part it names.
  */
-export function computeAnnotations(model, { measures = [], labels = [] } = {}) {
+export function computeAnnotations(model, { measures = [], labels = [], bonds = [] } = {}) {
   const out = { lines: [], texts: [], problems: [] };
-  if (!model || (!measures.length && !labels.length)) return out;
+  if (!model || (!measures.length && !labels.length && !bonds.length)) return out;
   const space = selectionSpace(model);
   measures.forEach((item, index) => {
     try {
@@ -64,5 +82,22 @@ export function computeAnnotations(model, { measures = [], labels = [] } = {}) {
       out.texts.push({ position: centroid(points), text: item.text || name, kind: 'label', index });
     } catch (error) { out.problems.push({ kind: 'label', index, message: error.message }); }
   });
+  if (bonds.length) {
+    const atoms = new Map(); for (const { atom, pos } of selectCoordinateAtoms(model)) atoms.set(`${residueIdentity(atom)}|${atom.name}`, pos);
+    const where = (side, name) => {
+      const residues = evaluateSelection(side.expr, space).residues;
+      if (residues.length !== 1) throw new AnnotationError(`${name}“${side.expr}”应正好选中一个残基（选中了 ${residues.length} 个）。`);
+      const position = atoms.get(`${residueIdentity(residues[0].atom)}|${side.atom}`);
+      if (!position) throw new AnnotationError(`${name}“${side.expr}”里没有原子 ${side.atom}。`);
+      return position;
+    };
+    bonds.forEach((item, index) => {
+      try {
+        const a = where(item.a, '一端'), b = where(item.b, '另一端'), [label, color] = BOND_TYPES[item.type];
+        out.lines.push({ a, b, color, kind: 'bond' });
+        out.texts.push({ position: middle(a, b), text: `${label} ${Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]).toFixed(2)} Å`, kind: 'bond', index, quiet: true, color });
+      } catch (error) { out.problems.push({ kind: 'bond', index, message: error.message }); }
+    });
+  }
   return out;
 }

@@ -113,8 +113,8 @@ export function createLookPanel(container, context, { doc = container.ownerDocum
   }));
   annotationList.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-ann]'); if (!button) return;
-    const [kind, index] = button.dataset.ann.split(':'), state = context.annotations(), key = kind === 'measure' ? 'measures' : 'labels';
-    context.applyAnnotations({ [key]: state[key].filter((_, i) => i !== Number(index)) }, `已删除一条${kind === 'measure' ? '测量' : '标签'}。`);
+    const [kind, index] = button.dataset.ann.split(':'), state = context.annotations(), key = { measure: 'measures', label: 'labels', bonds: 'bonds' }[kind];
+    context.applyAnnotations({ [key]: key === 'bonds' ? [] : state[key].filter((_, i) => i !== Number(index)) }, `已删除${{ measure: '一条测量', label: '一个标签', bonds: '全部相互作用线' }[kind]}。`);
   });
   input.addEventListener('input', () => { clearTimeout(input.timer); input.timer = setTimeout(preview, 250); });
 
@@ -139,6 +139,7 @@ export function createLookPanel(container, context, { doc = container.ownerDocum
         : [make('li', { text: '还没有规则：结构按作品默认的样子画。' })]));
       const notes = context.annotations(), drawn = computeAnnotations(model(), notes);
       const entries = [...notes.measures.map((m, i) => ({ kind: 'measure', i, text: `测量 · ${m.points.join(' — ')}${drawn.texts.find((t) => t.kind === 'measure' && t.index === i) ? `：${drawn.texts.find((t) => t.kind === 'measure' && t.index === i).text}` : '（这个文件里画不出）'}` })),
+        ...(notes.bonds?.length ? [{ kind: 'bonds', i: 0, text: `相互作用线 · ${notes.bonds.length} 条（${['salt', 'hbond', 'hydrophobic'].map((t) => [t, notes.bonds.filter((b) => b.type === t).length]).filter(([, n]) => n).map(([t, n]) => `${{ salt: '盐桥', hbond: '氢键', hydrophobic: '疏水' }[t]} ${n}`).join('、')}）${drawn.problems.some((p) => p.kind === 'bond') ? `，其中 ${drawn.problems.filter((p) => p.kind === 'bond').length} 条在这个文件里画不出` : ''}` }] : []),
         ...notes.labels.map((l, i) => ({ kind: 'label', i, text: `标签 · ${l.expr}${l.text ? ` → ${l.text}` : ''}${drawn.problems.some((p) => p.kind === 'label' && p.index === i) ? '（这个文件里画不出）' : ''}` }))];
       annotationList.replaceChildren(...(entries.length ? entries.map((e) => make('li', { class: 'look-rule' }, make('span', { text: e.text }), make('button', { type: 'button', 'data-ann': `${e.kind}:${e.i}`, title: '删除', 'aria-label': `删除：${e.text}`, text: '×' })))
         : [make('li', { text: '还没有测量或标签。' })]));

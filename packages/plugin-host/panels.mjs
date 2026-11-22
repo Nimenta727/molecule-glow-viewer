@@ -51,7 +51,7 @@ const plain = (value) => { try { return JSON.parse(JSON.stringify(value ?? null)
  *   host.model() / host.selection()                       what is open and chosen
  *   host.readData(id) / host.writeData(id, data, message) the panel's own namespace in the work (one undo step)
  *   host.applyLook(patch, message)                         { colors?: { residues: [{ expr, color | scheme }] }, styles?: [{ expr, style }] }: rules ADDED after the author's own (later rules win), checked like the Appearance tab
- *   host.annotate(patch, message)                          { measures?, labels? }: entries ADDED to the work's own
+ *   host.annotate(patch, message)                          { measures?, labels?, bonds? }: entries ADDED to the work's own
  *   host.addEvidence(entry, message)                       one evidence entry of the work
  *   host.placePart(placement, message)                     { chain, quaternion, from, to }: rotate the chain about `from`, then carry `from` to `to` (structure coordinates, Å); null fit = back to the deposited place
  *   host.highlight(residues | null) / host.status(text)
@@ -73,7 +73,7 @@ export function createPanelContext(panel, host) {
       host.applyLook(plain(patch), message);
     },
     annotate(patch, message = `${panel.title}：已添加标注。`) {
-      if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some((key) => !['measures', 'labels'].includes(key))) throw new PanelError('annotate 只接受 { measures?, labels? }。');
+      if (!patch || typeof patch !== 'object' || Array.isArray(patch) || Object.keys(patch).some((key) => !['measures', 'labels', 'bonds'].includes(key))) throw new PanelError('annotate 只接受 { measures?, labels?, bonds? }。');
       host.annotate(plain(patch), message);
     },
     addEvidence({ type = 'derived', method, citation } = {}, message = `${panel.title}：已记录证据。`) {

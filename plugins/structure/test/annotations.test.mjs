@@ -31,3 +31,14 @@ test('measurements and labels are validated: shape, length, counts', () => {
   assert.deepEqual(validateLabels([{ expr: 'resi 1' }, { expr: 'chain A', text: '  链 A ' }]), [{ expr: 'resi 1' }, { expr: 'chain A', text: '链 A' }]);
   for (const bad of [[{ expr: '' }], [{ expr: 'a', text: 'x'.repeat(61) }], [null], 'x', Array.from({ length: 49 }, () => ({ expr: 'a' }))]) assert.throws(() => validateLabels(bad), AnnotationError);
 });
+
+import { validateBonds } from '../annotations.mjs';
+test('typed bonds between two named atoms are drawn as coloured lines with the distance on pointing; wrong residue counts, atoms or types are reported', () => {
+  const m = model(), bond = (a, b, type = 'hbond') => ({ a: { expr: a, atom: 'CA' }, b: { expr: b, atom: 'CA' }, type });
+  const out = computeAnnotations(m, { bonds: [bond('resi 1', 'resi 2'), bond('resi 1', 'resi 2', 'salt'), bond('resi 1-2', 'resi 3'), { a: { expr: 'resi 1', atom: 'XX' }, b: { expr: 'resi 2', atom: 'CA' }, type: 'hbond' }] });
+  assert.deepEqual(out.lines.map((l) => [l.a, l.b, l.color, l.kind]), [[[0, 0, 0], [10, 0, 0], '#2f9bff', 'bond'], [[0, 0, 0], [10, 0, 0], '#ff4fa3', 'bond']]);
+  assert.deepEqual(out.texts.map((t) => [t.text, t.quiet]), [['氢键 10.00 Å', true], ['盐桥 10.00 Å', true]]);
+  assert.deepEqual(out.problems.map((p) => [p.kind, p.index]), [['bond', 2], ['bond', 3]]); assert.match(out.problems[0].message, /应正好选中一个残基/); assert.match(out.problems[1].message, /没有原子 XX/);
+  assert.deepEqual(validateBonds([bond('resi 1', 'resi 2')]), [bond('resi 1', 'resi 2')]); assert.deepEqual(validateBonds(undefined), []);
+  for (const bad of [[{ ...bond('a', 'b'), type: 'magic' }], [{ a: { expr: 'a', atom: '' }, b: { expr: 'b', atom: 'CA' }, type: 'hbond' }], [{ a: { expr: '', atom: 'CA' }, b: { expr: 'b', atom: 'CA' }, type: 'hbond' }], 'x', Array.from({ length: 201 }, () => bond('a', 'b'))]) assert.throws(() => validateBonds(bad), AnnotationError);
+});
