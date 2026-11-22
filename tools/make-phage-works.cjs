@@ -60,9 +60,11 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     const info = await call('import', { pdb: '3J7X' }), chains = info.structures[0].chains;
     await call('title', 'T7 噬菌体成熟衣壳的主衣壳蛋白 gp10A（3J7X 不对称单元，7 个亚基）');
     await call('part', 'all', false);
-    const pal = ['#5f7fc9', '#7a8fd8', '#4a6bb8', '#6f9fd8', '#5a7ac0', '#8296de', '#4f86c6'];
-    for (let i = 0; i < 7; i++) await call('surface', `chain ${chains[i]}`, 'plain', pal[i]);   // one surface rule each (max rules permitting)
+    const groups = [[0, 1, 2], [3, 4], [5, 6]], pal = ['#5f7fc9', '#7fa6e0', '#4a6bb8'];   // the surface rules are limited to 4: three colour groups of subunits
+    for (let g = 0; g < groups.length; g++) await call('surface', `chain ${groups[g].map((i) => chains[i]).join(',')}`, 'plain', pal[g]);
     await call('lookPack', 'glow.membrane-cool', { recolor: false }); await call('camera', { focus: 'all', margin: 1.2 });
+    { const c = (await call('camera')).camera, t = c.target, d = Math.hypot(c.position[0] - t[0], c.position[1] - t[1], c.position[2] - t[2]), n = Math.hypot(...t) || 1;   // look at the patch from outside the capsid, along the radius through it
+      await call('camera', { position: [t[0] + (t[0] / n) * d, t[1] + (t[1] / n) * d, t[2] + (t[2] / n) * d], target: t }); }
     const comp = await call('composition', { part: 'protein', write: ['record'] }), sec = await call('secondary', { part: 'protein', write: ['record'] });
     await call('note', `主衣壳蛋白 gp10A：一个不对称单元含 7 个亚基（每个二十面体面的一个位置），共 ${comp.residues} 个残基；完整衣壳是 60 个这样的单元，共 415 个亚基（T=7）。颜色只区分亚基，不表示数值。`);
     await call('note', `二级结构按文件登记：螺旋占比约 ${sec.chains.map((c) => c.helixPercent).join('、')}%。整体是 HK97 型折叠（文献中的归类）。组成统计是按个数数的，没有 pKa 与环境。`);
@@ -70,30 +72,36 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 噬菌体成熟衣壳（3J7X）主衣壳蛋白 gp10A 的 7 个亚基表面。', tags: ['噬菌体', 'T7', '衣壳', 'gp10A'] });
   });
 
+  const ENT = JSON.parse(fs.readFileSync(path.join(DIR, 'entities.json'), 'utf8')), chainSel = (e, name) => 'chain ' + e[name].join(',');
   await work('t7-portal-tail', async (call) => {
-    const info = await call('import', { pdb: '9JYZ' }), chains = info.structures[0].chains;
-    await call('title', 'T7 成熟噬菌体的门户-尾部复合体（9JYZ）');
+    const info = await call('import', { pdb: '9JYZ' }), e = ENT['9JYZ'], have = new Set(info.structures[0].chains);
+    for (const list of Object.values(e)) for (const c of list) assert.ok(have.has(c), `chain ${c} is in the file`);
+    await call('title', 'T7 成熟噬菌体的门户-尾部复合体（9JYZ）：门户、衔接蛋白、喷嘴与尾丝');
     await call('part', 'all', false);
-    const s = await call('structures'), ents = s.structures[0].entities ?? null;
-    console.log('9JYZ chains', chains.length, JSON.stringify(ents)?.slice(0, 600));
-    await call('surface', 'protein and not nucleic', 'plain', '#e8b04a');
-    await call('lookPack', 'glow.active-site-warm', { recolor: false }); await call('camera', { focus: 'all', margin: 1.1 });
+    const r = [['Portal protein', '#4f7fd0'], ['Tail tubular protein gp11', '#3fbf9f'], ['Tail tubular protein gp12', '#e8b04a'], ['Tail fiber protein', '#e8604a']];
+    for (const [name, colour] of r) await call('surface', chainSel(e, name), 'plain', colour);
+    const small = `${chainSel(e, 'Protein 6.7')},${e['Protein 7.3'].join(',')}`.replace(/^chain /, ''); await call('part', 'chain ' + small, true); await call('color', 'chain ' + e['Protein 6.7'].join(','), '#b04df5'); await call('color', 'chain ' + e['Protein 7.3'].join(','), '#f58ac0');
+    await call('lookPack', 'glow.active-site-warm', { recolor: false }); await sideOn(call, 'all');
     const comp = await call('composition', { part: 'protein', write: ['record'] });
-    await call('note', `门户-尾部复合体：${chains.length} 条链、${comp.residues} 个残基。文件里的组分有 gp8 门户、gp11 衔接蛋白、gp12 喷嘴、尾丝 gp17、gp6.7、gp7.3（以文件登记的名称为准）。`);
-    await call('note', `来源：${PAPERS.tail}；早期结构 ${PAPERS.old}。本作品只用一种颜色画整体表面，尚未按组分分色。`);
-    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体门户-尾部复合体（9JYZ）的分子表面。', tags: ['噬菌体', 'T7', '门户', '尾部'] });
+    await call('note', `门户-尾部复合体：${info.structures[0].chains.length} 条链、${comp.residues} 个残基。蓝：门户蛋白 gp8（12 聚体）；青：衔接蛋白 gp11（12 个拷贝）；金：喷嘴 gp12（6 个拷贝）；红：尾丝蛋白 gp17（18 条链，6 根三聚体尾丝）；紫、粉的细线（卡通表示）：gp6.7（12 个拷贝）与 gp7.3（6 个拷贝）。颜色只区分蛋白种类，不表示数值。`);
+    await call('note', `链与蛋白种类的对应取自文件自己的实体表（entity）；6.7、7.3 号蛋白没有画表面（表面规则最多 4 条）。尾丝在文件里只有一部分（为结构可见的部分）。`);
+    await call('note', `来源：${PAPERS.tail}；早期的同一复合体 ${PAPERS.old}。文献描述：LPS 结合使喷嘴打开，随后门户构象变化触发基因组射出（这一机理未在本作品里计算）。`);
+    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体门户-尾部复合体（9JYZ）的分子表面，按蛋白种类分色。', tags: ['噬菌体', 'T7', '门户', '尾部', '尾丝'] });
   });
 
   await work('t7-core-proteins', async (call) => {
-    const info = await call('import', { pdb: '9JYY' }), chains = info.structures[0].chains;
+    const info = await call('import', { pdb: '9JYY' }), e = ENT['9JYY'], have = new Set(info.structures[0].chains);
+    for (const list of Object.values(e)) for (const c of list) assert.ok(have.has(c), `chain ${c} is in the file`);
     await call('title', 'T7 成熟噬菌体的内部核心蛋白（9JYY：gp14、gp15、gp16、gp6.7）');
     await call('part', 'all', false);
-    await call('surface', 'protein and not nucleic', 'plain', '#3fbf9f');
-    await call('lookPack', 'glow.cell-dark', { recolor: false }); await call('camera', { focus: 'all', margin: 1.1 });
+    const r = [['Peptidoglycan transglycosylase gp16', '#e8b04a'], ['Internal virion protein gp15', '#3fbf9f'], ['Internal virion protein gp14', '#4f7fd0'], ['Protein 6.7', '#b04df5']];
+    for (const [name, colour] of r) await call('surface', chainSel(e, name), 'plain', colour);
+    await call('lookPack', 'glow.cell-dark', { recolor: false }); await sideOn(call, 'all');
     const comp = await call('composition', { part: 'protein', write: ['record'] });
-    await call('note', `核心蛋白复合体：${chains.length} 条链、${comp.residues} 个残基。文献描述核心由 gp16（4 聚体环）、gp15（8 聚体环）、gp14（8 聚体环）堆叠在门户之上，射出时经尾部通道进入宿主；其中 gp14 的对称归属在原文中不完全确定。`);
-    await call('note', `来源：${PAPERS.tail}。单一颜色，尚未按组分分色。`);
-    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体内部核心蛋白（9JYY）的分子表面。', tags: ['噬菌体', 'T7', '核心蛋白'] });
+    await call('note', `核心蛋白复合体：${info.structures[0].chains.length} 条链、${comp.residues} 个残基。金：gp16（4 个拷贝，含转糖基酶结构域）；青：gp15（8 个拷贝）；蓝：gp14（8 个拷贝）；紫：gp6.7（8 个拷贝）。颜色只区分蛋白种类。`);
+    await call('note', `文献描述：核心由 gp16（4 聚体环）、gp15（8 聚体环）、gp14（8 聚体环）堆叠在门户之上，感染时经尾部通道射出；gp14 的对称归属在原文中不完全确定，这里按文件登记的链原样画出，不加解读。`);
+    await call('note', `来源：${PAPERS.tail}。`);
+    await call('publication', { ...AUTHOR, topic: 'protein', description: 'T7 成熟噬菌体内部核心蛋白（9JYY）的分子表面，按蛋白种类分色。', tags: ['噬菌体', 'T7', '核心蛋白'] });
   });
 
   await browser.close(); console.log('phage works written to', OUT);

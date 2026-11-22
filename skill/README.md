@@ -1,8 +1,8 @@
-# 制作 Skill · 0.9.0
+# 制作 Skill · 0.10.0
 
 为 Claude Code、Codex 或其他支持 SKILL.md 的工具提供分子场景制作指导。入口是 [SKILL.md](SKILL.md)，最新平台说明在 [platform.md](references/platform.md)，功能工具配置与新增工具流程在 [tools.md](references/tools.md)。
 
-从 [Desktop 0.9.0 Release](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.9.0)下载 Skill ZIP，解压后的 molecule-glow-viewer 文件夹包含 SKILL.md、references 和 assets。按所用工具的 Skill 安装方式放入技能目录；例如 Codex 的 ~/.codex/skills/ 或 Claude Code 的 ~/.claude/skills/。也可直接让工具读取仓库 skill/SKILL.md。
+从 [Desktop 0.9.0 Release](https://github.com/Nimenta727/molecule-glow-viewer/releases/tag/desktop-v0.10.0)下载 Skill ZIP，解压后的 molecule-glow-viewer 文件夹包含 SKILL.md、references 和 assets。按所用工具的 Skill 安装方式放入技能目录；例如 Codex 的 ~/.codex/skills/ 或 Claude Code 的 ~/.claude/skills/。也可直接让工具读取仓库 skill/SKILL.md。
 
 | 使用方式 | 所需内容 |
 |---|---|

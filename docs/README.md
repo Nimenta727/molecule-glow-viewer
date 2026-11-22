@@ -1,6 +1,6 @@
 # 当前文档入口
 
-日期：2026-11-22；Desktop/Skill 发布系列 0.9.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
+日期：2026-11-22；Desktop/Skill 发布系列 0.10.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
 
 | 文档 | 阅读目的 |
 |---|---|
@@ -14,7 +14,7 @@
 | [CODEX_MIGRATION_HANDOFF](CODEX_MIGRATION_HANDOFF.md) | Claude 交接意图、当前回应、分工及完成门槛 |
 | [VIEWER_COMMAND_API](VIEWER_COMMAND_API.md) | 新版 API 与嵌入权限 |
 | [RELEASE_VALIDATION](RELEASE_VALIDATION.md) | 构建、实际 EXE 和发行资产验证 |
-| [releases/desktop-v0.9.0](releases/desktop-v0.9.0.md) | 当前版本的发行说明（新内容与没做到的事）；更早版本的发行说明在 history |
+| [releases/desktop-v0.10.0](releases/desktop-v0.10.0.md) | 当前版本的发行说明（新内容与没做到的事）；更早版本的发行说明在 history |
 | [DUPLICATION_MAP](DUPLICATION_MAP.md) | 保留/复用/待合并位置 |
 
 活跃机器资料：[feature-parity.json](feature-parity.json)、[parity](parity/README.md)、[science](science/README.md)。validation 和 images 保留证据的稳定路径；不能把历史通过冒充当前提交通过。最新资产身份见 Release 的 release-manifest.json；0.6.0 的产物哈希、源码提交与测试摘要见 [Desktop 0.6.0 记录](history/validation/desktop-v0.6.0.json) 与该 Release 的 release-manifest.json（由 desktop-release 工作流在全部闸门通过后生成）；上一版见 [Desktop 0.5.0 记录](history/validation/desktop-v0.5.0.json)。
