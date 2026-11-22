@@ -6,13 +6,13 @@ Chains: T* = portal-tail complex, C* = core, H01..H12 = head shell, G1/G2 = geno
                                 the tail axis is z, the tail tip points to +z. The two entries are separate reconstructions: the core is moved along z by -204 A and turned 5 degrees about z, the
                                 position with the most contacts and no clashes (< 2.4 A) against the portal-tail complex (found by scanning, see CORE_* below). Not a measured relative position.
   (part 2) shell and genome     the head shell and the genome:
-                                shell  = 415 copies of the major capsid protein gp10A (C-alpha only), made from the 7-chain asymmetric unit of PDB 3J7W (mature head, 3.5 A) with the 60 icosahedral
+                                shell  = 415 copies of the major capsid protein gp10A (C-alpha only), made from the 7-chain asymmetric unit of PDB 3J7X (mature head, 3.6 A; 3J7W is the capsid-II packaging intermediate, not used) with the 60 icosahedral
                                          operators of its assembly 1; the 5 subunits of the vertex on the +z axis are left out (the portal vertex), as in the real head (415 = 420 - 5).
                                          Chains H01..H12 are the 12 vertex regions (H01 = the portal vertex); residue number = 1000 x (subunit in the region) + residue number of gp10A.
                                          The shell centre is put at z = -371 A so that the portal vertex points at the tail.
                                 genome = a double-helical trace (one phosphorus per nucleotide, 39 937 bp, chains G1/G2) wound as a coaxial spool around the core, 21 A between turns. The WINDING is an
                                          illustration (cryo-EM shows an averaged density, not atoms); the sequence is not represented (residues are DN).
-Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (downloads 9JYZ, 9JYY and 3J7W from RCSB into the cache dir when they are missing)
+Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (downloads 9JYZ, 9JYY and 3J7X from RCSB into the cache dir when they are missing)
 """
 import math, os, re, sys, urllib.request, collections
 import numpy as np
@@ -109,7 +109,7 @@ def machinery(w):
 
 
 def shell_points():
-    path = fetch('3J7W'); ix, rows = atoms_of(path); ops = operators(path)
+    path = fetch('3J7X'); ix, rows = atoms_of(path); ops = operators(path)
     ca = [r for r in rows if r[ix['label_atom_id']] == 'CA']
     chains = collections.OrderedDict()
     for r in ca: chains.setdefault(r[ix['label_asym_id']], []).append((int(r[ix['label_seq_id']]), r[ix['label_comp_id']], [float(r[ix['Cartn_x']]), float(r[ix['Cartn_y']]), float(r[ix['Cartn_z']])]))
@@ -132,7 +132,7 @@ def shell_points():
 
 
 def shell_and_genome(w):
-    subunits, penton = shell_points(); count = collections.Counter(); w.entity('S', 'Major capsid protein gp10A [3J7W, C-alpha only]')
+    subunits, penton = shell_points(); count = collections.Counter(); w.entity('S', 'Major capsid protein gp10A [3J7X, C-alpha only]')
     for region in range(12): w.asym(f'H{region + 1:02d}', 'S')
     for region, residues, pts in sorted(subunits, key=lambda s: s[0]):
         count[region] += 1; unit = count[region]; chain = f'H{region + 1:02d}'
@@ -168,6 +168,6 @@ def shell_and_genome(w):
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
-    w = Writer('Bacteriophage T7 virion, illustrative composite: portal-tail (9JYZ) + core (9JYY) + head shell (3J7W) + genome spool; placements are assumptions')
+    w = Writer('Bacteriophage T7 virion, illustrative composite: portal-tail (9JYZ) + core (9JYY) + head shell (3J7X) + genome spool; placements are assumptions')
     machinery(w); bp = shell_and_genome(w); print('genome nucleotides drawn per strand:', bp)
     w.save(os.path.join(OUT, 't7-virion-model.cif'))
