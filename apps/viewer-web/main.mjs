@@ -971,7 +971,7 @@ function boot() {
     const centre = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM;
     const problems = drawAnnotations(viewport, active.model, state ?? {}, (p) => p.map((v, i) => (v - centre[i]) * k));
     if (problems.length) console.warn('标注未能画出：', problems.map((p) => p.message).join('；'));
-    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k));
+    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k), { opacity: viewport.getLook() ? 1 : 0.9 });
     if (surfaceProblems.length) console.warn('表面未能画出：', surfaceProblems.map((p) => p.message).join('；'));
   }
   function refreshStructureView(style) {

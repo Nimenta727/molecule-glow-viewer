@@ -1,6 +1,7 @@
 import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
 import { createCommandApi } from '../viewer-web/command-api.mjs';
 import { createStudioAdapter, createStudioHelp, STUDIO_COMMANDS, READ_ONLY as STUDIO_READ_ONLY } from './studio-commands.mjs';
+import { createProcessLog } from './process-log.mjs';
 import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
@@ -417,7 +418,7 @@ function drawStudioAnnotations() {
   if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
   const centered = glowPoints.get(model);
   drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
-  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p));
+  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p), { opacity: viewport.getLook() ? 1 : 0.9 });
   if (problems.length) status(`表面未能画出：${problems.map((p) => p.message).join('；')}`);
 }
 const lookPanelContext = {
@@ -1034,6 +1035,9 @@ onClick('studio-play', () => {
   const adapter = createStudioAdapter({
     ready: async () => { const current = session(); if (await ensureStructureView(current) && session() === current) refresh(); },
     scene: () => session().getScene(),
+    nodes: () => session().getScene().nodes,
+    setVisible: (ids, visible) => edit({ type: 'batch', commands: ids.map((id) => ({ type: 'updateNode', id, patch: { visible } })) }, visible ? '已显示对象。' : '已隐藏对象。'),
+    toScene: (structureId) => { const model = structureViews.get(session())?.models?.get(structureId); if (!model) throw new Error('这个结构还没有解析完。'); if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model))); const centered = glowPoints.get(model); return (p) => centered.point(p); },
     structureList: () => panelEnv.hostFor(contacts).models(),
     selectionBox: { get: () => lookPanel.selection(), set: (expression) => lookPanel.setSelection(expression) },
     hostFor: (panel) => panelEnv.hostFor(panel),
@@ -1045,7 +1049,10 @@ onClick('studio-play', () => {
     importWork: (structure) => importStructureAsWork(structure, { message: `已导入 ${structure.name}。` }),
     addStructure: (structure) => addStructureToScene(structure),
     loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
-    camera: { get: () => viewport.getCamera(), set: (pose) => viewport.setCamera(pose), reset: () => viewport.resetCamera() },
+    camera: {
+      get: () => viewport.getCamera(), set: (pose) => viewport.setCamera(pose), reset: () => viewport.resetCamera(),
+      frame(centre, radius, margin) { const now = viewport.getCamera(), direction = now.position.map((v, i) => v - now.target[i]), length = Math.hypot(...direction) || 1, distance = (radius * margin) / Math.sin(Math.PI / 8); viewport.setCamera({ position: centre.map((v, i) => v + (direction[i] / length) * distance), target: centre }); },
+    },
     cameraKeys: {
       list: () => sortedCameraKeys(session().getScene().presentation).map(({ id, time }) => ({ id, time })),
       add(time, pose) { const id = makeId('camkey'); edit({ type: 'addCameraKey', key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time.toFixed(2)} 秒`, position: pose.position, target: pose.target } }, `已保存 ${time.toFixed(2)} 秒的镜头关键帧。`); },
@@ -1053,17 +1060,24 @@ onClick('studio-play', () => {
     },
     note: (content, nodeId) => edit({ type: 'addNote', note: { id: makeId('note'), text: content, nodeId } }, '已添加讲解。'),
     title: (value) => edit({ type: 'setSceneTitle', title: value }, '已重命名场景。'),
+    setPublication: (publication) => edit({ type: 'setPublication', publication }, '已保存发布信息。'),
     undo: () => { if (!session().undo()) return false; editingPose = false; refresh(); status('已撤销。'); return true; },
     redo: () => { if (!session().redo()) return false; editingPose = false; refresh(); status('已重做。'); return true; },
     canUndo: () => session().canUndo(), canRedo: () => session().canRedo(),
-    snapshot: (width) => viewport.snapshot(width),
+    snapshot: (width) => viewport.snapshot(width, { clean: true }),
     async exportScene() {
       const current = session(), bytes = await writeScenePackage(current.getScene(), current.getResources());
       let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
       return { base64: btoa(binary), bytes: bytes.length };
     },
   });
-  const commands = createCommandApi(adapter, { commands: STUDIO_COMMANDS, readOnly: STUDIO_READ_ONLY, version: '1.0.0', help: (api, table, input) => {
+  const processLog = createProcessLog(ui['pane-process'], {
+    depth: () => session().undoDepth(),
+    undoTo: (depth) => { while (session().undoDepth() > depth && session().undo()); editingPose = false; refresh(); status('已撤销到所选步骤之前。'); },
+    showTab: (id) => ui[id]?.click(),
+    readOnly: (cmd) => STUDIO_READ_ONLY.has(cmd),
+  });
+  const commands = createCommandApi(adapter, { commands: STUDIO_COMMANDS, readOnly: STUDIO_READ_ONLY, version: '1.0.0', onEvent: (event) => processLog.onEvent(event), pace: (cmd) => processLog.pace(cmd), help: (api, table, input) => {
     const full = createStudioHelp()(api, table);
     if (typeof input === 'string') { if (!Object.hasOwn(table, input)) throw new Error(`没有命令 ${input}：help() 列出全部。`); return { api: api.version, commands: [{ cmd: input, doc: table[input] }], rules: full.rules }; }
     return full;

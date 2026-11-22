@@ -2,6 +2,7 @@ import { selectionSpace, evaluateSelection, describeSelection } from '../../plug
 import { applyColor, createColorState } from '../viewer-web/color-scheme.mjs';
 import { applyStyle } from '../../plugins/structure/look.mjs';
 import { LOOK_PACKS, LOOK_PACK_IDS, lookPackById, colorStateOf } from '../../plugins/structure/look-packs.mjs';
+import { readForm } from './publish-form.mjs';
 import { buildSurface, SCHEMES as SURFACE_SCHEMES } from '../../plugins/structure/molecular-surface.mjs';
 import { contactsBetween } from '../../plugins/structure/contacts.mjs';
 import { interactionsBetween } from '../../plugins/structure/interactions.mjs';
@@ -40,15 +41,18 @@ export const STUDIO_COMMANDS = {
   composition: '选中部分的残基组成、GRAVY、按个数数出的净电荷：composition({part, write?})；write 可含 "hydrophobicity"、"charge"（涂色）、"record"。',
   secondary: '序列与文件里登记的二级结构：secondary({part, write?})；write 可含 "paint"、"record"。',
   superpose: '结构叠合（Cα 的 Horn 拟合）：superpose({mobile, reference, mobileStructure?, referenceStructure?, mode?:"number"|"order", write?})。mobile 必须在同一条链里；结构用 structures() 里的 id（默认第 1 个、参考默认同一个）。write 可含 "place"（移动整条链）、"mark"（偏差 > 2 Å 的残基标红）、"record"、"reset"（还原位置）。',
-  camera: '读或设镜头：camera() 读；camera({position:[x,y,z],target:[x,y,z]}) 设；camera("reset") 重置。',
+  parts: '列出场景里的对象（每条链、每个小分子组一个）：{id,name,chain,structure,polymer,visible}。',
+  part: '显示或隐藏对象：part("ligands",false) 隐藏全部小分子组；part("chain AA",false)；part("all",true) 全部显示。目标：all / ligands / polymer / chain X。大复合体里小分子组很多时，先隐藏它们再作图。',
+  camera: '读或设镜头：camera() 读；camera({position:[x,y,z],target:[x,y,z]}) 设；camera("reset") 重置；camera({focus:"选择",margin?:1.15}) 把镜头对准一个选择（保持当前视角方向，按选择的大小拉近）。',
   cameraKey: '在时间 t（秒）存一个镜头关键帧：cameraKey({time, position?, target?})，省略位置则用当前镜头；cameraKey({remove:"编号"}) 删除；cameraKey() 列出。',
   note: '加一条讲解：note("文字")；note("文字",{node:"对象编号"}) 挂在一个对象上。',
   title: '设置场景标题：title("…")。',
+  publication: '填写发布信息（工坊投稿用）：publication({author:"名字", license:"CC-BY-4.0", topic:"protein"|"mechanism"|"local-system"|"cell", description?, tags?:[…], revision?, updated?:"YYYY-MM-DD"})。授权只能是工坊认可的几种；写错会说明。',
   undo: '撤销一步（返回 undone: true/false）。', redo: '重做一步（返回 redone: true/false）。',
   snapshot: '画布 PNG：snapshot({width?:64..4096}) 返回 data URL。',
   exportScene: '导出场景包（含原始坐标）：返回 {format:"glow-v3",encoding:"base64",data,bytes}。',
 };
-export const READ_ONLY = new Set(['help', 'info', 'structures', 'annotations', 'snapshot', 'exportScene', 'camera']);
+export const READ_ONLY = new Set(['help', 'info', 'structures', 'parts', 'annotations', 'snapshot', 'exportScene']);
 
 /** Limits an honest report has to carry (short forms of the status.limits in plugins/packages/*.json). */
 export const LIMITS = Object.freeze({
@@ -77,6 +81,7 @@ const nameOf = (r) => `${r.resn} ${r.chain}:${r.authSeq}${r.insertion || ''}`;
 
 /**
  * `env` is what the Studio page provides (see apps/studio-web/main.mjs); the adapter holds no state of its own.
+ *   setPublication(publication), nodes(), setVisible(ids, visible), toScene(structureId) (Å -> scene coordinates), camera.frame(centre, radius, margin),
  *   scene(), structureList(), selectionBox: { get(), set(expression) }, hostFor(panel), lookState(), chainIds(), applyLook(patch, message), annotations(), applyAnnotations(patch, message),
  *   importWork(structure), addStructure(structure), loadRcsb(code), camera: { get(), set(pose), reset() }, cameraKeys: { list(), add(key, pose), remove(id) }, note(text, nodeId), title(text),
  *   ready() (resolves when the structures of the scene are parsed), undo(), redo(), snapshot(width), exportScene()
@@ -148,7 +153,8 @@ export function createStudioAdapter(env) {
       doors(surfacePanel).applyLook({ surfaces: [{ expr, scheme: kind, ...(paint ? { color: paint } : {}) }] }, `分子表面：${expr} 画出表面（${SURFACE_SCHEMES[kind]}）。`);
       return done({ surface: { expr, scheme: kind, ...(paint ? { color: paint } : {}), ...built.stats }, limits: LIMITS.surface }, surfaceDescribe(built.stats, kind));
     },
-    lookPack(id, extra) {
+    lookPack(first, second) {
+      const [id, extra] = Array.isArray(first) ? first : [first, second];   // two arguments arrive as one array
       if (id == null) return done({ current: env.lookState().lookPack ?? null, packs: LOOK_PACK_IDS.map((key) => ({ id: key, name: LOOK_PACKS[key].name, summary: LOOK_PACKS[key].summary })) });
       const o = options(extra, ['recolor'], '参数');
       if (String(id) === 'none') { env.applyLook({ lookPack: null }, '已回到默认的墨线风格。'); return done({ current: null }); }
@@ -225,9 +231,28 @@ export function createStudioAdapter(env) {
         rotationDegrees: +angle.toFixed(2), shiftAngstrom: +shift.toFixed(2), farResidues: far.length, worst: top(result.deviations, 8).map((d) => ({ residue: nameOf(d.mobile), distance: +d.distance.toFixed(2) })), wrote, limits: LIMITS.superpose,
       }, superposeSummary(result));
     },
+    parts() {
+      const polymerChains = new Map(env.structureList().map(({ id, model }) => [id, new Set(selectionSpace(model).residues.map((r) => r.chain))]));
+      return done({ parts: env.nodes().filter((node) => node.extensions?.['org.glow.structure']).map((node) => { const meta = node.extensions['org.glow.structure']; return { id: node.id, name: node.name, chain: meta.chainId, structure: meta.sourceAssetId, polymer: Boolean(polymerChains.get(meta.sourceAssetId)?.has(meta.chainId)), visible: node.visible }; }) });
+    },
+    part(target, visible) {
+      const args = Array.isArray(target) ? target : [target, visible], what = text(args[0], '目标'), show = args[1] === undefined || args[1] === null ? true : Boolean(args[1]);
+      const listed = commands.parts().parts ?? [];
+      const pick = what === 'all' ? () => true : what === 'ligands' ? (p) => !p.polymer : what === 'polymer' ? (p) => p.polymer : /^chain\s+\S+$/i.test(what) ? ((chain) => (p) => p.chain === chain)(what.replace(/^chain\s+/i, '')) : null;
+      if (!pick) throw new Error('目标应为 all / ligands / polymer / chain X。');
+      const ids = listed.filter(pick).map((p) => p.id); if (!ids.length) throw new Error(`“${what}”没有对应的对象：用 parts() 看列表。`);
+      env.setVisible(ids, show); return done({ changed: ids.length, visible: show });
+    },
     camera(arg) {
       if (arg === undefined || arg === null) return done({ camera: env.camera.get() });
       if (arg === 'reset') { env.camera.reset(); return done({ camera: env.camera.get() }); }
+      if (arg && typeof arg === 'object' && arg.focus !== undefined) {
+        const o = options(arg, ['focus', 'margin'], '镜头'), { id, model } = primary(), found = evaluateSelection(text(o.focus, 'focus'), selectionSpace(model)), to = env.toScene(id);
+        const points = [...found.residues.map((r) => to(Array.isArray(r.position) ? r.position : [r.position.x, r.position.y, r.position.z])), ...found.ligands.flatMap((l) => l.atoms.map((a) => to(a.position)))];
+        if (!points.length) throw new Error(`“${o.focus}”没有选中任何东西。`);
+        const centre = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length), radius = Math.max(0.02, ...points.map((p) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2])));
+        env.camera.frame(centre, radius, Number.isFinite(o.margin) ? o.margin : 1.15); return done({ camera: env.camera.get(), focused: points.length }, '镜头按选择的位置对准（用的是原始坐标：移动过的链不跟着走）。');
+      }
       const o = options(arg, ['position', 'target'], '镜头');
       if (!Array.isArray(o.position) || o.position.length !== 3 || !Array.isArray(o.target) || o.target.length !== 3 || [...o.position, ...o.target].some((v) => !Number.isFinite(v))) throw new Error('镜头需要 position 和 target，各 3 个数。');
       if (o.position.every((v, i) => v === o.target[i])) throw new Error('镜头位置不能和目标重合。');
@@ -241,7 +266,12 @@ export function createStudioAdapter(env) {
       const pose = o.position || o.target ? { position: o.position, target: o.target } : env.camera.get();
       env.cameraKeys.add(Math.round(time * 100) / 100, pose); return done({ keys: env.cameraKeys.list() });
     },
-    note(content, extra) { const o = options(extra, ['node'], '参数'); env.note(text(content, '讲解文字'), o.node ?? null); return done({}); },
+    note(content, second) { const [textValue, extra] = Array.isArray(content) ? content : [content, second]; content = textValue; const o = options(extra, ['node'], '参数'); env.note(text(content, '讲解文字'), o.node ?? null); return done({}); },
+    publication(args) {
+      const o = options(args, ['author', 'authorUrl', 'license', 'topic', 'description', 'tags', 'revision', 'updated'], '参数');
+      const publication = readForm({ authorName: o.author ?? '', authorUrl: o.authorUrl ?? '', license: o.license ?? '', topic: o.topic ?? '', description: o.description ?? '', tags: Array.isArray(o.tags) ? o.tags.join(' ') : (o.tags ?? ''), revision: o.revision ?? '', updated: o.updated ?? '' });
+      env.setPublication(publication); return done({ publication });
+    },
     title(value) { env.title(text(value, '标题')); return done({ title: env.scene().title }); },
     undo() { return done({ undone: env.undo(), canUndo: env.canUndo() }); },
     redo() { return done({ redone: env.redo(), canRedo: env.canRedo() }); },

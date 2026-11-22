@@ -315,6 +315,8 @@ export function createStudioSession(sceneInput, resources = new Map()) {
     undo() { return restore(undoStack, redoStack); },
     redo() { return restore(redoStack, undoStack); },
     canUndo() { return undoStack.length > 0; },
+    /** How many steps can be undone: the process log of the Studio remembers it to go back to "before this step". */
+    undoDepth() { return undoStack.length; },
     canRedo() { return redoStack.length > 0; },
   });
 }

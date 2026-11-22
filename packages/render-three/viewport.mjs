@@ -495,8 +495,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(surface.pos, 3)); geometry.setIndex(new THREE.BufferAttribute(surface.idx, 1)); geometry.computeVertexNormals();
     if (surface.colors) geometry.setAttribute('color', new THREE.BufferAttribute(surface.colors, 3));
-    const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
-    object.renderOrder = 4; object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
+    const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: opacity < 0.999, opacity, side: opacity >= 0.999 ? THREE.FrontSide : THREE.DoubleSide, depthWrite: opacity >= 0.999, roughness: 0.55 }));   // opacity 1 = a solid surface that is in the depth buffer (what a glow look needs for occlusion and depth of field)
+    object.renderOrder = opacity >= 0.999 ? 0 : 4; object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
     active.root.add(object); overlays.set(tag, object); invalidate();
     return surface.idx.length / 3;
   }
@@ -1314,9 +1314,11 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     renderer.domElement.remove();
   }
 
-  function snapshot(width) {
+  function snapshot(width, { clean = false } = {}) {
     if (disposed) throw new Error('视口已关闭。');
-    draw();
+    const helpers = clean && gizmo ? gizmo.visible : undefined;   // `clean`: the transform gizmo is not part of a figure
+    if (clean && gizmo) gizmo.visible = false;
+    try { draw(); } finally { if (clean && gizmo) gizmo.visible = helpers; }
     const source = renderer.domElement;
     if (width == null || width === source.width) return source.toDataURL('image/png');
     const canvas = document.createElement('canvas');

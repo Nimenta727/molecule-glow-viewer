@@ -18,6 +18,7 @@ import { hydropathyColor } from './look.mjs';
  */
 export class SurfaceError extends Error { constructor(message) { super(message); this.name = 'SurfaceError'; } }
 export const SCHEMES = Object.freeze({ electrostatic: '静电势（简化库仑）', hydrophobicity: '疏水性', plain: '单色' });
+export const FINE_SCALE = 0.92;   // summed Gaussians swell a surface: on a fine grid the radii are scaled down so that the atoms' bumps stay visible (a tighter, more atomic surface)
 export const MAX_SURFACES = 4, FINE_ATOMS = 600, MAX_ATOMS = 40000, COARSE_ATOMS = 250000, MAX_CELLS = 5e6, OFFSET = 1.4, DIELECTRIC = 4, RANGE = 10, COULOMB = 332.0716;
 const VDW = { C: 1.7, N: 1.55, O: 1.52, S: 1.8, P: 1.8 };
 const PRO = 'PRO', BACKBONE = { N: -0.1438, CA: 0.116, C: 0.5973, O: -0.5679 };
@@ -102,13 +103,15 @@ export function buildSurface(model, { expr, scheme = 'plain', color }) {
   const h = [0.5, 0.75, 1, 1.25, 1.5, 2].filter((step) => step >= finest).find((step) => cells(step) <= MAX_CELLS);   // a whole chain at 0.5 Å is ~200 000 triangles: heavy to draw
   if (!h) throw new SurfaceError('这部分太大，无法在内存允许的网格里算出表面：请缩小选择。');
   const names = [...new Set(atoms.map(({ atom }) => String(atom.residueName).toUpperCase()))].slice(0, 254);
-  const surface = pocketSurface({ pos: new Float32Array(atoms.flatMap(({ pos }) => pos)), rad: new Float32Array(atoms.map(({ atom }) => VDW[String(atom.element).toUpperCase()] ?? 1.8)), cls: new Uint8Array(atoms.map(({ atom }) => Math.max(0, names.indexOf(String(atom.residueName).toUpperCase())))), h });
+  const surface = pocketSurface({ pos: new Float32Array(atoms.flatMap(({ pos }) => pos)), rad: new Float32Array(atoms.map(({ atom }) => (VDW[String(atom.element).toUpperCase()] ?? 1.8) * (h <= 0.75 ? FINE_SCALE : 1))), cls: new Uint8Array(atoms.map(({ atom }) => Math.max(0, names.indexOf(String(atom.residueName).toUpperCase())))), h });
   if (!surface.idx.length) throw new SurfaceError('没有形成表面（选择太小或太零散）。');
   const count = surface.pos.length / 3, colors = new Float32Array(count * 3), stats = { atoms: atoms.length, vertices: count, triangles: surface.idx.length / 3, resolution: h };
+  // The winding of the mesh decides which side is "out": turn every triangle so that the front faces away from the molecule (a solid surface can then hide its back faces).
+  const centre = [0, 1, 2].map((i) => atoms.reduce((sum, { pos }) => sum + pos[i], 0) / atoms.length);
+  let normals = vertexNormals(surface.pos, surface.idx), outward = 0;
+  for (let i = 0; i < count; i++) outward += normals[3 * i] * (surface.pos[3 * i] - centre[0]) + normals[3 * i + 1] * (surface.pos[3 * i + 1] - centre[1]) + normals[3 * i + 2] * (surface.pos[3 * i + 2] - centre[2]);
+  if (outward < 0) { for (let t = 0; t < surface.idx.length; t += 3) { const second = surface.idx[t + 1]; surface.idx[t + 1] = surface.idx[t + 2]; surface.idx[t + 2] = second; } normals = vertexNormals(surface.pos, surface.idx); }
   if (scheme === 'electrostatic') {
-    const normals = vertexNormals(surface.pos, surface.idx), centre = [0, 1, 2].map((i) => atoms.reduce((sum, { pos }) => sum + pos[i], 0) / atoms.length);
-    let outward = 0; for (let i = 0; i < count; i++) outward += normals[3 * i] * (surface.pos[3 * i] - centre[0]) + normals[3 * i + 1] * (surface.pos[3 * i + 1] - centre[1]) + normals[3 * i + 2] * (surface.pos[3 * i + 2] - centre[2]);
-    if (outward < 0) for (let i = 0; i < normals.length; i++) normals[i] = -normals[i];   // the winding of the mesh decides the sign: make the normals point away from the molecule
     const probe = new Float32Array(surface.pos.length);
     for (let i = 0; i < probe.length; i++) probe[i] = surface.pos[i] + OFFSET * normals[i];
     const v = potentialAt(model, probe); let min = Infinity, max = -Infinity, sum = 0;
@@ -118,5 +121,6 @@ export function buildSurface(model, { expr, scheme = 'plain', color }) {
     const palette = names.map((name) => hexRgb(hydropathyColor(name)));
     for (let i = 0; i < count; i++) colors.set(palette[surface.cls[i]] ?? [0.85, 0.86, 0.88], 3 * i);
   } else { const flat = color ? hexRgb(color) : [0.85, 0.82, 0.72]; for (let i = 0; i < count; i++) colors.set(flat, 3 * i); }
+  for (let i = 0; i < colors.length; i++) { const c = colors[i]; colors[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }   // the colours above are sRGB; the renderer's vertex colours are linear
   return { pos: surface.pos, idx: surface.idx, colors, stats };
 }

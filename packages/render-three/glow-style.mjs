@@ -36,8 +36,9 @@ void main() {
   vec2 p = 1.0 / uRes;
   // occlusion: neighbours clearly in front of this point darken it, within a radius that follows the distance
   float rpx = clamp(uAoRadius / (d0 * uPx), 2.0, 48.0), occ = 0.0;
+  float jitter = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));   // a different rotation per pixel: noise instead of rings (the finishing pass smooths it)
   for (int i = 0; i < 12; i++) {
-    float a = float(i) * 2.39996, r = rpx * (0.25 + 0.75 * float(i + 1) / 12.0);
+    float a = float(i) * 2.39996 + jitter, r = rpx * (0.25 + 0.75 * float(i + 1) / 12.0);
     float ds = lz(vUv + vec2(cos(a), sin(a)) * r * p);
     float diff = d0 - ds, range = uAoRadius * 3.0;
     if (ds < 1e5 && diff > uAoRadius * 0.05) occ += smoothstep(0.0, 1.0, diff / (uAoRadius * 0.7)) * (1.0 - smoothstep(range * 0.6, range, diff));
@@ -59,7 +60,13 @@ const FINISH = `
 uniform sampler2D tColor, tDepth; uniform vec2 uRes; uniform float uNear, uFar, uPx, uFocus, uRange, uDof, uVignette, uExposure, uSaturation; varying vec2 vUv;
 float lz(vec2 uv) { float z = texture2D(tDepth, uv).x; return z >= 0.99999 ? 1e6 : uNear * uFar / (uFar - z * (uFar - uNear)); }
 void main() {
-  vec4 c = texture2D(tColor, vUv); float d0 = lz(vUv), coc = d0 > 1e5 ? 0.0 : clamp((abs(d0 - uFocus) - uRange) / max(uRange * 2.0, 1e-4), 0.0, 1.0);
+  float d0 = lz(vUv); vec4 c = texture2D(tColor, vUv);
+  if (d0 < 1e5) {   // depth-aware smoothing of the occlusion noise: neighbours at about the same depth only
+    vec3 acc = c.rgb; float wsum = 1.0;
+    for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; vec2 uv = vUv + vec2(cos(a), sin(a)) * (i % 2 == 0 ? 1.5 : 3.0) / uRes; float ds = lz(uv); float w = abs(ds - d0) < d0 * 0.01 ? 1.0 : 0.0; acc += texture2D(tColor, uv).rgb * w; wsum += w; }
+    c.rgb = acc / wsum;
+  }
+  float coc = d0 > 1e5 ? 0.0 : clamp((abs(d0 - uFocus) - uRange) / max(uRange * 2.0, 1e-4), 0.0, 1.0);
   float radius = uDof * coc * 0.012 * uRes.y;
   vec3 col = c.rgb;
   if (radius > 0.6) {

@@ -259,3 +259,15 @@ h2 { color: #2f3f86; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03e
 #pane-analysis pre.sequence-lines { margin: 0.3rem 0; max-width: 100%; overflow-x: auto; font-size: 0.74rem; line-height: 1.25; }
 .right-panel > [role="tabpanel"] { min-width: 0; max-width: 100%; box-sizing: border-box; }
 #pane-analysis .panel-section { grid-template-columns: minmax(0, 1fr); }
+
+/* process tab: the live log of what an AI does through window.studio */
+#pane-process { padding: 0.6rem 0.7rem; overflow-wrap: anywhere; }
+#pane-process .button-row { flex-wrap: wrap; gap: 0.4rem; }
+.process-list { list-style: none; margin: 0.4rem 0 0; padding: 0; display: grid; gap: 0.3rem; }
+.process-step { display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.5rem; padding: 0.35rem 0.5rem; border: 1px solid #e0e4ec; border-radius: 0.35rem; font-size: 0.82rem; background: #fff; }
+.process-step[data-state="running"] { border-color: #8fa8ff; background: #f3f6ff; }
+.process-step[data-state="error"] { border-color: #e0a09a; background: #fff5f4; }
+.process-n { grid-row: span 3; color: var(--muted); font-variant-numeric: tabular-nums; }
+.process-step code { color: #3a4663; white-space: pre-wrap; }
+.process-note { color: #4a5568; }
+.process-step button { justify-self: start; padding: 0.15rem 0.5rem; font-size: 0.78rem; }

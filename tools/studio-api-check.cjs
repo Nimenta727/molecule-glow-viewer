@@ -55,6 +55,16 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 560000).
   assert.ok(sup.pairs > 120 && sup.rmsd < 3 && sup.wrote.includes('place') && sup.limits.length >= 3);
   await refuses('superpose', [{ mobile: 'chain A', reference: 'chain B', mobileStructure: 'nope' }], /没有结构 nope/);
 
+  // the new commands: parts, focus, look packs, publication
+  const parts = await ok('parts'); assert.ok(parts.parts.length >= 4 && parts.parts.every((p) => typeof p.visible === 'boolean')); assert.equal((await ok('part', 'chain B', false)).changed >= 1, true); await ok('part', 'all', true); await refuses('part', ['nothing', false], /目标应为/);
+  const focus = await ok('camera', { focus: 'chain A and resi 100-140', margin: 1.2 }); assert.ok(focus.focused >= 40); await refuses('camera', [{ focus: 'resi 99999' }], /没有选中/);
+  const packed = await ok('lookPack', 'glow.cell-dark'); assert.equal(packed.current, 'glow.cell-dark'); assert.equal((await ok('lookPack')).packs.length, 4); await refuses('lookPack', ['glow.nope'], /没有光影包/); assert.equal((await ok('lookPack', 'none')).current, null);
+  await ok('lookPack', 'paper.clean-white', { recolor: false }); assert.equal((await ok('lookPack')).current, 'paper.clean-white');
+  assert.equal((await ok('publication', { author: 'Molecule Glow 项目', license: 'CC-BY-4.0', topic: 'protein', description: '接口检查用', tags: ['腺苷酸激酶'] })).publication.license, 'CC-BY-4.0'); await refuses('publication', [{ author: 'x', license: 'GPL' }], /授权请选/);
+  // the process tab shows every step that changed the work, with a way back
+  const steps = await page.$$eval('#process-list li', (l) => l.map((x) => x.querySelector('b').textContent)); assert.ok(steps.length >= 15 && steps.includes('contacts') && steps.includes('superpose') && !steps.includes('info'), `process log: ${steps.join(' ')}`);
+  assert.equal(await page.$$eval('#process-list li[data-state="error"]', (l) => l.length) > 0, true, 'refused commands are shown as failed');
+  await page.screenshot({ path: path.join(os.tmpdir(), 'studio-process.png') });
   // camera, keys, notes, undo
   const cam = (await ok('camera')).camera; await ok('cameraKey', { time: 0 }); await ok('camera', { position: [cam.position[0] * 1.4, cam.position[1], cam.position[2]], target: cam.target }); await ok('cameraKey', { time: 4 });
   assert.equal((await ok('cameraKey')).keys.length, 2); await refuses('cameraKey', [{ time: -1 }], /不小于 0/); await refuses('camera', [{ position: [0, 0, 0], target: [0, 0, 0] }], /重合/);
@@ -76,5 +86,8 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 560000).
   const ca = (model) => new Map(model.atoms.filter((a) => a.name === 'CA' && a.authChainId === 'A' && !a.altLoc.trim().replace('A', '') && inCore(a)).map((a) => [`${a.authSeqId}|${a.residueName}`, a])), A = ca(open.model), B = ca(closed.model); let sum = 0, n = 0;
   for (const [key, a] of A) { const b = B.get(key); if (!b) continue; const placed = rotateVector(open.centred.point(a.position), nodeA.transform.rotation).map((v, i) => v + nodeA.transform.position[i]), ref = closed.centred.point(b.position); sum += (placed[0] - ref[0]) ** 2 + (placed[1] - ref[1]) ** 2 + (placed[2] - ref[2]) ** 2; n++; }
   const rmsd = Math.sqrt(sum / n) / 0.05; console.log('RMSD recomputed from the exported package:', rmsd.toFixed(3), 'over', n, 'pairs (command said', sup.rmsd, ')'); assert.ok(Math.abs(rmsd - sup.rmsd) < 0.02, 'the command-line placement reproduces the reported fit');
+  // "back to before this step" undoes that step and everything after it
+  const labelsNow = (await ok('info')).rules.labels; assert.equal(labelsNow, 1); await page.evaluate(() => { const rows = [...document.querySelectorAll('#process-list li')].filter((x) => x.querySelector('b').textContent === 'label'); rows.at(-1).querySelector('button[data-back]').click(); });
+  const after = await ok('info'); assert.equal(after.rules.labels, 0, 'the label is gone'); assert.equal(after.rules.measures, 1, 'the step before it is kept'); assert.equal(after.evidence < stamp.evidence, true, 'and the evidence written later is gone too');
   assert.deepEqual(errors, [], 'no page errors'); await browser.close(); console.log('studio api: ok');
 })().catch((e) => { console.error(e); process.exit(1); });

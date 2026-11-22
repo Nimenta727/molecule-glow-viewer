@@ -33,8 +33,10 @@ export const COMMANDS = {
 /**
  * The command queue shared by the Viewer (`window.glow`) and the Studio (`window.studio`). `options.commands` is the table of command names and their docs, `options.readOnly` the commands that
  * change nothing (skipped when a log is replayed), `options.help` (optional) builds the answer of `help()`, `options.version` the API version.
+ * `options.onEvent({ phase: 'start' | 'done' | 'error', cmd, args, result?, error? })` lets a page show what is being done (the Studio's process tab); `options.pace(cmd)` may delay a command ("slow
+ * demonstration"); neither can change a command or its answer.
  */
-export function createCommandApi(adapter, { commands = COMMANDS, readOnly = READ_ONLY, help, version = '2.0.0' } = {}) {
+export function createCommandApi(adapter, { commands = COMMANDS, readOnly = READ_ONLY, help, version = '2.0.0', onEvent, pace } = {}) {
   let queue = Promise.resolve(), pending = 0, disposed = false;
   const log = [];
   const copy = (value) => JSON.parse(JSON.stringify(value ?? null));
@@ -53,6 +55,9 @@ export function createCommandApi(adapter, { commands = COMMANDS, readOnly = READ
         if (disposed) throw new Error('命令接口已关闭。');
         authorize?.();
         let ok = false;
+        if (pace) { try { await pace(cmd, input); } catch { /* a failing pace hook never blocks a command */ } }   // no await without a hook: the timing of the plain Viewer interface stays as it was
+        const event = (data) => { try { onEvent?.({ cmd, args: input, ...data }); } catch { /* a display hook must not break a command */ } };
+        event({ phase: 'start' });
         try {
           const result = cmd === 'help' && help ? await help(api, commands, input) : cmd === 'help' ? {
             api: api.version, commands: Object.entries(COMMANDS).map(([cmd, doc]) => ({ cmd, doc })),
@@ -63,7 +68,12 @@ export function createCommandApi(adapter, { commands = COMMANDS, readOnly = READ
           } : await adapter[cmd](input);
           authorize?.('result');
           ok = true;
-          return copy(result);
+          const answer = copy(result);
+          event({ phase: 'done', result: answer });
+          return answer;
+        } catch (error) {
+          event({ phase: 'error', error: error?.message ?? String(error) });
+          throw error;
         } finally {
           // Never retain local coordinate files or exported packages in the command log.
           const text = JSON.stringify(input);
