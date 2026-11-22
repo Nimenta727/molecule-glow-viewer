@@ -2,8 +2,24 @@
  "format": "glow-stats",
  "version": 1,
  "packs": {
+  "2hhb-cdf93122-5693-47db-8860-a6faac98361e": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/38",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
   "2hhb-d4e8f138-3f31-4d3f-b219-aec06f657ba8": {
    "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/34",
+   "up": 0,
+   "down": 0,
+   "heart": 0,
+   "comments": 0,
+   "latest": []
+  },
+  "4ake-4b94c10e-bc11-4c18-b944-f5709f8d41ba": {
+   "url": "https://github.com/Nimenta727/molecule-glow-viewer/discussions/37",
    "up": 0,
    "down": 0,
    "heart": 0,
