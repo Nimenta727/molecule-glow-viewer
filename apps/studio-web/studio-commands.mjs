@@ -1,6 +1,7 @@
 import { selectionSpace, evaluateSelection, describeSelection } from '../../plugins/structure/selection.mjs';
 import { applyColor, createColorState } from '../viewer-web/color-scheme.mjs';
 import { applyStyle } from '../../plugins/structure/look.mjs';
+import { LOOK_PACKS, LOOK_PACK_IDS, lookPackById, colorStateOf } from '../../plugins/structure/look-packs.mjs';
 import { buildSurface, SCHEMES as SURFACE_SCHEMES } from '../../plugins/structure/molecular-surface.mjs';
 import { contactsBetween } from '../../plugins/structure/contacts.mjs';
 import { interactionsBetween } from '../../plugins/structure/interactions.mjs';
@@ -30,7 +31,8 @@ export const STUDIO_COMMANDS = {
   select: '用选择语言选一部分：select("chain A and resi 10-50")；select("none") 清除。返回选中的残基数和说明，并把它设为“当前选择”（分析命令的默认输入）。选择语言：all | protein | nucleic | ligands | chain A | resi 10-50 | resn HIS | within 5 of <选择> | and / or / not。',
   show: '对选择设表示（PyMOL 的 show/hide）：show("resi 1-30","hidden")；show("chain B","sticks")；样式 cartoon / backbone / blob / sticks（逐原子，叠在卡通上，一次最多 300 个残基）/ hidden；show("reset") 清除。规则，随作品保存，后面的覆盖前面的。',
   color: '上色：color("chain A","#e05a4a")；color("resi 1-60","hydrophobicity")；方案 hydrophobicity / bfactor / charge / secondary / rainbow；color("chain") 按链；color("reset") 清除。规则，随作品保存。',
-  surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
+  surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain（单色，可带第三个参数 "#rrggbb"：surface("nucleic","plain","#d92f1c")）；一个表面最多 25 万个原子（核糖体级别用 1.25 Å 以上的粗网格）；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
+  lookPack: '光影包（整张图的光影与配色）：lookPack() 列出；lookPack("glow.cell-dark") 应用（同时把它的配色写成颜色规则，lookPack(id,{recolor:false}) 只换光影）；lookPack("none") 回到默认的墨线风格。可用：glow.cell-dark（暗场·细胞内部）、glow.membrane-cool（冷光·膜蛋白）、glow.active-site-warm（暖光·活性位点）、paper.clean-white（论文白底）。只改外观，不改坐标和任何分析结果。',
   measure: '测量并保存：measure("chain A and resi 10","chain A and resi 40") 距离（Å，Cα）；三个选择量角度（第二个是顶点）。每个选择必须正好一个残基。',
   label: '给选择加文字标签并保存：label("chain A and resi 57","催化残基")；text 留空则写残基名。',
   annotations: '读或清除已保存的标注：annotations() 返回测量/标签/连线；annotations("clear") 清空。',
@@ -135,16 +137,24 @@ export function createStudioAdapter(env) {
       env.applyLook({ colors: out.state }, out.note);
       return done({ scheme: out.state.scheme, residueRules: out.state.residues.length }, out.note);
     },
-    surface(target, scheme) {
-      const args = Array.isArray(target) ? target : [target, scheme];
+    surface(target, scheme, color) {
+      const args = Array.isArray(target) ? target : [target, scheme, color];
       const state = env.lookState();
       if (args[0] == null) return done({ surfaces: state.surfaces });   // an argument that was left out arrives as null
       if (/^clear$/i.test(String(args[0]))) { env.applyLook({ surfaces: [] }, '已清除表面。'); return done({ surfaces: [] }); }
       if (state.surfaces.length >= 4) throw new Error('最多 4 个表面：先 surface("clear")。');
-      const expr = text(args[0], '选择表达式'), kind = args[1] ?? 'plain';
-      const built = buildSurface(primary().model, { expr, scheme: kind });   // checked first: an empty or too big part is explained before anything is written
-      doors(surfacePanel).applyLook({ surfaces: [{ expr, scheme: kind }] }, `分子表面：${expr} 画出表面（${SURFACE_SCHEMES[kind]}）。`);
-      return done({ surface: { expr, scheme: kind, ...built.stats }, limits: LIMITS.surface }, surfaceDescribe(built.stats, kind));
+      const expr = text(args[0], '选择表达式'), kind = args[1] ?? 'plain', paint = args[2] ? String(args[2]) : undefined;
+      const built = buildSurface(primary().model, { expr, scheme: kind, color: paint });   // checked first: an empty or too big part is explained before anything is written
+      doors(surfacePanel).applyLook({ surfaces: [{ expr, scheme: kind, ...(paint ? { color: paint } : {}) }] }, `分子表面：${expr} 画出表面（${SURFACE_SCHEMES[kind]}）。`);
+      return done({ surface: { expr, scheme: kind, ...(paint ? { color: paint } : {}), ...built.stats }, limits: LIMITS.surface }, surfaceDescribe(built.stats, kind));
+    },
+    lookPack(id, extra) {
+      if (id == null) return done({ current: env.lookState().lookPack ?? null, packs: LOOK_PACK_IDS.map((key) => ({ id: key, name: LOOK_PACKS[key].name, summary: LOOK_PACKS[key].summary })) });
+      const o = options(extra, ['recolor'], '参数');
+      if (String(id) === 'none') { env.applyLook({ lookPack: null }, '已回到默认的墨线风格。'); return done({ current: null }); }
+      const pack = lookPackById(String(id));
+      env.applyLook({ lookPack: pack.id, ...(o.recolor === false ? {} : { colors: colorStateOf(pack) }) }, `光影包：${pack.name}。`);
+      return done({ current: pack.id, name: pack.name, recolored: o.recolor !== false }, pack.summary);
     },
     measure(a, b, c) {
       const points = (Array.isArray(a) ? a : [a, b, c]).filter((p) => p != null && p !== '');

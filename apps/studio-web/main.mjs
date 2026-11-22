@@ -7,6 +7,7 @@ import { compositionPanel } from '../../plugins/structure/panels/composition-pan
 import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
 import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
 import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
+import { lookPackById, validateLookPack, colorStateOf } from '../../plugins/structure/look-packs.mjs';
 import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
 import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
@@ -319,7 +320,8 @@ function lookStateOf(scene) {
   let colors; try { colors = view.colors ? validateColorState(view.colors) : createColorState(); } catch { colors = createColorState(); }
   let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
   let surfaces; try { surfaces = validateSurfaces(view.surfaces); } catch { surfaces = []; }
-  return { colors, styles, surfaces };
+  let lookPack; try { lookPack = validateLookPack(view.lookPack); } catch { lookPack = undefined; }
+  return { colors, styles, surfaces, lookPack };
 }
 const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
 
@@ -402,7 +404,14 @@ function highlightResidues(residues) {
   const centered = glowPoints.get(model), step = Math.ceil(residues.length / 2500);
   viewport.setParticleCloud('look-selection', residues.filter((_, i) => i % step === 0).map((residue) => ({ position: centered.point(Array.isArray(residue.position) ? residue.position : [residue.position.x, residue.position.y, residue.position.z]), radius: 0.085, color: '#ffd34e', alpha: 0.9, name: '选中' })), { overlay: true });
 }
+let shownLook;   // the pack id the viewport shows now
+function showLookPack() {
+  const id = lookStateOf(session().getScene()).lookPack;
+  if (id === shownLook) return;
+  try { viewport.setLook(id ? lookPackById(id).render : null); shownLook = id; } catch (error) { status(`光影包未能应用：${error.message}`); shownLook = id; }
+}
 function drawStudioAnnotations() {
+  showLookPack();
   const model = lookPanelContext.model();
   if (!model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
   if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
@@ -435,6 +444,7 @@ const lookPanelContext = {
     if (patch.colors) viewer.colors = isDefaultColors(patch.colors) ? null : patch.colors;
     if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
     if (patch.surfaces) viewer.surfaces = patch.surfaces.length ? patch.surfaces : null;
+    if (patch.lookPack !== undefined) viewer.lookPack = patch.lookPack ? validateLookPack(patch.lookPack) : null;
     edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
   },
 };

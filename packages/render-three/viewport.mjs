@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPresentationOverlay } from './presentation-overlay.mjs';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CORE_INK, createInkRenderer } from './ink-style.mjs';
+import { createGlowRenderer } from './glow-style.mjs';
 import { createInstanceSet } from './instance-set.mjs';
 import { icosphereTriangles } from './lod.mjs';
 
@@ -43,6 +44,7 @@ function* renderables(asset, layers) {
         transform.scale(strokeScale);
         ink.setMatrixAt(i / 3, transform);
       }
+      ink.userData.outlineShell = true;   // the dark shell behind a sphere layer is part of the ink style; a glow look hides it
       yield surface;
       yield ink;
       if (conformations) {
@@ -99,6 +101,7 @@ function* renderables(asset, layers) {
             position.getY(i) + normal.getY(i) * 0.012, position.getZ(i) + normal.getZ(i) * 0.012);
         }
         const outline = new THREE.Mesh(hull, new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide }));
+        outline.userData.outlineShell = true;
         if (morphStates) outline.userData.conformation = { states: morphStates, normals: true, outline: true };
         yield outline;
       }
@@ -117,7 +120,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setSize(Math.max(container.clientWidth, 1), Math.max(container.clientHeight, 1), false);
   container.appendChild(renderer.domElement);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x697785, 2));
+  const hemisphere = new THREE.HemisphereLight(0xffffff, 0x697785, 2);
+  scene.add(hemisphere);
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(4, 7, 5);
   scene.add(key);
@@ -758,7 +762,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
   function draw() {
     updateInstanceSets();
-    if (ink) ink.render();
+    if (glow) glow.render();
+    else if (ink) ink.render();
     else renderer.render(scene, camera);
   }
   controls.addEventListener('change', invalidate);
@@ -785,7 +790,30 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     ink?.setSize(width, height);
+    glow?.setSize(width, height);
     invalidate();
+  }
+  // A look (see plugins/structure/look-packs.mjs): { kind: 'glow', background, fog, ao, rim, dof, vignette, exposure, saturation, lights } replaces the ink style until setLook(null).
+  let glow = null, look = null, outlines = true;
+  const lightDefaults = { hemisphere: hemisphere.intensity, key: key.intensity };
+  function applyOutlines() {
+    if (!active) return;
+    active.root.traverse((object) => { if (object.userData.outlineShell) object.visible = outlines; });
+  }
+  function setLook(next) {
+    if (next === null || next === undefined) {
+      glow?.dispose(); glow = null; look = null; outlines = true;
+      hemisphere.intensity = lightDefaults.hemisphere; key.intensity = lightDefaults.key;
+      scene.background = new THREE.Color(ink ? ink.style.background : background); applyOutlines(); invalidate(); return null;
+    }
+    if (next.kind !== 'glow') throw new Error(`Unknown look kind: ${String(next.kind)}`);
+    if (!glow) {
+      glow = createGlowRenderer({ renderer, scene, camera, look: next, getFocus: () => ({ distance: Math.max(camera.position.distanceTo(controls.target), 1e-3), radius: active?.radius ?? 0 }) });
+      if (!glow) throw new Error('这个显卡/环境不支持景深所需的深度纹理。');
+    } else glow.setStyle(next);
+    look = next; outlines = false;
+    const lights = { ...lightDefaults, ...next.lights }; hemisphere.intensity = lights.hemisphere; key.intensity = lights.key;
+    applyOutlines(); invalidate(); return glow.style;
   }
   if (style === 'ink') {
     ink = createInkRenderer({ renderer, scene, camera,
@@ -938,6 +966,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     gizmo?.detach();
     scene.add(prepared.root);
     active = prepared;
+    applyOutlines();
     clearParticleClouds();   // the sets hung on the previous scene's root; the Viewer puts its particles back after a rebuild
     fitCamera(prepared);
     if (previous) disposeHandle(previous);
@@ -1280,6 +1309,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     pointSelection?.material.dispose();
     controls.dispose();
     ink?.dispose();
+    glow?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
@@ -1297,8 +1327,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
-    get renderStyle() { return ink ? ink.style.id : 'plain'; },
+    setLook, getLook: () => look, orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    get renderStyle() { return glow ? 'glow' : ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
     stats() {
       // read-only render statistics, for leak checks and for sizing scenes (docs/PLUGIN_ROADMAP.md). The drawn load is counted from the scene (visible objects, instances included):
