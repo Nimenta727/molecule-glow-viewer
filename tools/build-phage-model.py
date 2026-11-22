@@ -12,7 +12,7 @@ Chains: T* = portal-tail complex, C* = core, H01..H12 = head shell, G1/G2 = geno
                                          The shell centre is put at z = -371 A so that the portal vertex points at the tail.
                                 genome = a double-helical trace (one phosphorus per nucleotide, 39 937 bp, chains G1/G2) wound as a coaxial spool around the core, 21 A between turns. The WINDING is an
                                          illustration (cryo-EM shows an averaged density, not atoms); the sequence is not represented (residues are DN).
-Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (downloads 9JYZ, 9JYY and 3J7X from RCSB into the cache dir when they are missing)
+Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (also writes entities.json into the cache dir)    (downloads 9JYZ, 9JYY and 3J7X from RCSB into the cache dir when they are missing)
 """
 import math, os, re, sys, urllib.request, collections
 import numpy as np
@@ -171,3 +171,14 @@ if __name__ == '__main__':
     w = Writer('Bacteriophage T7 virion, illustrative composite: portal-tail (9JYZ) + core (9JYY) + head shell (3J7X) + genome spool; placements are assumptions')
     machinery(w); bp = shell_and_genome(w); print('genome nucleotides drawn per strand:', bp)
     w.save(os.path.join(OUT, 't7-virion-model.cif'))
+    # protein name -> chain names (as the Studio importer names them: author chain ids) for the two tail/core entries, used by tools/make-phage-works.cjs to colour the parts
+    import json
+    groups = {}
+    for entry in ('9JYZ', '9JYY'):
+        path = fetch(entry); desc, asym = entities_of(path); ix, rows = atoms_of(path); auth = {}
+        for r in rows: auth.setdefault(r[ix['label_asym_id']], r[ix['auth_asym_id']])
+        g = {}
+        for a, e in asym.items():
+            if a in auth: g.setdefault(desc.get(e, e), set()).add(auth[a])
+        groups[entry] = {k: sorted(v) for k, v in g.items()}
+    json.dump(groups, open(os.path.join(CACHE, 'entities.json'), 'w'), ensure_ascii=False)

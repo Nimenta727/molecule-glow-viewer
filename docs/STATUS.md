@@ -1,6 +1,6 @@
 # 项目现状：我们做到哪里了
 
-更新：2026-11-22（`main`，Desktop 0.9.0；发行记录见 [docs/releases](releases/desktop-v0.9.0.md)）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
+更新：2026-11-22（`main`，Desktop 0.10.0；发行记录见 [docs/releases](releases/desktop-v0.10.0.md)）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
 
 ## 0.9.0 做了什么（2026-11-22）
 
@@ -8,10 +8,13 @@
 - **插件面板规矩**（`packages/plugin-host/panels.mjs`）与五个 Studio 面板：界面接触（含氢键/盐桥/疏水分类）、组成与性质、序列与二级结构、结构叠合（可跨条目）、分子表面与静电；插件清单共 22 个。
 - **诚实的局限**：静电是简化库仑（不是 APBS）；氢键/盐桥只用重原子距离、无角度；叠合只用 Cα；移动过的链上已算好的高亮/测量/表面不跟着走；Viewer 里只能看、不能做；没有真实 GPU 验证，科学表述未经专业审阅。
 
-## 之后又做了什么（2026-11-22，尚未发版）
+## 0.10.0 做了什么（2026-11-22）
 
 - **给 AI 的 Studio 命令接口 `window.studio`** 与 Studio 的“过程”页签（实时显示、放慢演示、回到某一步前）；操作手册和制作规范见 [skill/references/studio_authoring.md](../skill/references/studio_authoring.md)。
 - **光影包**（暗场·细胞内部、冷光·膜蛋白、暖光·活性位点、论文白底）与三个展示作品；没做拥挤的多份拷贝场景和图表叠加。详见 [routine 记录](routine/2026-11-22-ai-interface-and-look-packs.md)。
+- **大复合体作图支持**：表面可加膨胀半径（`inflate`）并自动用更粗的网格；剖开（`clip`）同样作用于表面；`part("chain A,B,C", …)` 支持多条链；`camera({focus})` 选中几十万残基时不再栈溢出。
+- **噬菌体 T7 静态作品**（`tools/build-phage-model.py` + `tools/make-phage-works.cjs`）：成熟衣壳蛋白 gp10A（3J7X）、门户-尾部复合体（9JYZ）、核心蛋白（9JYY）按文献分组着色；装配体剖开图（头+核心+门户尾部+DNA 线轴）的各部件相对位置是示意。作品文件较大，放在发行页，不在仓库里。详见 [routine 记录](routine/2026-11-22-phage-model-start.md)。
+- **修复**：桌面版结构缓存提交遇到 `EXDEV`（个别 Windows 机器上重命名失败）时降级为复制再删除；此前这会让所有在线结构显示“载入失败：Failed to fetch”。详见 [routine 记录](routine/2026-11-22-exdev-cache-fix.md)。
 
 ## 一句话
 
@@ -89,7 +92,7 @@
 
 ## 下一步（建议顺序）
 
-0. **Desktop 0.9.0 已发布**（见 [发行说明](releases/desktop-v0.9.0.md)）：作图核心、五个 Studio 科研分析面板（插件共 22 个）、多结构场景。**接下来由维护者做**：在有独显的电脑上验收（[ACCEPTANCE_GPU_PROMPT](ACCEPTANCE_GPU_PROMPT.md)，分子表面三角形多，要看帧率），并请有专业背景的人审阅各面板的科学表述（氢键/盐桥阈值、简化库仑静电、核心域划分）。
+0. **Desktop 0.9.0 已发布**（见 [发行说明](history/releases/desktop-v0.9.0.md)）：作图核心、五个 Studio 科研分析面板（插件共 22 个）、多结构场景。**接下来由维护者做**：在有独显的电脑上验收（[ACCEPTANCE_GPU_PROMPT](ACCEPTANCE_GPU_PROMPT.md)，分子表面三角形多，要看帧率），并请有专业背景的人审阅各面板的科学表述（氢键/盐桥阈值、简化库仑静电、核心域划分）。
 
 1. 4.4.8 余下：**构象状态机已做**（时间与状态侧；见 [CONFORMATION_MACHINE](CONFORMATION_MACHINE.md)），ATP 合酶/AdK 的**结构侧**也已抽成通用“构象集”（`conformation-set.mjs`）；把它们升成 layer-v1 的通用工具（不再是 player-v1 专用外壳）；区域层级自己的粗糙内容；重复加载稳定性；浏览器/GPU/桌面验收。
 2. 三个“播放器”并入通用引擎：KcsA 的动力学已跑在通用 Markov 引擎上（同种子逐事件、逐位一致，黄金轨迹不变）；ATP 合酶和 AdK 的算法（旋转、构象插值、叠合）早已用共享的 `plugins/motion`、`plugins/structure`，它们剩下的是各自的时间轴/粒子/事件编排，不是可以再并的算法。KcsA 的体相粒子、水合壳、曲线已恢复（胞外 Na⁺ 无控件、浴液离子与孔道进出不交换为已知差异）；把回退/干预扩展到其它工具；pH 体积着色；能量条接到其它工具（翻译/随机过程/旧三件）。
