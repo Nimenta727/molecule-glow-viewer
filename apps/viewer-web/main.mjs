@@ -56,6 +56,7 @@ import { normalizeCompositionConfig } from '../../plugins/simulation/composition
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { createPanelTabs } from './panel-tabs.mjs';
 import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
@@ -78,6 +79,7 @@ import { renderControls, readControl, writeControl } from '../../packages/plugin
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
 );
+const panelTabs = createPanelTabs(elements['info-panel']);   // the left panel as task pages; every block keeps its id, so everything below still finds its elements
 
 let active;
 let frame;

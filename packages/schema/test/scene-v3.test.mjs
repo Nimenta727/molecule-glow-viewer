@@ -127,3 +127,21 @@ test('tool bindings must name nodes of the scene and have the right shape', asyn
   const { bindings, ...without } = base.tools[0];
   assert.equal(validateScene({ ...base, tools: [without] }).tools[0].bindings, undefined, 'bindings are optional');
 });
+
+test('a work made from a template keeps the template’s licence, credit, embedding choice and scientific card — only for the same file', async () => {
+  const { data, asset } = await structure('source', 'data_mine\n_entry.id MINE\n');
+  const derivedId = `res.local.${asset.sha256.slice(0, 8)}`;
+  const template = { format: 'glow-resource', schemaVersion: 1, id: derivedId, version: asset.sha256.slice(0, 8), kind: 'structure', files: [{ path: 'mine.cif', sha256: asset.sha256, mediaType: asset.mediaType, bytes: data.byteLength }],
+    source: { provider: 'local', accession: 'mine.cif' }, attribution: { license: 'CC-BY-4.0', credit: '某实验室 2026', embedAllowed: true }, card: { title: '我的结构', method: 'X-RAY DIFFRACTION', resolution: '2.2 Å' } };
+  const local = { ...asset, provenance: { ...asset.provenance, source: { provider: 'local', accession: 'mine.cif' } } };
+  const plain = await upgradeSceneToV3(v2([local]), new Map([[local.path, data]]));
+  assert.equal(plain.scene.resources[0].attribution.license, 'unknown'); assert.equal(plain.scene.resources[0].attribution.embedAllowed, false); assert.equal(plain.scene.resources[0].card, undefined);   // what a work lost before
+  const carried = await upgradeSceneToV3(v2([local]), new Map([[local.path, data]]), { templates: [template] });
+  const [record] = carried.scene.resources;
+  assert.deepEqual(record.attribution, { license: 'CC-BY-4.0', credit: '某实验室 2026', embedAllowed: true }); assert.deepEqual(record.card, template.card);
+  assert.equal(record.files[0].path, 'assets/source.cif', 'the path is the work’s own, the hash is the template’s'); assert.equal(record.id, derivedId); assert.deepEqual(carried.scene.assets[0].resource, { id: derivedId, version: template.version, sha256: asset.sha256 });
+  // a template for another file (another hash) is ignored
+  const other = { ...template, id: 'res.local.deadbeef', version: 'deadbeef' };
+  const ignored = await upgradeSceneToV3(v2([local]), new Map([[local.path, data]]), { templates: [other] });
+  assert.equal(ignored.scene.resources[0].attribution.license, 'unknown'); assert.equal(ignored.scene.resources[0].card, undefined);
+});

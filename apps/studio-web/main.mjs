@@ -17,12 +17,13 @@ import { buildStructureLayers, structureSources } from '../../plugins/structure/
 import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { shortcutFor, wireMenus } from './shortcuts.mjs';
 import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
-import { checkPublication, nextRevision } from '../../plugins/workshop/publish.mjs';
+import { checkPublication, nextRevision, validateWorkId } from '../../plugins/workshop/publish.mjs';
 import { TOPICS } from '../../plugins/workshop/catalog.mjs';
 import { clickSelection, reparentPlan, groupPlan, removePlan, reconcileSelection } from './outline-edit.mjs';
 import { readForm, fillForm, licenseChoices, revisionHint, FormError } from './publish-form.mjs';
@@ -131,6 +132,7 @@ function syncPublish(scene) {
   const stamp = JSON.stringify([scene.id, scene.publication ?? null]);   // the form is rewritten only when the scene or its saved publication changed, never over what is being typed
   if (stamp === publishSynced) return;
   publishSynced = stamp;
+  ui['pub-id'].value = scene.id;
   const form = fillForm(scene.publication);
   for (const [key, id] of Object.entries(FIELDS)) ui[id].value = form[key];
   if (!ui['pub-topic'].options.length || ui['pub-topic'].options.length === 1) for (const [id, name] of Object.entries(TOPICS)) ui['pub-topic'].append(new Option(name, id));
@@ -164,6 +166,21 @@ onClick('pub-catalog', async () => {
   ui['pub-note'].textContent = `已读取工坊目录（${publishCatalog.templates.length + publishCatalog.works.length} 个作品、${publishCatalog.resources.length} 个资源）。`;
 });
 onClick('pub-save', () => { savePublication(); });
+// The work's number: the scene id. Sessions are keyed by it, so this is not an undoable edit: the scene gets a new session under the new number (its undo history starts again) and the key is replaced in place.
+onClick('pub-id-apply', () => {
+  navigationEditor.assertSaved();
+  const next = ui['pub-id'].value.trim(), old = project.activeSceneId;
+  if (next === old) { ui['pub-note'].textContent = '编号没有变化。'; return; }
+  const checked = validateWorkId(next, { taken: [...sessions.keys()].filter((id) => id !== old) });
+  if (!checked.ok) { ui['pub-note'].textContent = checked.message; return; }
+  const entry = sessions.get(old), renamed = createStudioSession({ ...entry.getScene(), id: next }, entry.getResources());
+  geometryFor(renamed);
+  sessions = new Map([...sessions].map(([id, value]) => (id === old ? [next, renamed] : [id, value])));
+  project = { ...project, activeSceneId: next };
+  publishSynced = '';   // the form is rebuilt from the scene under its new number
+  markDirty(); refresh();
+  ui['pub-note'].textContent = `作品编号已设为 ${next}。导出的文件将是 ${next}.glow。`; status(`作品编号已设为 ${next}。`);
+});
 onClick('pub-check', () => {
   if (!savePublication()) return;
   const result = checkPublication(session().getScene(), publishCatalog ?? { templates: [], works: [], resources: [], errors: [] }, { toolAvailable: isKnownTool });
@@ -580,6 +597,12 @@ tree.addEventListener('drop', (event) => {
 });
 onClick('undo', () => { navigationEditor.assertSaved(); if (session().undo()) { editingPose = false; refresh(); status('已撤销。'); } });
 onClick('redo', () => { navigationEditor.assertSaved(); if (session().redo()) { editingPose = false; refresh(); status('已重做。'); } });
+wireMenus(document);
+document.addEventListener('keydown', (event) => {   // the usual authoring shortcuts; never while typing in a field
+  const action = shortcutFor(event); if (!action) return;
+  const button = { undo: ui.undo, redo: ui.redo, remove: ui['remove-node'] }[action];
+  if (button && !button.disabled) { event.preventDefault(); button.click(); }
+});
 onClick('save-project', async () => {
   navigationEditor.assertSaved();
   const current = snapshotProject();
@@ -608,7 +631,7 @@ async function importStructureAsWork(structure, { title, message }) {
   navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
   // Scenes in Studio are always the current format: the imported structure becomes a resource of a v3 work.
-  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources);
+  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources, { templates: structure.templateRecord ? [structure.templateRecord] : [] });   // a work made from a template keeps its licence and scientific card
   const next = createStudioSession(scene, imported.resources);
   geometryFor(next);
   sessions.set(id, next);
@@ -642,7 +665,7 @@ const workshop = createWorkshopDialog(document, {
     actions: [{ label: '用此模板新建作品', title: '这份原文件成为新作品的第一个资源（先核对哈希）', run: async (entry) => {
       navigationEditor.assertSaved();
       const structure = { name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
-        source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } };
+        source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name }, templateRecord: entry.record };
       await importStructureAsWork(structure, { title: entry.title, message: `已用模板 ${entry.title} 新建作品。` });
     } }] } } : {}),
   load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
