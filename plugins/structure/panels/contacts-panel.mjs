@@ -42,6 +42,12 @@ export function resultData(result, exprA, exprB, typed) {
   return { a: exprA, b: exprB, cutoff: result.cutoff, pairs: result.pairs.length, interfaceA: result.residuesA.length, interfaceB: result.residuesB.length, nearest: result.pairs[0] ? +result.pairs[0].distance.toFixed(2) : null, ...(typed ? { salt: typed.counts.salt, hbond: typed.counts.hbond, hydrophobic: typed.counts.hydrophobic } : {}) };
 }
 
+/** Writes the result into the work through the panel doors: the evidence entry (derived, with its method) and the panel's own data. Also used by the Studio command API. */
+export function recordResult(api, result, exprA, exprB, typed) {
+  api.addEvidence({ method: `界面接触：${exprA} 与 ${exprB} 之间重原子距离 ≤ ${result.cutoff} Å 的残基对共 ${result.pairs.length} 对${typed ? `；分类 盐桥 ${typed.counts.salt}、氢键 ${typed.counts.hbond}、疏水接触 ${typed.counts.hydrophobic}（距离判据，无氢原子与角度）` : ''}（只是几何事实，不代表亲和力）` });
+  api.setData(resultData(result, exprA, exprB, typed), '界面接触：已保存结果。');
+}
+
 export const contactsPanel = Object.freeze({
   id: CONTACTS_PANEL_ID, title: '界面接触', needs: ['structure', 'selection'],
   summary: '列出两部分之间互相接触的残基，并把界面涂色、记为推导证据。',
@@ -79,8 +85,8 @@ export const contactsPanel = Object.freeze({
     paint.addEventListener('click', () => guard(() => { if (!last) return; api.applyLook({ colors: { residues: interfaceRules(last.result) } }, '界面接触：已涂色界面残基。'); out.textContent = `${summarize(last.result)} 已涂色（橙 = A 侧，蓝 = B 侧）。`; }));
     record.addEventListener('click', () => guard(() => {
       if (!last) return; const { result, exprA, exprB } = last;
-      api.addEvidence({ method: `界面接触：${exprA} 与 ${exprB} 之间重原子距离 ≤ ${result.cutoff} Å 的残基对共 ${result.pairs.length} 对${typed ? `；分类 盐桥 ${typed.counts.salt}、氢键 ${typed.counts.hbond}、疏水接触 ${typed.counts.hydrophobic}（距离判据，无氢原子与角度）` : ''}（只是几何事实，不代表亲和力）` });
-      api.setData(resultData(result, exprA, exprB, typed), '界面接触：已保存结果。'); out.textContent = `${summarize(result)} 已作为“推导”证据记入作品。`;
+      recordResult(api, result, exprA, exprB, typed);
+      out.textContent = `${summarize(result)} 已作为“推导”证据记入作品。`;
     }));
     return { dispose() { api.highlight(null); } };
   },

@@ -122,6 +122,8 @@ export function createLookPanel(container, context, { doc = container.ownerDocum
   input.addEventListener('input', () => { clearTimeout(input.timer); input.timer = setTimeout(preview, 250); });
 
   return {
+    /** Puts an expression in the selection box (the command interface does this) and lights it; '' clears. */
+    setSelection(expression) { input.value = String(expression ?? ''); preview(); },
     /** The author's current selection: the text in the selection box and the residues it picks (empty when there is none or it cannot be read). */
     selection() {
       const expression = input.value.trim();

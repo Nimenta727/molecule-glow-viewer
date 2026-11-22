@@ -46,6 +46,7 @@ import { cameraAt } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
+import { lookPackById, validateLookPack } from '../../plugins/structure/look-packs.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
@@ -875,6 +876,8 @@ function boot() {
     if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
       try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
     }
+    try { active.lookPackId = validateLookPack(view?.lookPack); } catch { active.lookPackId = undefined; }   // a damaged or unknown pack id is ignored
+    try { viewport.setLook(active.lookPackId ? lookPackById(active.lookPackId).render : null); } catch (error) { console.warn('光影包未能应用：', error.message); }   // every scene starts from its own look (none = the ink style)
     try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels), bonds: validateBonds(view?.bonds) }; active.surfaceState = validateSurfaces(view?.surfaces); Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
     if (Array.isArray(view?.styles)) { try { active.styleState = validateStyles(view.styles); Promise.resolve().then(() => { if (active?.styleState?.length) refreshStructureView(); }); } catch { /* a damaged block is ignored */ } }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
@@ -928,10 +931,11 @@ function boot() {
   function lookOf(loaded) {
     const state = loaded.colorState, styles = loaded.styleState ?? [];
     if (!loaded.model || (!(state?.residues?.length) && state?.scheme !== 'confidence' && !styles.length)) return undefined;
-    return (model) => {
+    const firstId = structureSources(loaded.scene)[0]?.id;
+    return (model, source) => {
       const base = new Map();
       if (state?.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) base.set(key, confidenceColor(value));
-      return lookFor(model, { colors: state, styles }, { base });
+      return lookFor(model, { colors: state, styles }, { base, sourceId: source?.id, primaryId: firstId });
     };
   }
   function structureLayers(loaded, requestedStyle) {
@@ -968,7 +972,7 @@ function boot() {
     const centre = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM;
     const problems = drawAnnotations(viewport, active.model, state ?? {}, (p) => p.map((v, i) => (v - centre[i]) * k));
     if (problems.length) console.warn('标注未能画出：', problems.map((p) => p.message).join('；'));
-    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k));
+    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k), { opacity: viewport.getLook() ? 1 : 0.9 });
     if (surfaceProblems.length) console.warn('表面未能画出：', surfaceProblems.map((p) => p.message).join('；'));
   }
   function refreshStructureView(style) {
@@ -1756,6 +1760,7 @@ function boot() {
         ...(active.annotationState?.labels.length ? { labels: active.annotationState.labels } : {}),
         ...(active.annotationState?.bonds.length ? { bonds: active.annotationState.bonds } : {}),
         ...(active.surfaceState?.length ? { surfaces: active.surfaceState } : {}),
+        ...(active.lookPackId ? { lookPack: active.lookPackId } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };

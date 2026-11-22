@@ -26,6 +26,7 @@ description: Create and edit molecular teaching scenes and trusted plugins in Mo
 ## 选择工作路径
 
 - **独立演示/经典场景**：使用 [assets/index.html](assets/index.html)（viewer.html 是同一构建别名）和 [assets/dev.html](assets/dev.html)。配套文件保持相邻。打开后可输入 PDB、导入本地 PDB/mmCIF、使用已有经典机制；需要 http 时在该目录启动本地服务器。
+- **用 Studio 做作品（AI 直接操作）**：先读 [references/studio_authoring.md](references/studio_authoring.md)——`window.studio` 命令接口、完整作品的顺序、制作规范（诚实、来源、配色与光影、与专业制作者协作）和交付前核对。分析结果一律是“推导”，必须带上回包里的 `limits`。
 - **仓库内迁移/新插件**：先读 [references/platform.md](references/platform.md)，再读仓库 docs/CODEX_MIGRATION_HANDOFF.md、ROADMAP.md、feature-parity.json。新功能放 packages/plugins，保留经典基线，不在经典资产里重写平台。
 - **分享/工坊**：经典 v1 场景格式见 [references/scene_packs.md](references/scene_packs.md)；新平台 v2 用 Viewer/Studio 导出和 Schema 校验。新版通用数据动画已作为 `org.glow.tool.data-animation` 接入（配置见 tools.md）；旧 v1 包静态可见不代表其反应已按作品配置播放。
 
@@ -41,6 +42,7 @@ description: Create and edit molecular teaching scenes and trusted plugins in Mo
 
 | 任务 | 阅读 |
 |---|---|
+| 用 Studio 命令接口做作品（操作手册和制作规范） | [studio_authoring.md](references/studio_authoring.md) |
 | 主体＋插件迁移、当前功能、发行/验收 | [platform.md](references/platform.md) |
 | 写/改功能工具配置、新增工具、对照流程、表达式与 Markov 声明 | [tools.md](references/tools.md) |
 | 经典源码定位、已有模拟站 | [architecture.md](references/architecture.md)（经典实现参考） |

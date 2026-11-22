@@ -18,7 +18,7 @@ const base = 'https://example.test/workshop/';
 test('the real catalogues load: works and resources of the official source, with a missing community source reported, not thrown', async () => {
   const catalog = await loadCatalog({ base, fetch: localFetch() });
   assert.equal(catalog.templates.filter((e) => e.source === 'official').length, 13, 'official static works: one per pack that is not only an animation demo');
-  assert.deepEqual(catalog.templates.filter((e) => e.source === 'community').map((e) => e.title), ['血红蛋白：四个亚基与四个血红素'], 'the hemoglobin work made with the Studio (a static work: no tool)');
+  assert.deepEqual(catalog.templates.filter((e) => e.source === 'community').map((e) => e.title).sort(), ['腺苷酸激酶：开放态（4AKE）与闭合态（1AKE）的核心域叠合', '血红蛋白（2HHB）：α、β 亚基的表面与界面', '血红蛋白：四个亚基与四个血红素'].sort(), 'the hemoglobin work made with the Studio (a static work: no tool)');
   assert.equal(catalog.works.length, 11, 'works: the animated versions (all official)');
   assert.ok(catalog.templates.every((entry) => entry.zone === 'template' && entry.tools.length === 0), 'a template needs no tool');
   assert.ok(catalog.works.every((entry) => entry.zone === 'work' && entry.tools.length > 0), 'a work names the tools it needs');
@@ -58,7 +58,7 @@ test('queries match titles, tags, ids and accessions, by zone, source and tag', 
   assert.deepEqual(queryCatalog(catalog, { zone: 'templates', topic: 'protein', source: 'official' }).map(({ id }) => id).sort(), ['official.groel', 'official.nucleosome', 'official.proteasome-20s', 'official.spike']);
   assert.deepEqual(queryCatalog(catalog, { zone: 'works', topic: 'local-system' }).map(({ id }) => id), ['official.cell-corner.work']);
   assert.equal(queryCatalog(catalog, { zone: 'works', text: 'no-such-thing' }).length, 0);
-  assert.equal(queryCatalog(catalog, { zone: 'templates', text: '  ' }).length, 14, 'blank text matches everything');
+  assert.equal(queryCatalog(catalog, { zone: 'templates', text: '  ' }).length, 16, 'blank text matches everything');
   assert.ok(allTags(catalog, 'resources').includes('钾通道'));
 });
 

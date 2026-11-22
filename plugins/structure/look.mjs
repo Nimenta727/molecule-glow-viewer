@@ -84,8 +84,10 @@ export function applyStyle(styles, target, style, { check } = {}) {
  * The per-residue questions for one parsed model: { colorOf(atom), styleOf(atom) }, or null when nothing is set. `colors` is the colour state ({ residues: [{ expr, color } | { expr, scheme }] });
  * `base` is an optional Map(residueIdentity -> colour) laid under the rules (the confidence bands of a predicted structure); `styles` the style rules.
  */
-export function lookFor(model, { colors, styles } = {}, { base } = {}) {
-  const colorRules = colors?.residues ?? [], styleRules = styles ?? [];
+export function lookFor(model, { colors, styles } = {}, { base, sourceId, primaryId } = {}) {
+  // With several structures in a scene a rule is for one of them: a colour rule names it (`structure`), everything else is for the first. Without `sourceId` every rule applies.
+  const mine = (rule) => sourceId === undefined || (rule.structure ?? primaryId ?? sourceId) === sourceId;
+  const colorRules = (colors?.residues ?? []).filter(mine), styleRules = (sourceId === undefined || primaryId === undefined || sourceId === primaryId) ? (styles ?? []) : [];
   if (!colorRules.length && !styleRules.length && !(base && base.size)) return null;
   const space = selectionSpace(model), colorMap = new Map(base ?? []), styleMap = new Map();
   for (const rule of colorRules) {

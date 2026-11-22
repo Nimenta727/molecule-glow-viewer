@@ -1,10 +1,15 @@
 import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
+import { createCommandApi } from '../viewer-web/command-api.mjs';
+import { createStudioAdapter, createStudioHelp, STUDIO_COMMANDS, READ_ONLY as STUDIO_READ_ONLY } from './studio-commands.mjs';
+import { createProcessLog } from './process-log.mjs';
 import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
 import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
 import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
 import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
+import { lookPackById, validateLookPack, colorStateOf } from '../../plugins/structure/look-packs.mjs';
+import { slabPlane, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
 import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
@@ -317,7 +322,8 @@ function lookStateOf(scene) {
   let colors; try { colors = view.colors ? validateColorState(view.colors) : createColorState(); } catch { colors = createColorState(); }
   let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
   let surfaces; try { surfaces = validateSurfaces(view.surfaces); } catch { surfaces = []; }
-  return { colors, styles, surfaces };
+  let lookPack; try { lookPack = validateLookPack(view.lookPack); } catch { lookPack = undefined; }
+  return { colors, styles, surfaces, lookPack, clipping: normalizeClipping(view.clipping) ?? undefined };
 }
 const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
 
@@ -365,7 +371,7 @@ async function ensureStructureView(current) {
   const { colors, styles } = lookStateOf(scene), primary = primarySource(scene);
   const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
     style: style || undefined, defaultStyle: defaultStyleFor(scene),
-    look: (model, source) => (source === primary ? lookFor(model, { colors, styles }) : undefined),
+    look: (model, source) => lookFor(model, { colors, styles }, { sourceId: source.id, primaryId: primary.id }),
     recolor: isDefaultColors(colors) ? undefined : (group, index, count) => resolveColor(colors, group.chainId, index, count) });
   view.built.set(key, layers);
   while (view.built.size > 4) view.built.delete([...view.built.keys()].find((k) => k !== view.shown && k !== key));   // a few recent looks are kept (undo goes back and forth)
@@ -400,14 +406,28 @@ function highlightResidues(residues) {
   const centered = glowPoints.get(model), step = Math.ceil(residues.length / 2500);
   viewport.setParticleCloud('look-selection', residues.filter((_, i) => i % step === 0).map((residue) => ({ position: centered.point(Array.isArray(residue.position) ? residue.position : [residue.position.x, residue.position.y, residue.position.z]), radius: 0.085, color: '#ffd34e', alpha: 0.9, name: '选中' })), { overlay: true });
 }
+let shownLook;   // the pack id the viewport shows now
+function showLookPack() {
+  const id = lookStateOf(session().getScene()).lookPack;
+  if (id === shownLook) return;
+  try { viewport.setLook(id ? lookPackById(id).render : null); shownLook = id; } catch (error) { status(`光影包未能应用：${error.message}`); shownLook = id; }
+}
+/** The cut through the model that the work saved (the Viewer reads the same state): a slab fixed to the model, aimed when it was made. */
+function applyStudioClipping() {
+  const state = lookStateOf(session().getScene()).clipping, frame = viewport.clipFrame();
+  if (!frame || !state?.enabled || state.scope !== 'all') { viewport.setClipping({}); return; }
+  viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
+}
 function drawStudioAnnotations() {
+  showLookPack();
   const model = lookPanelContext.model();
   if (!model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
   if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
   const centered = glowPoints.get(model);
   drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
-  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p));
+  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p), { opacity: viewport.getLook() ? 1 : 0.9 });
   if (problems.length) status(`表面未能画出：${problems.map((p) => p.message).join('；')}`);
+  applyStudioClipping();
 }
 const lookPanelContext = {
   hasStructure: () => structureSources(session().getScene()).length > 0,
@@ -433,6 +453,8 @@ const lookPanelContext = {
     if (patch.colors) viewer.colors = isDefaultColors(patch.colors) ? null : patch.colors;
     if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
     if (patch.surfaces) viewer.surfaces = patch.surfaces.length ? patch.surfaces : null;
+    if (patch.lookPack !== undefined) viewer.lookPack = patch.lookPack ? validateLookPack(patch.lookPack) : null;
+    if (patch.clipping !== undefined) viewer.clipping = patch.clipping ? normalizeClipping(patch.clipping) : null;
     edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
   },
 };
@@ -809,18 +831,22 @@ function structureLabel(scene, source, index) {
 }
 
 // A second (third, fourth) structure in the same scene, for comparing two entries. The first structure keeps the look, annotations and surfaces; the added ones are drawn in the work's representation.
-watchFile('structure-add-file', async (file) => {
-  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+async function addStructureToScene(structure) {
+  const file = { name: structure.name };
   const current = session(), scene = current.getScene();
   if (!structureSources(scene).length) throw new Error('先导入一个结构，再往同一个场景里加第二个。');
   status('正在导入结构…');
-  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene(structure);
   if (session() !== current) return;
   const { scene: upgraded } = await upgradeSceneToV3({ ...imported.scene, id: makeId(imported.scene.id), timeline: { duration: 4, tracks: [] } }, imported.resources);
   current.addStructure(upgraded, imported.resources, { title: file.name.replace(/\.[^.]+$/, '') });
   structureViews.delete(current); previews.delete(current);   // the models and the preview geometry are read again, with the new structure among them
   markDirty(); refresh(); upgradeRepresentation();
   status(`已把 ${file.name} 加入当前场景（它从原点开始，和第一个结构重叠；用“分析”页的结构叠合把它们对齐）。`);
+}
+watchFile('structure-add-file', async (file) => {
+  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+  await addStructureToScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
 });
 
 watchFile('structure-file', async (file) => {
@@ -1012,6 +1038,62 @@ onClick('studio-play', () => {
   frame = requestAnimationFrame(tick);
   showPose();
 });
+// ---- the command interface for AI: window.studio (apps/studio-web/studio-commands.mjs); the same doors and checks as the panels, no page clicking ----
+{
+  const contacts = contactsPanel;   // any registered panel gives the structure list: it is the same host
+  const adapter = createStudioAdapter({
+    ready: async () => { const current = session(); if (await ensureStructureView(current) && session() === current) refresh(); },
+    scene: () => session().getScene(),
+    nodes: () => session().getScene().nodes,
+    setVisible: (ids, visible) => edit({ type: 'batch', commands: ids.map((id) => ({ type: 'updateNode', id, patch: { visible } })) }, visible ? '已显示对象。' : '已隐藏对象。'),
+    toScene: (structureId) => { const model = structureViews.get(session())?.models?.get(structureId); if (!model) throw new Error('这个结构还没有解析完。'); if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model))); const centered = glowPoints.get(model); return (p) => centered.point(p); },
+    structureList: () => panelEnv.hostFor(contacts).models(),
+    selectionBox: { get: () => lookPanel.selection(), set: (expression) => lookPanel.setSelection(expression) },
+    hostFor: (panel) => panelEnv.hostFor(panel),
+    lookState: () => lookStateOf(session().getScene()),
+    chainIds: () => lookPanelContext.chainIds(),
+    applyLook: (patch, message) => lookPanelContext.apply(patch, message),
+    annotations: () => lookPanelContext.annotations(),
+    applyAnnotations: (patch, message) => lookPanelContext.applyAnnotations(patch, message),
+    importWork: (structure) => importStructureAsWork(structure, { message: `已导入 ${structure.name}。` }),
+    addStructure: (structure) => addStructureToScene(structure),
+    loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
+    camera: {
+      get: () => viewport.getCamera(), set: (pose) => viewport.setCamera(pose), reset: () => viewport.resetCamera(),
+      viewDirection: () => viewport.clipFrame()?.toViewer ?? [0, 0, 1],
+      frame(centre, radius, margin) { const now = viewport.getCamera(), direction = now.position.map((v, i) => v - now.target[i]), length = Math.hypot(...direction) || 1, distance = (radius * margin) / Math.sin(Math.PI / 8); viewport.setCamera({ position: centre.map((v, i) => v + (direction[i] / length) * distance), target: centre }); },
+    },
+    cameraKeys: {
+      list: () => sortedCameraKeys(session().getScene().presentation).map(({ id, time }) => ({ id, time })),
+      add(time, pose) { const id = makeId('camkey'); edit({ type: 'addCameraKey', key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time.toFixed(2)} 秒`, position: pose.position, target: pose.target } }, `已保存 ${time.toFixed(2)} 秒的镜头关键帧。`); },
+      remove(id) { edit({ type: 'removeCameraKey', id }, '已删除镜头关键帧。'); },
+    },
+    note: (content, nodeId) => edit({ type: 'addNote', note: { id: makeId('note'), text: content, nodeId } }, '已添加讲解。'),
+    title: (value) => edit({ type: 'setSceneTitle', title: value }, '已重命名场景。'),
+    setPublication: (publication) => edit({ type: 'setPublication', publication }, '已保存发布信息。'),
+    undo: () => { if (!session().undo()) return false; editingPose = false; refresh(); status('已撤销。'); return true; },
+    redo: () => { if (!session().redo()) return false; editingPose = false; refresh(); status('已重做。'); return true; },
+    canUndo: () => session().canUndo(), canRedo: () => session().canRedo(),
+    snapshot: (width) => viewport.snapshot(width, { clean: true }),
+    async exportScene() {
+      const current = session(), bytes = await writeScenePackage(current.getScene(), current.getResources());
+      let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { base64: btoa(binary), bytes: bytes.length };
+    },
+  });
+  const processLog = createProcessLog(ui['pane-process'], {
+    depth: () => session().undoDepth(),
+    undoTo: (depth) => { while (session().undoDepth() > depth && session().undo()); editingPose = false; refresh(); status('已撤销到所选步骤之前。'); },
+    showTab: (id) => ui[id]?.click(),
+    readOnly: (cmd) => STUDIO_READ_ONLY.has(cmd),
+  });
+  const commands = createCommandApi(adapter, { commands: STUDIO_COMMANDS, readOnly: STUDIO_READ_ONLY, version: '1.0.0', onEvent: (event) => processLog.onEvent(event), pace: (cmd) => processLog.pace(cmd), help: (api, table, input) => {
+    const full = createStudioHelp()(api, table);
+    if (typeof input === 'string') { if (!Object.hasOwn(table, input)) throw new Error(`没有命令 ${input}：help() 列出全部。`); return { api: api.version, commands: [{ cmd: input, doc: table[input] }], rules: full.rules }; }
+    return full;
+  } });
+  window.studio = commands.api;
+}
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { stopPlayback(); viewport.dispose(); } });
 newProject();
 offerRecovery();

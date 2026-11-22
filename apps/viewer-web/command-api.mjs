@@ -30,16 +30,22 @@ export const COMMANDS = {
   validatePack: '检查 v1 JSON 文本或 exportPack 返回的 v2 包。',
 };
 
-export function createCommandApi(adapter) {
+/**
+ * The command queue shared by the Viewer (`window.glow`) and the Studio (`window.studio`). `options.commands` is the table of command names and their docs, `options.readOnly` the commands that
+ * change nothing (skipped when a log is replayed), `options.help` (optional) builds the answer of `help()`, `options.version` the API version.
+ * `options.onEvent({ phase: 'start' | 'done' | 'error', cmd, args, result?, error? })` lets a page show what is being done (the Studio's process tab); `options.pace(cmd)` may delay a command ("slow
+ * demonstration"); neither can change a command or its answer.
+ */
+export function createCommandApi(adapter, { commands = COMMANDS, readOnly = READ_ONLY, help, version = '2.0.0', onEvent, pace } = {}) {
   let queue = Promise.resolve(), pending = 0, disposed = false;
   const log = [];
   const copy = (value) => JSON.parse(JSON.stringify(value ?? null));
   const api = {
-    version: '2.0.0',
+    version,
     get log() { return copy(log); },
     run(cmd, args, authorize) {
       if (disposed) return Promise.reject(new Error('命令接口已关闭。'));
-      if (!Object.hasOwn(COMMANDS, cmd)) return Promise.reject(new Error(`此入口尚不支持命令 ${String(cmd)}。请调用 glow.help()。`));
+      if (!Object.hasOwn(commands, cmd)) return Promise.reject(new Error(`此入口尚不支持命令 ${String(cmd)}。请调用 glow.help()。`));
       if (pending >= 32) return Promise.reject(new Error('命令队列已满。'));
       // Snapshot caller input before it enters the queue. No host objects are accepted.
       let input;
@@ -49,8 +55,11 @@ export function createCommandApi(adapter) {
         if (disposed) throw new Error('命令接口已关闭。');
         authorize?.();
         let ok = false;
+        if (pace) { try { await pace(cmd, input); } catch { /* a failing pace hook never blocks a command */ } }   // no await without a hook: the timing of the plain Viewer interface stays as it was
+        const event = (data) => { try { onEvent?.({ cmd, args: input, ...data }); } catch { /* a display hook must not break a command */ } };
+        event({ phase: 'start' });
         try {
-          const result = cmd === 'help' ? {
+          const result = cmd === 'help' && help ? await help(api, commands, input) : cmd === 'help' ? {
             api: api.version, commands: Object.entries(COMMANDS).map(([cmd, doc]) => ({ cmd, doc })),
             tools: adapter.tools?.() ?? [],
             limitations: ['select 支持选择语言（chain / resi / within / sele …）；style（画风）尚未迁移；残基上色只有“团块”表示能画出；表示按选择换模式尚未迁移。',
@@ -59,7 +68,12 @@ export function createCommandApi(adapter) {
           } : await adapter[cmd](input);
           authorize?.('result');
           ok = true;
-          return copy(result);
+          const answer = copy(result);
+          event({ phase: 'done', result: answer });
+          return answer;
+        } catch (error) {
+          event({ phase: 'error', error: error?.message ?? String(error) });
+          throw error;
         } finally {
           // Never retain local coordinate files or exported packages in the command log.
           const text = JSON.stringify(input);
@@ -78,7 +92,7 @@ export function createCommandApi(adapter) {
       const result = [];
       for (const entry of copy(entries)) {
         authorize?.();
-        if (!entry?.ok || READ_ONLY.has(entry.cmd) || entry.args?.omitted) {
+        if (!entry?.ok || readOnly.has(entry.cmd) || entry.args?.omitted) {
           result.push({ cmd: entry?.cmd ?? null, skipped: true }); continue;
         }
         try { await api.run(entry.cmd, entry.args, authorize); result.push({ cmd: entry.cmd, ok: true }); }
@@ -88,7 +102,7 @@ export function createCommandApi(adapter) {
     },
   };
   // glow.measure(a, b, c) and glow.color('chain A', 'red') take positional arguments as in the classic: more than one becomes an array
-  for (const cmd of Object.keys(COMMANDS)) api[cmd] = (...args) => api.run(cmd, args.length > 1 ? args : args[0]);
+  for (const cmd of Object.keys(commands)) api[cmd] = (...args) => api.run(cmd, args.length > 1 ? args : args[0]);
   return { api, dispose() { disposed = true; } };
 }
 

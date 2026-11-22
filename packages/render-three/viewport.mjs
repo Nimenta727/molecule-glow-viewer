@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createPresentationOverlay } from './presentation-overlay.mjs';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { CORE_INK, createInkRenderer } from './ink-style.mjs';
+import { createGlowRenderer } from './glow-style.mjs';
 import { createInstanceSet } from './instance-set.mjs';
 import { icosphereTriangles } from './lod.mjs';
 
@@ -43,6 +44,7 @@ function* renderables(asset, layers) {
         transform.scale(strokeScale);
         ink.setMatrixAt(i / 3, transform);
       }
+      ink.userData.outlineShell = true;   // the dark shell behind a sphere layer is part of the ink style; a glow look hides it
       yield surface;
       yield ink;
       if (conformations) {
@@ -99,6 +101,7 @@ function* renderables(asset, layers) {
             position.getY(i) + normal.getY(i) * 0.012, position.getZ(i) + normal.getZ(i) * 0.012);
         }
         const outline = new THREE.Mesh(hull, new THREE.MeshBasicMaterial({ color: '#344151', side: THREE.BackSide }));
+        outline.userData.outlineShell = true;
         if (morphStates) outline.userData.conformation = { states: morphStates, normals: true, outline: true };
         yield outline;
       }
@@ -117,7 +120,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setSize(Math.max(container.clientWidth, 1), Math.max(container.clientHeight, 1), false);
   container.appendChild(renderer.domElement);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x697785, 2));
+  const hemisphere = new THREE.HemisphereLight(0xffffff, 0x697785, 2);
+  scene.add(hemisphere);
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(4, 7, 5);
   scene.add(key);
@@ -345,9 +349,11 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
    * both planes clip. A part with a wedge uses it instead of the slab. Markers and links are not clipped. setClipping() removes everything.
    */
   const toPlane = ({ normal, constant }) => new THREE.Plane(new THREE.Vector3(...normal), constant);
+  let slabNow = null;   // the slab planes now in force: a surface drawn after the cut is made is cut too
   function setClipping({ slab = null, wedge = null } = {}) {
     if (!active) return;
-    const slabPlanes = slab ? [toPlane(slab)] : null, wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
+    const slabPlanes = slab ? [toPlane(slab)] : null; slabNow = slabPlanes;
+    const wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
     for (const [id, group] of active.groups) {
       const planes = wedgePlanes && wedge.nodeIds.has(id) ? wedgePlanes : slabPlanes, intersection = planes === wedgePlanes && Boolean(planes);
       group.traverse((object) => {
@@ -363,6 +369,13 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         }
         if (before !== `${planes?.length ?? 0}|${intersection}|${material.side}`) material.needsUpdate = true;
       });
+    }
+    for (const object of overlays.values()) {   // solid surfaces (overlay meshes) are cut by the slab too; a cut-open solid shows its inside
+      const material = object.material; if (!material || Array.isArray(material) || !material.isMeshStandardMaterial) continue;
+      material.clippingPlanes = slabPlanes; material.clipIntersection = false;
+      if (slabPlanes && material.side === THREE.FrontSide) { material.userData.sideBeforeClip = THREE.FrontSide; material.side = THREE.DoubleSide; }
+      else if (!slabPlanes && material.userData.sideBeforeClip !== undefined) { material.side = material.userData.sideBeforeClip; material.userData.sideBeforeClip = undefined; }
+      material.needsUpdate = true;
     }
     invalidate();
   }
@@ -491,8 +504,9 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(surface.pos, 3)); geometry.setIndex(new THREE.BufferAttribute(surface.idx, 1)); geometry.computeVertexNormals();
     if (surface.colors) geometry.setAttribute('color', new THREE.BufferAttribute(surface.colors, 3));
-    const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, roughness: 0.55 }));
-    object.renderOrder = 4; object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
+    const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: opacity < 0.999, opacity, side: opacity >= 0.999 ? THREE.FrontSide : THREE.DoubleSide, depthWrite: opacity >= 0.999, roughness: 0.55 }));   // opacity 1 = a solid surface that is in the depth buffer (what a glow look needs for occlusion and depth of field)
+    object.renderOrder = opacity >= 0.999 ? 0 : 4;
+    if (slabNow) { object.material.clippingPlanes = slabNow; object.material.clipIntersection = false; if (object.material.side === THREE.FrontSide) { object.material.userData.sideBeforeClip = THREE.FrontSide; object.material.side = THREE.DoubleSide; } } object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
     active.root.add(object); overlays.set(tag, object); invalidate();
     return surface.idx.length / 3;
   }
@@ -758,7 +772,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
   function draw() {
     updateInstanceSets();
-    if (ink) ink.render();
+    if (glow) glow.render();
+    else if (ink) ink.render();
     else renderer.render(scene, camera);
   }
   controls.addEventListener('change', invalidate);
@@ -785,7 +800,30 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     camera.updateProjectionMatrix();
     renderer.setSize(width, height, false);
     ink?.setSize(width, height);
+    glow?.setSize(width, height);
     invalidate();
+  }
+  // A look (see plugins/structure/look-packs.mjs): { kind: 'glow', background, fog, ao, rim, dof, vignette, exposure, saturation, lights } replaces the ink style until setLook(null).
+  let glow = null, look = null, outlines = true;
+  const lightDefaults = { hemisphere: hemisphere.intensity, key: key.intensity };
+  function applyOutlines() {
+    if (!active) return;
+    active.root.traverse((object) => { if (object.userData.outlineShell) object.visible = outlines; });
+  }
+  function setLook(next) {
+    if (next === null || next === undefined) {
+      glow?.dispose(); glow = null; look = null; outlines = true;
+      hemisphere.intensity = lightDefaults.hemisphere; key.intensity = lightDefaults.key;
+      scene.background = new THREE.Color(ink ? ink.style.background : background); applyOutlines(); invalidate(); return null;
+    }
+    if (next.kind !== 'glow') throw new Error(`Unknown look kind: ${String(next.kind)}`);
+    if (!glow) {
+      glow = createGlowRenderer({ renderer, scene, camera, look: next, getFocus: () => ({ distance: Math.max(camera.position.distanceTo(controls.target), 1e-3), radius: active?.radius ?? 0 }) });
+      if (!glow) throw new Error('这个显卡/环境不支持景深所需的深度纹理。');
+    } else glow.setStyle(next);
+    look = next; outlines = false;
+    const lights = { ...lightDefaults, ...next.lights }; hemisphere.intensity = lights.hemisphere; key.intensity = lights.key;
+    applyOutlines(); invalidate(); return glow.style;
   }
   if (style === 'ink') {
     ink = createInkRenderer({ renderer, scene, camera,
@@ -938,6 +976,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     gizmo?.detach();
     scene.add(prepared.root);
     active = prepared;
+    applyOutlines();
     clearParticleClouds();   // the sets hung on the previous scene's root; the Viewer puts its particles back after a rebuild
     fitCamera(prepared);
     if (previous) disposeHandle(previous);
@@ -1280,13 +1319,16 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     pointSelection?.material.dispose();
     controls.dispose();
     ink?.dispose();
+    glow?.dispose();
     renderer.dispose();
     renderer.domElement.remove();
   }
 
-  function snapshot(width) {
+  function snapshot(width, { clean = false } = {}) {
     if (disposed) throw new Error('视口已关闭。');
-    draw();
+    const helpers = clean && gizmo ? gizmo.visible : undefined;   // `clean`: the transform gizmo is not part of a figure
+    if (clean && gizmo) gizmo.visible = false;
+    try { draw(); } finally { if (clean && gizmo) gizmo.visible = helpers; }
     const source = renderer.domElement;
     if (width == null || width === source.width) return source.toDataURL('image/png');
     const canvas = document.createElement('canvas');
@@ -1297,8 +1339,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
   }
 
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
-    orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
-    get renderStyle() { return ink ? ink.style.id : 'plain'; },
+    setLook, getLook: () => look, orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
+    get renderStyle() { return glow ? 'glow' : ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */
     stats() {
       // read-only render statistics, for leak checks and for sizing scenes (docs/PLUGIN_ROADMAP.md). The drawn load is counted from the scene (visible objects, instances included):

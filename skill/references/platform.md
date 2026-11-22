@@ -30,6 +30,7 @@
 - 选择语言（`chain A and resi 10-50`、`within 5 of ligands`、`resn HIS`…）是所有作图与分析的输入。外观页对选择设表示/颜色/表面，规则写进结构文件 `provenance.viewerState`（`colors`、`styles`、`surfaces`、`measures`、`labels`、`bonds`、`plugins[面板编号]`、`camera` …），Viewer 读同一处；不要手造这些字段，用 Studio 的命令 `setViewerState` 与各模块的 `validate*`（`plugins/structure/look.mjs`、`annotations.mjs`、`molecular-surface.mjs`）。
 - 镜头关键帧是 `presentation.cameraKeys`（时间 + 视角书签），`packages/schema/camera-track.mjs` 的 `cameraAt` 在 Studio 与 Viewer 里共用。
 - 插件面板规矩见 `packages/plugin-host/panels.mjs`：面板只读结构（`api.model()/models()`）和选择，只能通过 `applyLook`、`annotate`、`addEvidence`（只能记“推导/建模”，必须写明方法）、`placePart`（整条链的刚性移动，不碰坐标文件）、`setData`（自己的命名空间，≤ 64 KB）写回。新增分析一律做成面板，不要各搞一套界面。
+- AI 怎么直接操作这些功能：`window.studio` 命令接口和制作规范见 [studio_authoring.md](studio_authoring.md)（实现 `apps/studio-web/studio-commands.mjs`）；Studio 的“过程”页签实时显示每一步，可回到某一步之前。光影包（`plugins/structure/look-packs.mjs`，渲染 `packages/render-three/glow-style.mjs`）只改外观。
 - 现有五个面板：界面接触（含氢键/盐桥/疏水分类，距离判据、无角度）、组成与性质、序列与二级结构、结构叠合（Cα 的 Horn 拟合，可跨结构）、分子表面与静电（高斯表面 + 简化库仑，不是 APBS）。每个面板的限制写在 `plugins/packages/*.json` 的 `status.limits` 里；对外说明时要如实引用。
 - 验证叠合/放置一类几何功能时，要用导出文件里的变换和原始坐标**独立重算**一遍（见 `tools/superposition-check.cjs`、`tools/cross-superposition-check.cjs`），不要只看数字合理——跨结构的坐标系错误就是这样抓到的。
 

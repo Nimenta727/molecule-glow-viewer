@@ -18,6 +18,13 @@ export function resultData(expression, scheme, stats) {
   return { part: expression, scheme, atoms: stats.atoms, triangles: stats.triangles, resolution: stats.resolution, ...(stats.potential ? { potentialMin: +stats.potential.min.toFixed(2), potentialMax: +stats.potential.max.toFixed(2), potentialMean: +stats.potential.mean.toFixed(2) } : {}) };
 }
 
+/** Writes the result into the work through the panel doors: the evidence entry (derived, with its method) and the panel's own data. Also used by the Studio command API. */
+export function recordResult(api, expression, kind, stats) {
+  const p = stats.potential;
+  api.addEvidence({ method: `分子表面：${expression} 的高斯分子表面（${stats.atoms} 个原子，网格 ${stats.resolution} Å），按${SCHEMES[kind]}着色${p ? `；表面外 ${OFFSET} Å 处简化库仑静电势 ${p.min.toFixed(1)} … ${p.max.toFixed(1)} kcal/(mol·e)（ε = ${DIELECTRIC}r，形式电荷加通用主链部分电荷，不是 APBS）` : ''}`, citation: kind === 'electrostatic' ? 'Coulomb 势，与 ChimeraX coulombic 的默认介电设置一致' : undefined });
+  api.setData(resultData(expression, kind, stats), '分子表面：已保存结果。');
+}
+
 export const surfacePanel = Object.freeze({
   id: SURFACE_PANEL_ID, title: '分子表面与静电', needs: ['structure', 'selection'],
   summary: '给选中的部分画逐原子的分子表面，按静电势、疏水性或单色着色；随作品保存，Viewer 里一样显示。',
@@ -45,8 +52,8 @@ export const surfacePanel = Object.freeze({
     }));
     record.addEventListener('click', () => guard(() => {
       if (!last) return; const { expression, scheme: kind, stats } = last, p = stats.potential;
-      api.addEvidence({ method: `分子表面：${expression} 的高斯分子表面（${stats.atoms} 个原子，网格 ${stats.resolution} Å），按${SCHEMES[kind]}着色${p ? `；表面外 ${OFFSET} Å 处简化库仑静电势 ${p.min.toFixed(1)} … ${p.max.toFixed(1)} kcal/(mol·e)（ε = ${DIELECTRIC}r，形式电荷加通用主链部分电荷，不是 APBS）` : ''}`, citation: kind === 'electrostatic' ? 'Coulomb 势，与 ChimeraX coulombic 的默认介电设置一致' : undefined });
-      api.setData(resultData(expression, kind, stats), '分子表面：已保存结果。'); out.textContent = `${describe(stats, kind)} 已作为“推导”证据记入作品。`;
+      recordResult(api, expression, kind, stats);
+      out.textContent = `${describe(stats, kind)} 已作为“推导”证据记入作品。`;
     }));
     return { dispose() { /* the surface is part of the work: removed from the rule list, not by closing the panel */ } };
   },

@@ -3,8 +3,39 @@
  "version": 1,
  "source": "community",
  "name": "社区",
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "packs": [
+  {
+   "kind": "work",
+   "title": "腺苷酸激酶：开放态（4AKE）与闭合态（1AKE）的核心域叠合",
+   "category": "single",
+   "topic": "protein",
+   "tags": [
+    "腺苷酸激酶",
+    "构象",
+    "叠合"
+   ],
+   "author": {
+    "name": "Molecule Glow 项目"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "腺苷酸激酶开放态（4AKE）与闭合态（1AKE）的核心域叠合：RMSD 和偏差大的残基，白底论文光影。",
+   "pdb": [
+    "4AKE",
+    "1AKE"
+   ],
+   "resources": [],
+   "animation": "none",
+   "updated": "2026-11-22",
+   "file": "packs/4ake-4b94c10e-bc11-4c18-b944-f5709f8d41ba.glow",
+   "cover": null,
+   "size": 1155033,
+   "sha256": "76dd22c6e4012b1128a23177bfd2319e2c85a32174f638b2d8a34de437647627",
+   "zone": "template",
+   "id": "4ake-4b94c10e-bc11-4c18-b944-f5709f8d41ba",
+   "tools": []
+  },
   {
    "kind": "work",
    "title": "血红蛋白：四个亚基与四个血红素",
@@ -34,6 +65,36 @@
    "sha256": "a8eb764128e73d2c768420ae113f1c412db6a31d30bc986ffa3ea367e4d96ec5",
    "zone": "template",
    "id": "2hhb-d4e8f138-3f31-4d3f-b219-aec06f657ba8",
+   "tools": []
+  },
+  {
+   "kind": "work",
+   "title": "血红蛋白（2HHB）：α、β 亚基的表面与界面",
+   "category": "single",
+   "topic": "protein",
+   "tags": [
+    "血红蛋白",
+    "界面",
+    "表面"
+   ],
+   "author": {
+    "name": "Molecule Glow 项目"
+   },
+   "revision": 1,
+   "license": "CC-BY-4.0",
+   "description": "人脱氧血红蛋白（2HHB）四聚体：α/β 亚基的表面、亚基间界面的距离分析和组成统计，暖色光影。",
+   "pdb": [
+    "2HHB"
+   ],
+   "resources": [],
+   "animation": "none",
+   "updated": "2026-11-22",
+   "file": "packs/2hhb-cdf93122-5693-47db-8860-a6faac98361e.glow",
+   "cover": null,
+   "size": 768993,
+   "sha256": "d833d1c95a470bb3589da446301b3af50fea726417f68e9f380cd87feb485638",
+   "zone": "template",
+   "id": "2hhb-cdf93122-5693-47db-8860-a6faac98361e",
    "tools": []
   }
  ]
