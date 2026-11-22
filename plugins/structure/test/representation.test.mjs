@@ -158,3 +158,42 @@ test('empty inputs produce no representations and unsupported styles fail explic
   assert.deepEqual(selectStructure({ atoms: [] }), []);
   assert.throws(() => buildRepresentations(fixture(), { style: 'spacefill' }), /Unsupported representation style/);
 });
+
+// ---- per-residue look (the authoring tools): colour and style of a chosen part, in every residue-level style ----
+function chain(count = 6) {   // one chain of `count` residues, 3.8 Å apart: 6 residues = 5 segments
+  return { atoms: Array.from({ length: count }, (_, i) => atom({ position: [i * 3.8, 0, 0], serial: i + 1, authSeqId: String(i + 1), labelSeqId: String(i + 1) })) };
+}
+const seqOf = (a) => Number(a.authSeqId);
+const drawn = (model, style, look) => buildRepresentations(model, { style, look })[0].layers.filter((layer) => layer.mode !== 'points');
+const count = (layers, mode) => layers.filter((l) => l.mode === mode).reduce((n, l) => n + (mode === 'triangles' ? l.positions.length / 9 : mode === 'lines' ? l.positions.length / 6 : l.positions.length / 3), 0);
+const RED = '#e05a4a';
+
+test('a colour for some residues splits the cartoon, the backbone and the blob by colour and pins the coloured layers; the rest keeps its own colour', () => {
+  const look = { colorOf: (a) => (seqOf(a) >= 4 ? RED : undefined) };   // a segment takes the colour of the residue it ends at: segments ending at 4, 5, 6 are red
+  const plain = drawn(chain(), 'cartoon'), cartoon = drawn(chain(), 'cartoon', look);
+  assert.equal(count(plain, 'triangles'), 10); assert.equal(count(cartoon, 'triangles'), 10, 'the same ribbon, only coloured differently');
+  const red = cartoon.find((l) => l.color === RED); assert.ok(red.pinned); assert.equal(red.positions.length / 9, 6, 'three segments, two triangles each');
+  assert.ok(cartoon.some((l) => l.color !== RED && !l.pinned), 'the other residues keep the default colour and are not pinned');
+  const lines = drawn(chain(), 'backbone', look); assert.equal(count(lines, 'lines'), 5); assert.equal(lines.find((l) => l.color === RED).positions.length / 6, 3);
+  const blob = drawn(chain(), 'blob', look); assert.equal(count(blob, 'spheres'), 6); assert.equal(blob.find((l) => l.color === RED).positions.length / 3, 3, 'residues 4, 5, 6');
+});
+
+test('a hidden part is neither drawn nor pickable, and a segment touching a hidden residue is not drawn', () => {
+  const look = { styleOf: (a) => (seqOf(a) === 3 || seqOf(a) === 4 ? 'hidden' : undefined) };
+  const cartoon = drawn(chain(), 'cartoon', look); assert.equal(count(cartoon, 'triangles'), 4, 'segments 1-2 and 5-6 remain; 2-3, 3-4 and 4-5 touch a hidden residue');
+  const [group] = buildRepresentations(chain(), { style: 'cartoon', look }), points = group.layers.findIndex((l) => l.mode === 'points');
+  assert.equal(group.layers[points].positions.length / 3, 4, 'two residues are gone from the markers'); assert.deepEqual(group.pointTargets[points].map((t) => seqOf(t.atom)), [1, 2, 5, 6], 'and from what can be picked');
+  assert.equal(count(drawn(chain(), 'blob', look), 'spheres'), 4);
+});
+
+test('a part can be drawn in another style than the rest: a blob pocket inside a cartoon, a backbone tail', () => {
+  const mixed = drawn(chain(), 'cartoon', { styleOf: (a) => (seqOf(a) >= 5 ? 'blob' : seqOf(a) === 1 ? 'backbone' : undefined) });
+  assert.equal(count(mixed, 'spheres'), 2, 'residues 5 and 6 as spheres'); assert.equal(count(mixed, 'triangles'), 6, 'segments ending at 2, 3 and 4 stay ribbon (3 segments)');
+  assert.equal(count(mixed, 'lines'), 0, 'the backbone residue has no segment of its own (a segment takes the style of the residue it ends at)');
+});
+
+test('surface and functional ignore the per-residue look, and without a look nothing changes', () => {
+  const look = { colorOf: () => RED, styleOf: () => 'hidden' };
+  for (const style of ['surface', 'functional']) assert.deepEqual(buildRepresentations(fixture(), { style, look }), buildRepresentations(fixture(), { style }), style);
+  for (const style of ['cartoon', 'backbone', 'blob']) assert.deepEqual(buildRepresentations(fixture(), { style, look: {} }), buildRepresentations(fixture(), { style }), `${style}: an empty look is no look`);
+});

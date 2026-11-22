@@ -28,7 +28,7 @@
     "plugins/structure/parser.mjs": "c0ee113a1fb92f7a8dcaad67150d043023f993c97668134265d1d4277420d0e1",
     "plugins/structure/assembly.mjs": "f7b1c6adf1e60430ca295fd3e4f9049fab7f537adc767de0246e0b7d44325de8",
     "plugins/structure/alignment.mjs": "376b2264c3d6a9f793deb565bf63a7f0022875e331785f300a082df66fa41c68",
-    "plugins/structure/representation.mjs": "adef69d9366c4db7b519592b07cf847e350b0e626578dcded482dfdf5365a0a4",
+    "plugins/structure/representation.mjs": "6bef4c7295084b5683a5d71b6226764079180b074c3e8799612e5926e7722046",
     "plugins/structure/functional-preview.mjs": "a4e8485b74a06cd1168d3dafae8bb3a3b338e5885610873482fcae2e5bf5b534",
     "plugins/structure/density-surface.mjs": "667ab40d8af187d999a6b71a4d1a0ddabfdc2f5bd7c0189edf588cb27146c893",
     "desktop/package-lock.json": "7c16f74a44f80dac18e768e4cea6efc23e773a21024eda1619c673e91ff1babc",

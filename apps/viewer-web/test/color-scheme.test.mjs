@@ -65,3 +65,17 @@ test('the confidence scheme is refused unless the structure is a predicted one',
   const { state, note } = applyColor(createColorState(), 'confidence', undefined, chains, { confidence: true });
   assert.equal(state.scheme, 'confidence'); assert.match(note, /pLDDT/); assert.equal(resolveColor(state, 'A', 0, 1), undefined, 'chains keep their own colour; residues carry the confidence');
 });
+
+test('a property scheme colours a selection as a rule: color("hydrophobicity"), color("chain A", "bfactor"); refused without a structure or with an empty selection', async () => {
+  const { applyColor, validateColorState, createColorState } = await import('../color-scheme.mjs');
+  const check = (expr) => (expr === 'resi 99' ? 0 : expr === 'chain A' || expr === 'all' ? 10 : (() => { throw new Error('读不懂'); })());
+  const all = applyColor(createColorState(), 'hydrophobicity', undefined, ['A', 'B'], { check });
+  assert.deepEqual(all.state.residues, [{ expr: 'all', scheme: 'hydrophobicity' }]); assert.match(all.note, /10 个残基.*疏水性/);
+  const one = applyColor(all.state, 'chain A', 'bfactor', ['A', 'B'], { check }); assert.deepEqual(one.state.residues.at(-1), { expr: 'chain A', scheme: 'bfactor' }); assert.equal(one.state.residues.length, 2);
+  assert.deepEqual(applyColor(createColorState(), 'chain A', 'rainbow', ['A'], { check }).state.residues, [{ expr: 'chain A', scheme: 'rainbow' }], 'rainbow over a target is a rule; alone it stays the global scheme');
+  assert.equal(applyColor(createColorState(), 'rainbow', undefined, ['A'], { check }).state.scheme, 'rainbow');
+  assert.throws(() => applyColor(createColorState(), 'charge', undefined, ['A'], {}), /先打开结构/); assert.throws(() => applyColor(createColorState(), 'resi 99', 'charge', ['A'], { check }), /没有选中任何残基/); assert.throws(() => applyColor(createColorState(), 'banana', 'charge', ['A'], { check }), /无法读取选择/);
+  assert.deepEqual(validateColorState(one.state).residues, one.state.residues, 'a saved state with scheme rules reads back');
+  assert.deepEqual(validateColorState({ scheme: 'entity', chains: {}, residues: [{ expr: 'all', color: '#E05A4A' }] }).residues, [{ expr: 'all', color: '#e05a4a' }], 'an older state with colour rules still reads');
+  assert.throws(() => validateColorState({ scheme: 'entity', chains: {}, residues: [{ expr: 'all', scheme: 'sparkle' }] }), /配色方案应为/);
+});

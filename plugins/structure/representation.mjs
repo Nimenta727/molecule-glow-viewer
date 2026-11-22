@@ -160,6 +160,17 @@ function linePositions(markers, centered) {
   return flat(points);
 }
 
+/**
+ * Per-residue appearance, for the authoring tools: `look.styleOf(atom)` is the style one residue is drawn in ('cartoon' | 'backbone' | 'blob' | 'hidden'; undefined = the style of the whole build) and
+ * `look.colorOf(atom)` its colour (undefined = the default of the layer). A segment between two residues takes the look of the later one and is drawn only when neither end is hidden.
+ * Layers that carry a residue colour are marked `pinned`, so a chain-wide colour (the `color` command) does not paint over them.
+ */
+function segmentLook(a, b, look, defaultStyle) {
+  const styleA = look.styleOf?.(a.residue.atom) ?? defaultStyle, styleB = look.styleOf?.(b.residue.atom) ?? defaultStyle;
+  if (styleA === 'hidden' || styleB === 'hidden') return null;
+  return { style: styleB, color: look.colorOf?.(b.residue.atom) ?? look.colorOf?.(a.residue.atom) };
+}
+
 function normalize(v) {
   const length = Math.hypot(v[0], v[1], v[2]);
   return length > 1e-9 ? v.map((x) => x / length) : [0, 0, 1];
@@ -177,15 +188,18 @@ function ribbonSide(markers, index) {
   return normalize(side).map((value) => value * CARTOON_WIDTH);
 }
 
-function cartoonLayers(markers, ranges, centered) {
+function cartoonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon') {
   const byType = new Map([['default', []], ['helix', []], ['sheet', []]]);
   for (let i = 1; i < markers.length; i++) {
     const a = markers[i - 1], b = markers[i];
     const distance = Math.hypot(...b.raw.map((v, axis) => v - a.raw[axis]));
     if (!residueGap(a.residue, b.residue) || distance > 10) continue;
+    const seen = segmentLook(a, b, look, defaultStyle);
+    if (!seen || seen.style !== 'cartoon') continue;
     const typeA = rangeTypeFor(a.residue.atom, ranges);
     const typeB = rangeTypeFor(b.residue.atom, ranges);
-    const type = typeA === typeB ? typeA : 'default';
+    const type = seen.color ? `#${seen.color}` : typeA === typeB ? typeA : 'default';
+    if (!byType.has(type)) byType.set(type, []);
     const sideA = ribbonSide(markers, i - 1), sideB = ribbonSide(markers, i);
     const aLeft = a.raw.map((v, axis) => v + sideA[axis]);
     const aRight = a.raw.map((v, axis) => v - sideA[axis]);
@@ -196,9 +210,25 @@ function cartoonLayers(markers, ranges, centered) {
       centered.point(bLeft), centered.point(aRight), centered.point(bRight),
     );
   }
-  return [...byType].filter(([, vertices]) => vertices.length).map(([type, vertices]) => ({
-    mode: 'triangles', positions: flat(vertices), color: BACKBONE_COLORS[type],
-  }));
+  return [...byType].filter(([, vertices]) => vertices.length).map(([type, vertices]) => (type.startsWith('#')
+    ? { mode: 'triangles', positions: flat(vertices), color: type.slice(1), pinned: true }
+    : { mode: 'triangles', positions: flat(vertices), color: BACKBONE_COLORS[type] }));
+}
+
+/** Backbone lines split by per-residue look: one `lines` layer per colour. */
+function backboneLayers(markers, centered, look = {}, defaultStyle = 'backbone') {
+  const byColor = new Map();
+  for (let i = 1; i < markers.length; i++) {
+    const a = markers[i - 1], b = markers[i];
+    const distance = Math.hypot(...b.raw.map((v, axis) => v - a.raw[axis]));
+    if (!residueGap(a.residue, b.residue) || distance > 10) continue;
+    const seen = segmentLook(a, b, look, defaultStyle);
+    if (!seen || seen.style !== 'backbone') continue;
+    const key = seen.color ?? '';
+    if (!byColor.has(key)) byColor.set(key, []);
+    byColor.get(key).push(centered.point(a.raw), centered.point(b.raw));
+  }
+  return [...byColor].map(([color, points]) => (color ? { mode: 'lines', positions: flat(points), color, pinned: true } : { mode: 'lines', positions: flat(points), color: BACKBONE_COLORS.default }));
 }
 
 /**
@@ -207,10 +237,12 @@ function cartoonLayers(markers, ranges, centered) {
  * Blank alternate locations win; otherwise altLoc A wins, then the alphabetically first ID. No occupancy-based science is inferred.
  * Cartoon colors are only visual hints for deposited helix and sheet ranges (red and gold); they are not calculated predictions.
  */
-export function buildRepresentations(model, { style = 'backbone', functionalRules } = {}) {
+export function buildRepresentations(model, { style = 'backbone', functionalRules, look = {} } = {}) {
   if (!['backbone', 'cartoon', 'blob', 'functional', 'surface'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
   const chosen = selectCoordinateAtoms(model);
   const centered = centerAndScale(chosen);
+  const residueLevel = style === 'cartoon' || style === 'backbone' || style === 'blob';   // surface and functional keep the look of the whole chain
+  const appearance = residueLevel ? look : {};
   const coreLigands = Array.isArray(functionalRules?.coreLigands) ? new Set(functionalRules.coreLigands) : null;
   const nearLigand = style === 'functional' ? createLigandNeighborhood(chosen
     .filter(({ atom }) => atom.record === 'HETATM' && !isPolymer(atom, model.format) && !['H', 'D'].includes(atom.element) &&
@@ -245,15 +277,27 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
       if (atom) markers.push({ raw: atom.pos, residue, nucleotide: atom.name === 'P' });
     }
     const layers = [];
-    if (style === 'cartoon') {
-      layers.push(...cartoonLayers(markers, ranges, centered));
-    } else if (style === 'backbone') {
-      const positions = linePositions(markers, centered);
-      if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default });
+    // every residue-level style can show every other for the residues the author gave one (a blob for a ligand pocket inside a cartoon)
+    const hasLook = residueLevel && (look.styleOf || look.colorOf);
+    const drawn = (wanted) => (hasLook ? true : style === wanted);
+    if (drawn('cartoon')) layers.push(...cartoonLayers(markers, ranges, centered, appearance, style));
+    if (drawn('backbone')) {
+      if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
+      else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
     }
-    if (style === 'blob' && markers.length) {
-      layers.push({ mode: 'spheres', positions: flat(markers.map(({ raw }) => centered.point(raw))),
-        color: BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius: 2.1 * PRESENTATION_METERS_PER_ANGSTROM });
+    if (drawn('blob') && markers.length) {
+      const base = BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius = 2.1 * PRESENTATION_METERS_PER_ANGSTROM;
+      if (!hasLook) layers.push({ mode: 'spheres', positions: flat(markers.map(({ raw }) => centered.point(raw))), color: base, radius });
+      else {
+        const byColor = new Map();
+        for (const marker of markers) {
+          if ((appearance.styleOf?.(marker.residue.atom) ?? style) !== 'blob') continue;
+          const color = appearance.colorOf?.(marker.residue.atom) ?? '';
+          if (!byColor.has(color)) byColor.set(color, []);
+          byColor.get(color).push(centered.point(marker.raw));
+        }
+        for (const [color, points] of byColor) layers.push(color ? { mode: 'spheres', positions: flat(points), color, radius, pinned: true } : { mode: 'spheres', positions: flat(points), color: base, radius });
+      }
     }
     if ((nearLigand || style === 'surface') && markers.length >= 3) {
       let surfaces = surfaceCache.get(model);
@@ -279,9 +323,10 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
         for (const layer of layers) if (layer.role === 'density-surface') layer.faded = true;
       }
     }
-    if (markers.length) layers.push({ mode: 'points', positions: flat(markers.map(({ raw }) => centered.point(raw))), color: '#395968', pointSize: 0.05 });
+    const shown = hasLook ? markers.filter(({ residue }) => (appearance.styleOf?.(residue.atom) ?? style) !== 'hidden') : markers;
+    if (shown.length) layers.push({ mode: 'points', positions: flat(shown.map(({ raw }) => centered.point(raw))), color: '#395968', pointSize: 0.05 });
     const pointTargets = layers.map((layer) =>
-      layer.mode === 'points' ? markers.map(({ residue }) => ({ kind: 'residue', atom: residue.atom })) : null);
+      layer.mode === 'points' ? shown.map(({ residue }) => ({ kind: 'residue', atom: residue.atom })) : null);
 
     const ligands = new Map();
     for (const item of group.atoms) {

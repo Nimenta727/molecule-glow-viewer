@@ -5,6 +5,7 @@ const { chromium } = require('playwright'); const fs = require('node:fs'), path 
 const ROOT = path.resolve(__dirname, '..'), ORIGIN = 'http://localhost:8765', OUT = process.argv[2] || 'docs/images', FIX = path.resolve(process.argv[3] || path.join(ROOT, 'desktop/dist/smoke-structures'));
 const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glow': 'application/json', '.png': 'image/png' };
 const htmlIds = [...fs.readFileSync(path.join(ROOT, 'apps/viewer-web/index.html'), 'utf8').matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+setTimeout(() => { console.error('the check hung (a frozen page does not answer Playwright\'s own timeouts)'); process.exit(1); }, 420000).unref?.();
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }), context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   await context.route('**/*', (route) => { const url = new URL(route.request().url()), cdn = /^https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.160\.0\/(.+)$/.exec(url.href), rcsb = /^https:\/\/files\.rcsb\.org\/download\/([0-9A-Za-z]{4})\.cif$/.exec(url.href);
@@ -25,7 +26,7 @@ const htmlIds = [...fs.readFileSync(path.join(ROOT, 'apps/viewer-web/index.html'
   await page.screenshot({ path: path.join(OUT, 'viewer-panel-empty.png') });
   // a structure
   await page.evaluate(() => window.glow.load({ pdb: '4AKE' })); await page.waitForFunction(() => !document.querySelector('#selection-form').hidden, null, { timeout: 60000 }); await page.waitForTimeout(800);
-  const labels = await visibleTabs(); assert.ok(labels.includes('选择与视图') && labels.includes('结构'), `pages after a structure: ${labels}`);
+  const labels = await visibleTabs(); assert.ok(labels.includes('选择') && labels.includes('结构'), `pages after a structure: ${labels}`);
   let tallest = 0;
   for (const tab of await tabs()) {
     if (tab.hidden) continue; await page.click(`#panel-tab-${tab.id}`);

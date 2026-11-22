@@ -18,6 +18,11 @@ import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { shortcutFor, wireMenus } from './shortcuts.mjs';
+import { createLookPanel } from './look-panel.mjs';
+import { lookFor, validateStyles } from '../../plugins/structure/look.mjs';
+import { validateColorState, createColorState, isDefault as isDefaultColors, resolveColor } from '../viewer-web/color-scheme.mjs';
+import { centerAndScale, selectCoordinateAtoms } from '../../plugins/structure/representation.mjs';
+import { selectionSpace } from '../../plugins/structure/selection.mjs';
 import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
@@ -38,6 +43,7 @@ const status = (message) => { ui.status.textContent = message; };
 
 let project;
 let sessions;
+let lookPanel = null;   // the appearance tab (created further down; the first refresh can come before)
 let selection = null;   // the node the inspector shows (the one clicked last)
 let multi = [];         // every selected outline row, in row order (Ctrl/Cmd-click toggles, Shift-click selects a range)
 let rowAnchor = null;
@@ -291,10 +297,20 @@ function previewLayers(current) {
 const structureViews = new WeakMap();   // session -> { models, built: Map(style -> layers), failed }
 const viewStyle = { value: '' };         // '' = follow the work (stored style, then the default for this kind of work)
 
+// The look the author gave the structure (colours and styles of chosen parts) lives in the structure file's viewer state, where the Viewer reads it back.
+const primarySource = (scene) => structureSources(scene)[0];
+function lookStateOf(scene) {
+  const view = primarySource(scene)?.provenance?.viewerState ?? {};
+  let colors; try { colors = view.colors ? validateColorState(view.colors) : createColorState(); } catch { colors = createColorState(); }
+  let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
+  return { colors, styles };
+}
+const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
+
 function geometryFor(current) {
-  const view = structureViews.get(current);
-  const style = viewStyle.value || '';
-  return view?.built.get(style) ?? previewLayers(current);
+  const view = structureViews.get(current), key = viewKey(current), built = view?.built.get(key);
+  if (built) { view.shown = key; return built; }
+  return (view?.shown && view.built.get(view.shown)) ?? previewLayers(current);   // until the new look is built, the last one stays on screen
 }
 
 // The particle preview: the engines of the solution-particles and data-animation tools run on the primary structure while the author edits them (see particle-preview.mjs).
@@ -317,8 +333,8 @@ async function ensureStructureView(current) {
   if (!structureSources(scene).length) return false;
   const view = structureViews.get(current) ?? { models: undefined, built: new Map(), failed: false };
   structureViews.set(current, view);
-  const style = viewStyle.value || '';
-  if (view.failed || view.built.has(style)) return false;
+  const style = viewStyle.value || '', key = viewKey(current);
+  if (view.failed || view.built.has(key)) return false;
   await ensureStructurePlugin();
   const service = host.getService('org.glow.structure.model', '1.0.0'), representation = host.getRepresentation('org.glow.structure.preview');
   if (!service || !representation) { view.failed = true; return false; }
@@ -332,9 +348,13 @@ async function ensureStructureView(current) {
       } catch { /* a structure that cannot be parsed keeps its preview geometry */ }
     }
   }
+  const { colors, styles } = lookStateOf(scene), primary = primarySource(scene);
   const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
-    style: style || undefined, defaultStyle: defaultStyleFor(scene) });
-  view.built.set(style, layers);
+    style: style || undefined, defaultStyle: defaultStyleFor(scene),
+    look: (model, source) => (source === primary ? lookFor(model, { colors, styles }) : undefined),
+    recolor: isDefaultColors(colors) ? undefined : (group, index, count) => resolveColor(colors, group.chainId, index, count) });
+  view.built.set(key, layers);
+  while (view.built.size > 4) view.built.delete([...view.built.keys()].find((k) => k !== view.shown && k !== key));   // a few recent looks are kept (undo goes back and forth)
   return true;
 }
 
@@ -342,7 +362,7 @@ let representationTicket = 0;
 function upgradeRepresentation() {
   const current = session(), ticket = ++representationTicket;
   const style = viewStyle.value || '';
-  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(style) || structureViews.get(current)?.failed) return;
+  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(viewKey(current)) || structureViews.get(current)?.failed) return;
   // Progress goes to its own note next to the selector, never to the status line the author's last action reports on.
   ui['representation-note'].textContent = '正在构建结构表示…';
   ensureStructureView(current).then((built) => {
@@ -355,6 +375,32 @@ function upgradeRepresentation() {
     if (ticket === representationTicket) ui['representation-note'].textContent = `结构表示不可用，保留预览几何：${error.message}`;
   });
 }
+
+// ---- the appearance tab: select a part, give it a style or a colour; the result is a rule kept with the work ---------------------------------------------------------------------
+const glowPoints = new WeakMap();   // model -> the function that puts a residue where the structure is drawn
+function highlightResidues(residues) {
+  if (!residues?.length) { viewport.setParticleCloud('look-selection', []); return; }
+  const model = lookPanelContext.model();
+  if (!model) return;
+  if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+  const centered = glowPoints.get(model), step = Math.ceil(residues.length / 2500);
+  viewport.setParticleCloud('look-selection', residues.filter((_, i) => i % step === 0).map((residue) => ({ position: centered.point(Array.isArray(residue.position) ? residue.position : [residue.position.x, residue.position.y, residue.position.z]), radius: 0.085, color: '#ffd34e', alpha: 0.9, name: '选中' })), { overlay: true });
+}
+const lookPanelContext = {
+  hasStructure: () => structureSources(session().getScene()).length > 0,
+  model: () => { const models = structureViews.get(session())?.models; return models ? [...models.values()][0] : undefined; },
+  chainIds: () => { const model = lookPanelContext.model(); return model ? [...new Set(selectionSpace(model).residues.map((r) => r.chain))] : []; },
+  state: () => lookStateOf(session().getScene()),
+  highlight: highlightResidues,
+  apply(patch, message) {
+    const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+    const viewer = {};
+    if (patch.colors) viewer.colors = isDefaultColors(patch.colors) ? null : patch.colors;
+    if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
+    edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
+  },
+};
+lookPanel = createLookPanel(ui['pane-look'], lookPanelContext);
 
 function newProject() {
   navigationEditor.assertSaved();
@@ -390,6 +436,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   timeline.seek(previousTime);
   ({ selection, multi } = reconcileSelection({ selection, multi, ids: document.nodes.map((node) => node.id) }));
   renderPanels(scene, document);
+  lookPanel?.render();
   showPose();
   syncParticlePreview();
   const hasStructure = structureSources(scene).length > 0;

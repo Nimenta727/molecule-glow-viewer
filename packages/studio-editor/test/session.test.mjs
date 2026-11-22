@@ -238,3 +238,18 @@ test('addToolEntry records the plugins the tool needs once, undoably, and refuse
   session.undo(); session.undo(); assert.deepEqual(session.getScene().dependencies, base.dependencies);
   assert.throws(() => session.dispatch({ type: 'addToolEntry', entry, dependencies: [{ id: 'x' }] }), /dependencies need/);
 });
+
+test('the look of a structure is one undoable step in its viewer state, keeps the other keys, and refuses what is not a structure file', () => {
+  const session = createStudioSession(scene()), geometry = () => session.getScene().assets.find(({ id }) => id === 'geometry');
+  assert.equal(geometry().provenance?.viewerState, undefined);
+  assert.equal(session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { camera: { position: [1, 2, 3] }, colors: { scheme: 'entity', chains: {}, residues: [] } } }), true);
+  assert.deepEqual(Object.keys(geometry().provenance.viewerState).sort(), ['camera', 'colors']);
+  assert.equal(session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { styles: [{ expr: 'all', style: 'blob' }] } }), true);
+  assert.deepEqual(Object.keys(geometry().provenance.viewerState).sort(), ['camera', 'colors', 'styles'], 'the camera and colours stay when the styles change');
+  assert.equal(session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { styles: [{ expr: 'all', style: 'blob' }] } }), false, 'the same state again changes nothing (no undo step)');
+  session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { styles: null } }); assert.equal(geometry().provenance.viewerState.styles, undefined, 'null removes a key');
+  assert.equal(session.undo(), true); assert.deepEqual(geometry().provenance.viewerState.styles, [{ expr: 'all', style: 'blob' }], 'one undo brings the styles back');
+  session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { camera: null, colors: null, styles: null } }); assert.equal(geometry().provenance?.viewerState, undefined, 'an empty viewer state is removed');
+  assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'primitive', patch: { colors: {} } }), /没有结构文件/); assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'nope', patch: {} }), /没有结构文件/);
+  assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { big: 'x'.repeat(300 * 1024) } }), /太大/); assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: [] }), /patch object/);
+});

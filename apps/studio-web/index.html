@@ -107,6 +107,7 @@
         <aside class="panel right-panel" aria-label="属性与制作信息">
           <div class="tabs" role="tablist" aria-label="面板">
             <button id="tab-properties" type="button" role="tab" aria-controls="pane-properties" aria-selected="true">属性</button>
+            <button id="tab-look" type="button" role="tab" aria-controls="pane-look" aria-selected="false">外观</button>
             <button id="tab-tools" type="button" role="tab" aria-controls="pane-tools" aria-selected="false">工具</button>
             <button id="tab-story" type="button" role="tab" aria-controls="pane-story" aria-selected="false">讲解</button>
             <button id="tab-publish" type="button" role="tab" aria-controls="pane-publish" aria-selected="false">发布</button>
@@ -145,6 +146,8 @@
           </section>
 
           </div>
+
+          <div id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden></div>
 
           <div id="pane-tools" role="tabpanel" aria-labelledby="tab-tools" hidden>
             <section class="panel-section" id="tool-settings">

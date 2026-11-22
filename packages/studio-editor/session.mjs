@@ -162,6 +162,19 @@ function applyMetadata(scene, command) {
       next.presentation.bookmarks.push(clone(bookmark));
       break;
     }
+    case 'setViewerState': {
+      // The look the author gave the structure (colours, styles of chosen parts), kept in the structure file's viewer state, where the Viewer reads it back. One undoable step; other keys of the viewer state (camera,
+      // clipping, spin) are kept. The contents are checked by whoever writes them (plugins/structure/look.mjs, the colour state); here only the shape and the size.
+      const asset = next.assets.find(({ id }) => id === command.assetId);
+      if (!asset || asset.kind !== 'file') throw new TypeError(`作品里没有结构文件 ${String(command.assetId)}。`);
+      if (!command.patch || typeof command.patch !== 'object' || Array.isArray(command.patch)) throw new TypeError('setViewerState requires a patch object');
+      const viewerState = { ...(asset.provenance?.viewerState ?? {}) };
+      for (const [key, value] of Object.entries(command.patch)) { if (value === null) delete viewerState[key]; else viewerState[key] = clone(value); }
+      if (JSON.stringify(viewerState).length > 256 * 1024) throw new RangeError('外观设置太大（超过 256 KB）。');
+      asset.provenance = { ...(asset.provenance ?? {}), viewerState };
+      if (!Object.keys(viewerState).length) delete asset.provenance.viewerState;
+      break;
+    }
     case 'setToolConfig': {
       if (next.schemaVersion !== 3) throw new TypeError('工具配置需要 v3 作品。');
       const entry = next.tools.find(({ id }) => id === command.id);
@@ -231,7 +244,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setViewerState', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 

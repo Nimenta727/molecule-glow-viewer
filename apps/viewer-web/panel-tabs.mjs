@@ -1,6 +1,6 @@
 /**
  * The Viewer's left panel as tabs. Every control block keeps its element and its id (all the panels' code finds them by id and toggles `hidden`); this only MOVES the blocks into task pages and gives each
- * group a title, so one 3400 px column becomes five short pages: 场景 (guided tour, notes, resources), 结构 (open, representation, parts), 选择与视图 (selection, clipping, membrane, cell), 动画 (mechanism,
+ * group a title, so one 3400 px column becomes five short pages: 场景 (guided tour, notes, resources), 结构 (open, representation, parts), 选择 (selection, clipping, membrane, cell), 动画 (mechanism,
  * spin, particles, conformation, processes) and 分析 (measure, binding site). A group is visible while any of its blocks is; a page whose groups are all hidden disappears from the bar; the page in
  * view follows what happens (a mechanism work opens the 动画 page, a picked residue shows the 结构 page).
  */
@@ -21,7 +21,7 @@ export const VIEWER_PANEL_LAYOUT = Object.freeze([
     { title: '当前选取', nodes: ['#structure-pick', '#ligand-view-controls'] },
     { nodes: ['#structure-contacts'] },
   ] },
-  { id: 'select', label: '选择与视图', groups: [
+  { id: 'select', label: '选择', groups: [
     { title: '选择', nodes: ['#selection-form', '#selection-expression-form'] },
     { title: '剖切', nodes: ['#clip-controls'] },
     { title: '膜', nodes: ['#membrane-controls'] },
@@ -71,18 +71,20 @@ export function createPanelTabs(panel, layout = VIEWER_PANEL_LAYOUT, { autoShow 
   }
   panel.insertBefore(bar, insertAt); for (const tab of tabs) panel.insertBefore(tab.pane, insertAt);
   const legacy = panel.querySelector('#structure-tools');   // the old single accordion is empty now: only its open/closed state is still read
-  if (legacy && ![...legacy.children].some((child) => child.tagName !== 'SUMMARY')) legacy.hidden = true;
+  if (legacy && ![...legacy.children].some((child) => child.tagName !== 'SUMMARY')) legacy.hidden = true;   // (before the observer exists)
 
   let active = null;
+  // The observer below watches `hidden`, so writing it unchanged would wake the observer again, forever (a microtask loop that freezes the page): only ever write a value that differs.
+  const setHidden = (node, value) => { if (node.hidden !== value) node.hidden = value; };
   const empty = (tab) => tab.groups.every((group) => group.wrapper.hidden);
   function select(id, { focus = false } = {}) {
     const tab = tabs.find((item) => item.id === id && !empty(item)); if (!tab) return false;
     active = tab.id;
-    for (const item of tabs) { const on = item === tab; item.button.setAttribute('aria-selected', String(on)); item.button.tabIndex = on ? 0 : -1; item.pane.hidden = !on; }
+    for (const item of tabs) { const on = item === tab; item.button.setAttribute('aria-selected', String(on)); item.button.tabIndex = on ? 0 : -1; setHidden(item.pane, !on); }
     if (focus) tab.button.focus(); return true;
   }
   function sync() {
-    for (const tab of tabs) { for (const group of tab.groups) group.wrapper.hidden = group.nodes.every((node) => node.hidden); tab.button.hidden = empty(tab); }
+    for (const tab of tabs) { for (const group of tab.groups) setHidden(group.wrapper, group.nodes.every((node) => node.hidden)); setHidden(tab.button, empty(tab)); }
     if (!active || !select(active)) { const first = tabs.find((tab) => !empty(tab)); if (first) select(first.id); }
   }
   for (const tab of tabs) {

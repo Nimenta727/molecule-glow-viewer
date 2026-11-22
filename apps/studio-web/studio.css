@@ -232,3 +232,17 @@ h2 { color: #2f3f86; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03e
 #scene-tree { padding-bottom: 1.6rem; }   /* the empty strip below the last row is where a dragged selection is dropped to go to the scene root */
 
 .id-row { display: flex; gap: 0.4rem; } .id-row input { flex: 1 1 0; width: 0; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 0.86rem; }
+
+/* appearance tab */
+.look-select-form { display: flex; gap: 0.35rem; }
+.look-select-form input { flex: 1 1 0; width: 0; min-width: 0; font-family: ui-monospace, Consolas, monospace; font-size: 0.86rem; }
+.look-chips { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.look-chips button { padding: 0.12rem 0.5rem; font-size: 0.8rem; }
+.look-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.look-row button { padding: 0.25rem 0.55rem; font-size: 0.84rem; }
+.look-row input[type="color"] { width: 2.4rem; height: 1.8rem; }
+#look-info[data-kind="error"] { color: #a02b20; }
+.look-rules { display: grid; gap: 0.2rem; }
+.look-rule { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; border-bottom: 1px solid #eef0f4; font-size: 0.84rem; overflow-wrap: anywhere; }
+.look-rule button { flex: none; padding: 0 0.45rem; border-color: transparent; color: var(--muted); }
+.look-rule button:hover { color: #a02b20; border-color: var(--line); }

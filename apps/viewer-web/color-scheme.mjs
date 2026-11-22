@@ -11,6 +11,9 @@
 export const CHAIN_PALETTE = Object.freeze(['#4e79a7', '#f28e2b', '#59a14f', '#e15759', '#76b7b2', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac']);
 const NAMES = Object.freeze({ red: '#e05a4a', orange: '#f28e2b', yellow: '#edc948', green: '#59a14f', cyan: '#3fb4c8', blue: '#4e79a7', purple: '#8e6bbf', magenta: '#d9488a', pink: '#ff9da7', brown: '#9c755f', gray: '#9aa0a6', grey: '#9aa0a6', white: '#f4f4f4', black: '#222222' });
 export const SCHEMES = Object.freeze(['entity', 'chain', 'rainbow', 'confidence']);
+/** Colour schemes computed from a property of the residues (plugins/structure/look.mjs): they colour a SELECTION (all of it when no target is given), as a residue rule { expr, scheme }. */
+export const PROPERTY_SCHEMES = Object.freeze(['bfactor', 'hydrophobicity', 'charge', 'secondary']);
+const PROPERTY_NAMES = Object.freeze({ bfactor: 'B 因子', hydrophobicity: '疏水性', charge: '电荷', secondary: '二级结构', rainbow: '彩虹（N→C）' });
 export const MAX_RULES = 64, MAX_EXPRESSION = 400;
 
 export class ColorError extends Error { constructor(message) { super(message); this.name = 'ColorError'; } }
@@ -45,13 +48,24 @@ export function applyColor(state, args, second, chainIds, context = {}) {
   else if (second !== undefined && second !== null) { target = args; color = second; }
   else if (args === 'reset' || args === 'default') reset = true;
   else if (SCHEMES.includes(args)) scheme = args;
+  else if (PROPERTY_SCHEMES.includes(args)) { target = 'all'; color = args; }   // color('hydrophobicity'): the property scheme over everything
   else { color = args; }
   if (scheme !== null && !SCHEMES.includes(scheme)) throw new ColorError(`配色方式应为 ${SCHEMES.join(' / ')}。`);
   if (reset) return { state: createColorState(), note: '已恢复默认配色。' };
   if (scheme === 'confidence' && !context.confidence) throw new ColorError('这个结构不是预测结构，没有逐残基的置信度可以上色（只有登记为预测结构的资源才有）。');
   if (scheme) return { state: { scheme, chains: {}, residues: [] }, note: `按${scheme === 'chain' ? '链' : scheme === 'rainbow' ? '链顺序（彩虹）' : scheme === 'confidence' ? '预测置信度（pLDDT 分四档）' : '默认（实体）'}上色。` };
-  const hex = parseColor(color);
   const chains = new Set(chainIds);
+  if (typeof color === 'string' && (PROPERTY_SCHEMES.includes(color) || (color === 'rainbow' && target != null))) {   // a property scheme over a selection: a rule, drawn residue by residue
+    if (!context.check) throw new ColorError('按性质上色需要先打开结构。');
+    const text = target == null ? 'all' : String(target).trim() || 'all';
+    if (text.length > MAX_EXPRESSION) throw new ColorError(`选择表达式太长（最多 ${MAX_EXPRESSION} 个字符）。`);
+    let count; try { count = context.check(text); } catch (error) { throw new ColorError(`无法读取选择“${text}”：${error.message}`); }
+    if (!count) throw new ColorError(`选择“${text}”没有选中任何残基，没有上色。`);
+    const rules = [...(state.residues ?? []), { expr: text, scheme: color }];
+    if (rules.length > MAX_RULES) throw new ColorError(`最多 ${MAX_RULES} 条残基上色规则；先 color('reset') 再来。`);
+    return { state: { scheme: state.scheme, chains: { ...state.chains }, residues: rules }, note: `${count} 个残基（${text}）按${PROPERTY_NAMES[color]}上色（每个残基一种颜色，由卡通、主链、团块表示画出；表面和功能分区仍显示链的颜色）。` };
+  }
+  const hex = parseColor(color);
   let picked;
   if (target == null || /^(all|everything|\*)$/i.test(String(target).trim())) picked = [...chains];
   else {
@@ -92,7 +106,10 @@ export function validateColorState(value) {
     if (!Array.isArray(value.residues) || value.residues.length > MAX_RULES) throw new ColorError('残基上色规则应为不超过 64 条的列表。');
     for (const rule of value.residues) {
       if (!rule || typeof rule.expr !== 'string' || !rule.expr.trim() || rule.expr.length > MAX_EXPRESSION) throw new ColorError('残基上色规则的选择表达式无效。');
-      rules.push({ expr: rule.expr, color: parseColor(rule.color) });
+      if (rule.scheme !== undefined) {
+        if (![...PROPERTY_SCHEMES, 'rainbow'].includes(rule.scheme)) throw new ColorError(`残基上色规则的配色方案应为 ${[...PROPERTY_SCHEMES, 'rainbow'].join(' / ')}。`);
+        rules.push({ expr: rule.expr, scheme: rule.scheme });
+      } else rules.push({ expr: rule.expr, color: parseColor(rule.color) });
     }
   }
   return { scheme: value.scheme, chains, residues: rules };
