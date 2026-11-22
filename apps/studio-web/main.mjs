@@ -9,6 +9,7 @@ import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.m
 import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
 import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
 import { lookPackById, validateLookPack, colorStateOf } from '../../plugins/structure/look-packs.mjs';
+import { slabPlane, normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
 import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
@@ -322,7 +323,7 @@ function lookStateOf(scene) {
   let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
   let surfaces; try { surfaces = validateSurfaces(view.surfaces); } catch { surfaces = []; }
   let lookPack; try { lookPack = validateLookPack(view.lookPack); } catch { lookPack = undefined; }
-  return { colors, styles, surfaces, lookPack };
+  return { colors, styles, surfaces, lookPack, clipping: normalizeClipping(view.clipping) ?? undefined };
 }
 const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
 
@@ -411,6 +412,12 @@ function showLookPack() {
   if (id === shownLook) return;
   try { viewport.setLook(id ? lookPackById(id).render : null); shownLook = id; } catch (error) { status(`光影包未能应用：${error.message}`); shownLook = id; }
 }
+/** The cut through the model that the work saved (the Viewer reads the same state): a slab fixed to the model, aimed when it was made. */
+function applyStudioClipping() {
+  const state = lookStateOf(session().getScene()).clipping, frame = viewport.clipFrame();
+  if (!frame || !state?.enabled || state.scope !== 'all') { viewport.setClipping({}); return; }
+  viewport.setClipping({ slab: slabPlane({ toViewer: state.direction, center: frame.center, radius: frame.radius, depth: state.depth }) });
+}
 function drawStudioAnnotations() {
   showLookPack();
   const model = lookPanelContext.model();
@@ -420,6 +427,7 @@ function drawStudioAnnotations() {
   drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
   const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p), { opacity: viewport.getLook() ? 1 : 0.9 });
   if (problems.length) status(`表面未能画出：${problems.map((p) => p.message).join('；')}`);
+  applyStudioClipping();
 }
 const lookPanelContext = {
   hasStructure: () => structureSources(session().getScene()).length > 0,
@@ -446,6 +454,7 @@ const lookPanelContext = {
     if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
     if (patch.surfaces) viewer.surfaces = patch.surfaces.length ? patch.surfaces : null;
     if (patch.lookPack !== undefined) viewer.lookPack = patch.lookPack ? validateLookPack(patch.lookPack) : null;
+    if (patch.clipping !== undefined) viewer.clipping = patch.clipping ? normalizeClipping(patch.clipping) : null;
     edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
   },
 };
@@ -1051,6 +1060,7 @@ onClick('studio-play', () => {
     loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
     camera: {
       get: () => viewport.getCamera(), set: (pose) => viewport.setCamera(pose), reset: () => viewport.resetCamera(),
+      viewDirection: () => viewport.clipFrame()?.toViewer ?? [0, 0, 1],
       frame(centre, radius, margin) { const now = viewport.getCamera(), direction = now.position.map((v, i) => v - now.target[i]), length = Math.hypot(...direction) || 1, distance = (radius * margin) / Math.sin(Math.PI / 8); viewport.setCamera({ position: centre.map((v, i) => v + (direction[i] / length) * distance), target: centre }); },
     },
     cameraKeys: {

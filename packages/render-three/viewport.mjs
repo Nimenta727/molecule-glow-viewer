@@ -349,9 +349,11 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
    * both planes clip. A part with a wedge uses it instead of the slab. Markers and links are not clipped. setClipping() removes everything.
    */
   const toPlane = ({ normal, constant }) => new THREE.Plane(new THREE.Vector3(...normal), constant);
+  let slabNow = null;   // the slab planes now in force: a surface drawn after the cut is made is cut too
   function setClipping({ slab = null, wedge = null } = {}) {
     if (!active) return;
-    const slabPlanes = slab ? [toPlane(slab)] : null, wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
+    const slabPlanes = slab ? [toPlane(slab)] : null; slabNow = slabPlanes;
+    const wedgePlanes = wedge ? wedge.planes.map(toPlane) : null;
     for (const [id, group] of active.groups) {
       const planes = wedgePlanes && wedge.nodeIds.has(id) ? wedgePlanes : slabPlanes, intersection = planes === wedgePlanes && Boolean(planes);
       group.traverse((object) => {
@@ -367,6 +369,13 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
         }
         if (before !== `${planes?.length ?? 0}|${intersection}|${material.side}`) material.needsUpdate = true;
       });
+    }
+    for (const object of overlays.values()) {   // solid surfaces (overlay meshes) are cut by the slab too; a cut-open solid shows its inside
+      const material = object.material; if (!material || Array.isArray(material) || !material.isMeshStandardMaterial) continue;
+      material.clippingPlanes = slabPlanes; material.clipIntersection = false;
+      if (slabPlanes && material.side === THREE.FrontSide) { material.userData.sideBeforeClip = THREE.FrontSide; material.side = THREE.DoubleSide; }
+      else if (!slabPlanes && material.userData.sideBeforeClip !== undefined) { material.side = material.userData.sideBeforeClip; material.userData.sideBeforeClip = undefined; }
+      material.needsUpdate = true;
     }
     invalidate();
   }
@@ -496,7 +505,8 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     geometry.setAttribute('position', new THREE.BufferAttribute(surface.pos, 3)); geometry.setIndex(new THREE.BufferAttribute(surface.idx, 1)); geometry.computeVertexNormals();
     if (surface.colors) geometry.setAttribute('color', new THREE.BufferAttribute(surface.colors, 3));
     const object = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: Boolean(surface.colors), color: surface.colors ? '#ffffff' : '#d8d1b8', transparent: opacity < 0.999, opacity, side: opacity >= 0.999 ? THREE.FrontSide : THREE.DoubleSide, depthWrite: opacity >= 0.999, roughness: 0.55 }));   // opacity 1 = a solid surface that is in the depth buffer (what a glow look needs for occlusion and depth of field)
-    object.renderOrder = opacity >= 0.999 ? 0 : 4; object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
+    object.renderOrder = opacity >= 0.999 ? 0 : 4;
+    if (slabNow) { object.material.clippingPlanes = slabNow; object.material.clipIntersection = false; if (object.material.side === THREE.FrontSide) { object.material.userData.sideBeforeClip = THREE.FrontSide; object.material.side = THREE.DoubleSide; } } object.visible = visible; object.frustumCulled = false; object.userData.selectionMarker = true;
     active.root.add(object); overlays.set(tag, object); invalidate();
     return surface.idx.length / 3;
   }

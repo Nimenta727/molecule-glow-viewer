@@ -7,7 +7,7 @@ import { hydropathyColor } from './look.mjs';
 /**
  * Molecular surface of a chosen part, drawn from ALL its atoms (not one point per residue), coloured by a property:
  *   surface        Gaussian molecular surface (each atom a Gaussian of its van der Waals radius, iso-level at that radius, surface nets): an approximation of the solvent-excluded surface that
- *                  ChimeraX / PyMOL compute; it is smooth and close to it but not the same mesh. Grid step 0.5 Å for parts up to 600 atoms, 0.75 Å above that, 1.25 Å or coarser above 40 000 atoms (up to 250 000), and coarser still when the grid would be too big. `plain` takes the rule's own `color`.
+ *                  ChimeraX / PyMOL compute; it is smooth and close to it but not the same mesh. Grid step 0.5 Å for parts up to 600 atoms, 0.75 Å above that, 1.25 Å or coarser above 40 000 atoms (up to 250 000), and coarser still when the grid would be too big. `plain` takes the rule's own `color`; `inflate` (0–6 Å) thickens every atom's radius: needed for a part drawn only by its C-alpha or phosphorus atoms (a head shell, a DNA trace), whose atoms are 3–4 Å apart. Up to 4 Å grids for objects the size of a virus.
  *   electrostatic  Coulomb potential at 1.4 Å outside each surface vertex along its normal, from SIMPLIFIED charges (below) over the whole structure, distance-dependent dielectric ε = 4r
  *                  (the defaults of ChimeraX `coulombic`), in kcal/(mol·e); red −10 … white 0 … blue +10. It is NOT a Poisson–Boltzmann (APBS) result: no solvent, no ions, no ligand charges,
  *                  no pH. Charges: Lys NZ +1; Arg NE/NH1/NH2 +1/3 each; Asp OD1/OD2 and Glu OE1/OE2 −1/2 each; nucleic phosphate oxygens −1/2 each; backbone N(+H) −0.1438, CA(+HA) +0.116,
@@ -81,7 +81,8 @@ export function validateSurfaces(value) {
     if (!item || typeof item.expr !== 'string' || !item.expr.trim() || item.expr.length > 400) throw new SurfaceError('表面规则的选择表达式无效（1–400 个字符）。');
     if (!Object.hasOwn(SCHEMES, item.scheme)) throw new SurfaceError(`表面配色应为 ${Object.keys(SCHEMES).join(' / ')}。`);
     if (item.color !== undefined && (typeof item.color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(item.color))) throw new SurfaceError('表面颜色应为 #rrggbb。');
-    return { expr: item.expr.trim(), scheme: item.scheme, ...(item.color ? { color: item.color.toLowerCase() } : {}) };
+    if (item.inflate !== undefined && !(Number.isFinite(item.inflate) && item.inflate >= 0 && item.inflate <= 6)) throw new SurfaceError('表面的加粗应为 0–6 Å。');
+    return { expr: item.expr.trim(), scheme: item.scheme, ...(item.color ? { color: item.color.toLowerCase() } : {}), ...(item.inflate ? { inflate: item.inflate } : {}) };
   });
 }
 
@@ -89,7 +90,7 @@ export function validateSurfaces(value) {
  * The surface of `expression` with `scheme`: { pos (Å, Float32Array), idx, colors (rgb, Float32Array), stats: { atoms, vertices, triangles, resolution, potential?: { min, max, mean } } }.
  * Throws a SurfaceError that says what to do when the part is empty, too big, or no surface forms.
  */
-export function buildSurface(model, { expr, scheme = 'plain', color }) {
+export function buildSurface(model, { expr, scheme = 'plain', color, inflate = 0 }) {
   if (!Object.hasOwn(SCHEMES, scheme)) throw new SurfaceError(`表面配色应为 ${Object.keys(SCHEMES).join(' / ')}。`);
   let residues; try { residues = evaluateSelection(expr, selectionSpace(model)).residues; } catch (error) { throw new SurfaceError(error.message); }
   if (!residues.length) throw new SurfaceError(`“${expr}”没有选中任何残基。`);
@@ -100,10 +101,10 @@ export function buildSurface(model, { expr, scheme = 'plain', color }) {
   for (const { pos } of atoms) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], pos[i]); hi[i] = Math.max(hi[i], pos[i]); }
   const cells = (h) => [0, 1, 2].reduce((p, i) => p * (Math.ceil((hi[i] - lo[i] + 8) / h) + 1), 1);
   const finest = atoms.length > MAX_ATOMS ? 1.25 : atoms.length > FINE_ATOMS ? 0.75 : 0.5;   // more than 40 000 atoms (a ribosome) is drawn at 1.25 Å or coarser
-  const h = [0.5, 0.75, 1, 1.25, 1.5, 2].filter((step) => step >= finest).find((step) => cells(step) <= MAX_CELLS);   // a whole chain at 0.5 Å is ~200 000 triangles: heavy to draw
+  const h = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4].filter((step) => step >= finest).find((step) => cells(step) <= MAX_CELLS);   // a whole chain at 0.5 Å is ~200 000 triangles: heavy to draw
   if (!h) throw new SurfaceError('这部分太大，无法在内存允许的网格里算出表面：请缩小选择。');
   const names = [...new Set(atoms.map(({ atom }) => String(atom.residueName).toUpperCase()))].slice(0, 254);
-  const surface = pocketSurface({ pos: new Float32Array(atoms.flatMap(({ pos }) => pos)), rad: new Float32Array(atoms.map(({ atom }) => (VDW[String(atom.element).toUpperCase()] ?? 1.8) * (h <= 0.75 ? FINE_SCALE : 1))), cls: new Uint8Array(atoms.map(({ atom }) => Math.max(0, names.indexOf(String(atom.residueName).toUpperCase())))), h });
+  const surface = pocketSurface({ pos: new Float32Array(atoms.flatMap(({ pos }) => pos)), rad: new Float32Array(atoms.map(({ atom }) => ((VDW[String(atom.element).toUpperCase()] ?? 1.8) * (h <= 0.75 ? FINE_SCALE : 1)) + inflate)), cls: new Uint8Array(atoms.map(({ atom }) => Math.max(0, names.indexOf(String(atom.residueName).toUpperCase())))), h });
   if (!surface.idx.length) throw new SurfaceError('没有形成表面（选择太小或太零散）。');
   const count = surface.pos.length / 3, colors = new Float32Array(count * 3), stats = { atoms: atoms.length, vertices: count, triangles: surface.idx.length / 3, resolution: h };
   // The winding of the mesh decides which side is "out": turn every triangle so that the front faces away from the molecule (a solid surface can then hide its back faces).

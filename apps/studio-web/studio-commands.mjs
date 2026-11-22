@@ -3,6 +3,7 @@ import { applyColor, createColorState } from '../viewer-web/color-scheme.mjs';
 import { applyStyle } from '../../plugins/structure/look.mjs';
 import { LOOK_PACKS, LOOK_PACK_IDS, lookPackById, colorStateOf } from '../../plugins/structure/look-packs.mjs';
 import { readForm } from './publish-form.mjs';
+import { normalizeClipping } from '../../packages/render-three/clipping.mjs';
 import { buildSurface, SCHEMES as SURFACE_SCHEMES } from '../../plugins/structure/molecular-surface.mjs';
 import { contactsBetween } from '../../plugins/structure/contacts.mjs';
 import { interactionsBetween } from '../../plugins/structure/interactions.mjs';
@@ -32,7 +33,7 @@ export const STUDIO_COMMANDS = {
   select: '用选择语言选一部分：select("chain A and resi 10-50")；select("none") 清除。返回选中的残基数和说明，并把它设为“当前选择”（分析命令的默认输入）。选择语言：all | protein | nucleic | ligands | chain A | resi 10-50 | resn HIS | within 5 of <选择> | and / or / not。',
   show: '对选择设表示（PyMOL 的 show/hide）：show("resi 1-30","hidden")；show("chain B","sticks")；样式 cartoon / backbone / blob / sticks（逐原子，叠在卡通上，一次最多 300 个残基）/ hidden；show("reset") 清除。规则，随作品保存，后面的覆盖前面的。',
   color: '上色：color("chain A","#e05a4a")；多个结构时可指定哪一个：color("chain A","#e05a4a",{structure:"结构编号"})（不写则是第 1 个）；color("resi 1-60","hydrophobicity")；方案 hydrophobicity / bfactor / charge / secondary / rainbow；color("chain") 按链；color("reset") 清除。规则，随作品保存。',
-  surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain（单色，可带第三个参数 "#rrggbb"：surface("nucleic","plain","#d92f1c")）；一个表面最多 25 万个原子（核糖体级别用 1.25 Å 以上的粗网格）；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
+  surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain（单色，可带第三个参数 "#rrggbb"：surface("nucleic","plain","#d92f1c")；第四个参数 {inflate:Å} 给只有 Cα 或磷原子的部分加粗，如病毒外壳、DNA 轨迹）；一个表面最多 25 万个原子（核糖体级别用 1.25 Å 以上的粗网格）；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
   lookPack: '光影包（整张图的光影与配色）：lookPack() 列出；lookPack("glow.cell-dark") 应用（同时把它的配色写成颜色规则，lookPack(id,{recolor:false}) 只换光影）；lookPack("none") 回到默认的墨线风格。可用：glow.cell-dark（暗场·细胞内部）、glow.membrane-cool（冷光·膜蛋白）、glow.active-site-warm（暖光·活性位点）、paper.clean-white（论文白底）。只改外观，不改坐标和任何分析结果。',
   measure: '测量并保存：measure("chain A and resi 10","chain A and resi 40") 距离（Å，Cα）；三个选择量角度（第二个是顶点）。每个选择必须正好一个残基。',
   label: '给选择加文字标签并保存：label("chain A and resi 57","催化残基")；text 留空则写残基名。',
@@ -41,8 +42,9 @@ export const STUDIO_COMMANDS = {
   composition: '选中部分的残基组成、GRAVY、按个数数出的净电荷：composition({part, write?})；write 可含 "hydrophobicity"、"charge"（涂色）、"record"。',
   secondary: '序列与文件里登记的二级结构：secondary({part, write?})；write 可含 "paint"、"record"。',
   superpose: '结构叠合（Cα 的 Horn 拟合）：superpose({mobile, reference, mobileStructure?, referenceStructure?, mode?:"number"|"order", write?})。mobile 必须在同一条链里；结构用 structures() 里的 id（默认第 1 个、参考默认同一个）。write 可含 "place"（移动整条链）、"mark"（偏差 > 2 Å 的残基标红）、"record"、"reset"（还原位置）。',
+  clip: '剖开（看内部）：clip({enabled:true,depth?:-1..1,aim?:true})；沿当前视线方向在模型中心切一刀，去掉靠近观察者的一半（depth 0 = 过中心，1 = 不切），切面固定在模型上；clip({enabled:false}) 关闭；clip() 读取。先把镜头摆到想看的侧面再 aim。表面和结构都会被切开。',
   parts: '列出场景里的对象（每条链、每个小分子组一个）：{id,name,chain,structure,polymer,visible}。',
-  part: '显示或隐藏对象：part("ligands",false) 隐藏全部小分子组；part("chain AA",false)；part("node:对象编号",false)（编号来自 parts()，用于链名重复的生物组装体拷贝）；part("all",true) 全部显示。目标：all / ligands / polymer / chain X / node:编号。大复合体里小分子组很多时，先隐藏它们再作图。',
+  part: '显示或隐藏对象：part("ligands",false) 隐藏全部小分子组；part("chain AA",false)、part("chain TA,TB,TC",false)（逗号分隔多条链）；part("node:对象编号",false)（编号来自 parts()，用于链名重复的生物组装体拷贝）；part("all",true) 全部显示。目标：all / ligands / polymer / chain X / node:编号。大复合体里小分子组很多时，先隐藏它们再作图。',
   camera: '读或设镜头：camera() 读；camera({position:[x,y,z],target:[x,y,z]}) 设；camera("reset") 重置；camera({focus:"选择",structure?:"结构编号",margin?:1.15}) 把镜头对准一个选择（保持当前视角方向，按选择的大小拉近；structure 默认第 1 个，叠合移动过的链要对准它所叠到的那个结构）。',
   cameraKey: '在时间 t（秒）存一个镜头关键帧：cameraKey({time, position?, target?})，省略位置则用当前镜头；cameraKey({remove:"编号"}) 删除；cameraKey() 列出。',
   note: '加一条讲解：note("文字")；note("文字",{node:"对象编号"}) 挂在一个对象上。',
@@ -81,7 +83,7 @@ const nameOf = (r) => `${r.resn} ${r.chain}:${r.authSeq}${r.insertion || ''}`;
 
 /**
  * `env` is what the Studio page provides (see apps/studio-web/main.mjs); the adapter holds no state of its own.
- *   setPublication(publication), nodes(), setVisible(ids, visible), toScene(structureId) (Å -> scene coordinates), camera.frame(centre, radius, margin),
+ *   camera.viewDirection(), setPublication(publication), nodes(), setVisible(ids, visible), toScene(structureId) (Å -> scene coordinates), camera.frame(centre, radius, margin),
  *   scene(), structureList(), selectionBox: { get(), set(expression) }, hostFor(panel), lookState(), chainIds(), applyLook(patch, message), annotations(), applyAnnotations(patch, message),
  *   importWork(structure), addStructure(structure), loadRcsb(code), camera: { get(), set(pose), reset() }, cameraKeys: { list(), add(key, pose), remove(id) }, note(text, nodeId), title(text),
  *   ready() (resolves when the structures of the scene are parsed), undo(), redo(), snapshot(width), exportScene()
@@ -142,15 +144,15 @@ export function createStudioAdapter(env) {
       env.applyLook({ colors: out.state }, out.note);
       return done({ scheme: out.state.scheme, residueRules: out.state.residues.length }, out.note);
     },
-    surface(target, scheme, color) {
-      const args = Array.isArray(target) ? target : [target, scheme, color];
+    surface(target, scheme, color, extra) {
+      const args = Array.isArray(target) ? target : [target, scheme, color, extra];
       const state = env.lookState();
       if (args[0] == null) return done({ surfaces: state.surfaces });   // an argument that was left out arrives as null
       if (/^clear$/i.test(String(args[0]))) { env.applyLook({ surfaces: [] }, '已清除表面。'); return done({ surfaces: [] }); }
       if (state.surfaces.length >= 4) throw new Error('最多 4 个表面：先 surface("clear")。');
-      const expr = text(args[0], '选择表达式'), kind = args[1] ?? 'plain', paint = args[2] ? String(args[2]) : undefined;
-      const built = buildSurface(primary().model, { expr, scheme: kind, color: paint });   // checked first: an empty or too big part is explained before anything is written
-      doors(surfacePanel).applyLook({ surfaces: [{ expr, scheme: kind, ...(paint ? { color: paint } : {}) }] }, `分子表面：${expr} 画出表面（${SURFACE_SCHEMES[kind]}）。`);
+      const expr = text(args[0], '选择表达式'), kind = args[1] ?? 'plain', paint = args[2] ? String(args[2]) : undefined, inflate = options(args[3], ['inflate'], '参数').inflate;
+      const built = buildSurface(primary().model, { expr, scheme: kind, color: paint, inflate });   // checked first: an empty or too big part is explained before anything is written
+      doors(surfacePanel).applyLook({ surfaces: [{ expr, scheme: kind, ...(paint ? { color: paint } : {}), ...(inflate ? { inflate } : {}) }] }, `分子表面：${expr} 画出表面（${SURFACE_SCHEMES[kind]}）。`);
       return done({ surface: { expr, scheme: kind, ...(paint ? { color: paint } : {}), ...built.stats }, limits: LIMITS.surface }, surfaceDescribe(built.stats, kind));
     },
     lookPack(first, second) {
@@ -231,6 +233,14 @@ export function createStudioAdapter(env) {
         rotationDegrees: +angle.toFixed(2), shiftAngstrom: +shift.toFixed(2), farResidues: far.length, worst: top(result.deviations, 8).map((d) => ({ residue: nameOf(d.mobile), distance: +d.distance.toFixed(2) })), wrote, limits: LIMITS.superpose,
       }, superposeSummary(result));
     },
+    clip(arg) {
+      const current = env.lookState().clipping;
+      if (arg == null) return done({ clipping: current ?? { enabled: false } });
+      const o = options(arg, ['enabled', 'depth', 'aim'], '参数');
+      const next = normalizeClipping({ enabled: o.enabled ?? true, scope: 'all', depth: o.depth ?? current?.depth ?? 0, direction: o.aim === false && current ? current.direction : (o.aim || !current ? env.camera.viewDirection() : current.direction) });
+      if (!next) throw new Error('没有可用的视线方向：先加载结构。');
+      env.applyLook({ clipping: next.enabled ? next : null }, next.enabled ? '已剖开。' : '已关闭剖开。'); return done({ clipping: next });
+    },
     parts() {
       const polymerChains = new Map(env.structureList().map(({ id, model }) => [id, new Set(selectionSpace(model).residues.map((r) => r.chain))]));
       return done({ parts: env.nodes().filter((node) => node.extensions?.['org.glow.structure']).map((node) => { const meta = node.extensions['org.glow.structure']; return { id: node.id, name: node.name, chain: meta.chainId, structure: meta.sourceAssetId, polymer: Boolean(polymerChains.get(meta.sourceAssetId)?.has(meta.chainId)), visible: node.visible }; }) });
@@ -238,7 +248,7 @@ export function createStudioAdapter(env) {
     part(target, visible) {
       const args = Array.isArray(target) ? target : [target, visible], what = text(args[0], '目标'), show = args[1] === undefined || args[1] === null ? true : Boolean(args[1]);
       const listed = commands.parts().parts ?? [];
-      const pick = what === 'all' ? () => true : what === 'ligands' ? (p) => !p.polymer : what === 'polymer' ? (p) => p.polymer : /^chain\s+\S+$/i.test(what) ? ((chain) => (p) => p.chain === chain)(what.replace(/^chain\s+/i, '')) : /^node:\S+$/.test(what) ? ((id) => (p) => p.id === id)(what.slice(5)) : null;
+      const pick = what === 'all' ? () => true : what === 'ligands' ? (p) => !p.polymer : what === 'polymer' ? (p) => p.polymer : /^chain\s+[^\s]+$/i.test(what) ? ((chains) => (p) => chains.has(p.chain))(new Set(what.replace(/^chain\s+/i, '').split(','))) : /^node:\S+$/.test(what) ? ((id) => (p) => p.id === id)(what.slice(5)) : null;
       if (!pick) throw new Error('目标应为 all / ligands / polymer / chain X / node:编号。');
       const ids = listed.filter(pick).map((p) => p.id); if (!ids.length) throw new Error(`“${what}”没有对应的对象：用 parts() 看列表。`);
       env.setVisible(ids, show); return done({ changed: ids.length, visible: show });
@@ -250,7 +260,7 @@ export function createStudioAdapter(env) {
         const o = options(arg, ['focus', 'structure', 'margin'], '镜头'), { id, model } = entry(o.structure), found = evaluateSelection(text(o.focus, 'focus'), selectionSpace(model)), to = env.toScene(id);
         const points = [...found.residues.map((r) => to(Array.isArray(r.position) ? r.position : [r.position.x, r.position.y, r.position.z])), ...found.ligands.flatMap((l) => l.atoms.map((a) => to(a.position)))];
         if (!points.length) throw new Error(`“${o.focus}”没有选中任何东西。`);
-        const centre = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length), radius = Math.max(0.02, ...points.map((p) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2])));
+        const centre = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length), radius = points.reduce((m, p) => Math.max(m, Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2])), 0.02);
         env.camera.frame(centre, radius, Number.isFinite(o.margin) ? o.margin : 1.15); return done({ camera: env.camera.get(), focused: points.length }, '镜头按选择的位置对准（用的是原始坐标：移动过的链不跟着走）。');
       }
       const o = options(arg, ['position', 'target'], '镜头');

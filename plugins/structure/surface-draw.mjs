@@ -16,7 +16,7 @@ export function drawSurfaces(viewport, model, rules = [], convert, { opacity = 0
   for (let i = 0; i < MAX_SURFACES; i++) {
     const rule = rules[i];
     if (!rule) { viewport.setOverlayMesh(surfaceTag(i), null); continue; }
-    const key = `${rule.expr}|${rule.scheme}|${rule.color ?? ''}`;
+    const key = `${rule.expr}|${rule.scheme}|${rule.color ?? ''}|${rule.inflate ?? 0}`;
     try {
       if (!cache.has(key)) { cache.set(key, buildSurface(model, rule)); while (cache.size > 8) cache.delete(cache.keys().next().value); }
       const built = cache.get(key), pos = new Float32Array(built.pos.length);
