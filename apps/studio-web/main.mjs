@@ -3,6 +3,8 @@ import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
 import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
+import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
+import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
 import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
 import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
@@ -314,7 +316,8 @@ function lookStateOf(scene) {
   const view = primarySource(scene)?.provenance?.viewerState ?? {};
   let colors; try { colors = view.colors ? validateColorState(view.colors) : createColorState(); } catch { colors = createColorState(); }
   let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
-  return { colors, styles };
+  let surfaces; try { surfaces = validateSurfaces(view.surfaces); } catch { surfaces = []; }
+  return { colors, styles, surfaces };
 }
 const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
 
@@ -399,10 +402,12 @@ function highlightResidues(residues) {
 }
 function drawStudioAnnotations() {
   const model = lookPanelContext.model();
-  if (!model) { clearAnnotations(viewport); return; }
+  if (!model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
   if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
   const centered = glowPoints.get(model);
   drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
+  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p));
+  if (problems.length) status(`表面未能画出：${problems.map((p) => p.message).join('；')}`);
 }
 const lookPanelContext = {
   hasStructure: () => structureSources(session().getScene()).length > 0,
@@ -427,6 +432,7 @@ const lookPanelContext = {
     const viewer = {};
     if (patch.colors) viewer.colors = isDefaultColors(patch.colors) ? null : patch.colors;
     if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
+    if (patch.surfaces) viewer.surfaces = patch.surfaces.length ? patch.surfaces : null;
     edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
   },
 };
@@ -439,6 +445,7 @@ panelRegistry.register(contactsPanel);
 panelRegistry.register(compositionPanel);
 panelRegistry.register(secondaryPanel);
 panelRegistry.register(superpositionPanel);
+panelRegistry.register(surfacePanel);
 const pluginData = (id) => primarySource(session().getScene())?.provenance?.viewerState?.plugins?.[id];
 const panelEnv = {
   hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),
@@ -457,6 +464,7 @@ const panelEnv = {
       const state = lookStateOf(session().getScene()), next = {};
       if (patch.colors?.residues) next.colors = validateColorState({ ...state.colors, residues: [...state.colors.residues, ...patch.colors.residues] });
       if (patch.styles) next.styles = validateStyles([...state.styles, ...patch.styles]);
+      if (patch.surfaces) next.surfaces = validateSurfaces([...state.surfaces, ...patch.surfaces]);
       lookPanelContext.apply(next, message);
     },
     annotate(patch, message) {

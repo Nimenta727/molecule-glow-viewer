@@ -44,9 +44,15 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.fill('#secondary-part', 'banana'); await studio.click('#secondary-run'); assert.match(await studio.$eval('#secondary-out', (n) => n.textContent), /不认识/); await studio.fill('#secondary-part', 'chain A'); await studio.click('#secondary-run'); await studio.waitForSelector('#secondary-out pre');
   await studio.click('#secondary-paint'); await studio.waitForFunction(() => /已按二级结构涂色/.test(document.querySelector('#secondary-out').textContent));
   await studio.click('#secondary-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#secondary-out').textContent));
-  await studio.evaluate(() => document.querySelector('[data-panel="org.glow.panel.secondary"]').scrollIntoView()); await studio.waitForTimeout(1200); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
+  const pack0 = await exportPack('nosurface');
+  await studio.fill('#surface-part', 'chain A'); await studio.selectOption('#surface-scheme', 'electrostatic'); await studio.click('#surface-show'); await studio.waitForFunction(() => /表面已建立/.test(document.querySelector('#surface-out').textContent), null, { timeout: 60000 });
+  const surfText = await studio.$eval('#surface-out', (n) => n.textContent); console.log(surfText); const tri = Number(/(\d+) 个三角形/.exec(surfText)[1]); assert.ok(tri > 5000, `a whole chain gives a real mesh (${tri})`); assert.match(surfText, /静电势 -?\d+\.\d … -?\d+\.\d kcal\/\(mol·e\)/);
+  await studio.fill('#surface-part', 'banana'); await studio.click('#surface-show'); assert.match(await studio.$eval('#surface-out', (n) => n.textContent), /不认识/); await studio.fill('#surface-part', 'chain A');
+  await studio.click('#surface-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#surface-out').textContent));
+  await studio.evaluate(() => document.querySelector('[data-panel="org.glow.panel.surface"]').scrollIntoView()); await studio.waitForTimeout(1200); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
   const pack = await exportPack('contacts'); const { readScenePackage } = await import(path.join(ROOT, 'packages/schema/archive.mjs'));
   const { scene } = await readScenePackage(new Uint8Array(fs.readFileSync(pack))), state = scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)).provenance.viewerState;
+  assert.deepEqual(state.surfaces, [{ expr: 'chain A', scheme: 'electrostatic' }]); assert.equal(state.plugins['org.glow.panel.surface'].triangles, tri);
   assert.ok(state.bonds.length >= 1 && state.bonds.every((b) => ['salt', 'hbond'].includes(b.type)), 'typed lines are saved with the work'); console.log('saved bond lines:', state.bonds.length);
   const colours = state.colors.residues.map((r) => r.color); assert.ok(colours.includes('#e1873a') && colours.includes('#3b9ae6'), 'both sides are painted');
   const data = state.plugins['org.glow.panel.contacts']; assert.deepEqual([data.a, data.b, data.cutoff], ['chain A', 'chain B', 4.5]);
@@ -58,6 +64,9 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.click('#undo'); await studio.click('#undo'); await studio.click('#redo'); await studio.click('#redo');
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
   await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack); await viewer.waitForSelector('#structure-offer-enable', { state: 'visible', timeout: 60000 }); await viewer.click('#structure-offer-enable'); await viewer.waitForTimeout(4000);
+  const withSurface = await viewer.evaluate(() => window.__glowStats());
+  const bare = await context.newPage(); await bare.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await bare.waitForFunction(() => window.glow, null, { timeout: 30000 }); await bare.setInputFiles('#file', pack0); await bare.waitForSelector('#structure-offer-enable', { state: 'visible', timeout: 60000 }); await bare.click('#structure-offer-enable'); await bare.waitForTimeout(4000);
+  const without = await bare.evaluate(() => window.__glowStats()); console.log('viewer triangles with / without the surface:', withSurface.triangles, without.triangles, '(surface', tri, ')'); assert.ok(Math.abs(withSurface.triangles - without.triangles - tri) <= 2, 'the Viewer draws the saved surface: exactly its triangles more');
   const clouds = await viewer.evaluate(() => window.__glowStats().clouds); console.log('viewer clouds:', JSON.stringify(clouds)); assert.ok(clouds['annotation-texts'] >= state.bonds.length, 'the Viewer draws the saved bond lines');
   assert.deepEqual(errors, [], 'no page errors'); await browser.close(); console.log('analysis panel: ok');
 })().catch((e) => { console.error(e); process.exit(1); });

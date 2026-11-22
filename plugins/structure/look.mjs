@@ -28,6 +28,12 @@ const band = (t) => (Math.min(BANDS - 1, Math.floor(Math.max(0, Math.min(1, t)) 
 function hsl(h, s, l) { const a = s * Math.min(l, 1 - l), f = (n) => { const k = (n + h / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return '#' + [f(0), f(8), f(4)].map((v) => hex(v * 255)).join(''); }
 const spectrum = (t) => hsl(240 - 240 * band(t), 0.55, 0.55);   // blue (0) to red (1), as the Viewer's rainbow
 
+/** The hydropathy colour of one residue name (blue hydrophilic, white, orange hydrophobic; the neutral colour for residues without a value): the scale of the `hydrophobicity` scheme. */
+export function hydropathyColor(resn) {
+  const v = KYTE_DOOLITTLE[resn]; if (v === undefined) return NEUTRAL;
+  const t = band((v + 4.5) / 9); return t < 0.5 ? mix('#4e79a7', '#f2f2ee', t * 2) : mix('#f2f2ee', '#e1873a', (t - 0.5) * 2);
+}
+
 /** The colour of every residue of `residues` (selection-space entries) under `scheme`: Map(residueIdentity -> colour). Residues without the property are left out (they keep the layer's colour). */
 export function propertyColors(model, residues, scheme) {
   if (!Object.hasOwn(PROPERTY_SCHEMES, scheme)) throw new LookError(`配色方案应为 ${Object.keys(PROPERTY_SCHEMES).join(' / ')}。`);

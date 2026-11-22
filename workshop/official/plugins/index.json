@@ -1020,6 +1020,82 @@
    }
   },
   {
+   "id": "org.glow.plugin.molecular-surface",
+   "file": "plugins/packages/molecular-surface.json",
+   "sha256": "1acda9819c568dfd290d2417428362ad1366e8069494e7add0f63910f4a6873e",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.molecular-surface",
+    "version": "1.0.0",
+    "name": "分子表面与静电（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，给选中的部分画逐原子的分子表面（高斯分子表面），按静电势（简化库仑）、疏水性或单色着色；表面随作品保存，Viewer 里一样显示。",
+    "category": "render",
+    "adds": [
+     "Studio“分析”页的面板：部分默认取“外观”页的选择，配色选静电势 / 疏水性 / 单色，最多 4 个表面",
+     "表面：每个原子一个按范德华半径的高斯函数，网格 0.5 Å（超过 600 个原子的部分用 0.75 Å，更大时自动放粗到最多 1.5 Å），接近 ChimeraX / PyMOL 的溶剂排除面",
+     "静电着色：表面外 1.4 Å 处按整个结构的形式电荷加通用主链部分电荷计算库仑势，ε = 4r，单位 kcal/(mol·e)，红 −10 … 白 0 … 蓝 +10（与 ChimeraX coulombic 的默认介电设置一致）",
+     "表面作为规则存进作品（viewerState.surfaces），打开作品时按坐标重新生成；“外观”页的规则列表里可单独删除",
+     "把结果记进作品：证据（类型“推导”，写明方法和限制）与面板自己的数据（原子数、三角形数、势的范围）"
+    ],
+    "usage": [
+     {
+      "title": "看一条链的静电表面",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页“分子表面与静电”→ 配色选静电势 → 画出表面 → 记入作品",
+      "note": "静电势是简化库仑，不是 APBS 的泊松–玻尔兹曼结果；红 = 负，蓝 = 正"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.surface"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/molecular-surface.mjs",
+      "exports": [
+       "buildSurface",
+       "potentialAt",
+       "atomCharge"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：单元测试用解析解核对库仑势（单个 +1 电荷在 r 处为 83.02/r² kcal/(mol·e)）、电荷表和颜色方向（Lys 簇偏蓝、Asp 簇偏红）；真实浏览器里对 4AKE 的 A 链画出静电表面、保存、新 Viewer 里画出同样数量的三角形。",
+     "limits": [
+      "静电势不是 APBS 的泊松–玻尔兹曼结果：没有溶剂介电边界、离子强度、配体电荷和 pH；只用形式电荷（Lys、Arg、Asp、Glu、核酸磷酸）加通用主链部分电荷（AMBER ff14SB 数值加到重原子上），His、末端和其他侧链原子记 0",
+      "距离相关介电 ε = 4r 是 ChimeraX coulombic 的默认设置，不是对真实介电环境的描述；数值只适合定性比较（哪里偏正、哪里偏负），不适合当作定量结果",
+      "表面是高斯分子表面，近似溶剂排除面，不是严格的 SES；网格最细 0.5 Å，较大的部分用 0.75 Å 或更粗，表面会变粗糙一些",
+      "一个表面最多 40000 个原子，最多同时 4 个表面；太大的部分会要求缩小选择",
+      "表面按结构坐标生成并固定在场景里：移动过的链（结构叠合）上表面不会跟着走；表面是半透明的叠加层，不参与拾取",
+      "软件渲染下已验证，真实显卡上的帧率和观感未验收",
+      "只在 Studio 里使用；Viewer 里显示保存的表面，没有面板"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "表面",
+     "静电"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.motor",
    "file": "plugins/packages/motor.json",
    "sha256": "49ed998b0b4ab419b7e13d28d3081d56f38b381e938b766efdcd3e45d37345cc",

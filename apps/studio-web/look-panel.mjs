@@ -2,6 +2,7 @@ import { SELECTION_HELP, selectionSpace, evaluateSelection, describeSelection } 
 import { applyColor, createColorState, isDefault, PROPERTY_SCHEMES as COLOR_SCHEMES } from '../viewer-web/color-scheme.mjs';
 import { computeAnnotations, validateMeasures, validateLabels, MAX_MEASURES, MAX_LABELS } from '../../plugins/structure/annotations.mjs';
 import { applyStyle, LOOK_STYLES, STYLE_LABELS, PROPERTY_SCHEMES } from '../../plugins/structure/look.mjs';
+import { SCHEMES as SURFACE_SCHEMES } from '../../plugins/structure/molecular-surface.mjs';
 
 /**
  * The Studio's appearance panel: the way structure work is done in PyMOL and ChimeraX. Choose a part with the selection language (the count and the part are shown, and the residues are lit in the
@@ -21,22 +22,24 @@ const el = (doc, tag, props = {}, ...children) => {
 };
 
 /** The rules shown in the list, in the order they act: the colour scheme, the colours of whole chains, the residue colour rules, then the style rules. */
-export function describeRules({ colors, styles }) {
+export function describeRules({ colors, styles, surfaces = [] }) {
   const items = [];
   if (colors.scheme !== 'entity') items.push({ kind: 'scheme', text: `颜色 · 全部链 → ${{ chain: '按链', rainbow: '彩虹（链顺序）', confidence: '预测置信度' }[colors.scheme] ?? colors.scheme}` });
   for (const [chain, color] of Object.entries(colors.chains)) items.push({ kind: 'chain', chain, text: `颜色 · 链 ${chain} → ${color}`, color });
   colors.residues.forEach((rule, index) => items.push({ kind: 'color', index, text: `颜色 · ${rule.expr} → ${rule.scheme ? PROPERTY_LABELS[rule.scheme] ?? rule.scheme : rule.color}`, color: rule.color }));
   styles.forEach((rule, index) => items.push({ kind: 'style', index, text: `样式 · ${rule.expr} → ${STYLE_LABELS[rule.style]}` }));
+  surfaces.forEach((rule, index) => items.push({ kind: 'surface', index, text: `表面 · ${rule.expr} → ${SURFACE_SCHEMES[rule.scheme]}` }));
   return items;
 }
 const PROPERTY_LABELS = { ...PROPERTY_SCHEMES, ...Object.fromEntries(COLOR_SCHEMES.map((id) => [id, PROPERTY_SCHEMES[id] ?? id])) };
 
 /** The state without one listed rule. */
-export function withoutRule({ colors, styles }, item) {
-  if (item.kind === 'scheme') return { colors: { ...colors, scheme: 'entity' }, styles };
-  if (item.kind === 'chain') { const chains = { ...colors.chains }; delete chains[item.chain]; return { colors: { ...colors, chains }, styles }; }
-  if (item.kind === 'color') return { colors: { ...colors, residues: colors.residues.filter((_, i) => i !== item.index) }, styles };
-  return { colors, styles: styles.filter((_, i) => i !== item.index) };
+export function withoutRule({ colors, styles, surfaces = [] }, item) {
+  if (item.kind === 'scheme') return { colors: { ...colors, scheme: 'entity' }, styles, surfaces };
+  if (item.kind === 'chain') { const chains = { ...colors.chains }; delete chains[item.chain]; return { colors: { ...colors, chains }, styles, surfaces }; }
+  if (item.kind === 'color') return { colors: { ...colors, residues: colors.residues.filter((_, i) => i !== item.index) }, styles, surfaces };
+  if (item.kind === 'surface') return { colors, styles, surfaces: surfaces.filter((_, i) => i !== item.index) };
+  return { colors, styles: styles.filter((_, i) => i !== item.index), surfaces };
 }
 
 export function createLookPanel(container, context, { doc = container.ownerDocument } = {}) {

@@ -45,6 +45,7 @@ import { displayCenter } from '../../plugins/motion/state-pair.mjs';
 import { cameraAt } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
+import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
@@ -874,7 +875,7 @@ function boot() {
     if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
       try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
     }
-    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels), bonds: validateBonds(view?.bonds) }; Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
+    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels), bonds: validateBonds(view?.bonds) }; active.surfaceState = validateSurfaces(view?.surfaces); Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
     if (Array.isArray(view?.styles)) { try { active.styleState = validateStyles(view.styles); Promise.resolve().then(() => { if (active?.styleState?.length) refreshStructureView(); }); } catch { /* a damaged block is ignored */ } }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
@@ -963,10 +964,12 @@ function boot() {
   /** The measurements and labels kept with the work, drawn on the structure (same coordinates as the measure tool). */
   function drawAnnotationsNow() {
     const state = active?.annotationState;
-    if (!active?.model) { clearAnnotations(viewport); return; }
+    if (!active?.model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
     const centre = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM;
     const problems = drawAnnotations(viewport, active.model, state ?? {}, (p) => p.map((v, i) => (v - centre[i]) * k));
     if (problems.length) console.warn('标注未能画出：', problems.map((p) => p.message).join('；'));
+    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k));
+    if (surfaceProblems.length) console.warn('表面未能画出：', surfaceProblems.map((p) => p.message).join('；'));
   }
   function refreshStructureView(style) {
     if (!active?.model && !active?.representationSource) return;
@@ -1752,6 +1755,7 @@ function boot() {
         ...(active.annotationState?.measures.length ? { measures: active.annotationState.measures } : {}),
         ...(active.annotationState?.labels.length ? { labels: active.annotationState.labels } : {}),
         ...(active.annotationState?.bonds.length ? { bonds: active.annotationState.bonds } : {}),
+        ...(active.surfaceState?.length ? { surfaces: active.surfaceState } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
