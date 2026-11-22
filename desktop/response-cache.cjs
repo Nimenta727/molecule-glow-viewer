@@ -6,6 +6,14 @@ const fsp = fs.promises;
 const keyOf = (url) => crypto.createHash('sha1').update(url).digest('hex');
 class CacheLimitError extends Error { constructor(message) { super(message); this.name = 'CacheLimitError'; } }
 
+// Windows can refuse a rename with EXDEV even inside one directory (a held handle, antivirus, redirected AppData). Fall back to copy + unlink so the commit still succeeds.
+const renameSafe = async (source, target, rename = fsp.rename) => {
+  try { await rename(source, target); } catch (error) {
+    if (error?.code !== 'EXDEV') throw error;
+    await fsp.copyFile(source, target); await fsp.unlink(source);
+  }
+};
+
 // Bodies go to unique temporary files with bounded concurrency, never to arrayBuffer().
 // Metadata is the atomic commit marker. Each generation owns a distinct payload file.
 function createResponseCache(directory, { maxResource = 64 * 1024 ** 2, maxTotal = 2 * 1024 ** 3,
@@ -99,10 +107,10 @@ function createResponseCache(directory, { maxResource = 64 * 1024 ** 2, maxTotal
       await locked(async () => {
         controller.signal.throwIfAborted();
         if (epoch !== generation) throw new Error('Cache cleared during download');
-        await fsp.rename(temporary, payload);
+        await renameSafe(temporary, payload);
         if (!await prune(name)) throw new CacheLimitError('Structure cache budget exhausted');
         await fsp.writeFile(metaTemp, JSON.stringify(meta), { flag: 'wx' });
-        await fsp.rename(metaTemp, path.join(directory, key + '.json'));
+        await renameSafe(metaTemp, path.join(directory, key + '.json'));
         committed = true;
         const fd = fs.openSync(payload, 'r');
         result = new Response(Readable.toWeb(fs.createReadStream(payload, { fd })), { status: response.status, headers: {
@@ -133,4 +141,4 @@ function createResponseCache(directory, { maxResource = 64 * 1024 ** 2, maxTotal
   for (const name of fs.readdirSync(directory)) if (/^[a-f0-9]{40}\.[a-f0-9-]+\.(?:bin|json)\.part$/.test(name)) fs.rmSync(path.join(directory, name), { force: true });
   return { read, download, clear, prune: () => locked(prune) };
 }
-module.exports = { createResponseCache, CacheLimitError, keyOf };
+module.exports = { createResponseCache, CacheLimitError, keyOf, renameSafe };
