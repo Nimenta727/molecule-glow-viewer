@@ -61,7 +61,7 @@ export function applyColor(state, args, second, chainIds, context = {}) {
     if (text.length > MAX_EXPRESSION) throw new ColorError(`选择表达式太长（最多 ${MAX_EXPRESSION} 个字符）。`);
     let count; try { count = context.check(text); } catch (error) { throw new ColorError(`无法读取选择“${text}”：${error.message}`); }
     if (!count) throw new ColorError(`选择“${text}”没有选中任何残基，没有上色。`);
-    const rules = [...(state.residues ?? []), { expr: text, scheme: color }];
+    const rules = [...(state.residues ?? []), { expr: text, scheme: color, ...(context.structure ? { structure: context.structure } : {}) }];
     if (rules.length > MAX_RULES) throw new ColorError(`最多 ${MAX_RULES} 条残基上色规则；先 color('reset') 再来。`);
     return { state: { scheme: state.scheme, chains: { ...state.chains }, residues: rules }, note: `${count} 个残基（${text}）按${PROPERTY_NAMES[color]}上色（每个残基一种颜色，由卡通、主链、团块表示画出；表面和功能分区仍显示链的颜色）。` };
   }
@@ -74,7 +74,7 @@ export function applyColor(state, args, second, chainIds, context = {}) {
       if (text.length > MAX_EXPRESSION) throw new ColorError(`选择表达式太长（最多 ${MAX_EXPRESSION} 个字符）。`);
       let count; try { count = context.check(text); } catch (error) { throw new ColorError(`无法读取选择“${text}”：${error.message}`); }
       if (!count) throw new ColorError(`选择“${text}”没有选中任何残基，没有上色。`);
-      const rules = [...(state.residues ?? []), { expr: text, color: hex }];
+      const rules = [...(state.residues ?? []), { expr: text, color: hex, ...(context.structure ? { structure: context.structure } : {}) }];
       if (rules.length > MAX_RULES) throw new ColorError(`最多 ${MAX_RULES} 条残基上色规则；先 color('reset') 再来。`);
       return { state: { scheme: state.scheme, chains: { ...state.chains }, residues: rules }, note: `${count} 个残基（${text}）染成 ${hex}；残基颜色由“团块”表示画出，其它表示仍显示链的颜色。` };
     }
@@ -96,6 +96,12 @@ export function resolveColor(state, chainId, index, count) {
   return undefined;
 }
 
+/** A residue rule may name the structure of the scene it is for (default: the first one). */
+const structureOf = (rule) => {
+  if (rule.structure === undefined) return {};
+  if (typeof rule.structure !== 'string' || !rule.structure || rule.structure.length > 80) throw new ColorError('上色规则里的结构编号无效。');
+  return { structure: rule.structure };
+};
 export function validateColorState(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new ColorError('配色状态应为对象。');
   if (!SCHEMES.includes(value.scheme)) throw new ColorError('配色方式无效。');
@@ -108,8 +114,8 @@ export function validateColorState(value) {
       if (!rule || typeof rule.expr !== 'string' || !rule.expr.trim() || rule.expr.length > MAX_EXPRESSION) throw new ColorError('残基上色规则的选择表达式无效。');
       if (rule.scheme !== undefined) {
         if (![...PROPERTY_SCHEMES, 'rainbow'].includes(rule.scheme)) throw new ColorError(`残基上色规则的配色方案应为 ${[...PROPERTY_SCHEMES, 'rainbow'].join(' / ')}。`);
-        rules.push({ expr: rule.expr, scheme: rule.scheme });
-      } else rules.push({ expr: rule.expr, color: parseColor(rule.color) });
+        rules.push({ expr: rule.expr, scheme: rule.scheme, ...structureOf(rule) });
+      } else rules.push({ expr: rule.expr, color: parseColor(rule.color), ...structureOf(rule) });
     }
   }
   return { scheme: value.scheme, chains, residues: rules };

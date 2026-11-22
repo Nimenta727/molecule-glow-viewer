@@ -370,7 +370,7 @@ async function ensureStructureView(current) {
   const { colors, styles } = lookStateOf(scene), primary = primarySource(scene);
   const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
     style: style || undefined, defaultStyle: defaultStyleFor(scene),
-    look: (model, source) => (source === primary ? lookFor(model, { colors, styles }) : undefined),
+    look: (model, source) => lookFor(model, { colors, styles }, { sourceId: source.id, primaryId: primary.id }),
     recolor: isDefaultColors(colors) ? undefined : (group, index, count) => resolveColor(colors, group.chainId, index, count) });
   view.built.set(key, layers);
   while (view.built.size > 4) view.built.delete([...view.built.keys()].find((k) => k !== view.shown && k !== key));   // a few recent looks are kept (undo goes back and forth)

@@ -64,3 +64,12 @@ test('style rules: validated, refused with the reason, capped', () => {
   assert.throws(() => validateStyles([{ expr: '', style: 'blob' }]), LookError); assert.throws(() => validateStyles([{ expr: 'all', style: 'x' }]), LookError); assert.throws(() => validateStyles('x'), LookError);
   assert.deepEqual(Object.keys(PROPERTY_SCHEMES), ['bfactor', 'hydrophobicity', 'charge', 'secondary', 'rainbow']);
 });
+
+test('with several structures a colour rule is for the structure it names, everything else for the first', () => {
+  const colors = { scheme: 'entity', chains: {}, residues: [{ expr: 'all', color: '#111111' }, { expr: 'all', color: '#222222', structure: 's1' }] };
+  const colorsOf = (sourceId) => { const look = lookFor(model(), { colors, styles: [{ expr: 'resi 1', style: 'hidden' }] }, { sourceId, primaryId: 'first' }); return look ? [look.colorOf?.(model().atoms[0]), look.styleOf?.(model().atoms[0])] : null; };
+  const m = model(), first = lookFor(m, { colors }, { sourceId: 'first', primaryId: 'first' }), second = lookFor(m, { colors }, { sourceId: 's1', primaryId: 'first' }), other = lookFor(m, { colors }, { sourceId: 's2', primaryId: 'first' });
+  assert.equal(first.colorOf(m.atoms[0]), '#111111'); assert.equal(second.colorOf(m.atoms[0]), '#222222'); assert.equal(other, null, 'a structure no rule names has no look');
+  assert.deepEqual(colorsOf('first'), ['#111111', 'hidden'], 'style rules are for the first structure'); assert.equal(colorsOf('s1')[1], undefined);
+  assert.ok(lookFor(m, { colors }) !== null, 'without a source id every rule applies (older callers)');
+});

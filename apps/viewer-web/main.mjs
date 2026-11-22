@@ -931,10 +931,11 @@ function boot() {
   function lookOf(loaded) {
     const state = loaded.colorState, styles = loaded.styleState ?? [];
     if (!loaded.model || (!(state?.residues?.length) && state?.scheme !== 'confidence' && !styles.length)) return undefined;
-    return (model) => {
+    const firstId = structureSources(loaded.scene)[0]?.id;
+    return (model, source) => {
       const base = new Map();
       if (state?.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) base.set(key, confidenceColor(value));
-      return lookFor(model, { colors: state, styles }, { base });
+      return lookFor(model, { colors: state, styles }, { base, sourceId: source?.id, primaryId: firstId });
     };
   }
   function structureLayers(loaded, requestedStyle) {

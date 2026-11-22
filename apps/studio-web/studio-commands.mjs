@@ -31,7 +31,7 @@ export const STUDIO_COMMANDS = {
   addStructure: '把另一个结构加入当前场景（最多共 4 个）：参数同 import。它从原点开始，和第一个结构重叠；之后用 superpose 对齐。',
   select: '用选择语言选一部分：select("chain A and resi 10-50")；select("none") 清除。返回选中的残基数和说明，并把它设为“当前选择”（分析命令的默认输入）。选择语言：all | protein | nucleic | ligands | chain A | resi 10-50 | resn HIS | within 5 of <选择> | and / or / not。',
   show: '对选择设表示（PyMOL 的 show/hide）：show("resi 1-30","hidden")；show("chain B","sticks")；样式 cartoon / backbone / blob / sticks（逐原子，叠在卡通上，一次最多 300 个残基）/ hidden；show("reset") 清除。规则，随作品保存，后面的覆盖前面的。',
-  color: '上色：color("chain A","#e05a4a")；color("resi 1-60","hydrophobicity")；方案 hydrophobicity / bfactor / charge / secondary / rainbow；color("chain") 按链；color("reset") 清除。规则，随作品保存。',
+  color: '上色：color("chain A","#e05a4a")；多个结构时可指定哪一个：color("chain A","#e05a4a",{structure:"结构编号"})（不写则是第 1 个）；color("resi 1-60","hydrophobicity")；方案 hydrophobicity / bfactor / charge / secondary / rainbow；color("chain") 按链；color("reset") 清除。规则，随作品保存。',
   surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain（单色，可带第三个参数 "#rrggbb"：surface("nucleic","plain","#d92f1c")）；一个表面最多 25 万个原子（核糖体级别用 1.25 Å 以上的粗网格）；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
   lookPack: '光影包（整张图的光影与配色）：lookPack() 列出；lookPack("glow.cell-dark") 应用（同时把它的配色写成颜色规则，lookPack(id,{recolor:false}) 只换光影）；lookPack("none") 回到默认的墨线风格。可用：glow.cell-dark（暗场·细胞内部）、glow.membrane-cool（冷光·膜蛋白）、glow.active-site-warm（暖光·活性位点）、paper.clean-white（论文白底）。只改外观，不改坐标和任何分析结果。',
   measure: '测量并保存：measure("chain A and resi 10","chain A and resi 40") 距离（Å，Cα）；三个选择量角度（第二个是顶点）。每个选择必须正好一个残基。',
@@ -42,8 +42,8 @@ export const STUDIO_COMMANDS = {
   secondary: '序列与文件里登记的二级结构：secondary({part, write?})；write 可含 "paint"、"record"。',
   superpose: '结构叠合（Cα 的 Horn 拟合）：superpose({mobile, reference, mobileStructure?, referenceStructure?, mode?:"number"|"order", write?})。mobile 必须在同一条链里；结构用 structures() 里的 id（默认第 1 个、参考默认同一个）。write 可含 "place"（移动整条链）、"mark"（偏差 > 2 Å 的残基标红）、"record"、"reset"（还原位置）。',
   parts: '列出场景里的对象（每条链、每个小分子组一个）：{id,name,chain,structure,polymer,visible}。',
-  part: '显示或隐藏对象：part("ligands",false) 隐藏全部小分子组；part("chain AA",false)；part("all",true) 全部显示。目标：all / ligands / polymer / chain X。大复合体里小分子组很多时，先隐藏它们再作图。',
-  camera: '读或设镜头：camera() 读；camera({position:[x,y,z],target:[x,y,z]}) 设；camera("reset") 重置；camera({focus:"选择",margin?:1.15}) 把镜头对准一个选择（保持当前视角方向，按选择的大小拉近）。',
+  part: '显示或隐藏对象：part("ligands",false) 隐藏全部小分子组；part("chain AA",false)；part("node:对象编号",false)（编号来自 parts()，用于链名重复的生物组装体拷贝）；part("all",true) 全部显示。目标：all / ligands / polymer / chain X / node:编号。大复合体里小分子组很多时，先隐藏它们再作图。',
+  camera: '读或设镜头：camera() 读；camera({position:[x,y,z],target:[x,y,z]}) 设；camera("reset") 重置；camera({focus:"选择",structure?:"结构编号",margin?:1.15}) 把镜头对准一个选择（保持当前视角方向，按选择的大小拉近；structure 默认第 1 个，叠合移动过的链要对准它所叠到的那个结构）。',
   cameraKey: '在时间 t（秒）存一个镜头关键帧：cameraKey({time, position?, target?})，省略位置则用当前镜头；cameraKey({remove:"编号"}) 删除；cameraKey() 列出。',
   note: '加一条讲解：note("文字")；note("文字",{node:"对象编号"}) 挂在一个对象上。',
   title: '设置场景标题：title("…")。',
@@ -134,11 +134,11 @@ export function createStudioAdapter(env) {
       env.applyLook({ styles: out.styles }, out.note);
       return done({ rules: out.styles.length }, out.note);
     },
-    color(target, value) {
-      const args = Array.isArray(target) ? target : [target, value];
-      const { model } = primary(), state = env.lookState();
+    color(target, value, extra) {
+      const args = Array.isArray(target) ? target : [target, value, extra];
+      const o = options(args[2], ['structure'], '参数'), { id: structureId, model } = entry(o.structure), state = env.lookState();
       if (args.length === 1 && /^reset$/i.test(String(args[0]))) { env.applyLook({ colors: createColorState() }, '已清除全部颜色设置。'); return done({ rules: 0 }); }
-      const out = applyColor(state.colors, args[0], args[1], env.chainIds(), { check: check(model) });
+      const out = applyColor(state.colors, args[0], args[1], env.chainIds(), { check: check(model), ...(o.structure ? { structure: structureId } : {}) });
       env.applyLook({ colors: out.state }, out.note);
       return done({ scheme: out.state.scheme, residueRules: out.state.residues.length }, out.note);
     },
@@ -238,8 +238,8 @@ export function createStudioAdapter(env) {
     part(target, visible) {
       const args = Array.isArray(target) ? target : [target, visible], what = text(args[0], '目标'), show = args[1] === undefined || args[1] === null ? true : Boolean(args[1]);
       const listed = commands.parts().parts ?? [];
-      const pick = what === 'all' ? () => true : what === 'ligands' ? (p) => !p.polymer : what === 'polymer' ? (p) => p.polymer : /^chain\s+\S+$/i.test(what) ? ((chain) => (p) => p.chain === chain)(what.replace(/^chain\s+/i, '')) : null;
-      if (!pick) throw new Error('目标应为 all / ligands / polymer / chain X。');
+      const pick = what === 'all' ? () => true : what === 'ligands' ? (p) => !p.polymer : what === 'polymer' ? (p) => p.polymer : /^chain\s+\S+$/i.test(what) ? ((chain) => (p) => p.chain === chain)(what.replace(/^chain\s+/i, '')) : /^node:\S+$/.test(what) ? ((id) => (p) => p.id === id)(what.slice(5)) : null;
+      if (!pick) throw new Error('目标应为 all / ligands / polymer / chain X / node:编号。');
       const ids = listed.filter(pick).map((p) => p.id); if (!ids.length) throw new Error(`“${what}”没有对应的对象：用 parts() 看列表。`);
       env.setVisible(ids, show); return done({ changed: ids.length, visible: show });
     },
@@ -247,7 +247,7 @@ export function createStudioAdapter(env) {
       if (arg === undefined || arg === null) return done({ camera: env.camera.get() });
       if (arg === 'reset') { env.camera.reset(); return done({ camera: env.camera.get() }); }
       if (arg && typeof arg === 'object' && arg.focus !== undefined) {
-        const o = options(arg, ['focus', 'margin'], '镜头'), { id, model } = primary(), found = evaluateSelection(text(o.focus, 'focus'), selectionSpace(model)), to = env.toScene(id);
+        const o = options(arg, ['focus', 'structure', 'margin'], '镜头'), { id, model } = entry(o.structure), found = evaluateSelection(text(o.focus, 'focus'), selectionSpace(model)), to = env.toScene(id);
         const points = [...found.residues.map((r) => to(Array.isArray(r.position) ? r.position : [r.position.x, r.position.y, r.position.z])), ...found.ligands.flatMap((l) => l.atoms.map((a) => to(a.position)))];
         if (!points.length) throw new Error(`“${o.focus}”没有选中任何东西。`);
         const centre = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length), radius = Math.max(0.02, ...points.map((p) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2])));
