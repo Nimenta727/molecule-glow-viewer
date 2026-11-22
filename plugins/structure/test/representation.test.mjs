@@ -197,3 +197,23 @@ test('surface and functional ignore the per-residue look, and without a look not
   for (const style of ['surface', 'functional']) assert.deepEqual(buildRepresentations(fixture(), { style, look }), buildRepresentations(fixture(), { style }), style);
   for (const style of ['cartoon', 'backbone', 'blob']) assert.deepEqual(buildRepresentations(fixture(), { style, look: {} }), buildRepresentations(fixture(), { style }), `${style}: an empty look is no look`);
 });
+
+// ---- atom-level sticks: only for the residues set to 'sticks', on top of the cartoon ----
+function backboneChain(count = 3) {   // N, CA, C, O per residue with real bond lengths, residues 3.8 Å apart along x
+  const atoms = []; let serial = 1;
+  for (let i = 0; i < count; i++) {
+    const x = i * 3.8, seq = String(i + 1);
+    for (const [name, element, dx, dy] of [['N', 'N', -1.2, 0.3], ['CA', 'C', 0, 0], ['C', 'C', 1.4, 0.4], ['O', 'O', 1.9, 1.5]]) atoms.push(atom({ name, element, position: [x + dx, dy, 0], serial: serial++, authSeqId: seq, labelSeqId: seq }));
+  }
+  return { atoms };
+}
+test('sticks draw the bonds of the chosen residues (and the peptide bond between neighbours), tinted by element, over an unchanged cartoon', () => {
+  const look = { styleOf: (a) => (seqOf(a) <= 2 ? 'sticks' : undefined) };
+  const plain = drawn(backboneChain(), 'cartoon'), withSticks = drawn(backboneChain(), 'cartoon', look);
+  assert.equal(count(withSticks, 'triangles'), count(plain, 'triangles'), 'the cartoon is still drawn');
+  const sticks = withSticks.filter((l) => l.role === 'sticks'); assert.ok(sticks.length && sticks.every((l) => l.mode === 'lines' && l.pinned));
+  assert.ok(sticks.some((l) => l.color === 'e05a4a') && sticks.some((l) => l.color === '4e79d6'), 'oxygen and nitrogen have their own tints');
+  const segments = sticks.reduce((n, l) => n + l.positions.length / 6, 0);   // each bond is two half-bonds; per residue N-CA, CA-C, C-O = 3 bonds; plus C(1)-N(2) = 1 bond: 7 bonds, 14 half-bonds
+  assert.equal(segments, 14);
+  assert.equal(drawn(backboneChain(), 'cartoon', { styleOf: () => undefined }).filter((l) => l.role === 'sticks').length, 0, 'no sticks unless asked');
+});

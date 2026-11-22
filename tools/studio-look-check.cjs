@@ -42,17 +42,30 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   const { scene } = await readScenePackage(new Uint8Array(fs.readFileSync(lookPack))), source = scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)), state = source.provenance.viewerState;
   assert.deepEqual(state.styles, [{ expr: 'chain A and resi 1-60', style: 'hidden' }]); assert.deepEqual(state.colors.residues.map((r) => r.scheme ?? r.color).sort(), ['#e05a4a', 'hydrophobicity'].sort());
   console.log('exported viewer state:', JSON.stringify(state).slice(0, 200));
+  // atom-level sticks for a short segment, a measurement between two residues, a label on a third: all kept with the work
+  await studio.fill('#look-expression', 'chain A and resi 100-110'); await studio.click('button[data-style="sticks"]'); await studio.waitForFunction(() => /棍状/.test(document.querySelector('#status').textContent));
+  await studio.fill('#look-expression', 'chain A and resi 1-400'); await studio.click('button[data-style="sticks"]'); await studio.waitForFunction(() => /最多 300/.test(document.querySelector('#look-info').textContent), null, { timeout: 5000 }).catch(() => {});
+  await studio.fill('#ann-a', 'chain A and resi 100'); await studio.fill('#ann-b', 'chain A and resi 140'); await studio.click('#ann-add-measure'); await studio.waitForFunction(() => /Å/.test(document.querySelector('#ann-info').textContent)); const measured = await studio.$eval('#ann-info', (n) => n.textContent); console.log('measure:', measured);
+  await studio.fill('#ann-a', 'resi 99999'); await studio.fill('#ann-b', 'chain A and resi 140'); await studio.click('#ann-add-measure'); await studio.waitForFunction(() => document.querySelector('#ann-info').dataset.kind === 'error'); assert.match(await studio.$eval('#ann-info', (n) => n.textContent), /没有选中|选中/);
+  await studio.fill('#look-expression', 'chain A and resi 57'); await studio.fill('#ann-text', '关键残基'); await studio.click('#ann-add-label'); await studio.waitForFunction(() => document.querySelectorAll('#ann-list li').length === 2);
+  assert.deepEqual(await studio.$$eval('#ann-list li span', (l) => l.map((x) => x.textContent.replace(/：.*/, ''))), ['测量 · chain A and resi 100 — chain A and resi 140', '标签 · chain A and resi 57 → 关键残基']);
+  await studio.waitForTimeout(1500); await studio.screenshot({ path: path.join(OUT, 'studio-annotations.png') });
+  const annPack = await exportPack('ann'); const annState = (await readScenePackage(new Uint8Array(fs.readFileSync(annPack)))).scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)).provenance.viewerState;
+  assert.equal(annState.measures.length, 1); assert.deepEqual(annState.labels, [{ expr: 'chain A and resi 57', text: '关键残基' }]); assert.ok(annState.styles.some((r) => r.style === 'sticks'), 'the sticks rule is saved');
+  await studio.click('#undo'); await studio.waitForFunction(() => document.querySelectorAll('#ann-list li').length === 1 || /还没有/.test(document.querySelector('#ann-list').textContent)); await studio.click('#redo'); await studio.waitForFunction(() => document.querySelectorAll('#ann-list li').length === 2);
   // a fresh Viewer opens both packages: the look is drawn
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
   const open = async (file) => { await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', file); await viewer.waitForSelector('#structure-offer:not([hidden])', { timeout: 90000 }); assert.equal(await viewer.$eval('#structure-enabled', (n) => n.checked), false, 'opening a file does not switch a plugin on by itself'); await viewer.evaluate(() => document.querySelector('#structure-offer-enable').click()); await viewer.waitForFunction(() => !document.querySelector('#selection-form').hidden && document.querySelector('#structure-offer').hidden, null, { timeout: 90000 }); await viewer.waitForTimeout(2500); return viewer.evaluate(() => window.__glowStats()); };
   const plain = await open(plainPack), looked = await open(lookPack);
   console.log('shapes drawn: plain', plain.triangles, plain.drawables, '| with the look', looked.triangles, looked.drawables); assert.notEqual(looked.drawables + looked.triangles, plain.drawables + plain.triangles, 'the Viewer draws the saved look');
   await viewer.screenshot({ path: path.join(OUT, 'viewer-look.png') });
+  const annotated = await open(annPack); console.log('annotated viewer stats:', JSON.stringify(annotated)); await viewer.waitForTimeout(1500); await viewer.screenshot({ path: path.join(OUT, 'viewer-annotations.png') });
+  const clouds = await viewer.evaluate(() => JSON.stringify(window.__glowStats())); console.log('viewer stats after annotations:', clouds.slice(0, 400));
   // the Viewer's own commands: show / color with a property scheme
   const call = (name, ...args) => viewer.evaluate(([n, a]) => window.glow[n](...a).then((v) => ({ ok: v }), (e) => ({ error: e.message })), [name, args]);
   const before = await viewer.evaluate(() => window.__glowStats()); const shown = await call('show', 'chain B', 'hidden'); assert.ok(!shown.error, shown.error); assert.match(shown.ok.note, /个残基.*隐藏/);
   await viewer.waitForTimeout(1500); const hid = await viewer.evaluate(() => window.__glowStats()); assert.notEqual(hid.drawables + hid.triangles, before.drawables + before.triangles, 'show(..., "hidden") changes what is drawn');
   const painted = await call('color', 'chain A', 'bfactor'); assert.ok(!painted.error, painted.error); assert.match(painted.ok.note, /B 因子/);
-  assert.match((await call('show', 'chain A', 'sticks')).error, /样式应为/); assert.match((await call('show', 'resi 99999', 'blob')).error, /没有选中任何残基/); assert.equal((await call('show', 'reset')).ok.rules, 0);
+  assert.match((await call('show', 'chain A', 'spaghetti')).error, /样式应为/); assert.match((await call('show', 'resi 99999', 'blob')).error, /没有选中任何残基/); assert.equal((await call('show', 'reset')).ok.rules, 0);
   assert.deepEqual(errors, [], 'no page errors'); await browser.close(); console.log('studio look: ok');
 })().catch((e) => { console.error(e); process.exit(1); });

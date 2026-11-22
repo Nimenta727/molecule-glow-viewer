@@ -23,7 +23,7 @@ export const COMMANDS = {
   interactions: '列出当前结构里哪些成员互相接触：{cutoff?:Å（默认 4.5）, minContacts?, limit?}；返回每一对的接触数、最近距离、残基和证据等级。接触是几何事实，不代表亲和力。成员超过 120 份会拒绝。',
   binding: '布朗动力学结合模拟：{box:nm, particles, D:nm²/µs, radius:nm, microseconds, dt?, koff?, seed?, reinject?}；返回结合速率与 Smoluchowski 理论值的比值，koff>0 时返回占有率。点粒子+完全吸收位点，是教学级模型。',
   source: '经受信任的客户端从外部数据源取数据：{source:"alphafold"|"emdb"|…, accession, expectedSha256?, allowUpdate?}；只访问白名单主机、有大小上限、记录哈希、可离线缓存；返回资源记录。未核对条款的数据源会标注 verified:false。',
-  show: '对选择设表示（PyMOL 的 show / hide）：show("resi 1-30","hidden")、show("chain B","backbone")、show("ligands","blob")；样式为 cartoon（卡通）/ backbone（主链）/ blob（团块）/ hidden（隐藏，也不可选）；show("blob") 对全部；show("reset") 清除。后面的规则覆盖前面的，随作品保存；表面和功能分区表示不受影响。注意：这和经典的 style（画风）不是一回事。',
+  show: '对选择设表示（PyMOL 的 show / hide）：show("resi 1-30","hidden")、show("chain B","backbone")、show("ligands","blob")；样式为 cartoon（卡通）/ backbone（主链）/ blob（团块）/ sticks（棍状：逐原子，叠在卡通上，一次最多 300 个残基，例 show("within 5 of ligands","sticks")）/ hidden（隐藏，也不可选）；show("blob") 对全部；show("reset") 清除。后面的规则覆盖前面的，随作品保存；表面和功能分区表示不受影响。注意：这和经典的 style（画风）不是一回事。',
   clip: '剖切：{enabled?:布尔, depth?:-1..1, scope?:"all"|"parts", aim?:true（对准当前视线）}；不带参数读取状态。',
   snapshot: '返回视口 PNG data URL，接受 {width:64..4096}。',
   exportPack: '返回 {format:"glow-v2",encoding:"base64",data}，包括原始资源。',

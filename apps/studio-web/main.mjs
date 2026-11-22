@@ -1,3 +1,5 @@
+import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
+import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { Euler, MathUtils, Quaternion } from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createTimeline } from '../../packages/core/index.mjs';
@@ -386,12 +388,30 @@ function highlightResidues(residues) {
   const centered = glowPoints.get(model), step = Math.ceil(residues.length / 2500);
   viewport.setParticleCloud('look-selection', residues.filter((_, i) => i % step === 0).map((residue) => ({ position: centered.point(Array.isArray(residue.position) ? residue.position : [residue.position.x, residue.position.y, residue.position.z]), radius: 0.085, color: '#ffd34e', alpha: 0.9, name: '选中' })), { overlay: true });
 }
+function drawStudioAnnotations() {
+  const model = lookPanelContext.model();
+  if (!model) { clearAnnotations(viewport); return; }
+  if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+  const centered = glowPoints.get(model);
+  drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
+}
 const lookPanelContext = {
   hasStructure: () => structureSources(session().getScene()).length > 0,
   model: () => { const models = structureViews.get(session())?.models; return models ? [...models.values()][0] : undefined; },
   chainIds: () => { const model = lookPanelContext.model(); return model ? [...new Set(selectionSpace(model).residues.map((r) => r.chain))] : []; },
   state: () => lookStateOf(session().getScene()),
   highlight: highlightResidues,
+  annotations() {
+    const view = primarySource(session().getScene())?.provenance?.viewerState ?? {};
+    let measures = [], labels = []; try { measures = validateMeasures(view.measures); labels = validateLabels(view.labels); } catch { /* a damaged block is shown as empty */ }
+    return { measures, labels };
+  },
+  applyAnnotations(patch, message) {
+    const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+    const viewer = {};
+    for (const key of ['measures', 'labels']) if (patch[key]) viewer[key] = patch[key].length ? patch[key] : null;
+    edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
+  },
   apply(patch, message) {
     const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
     const viewer = {};
@@ -437,6 +457,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   ({ selection, multi } = reconcileSelection({ selection, multi, ids: document.nodes.map((node) => node.id) }));
   renderPanels(scene, document);
   lookPanel?.render();
+  if (lookPanel) drawStudioAnnotations();
   showPose();
   syncParticlePreview();
   const hasStructure = structureSources(scene).length > 0;

@@ -1,5 +1,6 @@
 import { createLigandNeighborhood, createPresetCore, functionalLayers, matchesPart } from './functional-preview.mjs';
 import { densitySurface } from './density-surface.mjs';
+import { bondsByDistance } from './chemical-component.mjs';
 
 export const PRESENTATION_METERS_PER_ANGSTROM = 0.05;
 const WATER_NAMES = new Set(['HOH', 'WAT', 'DOD', 'H2O']);
@@ -168,7 +169,7 @@ function linePositions(markers, centered) {
 function segmentLook(a, b, look, defaultStyle) {
   const styleA = look.styleOf?.(a.residue.atom) ?? defaultStyle, styleB = look.styleOf?.(b.residue.atom) ?? defaultStyle;
   if (styleA === 'hidden' || styleB === 'hidden') return null;
-  return { style: styleB, color: look.colorOf?.(b.residue.atom) ?? look.colorOf?.(a.residue.atom) };
+  return { style: styleB === 'sticks' ? 'cartoon' : styleB, color: look.colorOf?.(b.residue.atom) ?? look.colorOf?.(a.residue.atom) };
 }
 
 function normalize(v) {
@@ -231,6 +232,31 @@ function backboneLayers(markers, centered, look = {}, defaultStyle = 'backbone')
   return [...byColor].map(([color, points]) => (color ? { mode: 'lines', positions: flat(points), color, pinned: true } : { mode: 'lines', positions: flat(points), color: BACKBONE_COLORS.default }));
 }
 
+const ELEMENT_TINT = { N: '4e79d6', O: 'e05a4a', S: 'e0b83a', P: 'e58a3a' };
+/**
+ * Atom-level sticks for the residues the author set to 'sticks' (drawn on top of the cartoon): every heavy atom of the residue, bonds by covalent distance, plus the peptide bond to the next residue.
+ * One `lines` layer per colour (carbon takes the residue's colour; N, O, S, P their usual tints). Hydrogens are left out. The number of residues is limited by the look rules (MAX_STICK_RESIDUES).
+ */
+function stickLayers(ordered, model, centered, look, defaultStyle) {
+  const byColor = new Map(), add = (color, a, b) => { if (!byColor.has(color)) byColor.set(color, []); byColor.get(color).push(centered.point(a), centered.point(b)); };
+  const heavy = (residue) => residue.atoms.filter(({ atom }) => !['H', 'D'].includes(text(atom.element).toUpperCase()));
+  const tint = (item, base) => ELEMENT_TINT[text(item.atom.element).toUpperCase()] ?? base;
+  const draw = (items, base, bonds) => { for (const [i, j] of bonds) { const a = items[i], b = items[j], mid = a.pos.map((v, k) => (v + b.pos[k]) / 2); add(tint(a, base), a.pos, mid); add(tint(b, base), mid, b.pos); } };
+  let previous = null;
+  for (const residue of ordered) {
+    const sticks = look.styleOf?.(residue.atom) === 'sticks' && isPolymer(residue.atom, model.format);
+    const items = sticks ? heavy(residue) : null;
+    if (items?.length) {
+      const base = look.colorOf?.(residue.atom) ?? '9aa7b4';
+      draw(items, base, bondsByDistance(items.map(({ atom, pos }) => ({ element: text(atom.element).toUpperCase(), position: pos }))));
+      const pc = previous?.items.find((item) => item.name === 'C'), nn = items.find((item) => item.name === 'N');
+      if (pc && nn && residueGap(previous.residue, residue) && Math.hypot(...pc.pos.map((v, k) => v - nn.pos[k])) < 1.8) draw([pc, nn], base, [[0, 1]]);
+    }
+    previous = items?.length ? { residue, items } : null;
+  }
+  return [...byColor].map(([color, points]) => ({ mode: 'lines', positions: flat(points), color, pinned: true, role: 'sticks' }));
+}
+
 /**
  * Build passive, renderer-neutral backbone or illustrative ribbon data.
  * Coordinates are centered on the selected first model's bounding box and scaled at 0.05 presentation meters per Å.
@@ -285,6 +311,7 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
       if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
       else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
     }
+    if (hasLook && look.styleOf) layers.push(...stickLayers(ordered, model, centered, appearance, style));
     if (drawn('blob') && markers.length) {
       const base = BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius = 2.1 * PRESENTATION_METERS_PER_ANGSTROM;
       if (!hasLook) layers.push({ mode: 'spheres', positions: flat(markers.map(({ raw }) => centered.point(raw))), color: base, radius });

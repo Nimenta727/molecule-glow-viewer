@@ -42,6 +42,8 @@ import { residueConfidence, confidenceColor, residueIdentity } from '../../plugi
 import { lookFor, applyStyle, validateStyles } from '../../plugins/structure/look.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
+import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
+import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
@@ -871,6 +873,7 @@ function boot() {
     if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
       try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
     }
+    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels) }; Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
     if (Array.isArray(view?.styles)) { try { active.styleState = validateStyles(view.styles); Promise.resolve().then(() => { if (active?.styleState?.length) refreshStructureView(); }); } catch { /* a damaged block is ignored */ } }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
@@ -956,6 +959,14 @@ function boot() {
   function structureAssetIds(source) {
     return new Set((active?.scene.nodes ?? []).filter((node) => node.assetId && node.extensions?.[STRUCTURE]?.sourceAssetId === source?.id).map((node) => node.assetId));
   }
+  /** The measurements and labels kept with the work, drawn on the structure (same coordinates as the measure tool). */
+  function drawAnnotationsNow() {
+    const state = active?.annotationState;
+    if (!active?.model) { clearAnnotations(viewport); return; }
+    const centre = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM;
+    const problems = drawAnnotations(viewport, active.model, state ?? {}, (p) => p.map((v, i) => (v - centre[i]) * k));
+    if (problems.length) console.warn('标注未能画出：', problems.map((p) => p.message).join('；'));
+  }
   function refreshStructureView(style) {
     if (!active?.model && !active?.representationSource) return;
     const camera = viewport.getCamera({ destination: true });
@@ -978,6 +989,7 @@ function boot() {
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
     active.modeState = undefined;
     viewport.setCamera(camera);
+    drawAnnotationsNow();
     showPose();
     if (active.structureSelection) {
       const { kind, atom } = active.structureSelection;
@@ -1730,6 +1742,8 @@ function boot() {
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
         ...(active.colorState && !isDefault(active.colorState) ? { colors: active.colorState } : {}),
         ...(active.styleState?.length ? { styles: active.styleState } : {}),
+        ...(active.annotationState?.measures.length ? { measures: active.annotationState.measures } : {}),
+        ...(active.annotationState?.labels.length ? { labels: active.annotationState.labels } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
