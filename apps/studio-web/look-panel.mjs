@@ -72,6 +72,7 @@ export function createLookPanel(container, context, { doc = container.ownerDocum
   const run = (work) => { try { work(); } catch (error) { say(error.message, 'error'); } };
   function preview() {
     const expression = input.value.trim();
+    queueMicrotask(() => context.selectionChanged?.());
     if (!expression || !context.hasStructure() || !model()) { context.highlight(null); if (!expression) say(''); return; }
     try {
       const found = evaluateSelection(expression, selectionSpace(model()));
@@ -118,6 +119,12 @@ export function createLookPanel(container, context, { doc = container.ownerDocum
   input.addEventListener('input', () => { clearTimeout(input.timer); input.timer = setTimeout(preview, 250); });
 
   return {
+    /** The author's current selection: the text in the selection box and the residues it picks (empty when there is none or it cannot be read). */
+    selection() {
+      const expression = input.value.trim();
+      if (!expression || !context.hasStructure() || !model()) return { expression, residues: [] };
+      try { return { expression, residues: evaluateSelection(expression, selectionSpace(model())).residues }; } catch { return { expression, residues: [] }; }
+    },
     /** Redraw what depends on the work (chains, rules, whether a structure is open); the typed selection stays. */
     render() {
       const has = context.hasStructure() && Boolean(model());

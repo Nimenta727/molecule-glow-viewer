@@ -49,8 +49,8 @@ const plain = (value) => { try { return JSON.parse(JSON.stringify(value ?? null)
  * The only thing a panel is given. `host` is what the Studio provides (it holds all the state); every method here checks its input before it reaches the host:
  *   host.model() / host.selection()                       what is open and chosen
  *   host.readData(id) / host.writeData(id, data, message) the panel's own namespace in the work (one undo step)
- *   host.applyLook(patch, message)                         { colors?, styles? } in the same form as the Appearance tab
- *   host.annotate(patch, message)                          { measures?, labels? }
+ *   host.applyLook(patch, message)                         { colors?: { residues: [{ expr, color | scheme }] }, styles?: [{ expr, style }] }: rules ADDED after the author's own (later rules win), checked like the Appearance tab
+ *   host.annotate(patch, message)                          { measures?, labels? }: entries ADDED to the work's own
  *   host.addEvidence(entry, message)                       one evidence entry of the work
  *   host.highlight(residues | null) / host.status(text)
  */

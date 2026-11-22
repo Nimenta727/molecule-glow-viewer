@@ -246,3 +246,11 @@ h2 { color: #2f3f86; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03e
 .look-rule { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; border-bottom: 1px solid #eef0f4; font-size: 0.84rem; overflow-wrap: anywhere; }
 .look-rule button { flex: none; padding: 0 0.45rem; border-color: transparent; color: var(--muted); }
 .look-rule button:hover { color: #a02b20; border-color: var(--line); }
+
+/* analysis tab: panels of plugins wrap inside the column instead of running past it */
+#pane-analysis { overflow-wrap: anywhere; }
+#pane-analysis .panel-section { min-width: 0; }
+#pane-analysis .button-row { flex-wrap: wrap; gap: 0.3rem; }
+#pane-analysis .button-row input[type="text"] { flex: 1 1 8rem; min-width: 0; }
+#pane-analysis .button-row input[type="number"] { width: 4.5rem; }
+#pane-analysis .button-row button { padding: 0.25rem 0.55rem; font-size: 0.84rem; }

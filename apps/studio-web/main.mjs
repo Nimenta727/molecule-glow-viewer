@@ -1,3 +1,6 @@
+import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
+import { createPanelHost } from './panel-host.mjs';
+import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
@@ -46,6 +49,7 @@ const status = (message) => { ui.status.textContent = message; };
 
 let project;
 let sessions;
+let selectionChanged = () => {};
 let lookPanel = null;   // the appearance tab (created further down; the first refresh can come before)
 let selection = null;   // the node the inspector shows (the one clicked last)
 let multi = [];         // every selected outline row, in row order (Ctrl/Cmd-click toggles, Shift-click selects a range)
@@ -402,6 +406,7 @@ const lookPanelContext = {
   chainIds: () => { const model = lookPanelContext.model(); return model ? [...new Set(selectionSpace(model).residues.map((r) => r.chain))] : []; },
   state: () => lookStateOf(session().getScene()),
   highlight: highlightResidues,
+  selectionChanged: () => selectionChanged(),
   annotations() {
     const view = primarySource(session().getScene())?.provenance?.viewerState ?? {};
     let measures = [], labels = []; try { measures = validateMeasures(view.measures); labels = validateLabels(view.labels); } catch { /* a damaged block is shown as empty */ }
@@ -422,6 +427,45 @@ const lookPanelContext = {
   },
 };
 lookPanel = createLookPanel(ui['pane-look'], lookPanelContext);
+
+// ---- the analysis tab: the panels of science plugins; they read the structure and the author's selection, and write back only through the checked doors (packages/plugin-host/panels.mjs) ----
+const panelRegistry = createPanelRegistry();
+panelRegistry.register(contactsPanel);
+const pluginData = (id) => primarySource(session().getScene())?.provenance?.viewerState?.plugins?.[id];
+const panelEnv = {
+  hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),
+  // once a part has been chosen in this scene, a panel stays usable (clearing the box must not throw away what was typed in a panel)
+  hasSelection: () => { const key = panelEnv.key(); if (lookPanel?.selection().expression) panelEnv.chosen = key; return panelEnv.chosen === key; },
+  key: () => `${session().getScene().id}|${primarySource(session().getScene())?.id ?? ''}|${lookPanelContext.model() ? 1 : 0}`,
+  hostFor: () => ({
+    model: () => lookPanelContext.model(),
+    selection: () => lookPanel.selection(),
+    readData: pluginData,
+    writeData(id, data, message) {
+      const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+      edit({ type: 'setViewerState', assetId: source.id, patch: { plugins: { ...(source.provenance?.viewerState?.plugins ?? {}), [id]: data } } }, message);
+    },
+    applyLook(patch, message) {
+      const state = lookStateOf(session().getScene()), next = {};
+      if (patch.colors?.residues) next.colors = validateColorState({ ...state.colors, residues: [...state.colors.residues, ...patch.colors.residues] });
+      if (patch.styles) next.styles = validateStyles([...state.styles, ...patch.styles]);
+      lookPanelContext.apply(next, message);
+    },
+    annotate(patch, message) {
+      const state = lookPanelContext.annotations(), next = {};
+      if (patch.measures) next.measures = validateMeasures([...state.measures, ...patch.measures]);
+      if (patch.labels) next.labels = validateLabels([...state.labels, ...patch.labels]);
+      lookPanelContext.applyAnnotations(next, message);
+    },
+    addEvidence: (entry, message) => edit({ type: 'addEvidence', entry }, message),
+    evidenceFrom: (id) => session().getScene().evidence.filter((entry) => entry.source === id).length,
+    highlight: highlightResidues,
+    status: (text) => status(text),
+  }),
+};
+const analysisPanels = createPanelHost(ui['pane-analysis'], { registry: panelRegistry, env: panelEnv });
+ui['tab-analysis'].addEventListener('click', () => analysisPanels.render());
+selectionChanged = () => analysisPanels.render();
 
 function newProject() {
   navigationEditor.assertSaved();
@@ -459,6 +503,7 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   renderPanels(scene, document);
   lookPanel?.render();
   if (lookPanel) drawStudioAnnotations();
+  if (lookPanel) analysisPanels.render();
   showPose();
   syncParticlePreview();
   const hasStructure = structureSources(scene).length > 0;

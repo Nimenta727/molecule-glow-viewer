@@ -1,0 +1,68 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.interface-contacts",
+  "version": "1.0.0",
+  "name": "界面接触分析（Studio 面板）",
+  "summary": "在 Studio 的“分析”页里，选两部分（链、区段、配体周围……），列出互相接触的残基，把界面涂色，并作为“推导”证据记进作品。",
+  "category": "interaction",
+  "adds": [
+    "Studio“分析”页的面板：A 部分默认取“外观”页的选择，B 部分用选择语言写，距离 1–8 Å（默认 4.5）",
+    "列出接触的残基对（最近的 10 对，写出原子名和距离）、两侧界面残基数",
+    "把界面涂色（A 侧橙、B 侧蓝，写成作品的残基上色规则，Viewer 里一样显示）",
+    "把结果记进作品：证据（类型“推导”，写明方法和距离）与面板自己的数据（两部分、距离、对数）"
+  ],
+  "usage": [
+    {
+      "title": "算一个二聚体的界面",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页 B 填 chain B → 计算界面 → 涂色界面残基 → 记入作品",
+      "note": "接触是几何事实（重原子距离），不代表亲和力"
+    }
+  ],
+  "provides": [
+    {
+      "type": "panel",
+      "id": "org.glow.panel.contacts"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/contacts.mjs",
+      "exports": [
+        "contactsBetween",
+        "expressionsFor"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实：用 4AKE 的两条链在真实浏览器里走完“选择 → 计算 → 涂色 → 记入 → 导出”，最近的一对是 SER A:30 OG — ASP B:54 OD1 2.74 Å。",
+    "limits": [
+      "只看重原子距离，不区分氢键、盐桥、疏水接触，也不计算埋藏表面积",
+      "不分析水分子介导的接触，也不考虑质子化状态",
+      "接触对超过 5000 会拒绝，要求缩小两部分的范围",
+      "界面涂色占用残基上色规则（共 64 条上限），界面很零散时会用掉不少条数",
+      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板",
+      "距离阈值（默认 4.5 Å）是常用经验值，不是由结构决定的结论"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-22-authoring-core.md"
+  ],
+  "tags": [
+    "相互作用",
+    "界面"
+  ]
+}
