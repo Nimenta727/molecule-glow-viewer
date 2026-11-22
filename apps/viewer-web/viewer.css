@@ -334,3 +334,7 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .energy-follow[aria-pressed="true"] { background: var(--acc-soft); border-color: var(--acc); color: var(--acc-ink); }
 .energy-detail { flex-basis: 100%; margin: 0.2rem 0 0; max-height: 9rem; overflow-y: auto; line-height: 1.55; color: var(--ink, #2c3440); }
 @media (max-width: 760px) { .energy-strip:not([hidden]) { top: 5.6rem; max-width: calc(100% - 2 * var(--gap)); font-size: 0.74rem; } }
+
+.structure-offer { margin: 0.4rem 0; padding: 0.45rem 0.55rem; background: #fff6df; border: 1px solid #e3cf9a; border-radius: 4px; color: #5b4510; font-size: 0.84rem; line-height: 1.5; }
+.structure-offer[hidden] { display: none; }
+.structure-offer button { margin-top: 0.3rem; }

@@ -12,7 +12,7 @@ export const VIEWER_PANEL_LAYOUT = Object.freeze([
     { nodes: ['#resources'] },
   ] },
   { id: 'structure', label: '结构', groups: [
-    { title: '打开结构', nodes: ['label:has(#structure-enabled)', 'label:has(#atp-enabled)', '#rcsb-form', 'label:has(#structure-assembly)', '#template-note'] },
+    { title: '打开结构', nodes: ['#structure-offer', 'label:has(#structure-enabled)', 'label:has(#atp-enabled)', '#rcsb-form', 'label:has(#structure-assembly)', '#template-note'] },
     { title: '表示', nodes: ['#representation-controls', '#functional-evidence', '#structure-summary'] },
     { title: '条目简介', nodes: ['#entry-intro-controls', '#entry-intro'] },
     { nodes: ['#legacy-components'] },
@@ -47,6 +47,7 @@ export const VIEWER_PANEL_AUTOSHOW = Object.freeze([
   { selector: '#scene-navigation', tab: 'scene', attribute: 'hidden' },
   { selector: '#mechanism-controls', tab: 'animate', attribute: 'hidden' },
   { selector: '#structure-tools', tab: 'structure', attribute: 'open' },
+  { selector: '#structure-offer', tab: 'structure', attribute: 'hidden' },
 ]);
 
 export function createPanelTabs(panel, layout = VIEWER_PANEL_LAYOUT, { autoShow = VIEWER_PANEL_AUTOSHOW } = {}) {

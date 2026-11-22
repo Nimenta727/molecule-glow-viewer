@@ -130,6 +130,8 @@ function syncControls() {
   elements['atp-enabled'].disabled = !structureEnabled;
   const staticTemplate = Boolean(active?.isTemplate);
   elements['template-note'].hidden = !staticTemplate;
+  // A work made in the Studio carries its structure file. Opening a file never switches a plugin on by itself (the person does): this says what the work needs and offers the one click.
+  elements['structure-offer'].hidden = !(active?.scene?.schemaVersion === 3 && structureSources(active.scene).length && !host.getImporter(IMPORTER));
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
@@ -1310,21 +1312,10 @@ function boot() {
     try {
       const committed = await scenes.load(input);
       if (!committed && propagate) throw new Error('加载已被后续操作取消。');
-      if (committed) await enableStructureForWork();
     } catch (error) {
       setStatus(`无法打开场景。 ${error.message}`);
       if (propagate) throw error;
     }
-  }
-
-  /**
-   * A work made in the Studio carries its structure file. It is drawn from that structure (so the colours and styles the author gave parts of it show), not only from the preview geometry saved in it:
-   * the official structure plugin is switched on for it, as the workshop does when it opens a work. A classic (v1/v2) pack, or a file with no structure, is left as it was.
-   */
-  async function enableStructureForWork() {
-    const scene = active?.scene;
-    if (!scene || scene.schemaVersion !== 3 || !structureSources(scene).length || host.getImporter(IMPORTER)) return;
-    try { await setStructureEnabled(true); } catch (error) { setStatus(`无法启用结构插件：${error.message}`); }
   }
 
   // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
@@ -1437,6 +1428,7 @@ function boot() {
     }
   }
   elements['structure-enabled'].addEventListener('change', (event) => setStructureEnabled(event.currentTarget.checked));
+  elements['structure-offer-enable'].addEventListener('click', () => setStructureEnabled(true, { propagate: true }).then(() => syncControls()).catch((error) => setStatus(`无法启用结构插件：${error.message}`)));
 
   elements['atp-enabled'].addEventListener('change', async (event) => {
     stopFrame();
