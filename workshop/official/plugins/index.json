@@ -8,7 +8,7 @@
   {
    "id": "org.glow.plugin.assembly",
    "file": "plugins/packages/assembly.json",
-   "sha256": "f036aa6f8c00a5f9183fbb0a3a4bde77915c8bd1f102ab134cc1ab65a9b17a68",
+   "sha256": "974a570dd59e37fe8ba85638078231f39bfe544281b171d885a4a3d28979abef",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -70,7 +70,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-assembly-compose.md"
+     "docs/history/routine/2026-11-21-assembly-compose.md"
     ],
     "tags": [
      "装配",
@@ -81,7 +81,7 @@
   {
    "id": "org.glow.plugin.binding",
    "file": "plugins/packages/binding.json",
-   "sha256": "70e8f4f2c900b43490e03a40f55147ec71d07afc37dd106b56335f49ccb7b24b",
+   "sha256": "94582de8c32339c91e25f6a61d9ef6513b18a05c0afe1aa8e1628c4c449b9e0c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -137,7 +137,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-binding.md"
+     "docs/history/routine/2026-11-21-binding.md"
     ],
     "tags": [
      "结合",
@@ -148,7 +148,7 @@
   {
    "id": "org.glow.plugin.complex-records",
    "file": "plugins/packages/complex-records.json",
-   "sha256": "6d7f17ec8ad2294ec7593c98380e470c440d3a27208021b8320437fd9bd14eba",
+   "sha256": "7999b6e4b38cbf50ee36f8f77f16ddf9481bfd4d8024fb740b6e3a3469c8e4de",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -218,7 +218,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-complex-record.md"
+     "docs/history/routine/2026-11-21-complex-record.md"
     ],
     "tags": [
      "装配",
@@ -229,7 +229,7 @@
   {
    "id": "org.glow.plugin.composition-planner",
    "file": "plugins/packages/composition-planner.json",
-   "sha256": "6938c2a71e4b6d0191dc32ba163166206bc449c69dba18b5da213a09f54bd797",
+   "sha256": "25e4ec249db51aefb7cf9a0113c070af4846c5e786c5110bc766525ecf6b535c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -288,7 +288,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-placement.md"
+     "docs/history/routine/2026-11-21-placement.md"
     ],
     "tags": [
      "细胞器",
@@ -299,7 +299,7 @@
   {
    "id": "org.glow.plugin.data-sources",
    "file": "plugins/packages/data-sources.json",
-   "sha256": "394277bb97a7df1e60cd79fe0b9055adf1bab764563b33e1ca868d777bfcab38",
+   "sha256": "fc58d0fffbd821bc65b22a41ad88023acbbdd8fc9e8bf256d2e373f6d2b6e68a",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -367,7 +367,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-data-sources.md"
+     "docs/history/routine/2026-11-21-data-sources.md"
     ],
     "tags": [
      "数据源",
@@ -378,7 +378,7 @@
   {
    "id": "org.glow.plugin.density-maps",
    "file": "plugins/packages/density-maps.json",
-   "sha256": "ab988855ce40ee94b35f22711d8a07c5a4d456010e4735420b87b08099975d4f",
+   "sha256": "8d4740cc427a37084af9ac98585ee917ac2374edccdb2f10b26fffadaa18780f",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -451,7 +451,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-density-maps.md"
+     "docs/history/routine/2026-11-21-density-maps.md"
     ],
     "tags": [
      "冷冻电镜",
@@ -462,7 +462,7 @@
   {
    "id": "org.glow.plugin.filament",
    "file": "plugins/packages/filament.json",
-   "sha256": "6ddc340b8c43aafd5caad9e87fa9a8726e91cb10ad1cef74e22653ce10d8b029",
+   "sha256": "ac2336b61dd2166a09e7d0a02c0163f12cf402330cceb4dcc90a0fdcd22cfe15",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -525,7 +525,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -536,7 +536,7 @@
   {
    "id": "org.glow.plugin.hardware-budget",
    "file": "plugins/packages/hardware-budget.json",
-   "sha256": "81086b933fdc5b9b7f241e48d90004a9caa85faff8192d477df9fb060dd617e7",
+   "sha256": "18c8673840394e2aabd590eb9c42763093d0d02faf52ffdd33df100d60aff1cb",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -603,7 +603,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-hardware-budget.md"
+     "docs/history/routine/2026-11-21-hardware-budget.md"
     ],
     "tags": [
      "性能",
@@ -614,7 +614,7 @@
   {
    "id": "org.glow.plugin.instancing",
    "file": "plugins/packages/instancing.json",
-   "sha256": "0d096fa42d6ed63efa6f28259a99f19778a4747bc393a2d706d30cabac87b248",
+   "sha256": "336c8d7b440fbe29f4acb1d0019a23815872579e451d37ba7b25d7ea5b01da1a",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -699,7 +699,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-instancing-lod.md"
+     "docs/history/routine/2026-11-21-instancing-lod.md"
     ],
     "tags": [
      "性能",
@@ -710,7 +710,7 @@
   {
    "id": "org.glow.plugin.interaction-evidence",
    "file": "plugins/packages/interaction-evidence.json",
-   "sha256": "8d4fa3c6d68b905f7936ab63a14fdf138e64cac25d2824c381d423d3603d1049",
+   "sha256": "78412565c04d820fef6a19c51dc26cb4fc86fd03c4516fe222f10c7f95d00760",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -772,7 +772,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-interaction-evidence.md"
+     "docs/history/routine/2026-11-21-interaction-evidence.md"
     ],
     "tags": [
      "相互作用"
@@ -868,7 +868,7 @@
   {
    "id": "org.glow.plugin.membrane-builder",
    "file": "plugins/packages/membrane-builder.json",
-   "sha256": "b071024ff37d60fd5bfcf3ca02eddfc140f41e663a091b3b9a9018e407631485",
+   "sha256": "d31bbad04a2a3eeccc0fc9bfc64549b6f47f5b4dd78a34a396e02f422ed05d0c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -937,7 +937,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-membrane-builder.md"
+     "docs/history/routine/2026-11-21-membrane-builder.md"
     ],
     "tags": [
      "膜"
@@ -947,7 +947,7 @@
   {
    "id": "org.glow.plugin.membrane-embedding",
    "file": "plugins/packages/membrane-embedding.json",
-   "sha256": "0ebd27c70611e745c3c1dc0275ddc2dd6b5e9b432f05b82ba40d2f06c03e2041",
+   "sha256": "b9a1788beee84f205a243ef7ac487c5f5e23cc1d533f62da4af0330269edd0c8",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1011,7 +1011,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-placement.md"
+     "docs/history/routine/2026-11-21-placement.md"
     ],
     "tags": [
      "膜",
@@ -1098,7 +1098,7 @@
   {
    "id": "org.glow.plugin.motor",
    "file": "plugins/packages/motor.json",
-   "sha256": "49ed998b0b4ab419b7e13d28d3081d56f38b381e938b766efdcd3e45d37345cc",
+   "sha256": "dd15713e70434ee3406f322052f6b1c7bbb5344e6341106d93260592e2e12d87",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1161,7 +1161,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1172,7 +1172,7 @@
   {
    "id": "org.glow.plugin.predicted-structures",
    "file": "plugins/packages/predicted-structures.json",
-   "sha256": "91bc7f8ba6b8c005f91db76b4aba7c7c293079906caef6d2ad219c2c49d9d6d2",
+   "sha256": "c45fc655bb5db1cb9998739d38ef928a13167f0e2353f935f6b181032fa5d322",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1249,7 +1249,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-predicted-structures.md"
+     "docs/history/routine/2026-11-21-predicted-structures.md"
     ],
     "tags": [
      "资源",
@@ -1260,7 +1260,7 @@
   {
    "id": "org.glow.plugin.reaction-networks",
    "file": "plugins/packages/reaction-networks.json",
-   "sha256": "ae892fce704d7f1ded1c224b497cdd5fc00b7d5aa524c9de30821b240a898b8a",
+   "sha256": "5c0862677795452abb2e8a941d3bed2f7127140ab4cce1a32912bcaaca918eac",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1323,7 +1323,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1557,7 +1557,7 @@
   {
    "id": "org.glow.plugin.transporter",
    "file": "plugins/packages/transporter.json",
-   "sha256": "c54da337e621fd5f6c5784288c7623e4295e70c8e7cd16e5bd763471fb2c39b7",
+   "sha256": "f501ce64c5d023fafe50e2d40b4f700b087ed5fa617dc3686527a9d5d4bde4f6",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1620,7 +1620,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1631,7 +1631,7 @@
   {
    "id": "org.glow.plugin.volume-render",
    "file": "plugins/packages/volume-render.json",
-   "sha256": "9a0f423447b6e1d5fff3b4bee56be7872d3324f480334fe42c968eb3d78108ed",
+   "sha256": "11290d57f7dc4b637718bdc61a85491dc38434e9621b7604f0d01a4bf20b3767",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1693,7 +1693,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-volume-render.md"
+     "docs/history/routine/2026-11-21-volume-render.md"
     ],
     "tags": [
      "体积",
