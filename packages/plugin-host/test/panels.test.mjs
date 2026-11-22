@@ -43,3 +43,11 @@ test('whether a panel can be used: what it needs must be open', () => {
   assert.deepEqual(panelReadiness(both, { hasStructure: false, hasSelection: false }), { ready: false, reason: '先导入或打开一个结构。' }); assert.match(panelReadiness(both, { hasStructure: true, hasSelection: false }).reason, /选择语言/);
   assert.deepEqual(panelReadiness(both, { hasStructure: true, hasSelection: true }), { ready: true, reason: '' }); assert.equal(panelReadiness(none, {}).ready, true);
 });
+
+test('placing a chain takes a unit rotation and a bounded shift, or a reset; nothing else', () => {
+  const { host, log } = recording(); host.placePart = (...a) => log.push(['place', ...a]);
+  const api = createPanelContext(validatePanel(descriptor()), host), q = [0, 0, Math.sin(0.3), Math.cos(0.3)];
+  api.placePart({ chain: 'B', quaternion: q, from: [0, 0, 0], to: [1, 2, 3] }); assert.deepEqual(log.at(-1).slice(1, 2), [{ chain: 'B', quaternion: q, from: [0, 0, 0], to: [1, 2, 3] }]);
+  api.placePart({ chain: 'B', reset: true }); assert.deepEqual(log.at(-1)[1], { chain: 'B', reset: true });
+  for (const bad of [null, {}, { chain: '', quaternion: q, from: [0, 0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: [0, 0, 0, 2], from: [0, 0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [NaN, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [5000, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [0, 0, 0], extra: 1 }]) assert.throws(() => api.placePart(bad), PanelError, JSON.stringify(bad));
+});

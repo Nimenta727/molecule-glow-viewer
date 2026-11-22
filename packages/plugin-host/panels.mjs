@@ -2,8 +2,9 @@
  * The rules of a plugin PANEL in the Studio (the manifest's `panel` entry): where a plugin's own interface sits and what it may do to a work. One rule, so every science plugin behaves the same way:
  *
  *   input   the panel reads the open structure (`api.model()`) and the author's current selection (`api.selection()`), nothing else of the Studio.
- *   output  what a panel writes into the work goes to exactly four places, each one a normal, undoable edit that the Viewer shows WITHOUT running the plugin:
- *             the look (colours and styles of parts: `api.applyLook`), annotations (measurements and labels: `api.annotate`), evidence (`api.addEvidence`), and the panel's own data in a namespace
+ *   output  what a panel writes into the work goes to exactly five places, each one a normal, undoable edit that the Viewer shows WITHOUT running the plugin:
+ *             the look (colours and styles of parts: `api.applyLook`), annotations (measurements and labels: `api.annotate`), evidence (`api.addEvidence`), the PLACEMENT of a whole chain (`api.placePart`:
+ *             a rigid move relative to its deposited coordinates, one undo step, never touching the structure file) and the panel's own data in a namespace
  *             of its own (`api.setData`, plain JSON up to 64 KB, readable again with `api.data`).
  *   honesty a result computed by a plugin is a DERIVED result: `addEvidence` accepts only the types "derived" and "modelled" and always names the plugin and the method, so a reader can tell it
  *           from the deposited coordinates.
@@ -11,7 +12,7 @@
  */
 export const PANEL_ID = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*)+$/;
 export const PANEL_NEEDS = Object.freeze(['structure', 'selection']);
-export const MAX_DATA_BYTES = 64 * 1024, MAX_EVIDENCE = 8;
+export const MAX_DATA_BYTES = 64 * 1024, MAX_EVIDENCE = 8, MAX_SHIFT = 2000;
 
 export class PanelError extends Error { constructor(message) { super(message); this.name = 'PanelError'; } }
 
@@ -52,6 +53,7 @@ const plain = (value) => { try { return JSON.parse(JSON.stringify(value ?? null)
  *   host.applyLook(patch, message)                         { colors?: { residues: [{ expr, color | scheme }] }, styles?: [{ expr, style }] }: rules ADDED after the author's own (later rules win), checked like the Appearance tab
  *   host.annotate(patch, message)                          { measures?, labels? }: entries ADDED to the work's own
  *   host.addEvidence(entry, message)                       one evidence entry of the work
+ *   host.placePart(placement, message)                     { chain, quaternion, from, to }: rotate the chain about `from`, then carry `from` to `to` (structure coordinates, Å); null fit = back to the deposited place
  *   host.highlight(residues | null) / host.status(text)
  */
 export function createPanelContext(panel, host) {
@@ -80,6 +82,16 @@ export function createPanelContext(panel, host) {
       if (citation !== undefined && (typeof citation !== 'string' || citation.length > 300)) throw new PanelError('引用最多 300 个字符。');
       if (evidenceCount() >= MAX_EVIDENCE) throw new PanelError(`一个面板最多记 ${MAX_EVIDENCE} 条证据。`);
       host.addEvidence({ type, citation: `${panel.title}（${own}）：${method.trim()}${citation ? `；${citation}` : ''}` , source: own }, message);
+    },
+    placePart(placement, message = `${panel.title}：已移动一条链。`) {
+      const { chain, quaternion, from, to, reset, ...rest } = placement ?? {};
+      if (Object.keys(rest).length || typeof chain !== 'string' || !chain || chain.length > 40) throw new PanelError('placePart 需要 { chain, quaternion, from, to }（或 { chain, reset: true } 还原）。');
+      if (reset === true) { host.placePart({ chain, reset: true }, message); return; }
+      const vec = (v, n) => Array.isArray(v) && v.length === n && v.every((x) => Number.isFinite(x));
+      if (!vec(quaternion, 4) || !vec(from, 3) || !vec(to, 3)) throw new PanelError('placePart 的 quaternion 要 4 个数，from、to 各 3 个数。');
+      if (Math.abs(Math.hypot(...quaternion) - 1) > 1e-6) throw new PanelError('placePart 的旋转（四元数）长度必须是 1。');
+      if (Math.hypot(...to.map((v, i) => v - from[i])) > MAX_SHIFT || [...from, ...to].some((v) => Math.abs(v) > 1e5)) throw new PanelError(`移动太远（超过 ${MAX_SHIFT} Å）。`);
+      host.placePart({ chain, quaternion: [...quaternion], from: [...from], to: [...to] }, message);
     },
     highlight: (residues) => host.highlight(residues ?? null),
     status: (text) => host.status(String(text ?? '')),

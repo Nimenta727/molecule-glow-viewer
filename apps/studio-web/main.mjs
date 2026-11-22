@@ -3,6 +3,8 @@ import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
 import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
+import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
+import { rotateVector } from '../../plugins/structure/alignment.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
@@ -29,7 +31,7 @@ import { shortcutFor, wireMenus } from './shortcuts.mjs';
 import { createLookPanel } from './look-panel.mjs';
 import { lookFor, validateStyles } from '../../plugins/structure/look.mjs';
 import { validateColorState, createColorState, isDefault as isDefaultColors, resolveColor } from '../viewer-web/color-scheme.mjs';
-import { centerAndScale, selectCoordinateAtoms } from '../../plugins/structure/representation.mjs';
+import { centerAndScale, selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
 import { selectionSpace } from '../../plugins/structure/selection.mjs';
 import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
@@ -431,10 +433,12 @@ const lookPanelContext = {
 lookPanel = createLookPanel(ui['pane-look'], lookPanelContext);
 
 // ---- the analysis tab: the panels of science plugins; they read the structure and the author's selection, and write back only through the checked doors (packages/plugin-host/panels.mjs) ----
+const STRUCTURE_EXT = 'org.glow.structure';
 const panelRegistry = createPanelRegistry();
 panelRegistry.register(contactsPanel);
 panelRegistry.register(compositionPanel);
 panelRegistry.register(secondaryPanel);
+panelRegistry.register(superpositionPanel);
 const pluginData = (id) => primarySource(session().getScene())?.provenance?.viewerState?.plugins?.[id];
 const panelEnv = {
   hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),
@@ -460,6 +464,19 @@ const panelEnv = {
       if (patch.measures) next.measures = validateMeasures([...state.measures, ...patch.measures]);
       if (patch.labels) next.labels = validateLabels([...state.labels, ...patch.labels]);
       lookPanelContext.applyAnnotations(next, message);
+    },
+    placePart({ chain, reset, quaternion, from, to }, message) {
+      // a rigid move of one whole chain, as the transform of its node: the structure file is not touched. Structure coordinates (Å) become scene coordinates (0.05 m per Å, about the centre of the model).
+      const scene = session().getScene(), source = primarySource(scene), model = lookPanelContext.model();
+      if (!source || !model) throw new Error('这个场景没有可移动的结构。');
+      const nodes = scene.nodes.filter((node) => node.extensions?.[STRUCTURE_EXT]?.sourceAssetId === source.id && node.extensions[STRUCTURE_EXT].chainId === chain);
+      if (nodes.length !== 1) throw new Error(nodes.length ? `链 ${chain} 对应多个对象，不能移动。` : `找不到链 ${chain} 对应的对象。`);
+      const [node] = nodes, k = PRESENTATION_METERS_PER_ANGSTROM;
+      if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+      const c = glowPoints.get(model).center;
+      const transform = reset ? { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: node.transform.scale }
+        : { position: rotateVector(c.map((v, i) => v - from[i]), quaternion).map((v, i) => k * (v + to[i] - c[i])), rotation: [...quaternion], scale: node.transform.scale };
+      edit({ type: 'updateNode', id: node.id, patch: { transform } }, message);
     },
     addEvidence: (entry, message) => edit({ type: 'addEvidence', entry }, message),
     evidenceFrom: (id) => session().getScene().evidence.filter((entry) => entry.source === id).length,

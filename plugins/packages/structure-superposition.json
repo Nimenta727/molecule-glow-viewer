@@ -1,0 +1,70 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.structure-superposition",
+  "version": "1.0.0",
+  "name": "结构叠合（Studio 面板）",
+  "summary": "在 Studio 的“分析”页里，把一条链按 Cα 叠到同一结构里的参考部分上：给出叠合前后的 RMSD，可在画面里移动那条链、标出仍然偏远的残基，并作为“推导”证据记进作品。",
+  "category": "interaction",
+  "adds": [
+    "Studio“分析”页的面板：移动的部分必须是同一条链，参考部分默认取“外观”页的选择",
+    "配对方式：按作者残基编号加残基名配对，或在两部分残基数相同时按顺序配对",
+    "Horn 四元数拟合（Cα，核酸取 P）：叠合前后 RMSD、旋转角、质心平移、偏差最大的 10 个残基",
+    "“移动这条链”：把整条链按拟合结果移动，保存为这条链的变换（原始坐标文件不变，撤销一步即可，也可“还原位置”）",
+    "标出叠合后偏差大于 2 Å 的残基（写成作品的残基上色规则）",
+    "把结果记进作品：证据（类型“推导”，写明方法和出处）与面板自己的数据"
+  ],
+  "usage": [
+    {
+      "title": "比较一个二聚体的两条链",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A（作参考）→ “分析”页“结构叠合”移动填 chain B → 计算叠合 → 移动这条链 → 标出偏差大的残基 → 记入作品",
+      "note": "4AKE 的 B 链叠到 A 链：214 个残基对，RMSD 48.27 → 0.61 Å"
+    }
+  ],
+  "provides": [
+    {
+      "type": "panel",
+      "id": "org.glow.panel.superposition"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/superposition.mjs",
+      "exports": [
+        "superposeParts",
+        "motionOf"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/superposition-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实：单元测试用已知刚体运动核对（RMSD ≈ 0、旋转角恢复到 40°）；真实浏览器里把 4AKE 的 B 链叠到 A 链并移动，再用导出文件里的链变换从原始坐标独立重算，RMSD 0.607 Å 与面板报告的 0.61 Å 一致。",
+    "limits": [
+      "只在同一个结构的两部分之间叠合；两个不同条目（例如开放态和闭合态）的叠合还没有做",
+      "只用 Cα（核酸取 P）拟合，不做迭代剔除离群点，也不做序列比对；残基编号对不上时只能“按顺序配对”",
+      "移动的是整条链：拟合只用选中的残基，但整条链都跟着动；移动的部分必须在同一条链里",
+      "移动之后，已经算好的选择高亮、测量、标签和界面列表仍按原始坐标，不会跟着链移动",
+      "位置是计算出来的，不是测得的；RMSD 的好坏要结合配对的残基数和结构的实际含义来读",
+      "只在 Studio 里使用；Viewer 里只显示移动后的位置，没有面板"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-22-authoring-core.md"
+  ],
+  "tags": [
+    "叠合",
+    "比较"
+  ]
+}
