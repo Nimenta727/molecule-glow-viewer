@@ -1,6 +1,12 @@
 # 项目现状：我们做到哪里了
 
-更新：2026-11-21（`main`，Desktop 0.7.0 发布中；0.6.0 对应提交 2e270c1）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
+更新：2026-11-22（`main`，Desktop 0.9.0；发行记录见 [docs/releases](releases/desktop-v0.9.0.md)）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
+
+## 0.9.0 做了什么（2026-11-22）
+
+- **作图核心**：选择驱动的表示与着色（含逐原子棍状）、标注与测量（含按类型着色的氢键/盐桥线）、镜头关键帧、分子表面（可按简化库仑静电/疏水性着色）、一个场景放多个结构；全部随作品保存，Viewer 里一样显示。详见 [routine 记录](routine/2026-11-22-authoring-core.md)。
+- **插件面板规矩**（`packages/plugin-host/panels.mjs`）与五个 Studio 面板：界面接触（含氢键/盐桥/疏水分类）、组成与性质、序列与二级结构、结构叠合（可跨条目）、分子表面与静电；插件清单共 22 个。
+- **诚实的局限**：静电是简化库仑（不是 APBS）；氢键/盐桥只用重原子距离、无角度；叠合只用 Cα；移动过的链上已算好的高亮/测量/表面不跟着走；Viewer 里只能看、不能做；没有真实 GPU 验证，科学表述未经专业审阅。
 
 ## 一句话
 
@@ -72,13 +78,13 @@
 - Studio 的粒子预览已做（工具页签里勾选“预览粒子”）；细胞一角里核糖体站与通道站的空间联系、整细胞的内膜“洞”与区域层级还没画（拟核、核糖体、鞭毛、肽聚糖、LPS、膜蛋白已画）。
 - 70S 核糖体结构动画未做（原子特写已做）；KcsA 的动力学已跑在通用引擎上，播放器外壳仍是旧 id。
 - pH 体积（均匀半透明盒，不是光线步进的着色器）与作用位点闪光已做，pH 体积盒已在浏览器里看到。回退/干预已做在数据动画工具上（确定性重放＋干预记录，回退/干预的界面已在真实浏览器里操作并看过（见下））；翻译、随机过程、多过程、旧三件播放器还没有。
-- **没有真实 GPU 验证**。Desktop 0.6.0/0.7.0 的 Windows portable EXE 已由 CI 实际启动并通过六个运行案例与四个安全案例（软件渲染），见 [0.6.0 记录](validation/desktop-v0.6.0.json)；真实 GPU 上的性能与外观仍待维护者检查。
+- **没有真实 GPU 验证**。Desktop 0.6.0 起每个版本的 Windows portable EXE 已由 CI 实际启动并通过六个运行案例与四个安全案例（软件渲染），见 [0.6.0 记录](validation/desktop-v0.6.0.json)；真实 GPU 上的性能与外观仍待维护者检查。
 - **能量条与 pH 体积已在真实 Chromium（软件渲染）里看过**：呼吸链作品打开后顶部显示七步能量条、点亮第一步，结构周围是半透明的 pH 体积盒，动画面板的计数随模型走（截图 [official.respiratory-chain.work-opened.png](images/official.respiratory-chain.work-opened.png)、[running](images/official.respiratory-chain.work-running.png)；方法：`node tools/work-shot.cjs <作品编号>`）。软件渲染每秒只有约一帧，动画走得很慢，所以没能在截图里看完整个周期；回退/干预的外观已看过（软件渲染，见下一条）。
 - 仍悬着的维护者事项：真实 GPU 检查；为 4.3 完成门槛选定真实的第二个结构对；在 GitHub 把 `platform-release-gate` 设为 main 必须通过的检查。（Windows 上的 studio-smoke 已在 CI 的 Windows 作业里运行。）
 
 ## 下一步（建议顺序）
 
-0. **先把 Desktop 0.7.0 发出去**：main 已含 0.7.0 全部内容，但 `desktop-v0.7.0` 标签与 Release 尚未创建（打标签触发闸门与发布，需维护者确认）。详见 [计划](routine/2026-11-21-next-plan-after-0.7.0.md)。
+0. **Desktop 0.9.0 已发布**（见 [发行说明](releases/desktop-v0.9.0.md)）：作图核心、五个 Studio 科研分析面板（插件共 22 个）、多结构场景。**接下来由维护者做**：在有独显的电脑上验收（[ACCEPTANCE_GPU_PROMPT](ACCEPTANCE_GPU_PROMPT.md)，分子表面三角形多，要看帧率），并请有专业背景的人审阅各面板的科学表述（氢键/盐桥阈值、简化库仑静电、核心域划分）。
 
 1. 4.4.8 余下：**构象状态机已做**（时间与状态侧；见 [CONFORMATION_MACHINE](CONFORMATION_MACHINE.md)），ATP 合酶/AdK 的**结构侧**也已抽成通用“构象集”（`conformation-set.mjs`）；把它们升成 layer-v1 的通用工具（不再是 player-v1 专用外壳）；区域层级自己的粗糙内容；重复加载稳定性；浏览器/GPU/桌面验收。
 2. 三个“播放器”并入通用引擎：KcsA 的动力学已跑在通用 Markov 引擎上（同种子逐事件、逐位一致，黄金轨迹不变）；ATP 合酶和 AdK 的算法（旋转、构象插值、叠合）早已用共享的 `plugins/motion`、`plugins/structure`，它们剩下的是各自的时间轴/粒子/事件编排，不是可以再并的算法。KcsA 的体相粒子、水合壳、曲线已恢复（胞外 Na⁺ 无控件、浴液离子与孔道进出不交换为已知差异）；把回退/干预扩展到其它工具；pH 体积着色；能量条接到其它工具（翻译/随机过程/旧三件）。

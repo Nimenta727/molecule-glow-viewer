@@ -31,7 +31,7 @@
 
 【步骤 A：下载桌面版并校验（发布后才有；404 就停下来告诉我“还没发布”）】
 （PowerShell）
-  $v = '0.8.0'; $base = "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v$v"
+  $v = '0.9.0'; $base = "https://github.com/Nimenta727/molecule-glow-viewer/releases/download/desktop-v$v"
   New-Item -ItemType Directory -Force desktop-release | Out-Null; Set-Location desktop-release
   foreach ($f in "MoleculeGlow-$v-win-x64.exe", 'SHA256SUMS.txt', 'release-manifest.json') { Invoke-WebRequest "$base/$f" -OutFile $f }
   Get-FileHash "MoleculeGlow-$v-win-x64.exe" -Algorithm SHA256
@@ -40,8 +40,8 @@
 运行：这个程序未签名，Windows SmartScreen 可能拦一下，“仍要运行”要我自己来点——请告诉我，不要替我点。为了能在里面跑 `glow.benchmark()`，用下面的方式启动（开发者工具会在旁边弹出）：
   $env:GLOW_DEVTOOLS = '1'; Start-Process ".\MoleculeGlow-$v-win-x64.exe"
 在 EXE 里确认并记录：
-  a) 菜单“帮助 → 版本与构建”：版本应为 0.8.0，提交号应等于 release-manifest.json 的 sourceCommit；
-  b) 菜单“工作区”切到新 Viewer，点“工坊”：应有“静态作品 / 作品区 / 资源区 / 插件区 / 我的模板”五个分页；“插件区”应有 17 个插件；“静态作品”里应有“血红蛋白：四个亚基与四个血红素”（需要联网，且要在合并到 main 之后）；
+  a) 菜单“帮助 → 版本与构建”：版本应为 0.9.0，提交号应等于 release-manifest.json 的 sourceCommit；
+  b) 菜单“工作区”切到新 Viewer，点“工坊”：应有“静态作品 / 作品区 / 资源区 / 插件区 / 我的模板”五个分页；“插件区”应有 22 个插件；“静态作品”里应有“血红蛋白：四个亚基与四个血红素”（需要联网，且要在合并到 main 之后）；
   c) 开发者工具的控制台里：`await glow.help()`，核对命令列表包含 complex、assemble、embed、compose、interactions、binding、source、instances、volume、membrane、benchmark；
   d) 打开任意结构后：`await glow.benchmark()`，把返回的 renderer、software、stats.fps、budget、tier 抄进报告（software 为 true 就是没用显卡，按步骤 4 的排查表处理）；
   e) 关闭程序再打开一次，确认能正常启动（不闪退、不白屏）。
@@ -105,12 +105,19 @@
  2. ATP 合酶作品：点播放后中央柄/c 环在转，右侧计数 ATP、H⁺ 随转角增加；转动是否顺畅（有没有卡顿或跳帧）。
  3. 核糖体翻译作品：展开面板里点“播放”（过程面板），核糖体朝向你的一侧被剖开，里面能看到橙色/红色的 tRNA 在位点间移动，右侧有新生肽链从出口通道伸出；肽链长度、已合成蛋白数在增长。
  4. 呼吸链作品：能量转化条随步骤点亮，计数器在走。
- 5. 工坊（Viewer 里点“工坊”）：有“静态作品 / 作品区 / 资源区 / 插件区 / 我的模板”五个分页；“我的模板”里能导入一份自己的结构文件（必须选授权）、能从 PDB 编号添加（试 4AKE）、刷新页面后还在、点“打开结构”能打开；“插件区”里有 17 个插件，停用“膜蛋白插膜”后在控制台 `await glow.embed({shape:{kind:'sphere',radius:400},copies:3})` 会提示已停用。
+ 5. 工坊（Viewer 里点“工坊”）：有“静态作品 / 作品区 / 资源区 / 插件区 / 我的模板”五个分页；“我的模板”里能导入一份自己的结构文件（必须选授权）、能从 PDB 编号添加（试 4AKE）、刷新页面后还在、点“打开结构”能打开；“插件区”里有 22 个插件，停用“膜蛋白插膜”后在控制台 `await glow.embed({shape:{kind:'sphere',radius:400},copies:3})` 会提示已停用。
  6. 控制台（F12）里在打开任意结构后运行：`await glow.benchmark()`，把返回的 renderer、fps、budget、tier 抄给我（这就是这张卡的真实数据）。
  7. 实例化：打开结构 6N2Y（RCSB 编号框输入后“打开结构”），控制台 `await glow.instances({copies: 2000})`，转动、缩放时是否流畅；`await glow.instances(null)` 能清除。
  8. 膜蛋白嵌膜：打开 1K4C（勾选“导入时使用生物组装体”），控制台 `await glow.embed({shape:{kind:'sphere',radius:1600},copies:400,seed:3})`，看囊泡上的 400 个通道是否均匀、朝向是否一致（朝向相对于膜是否合理要人判断）。
  9. 滚动、缩放、旋转时有没有明显掉帧、闪烁、花屏、黑块。
 10. 整个过程中有没有崩溃、白屏、风扇狂转到不正常。
+11. Studio 作图与分析（0.9.0 新增）：打开 Studio，“导入结构为新场景”选 4AKE，再用“文件 → 把另一个结构加入当前场景…”加 1AKE。
+    a) “外观”页选择里写 chain A，试“卡通 / 棍状 / 隐藏”和按疏水性、B 因子着色，画面是否对、是否流畅；
+    b) “分析”页“分子表面与静电”：对 chain A 选“静电势”画出表面（约 8 万个三角形），转动、缩放是否流畅（这是最吃显卡的一项）；红蓝是否大致对应带负电（Asp/Glu）和带正电（Lys/Arg）的区域；
+    c) “分析”页“界面接触”：A 填 chain A，B 填 chain B，计算、分类、画线，线的颜色（蓝 = 氢键、粉 = 盐桥）和距离提示是否看得清；
+    d) “分析”页“结构叠合”：移动的结构选 4AKE、参考的结构选 1AKE，两边都写 chain A and (resi 1-29 or resi 60-121 or resi 160-214)，计算叠合应得到约 1.98 Å，点“移动这条链”后两个结构的核心域是否叠在一起；
+    e) 时间线上拖到 0 秒、4 秒各存一个“镜头关键帧”，播放时镜头是否平滑移动；
+    f) 导出场景，在 Viewer 里打开：点“启用官方结构插件”后，颜色、线、表面、移动后的位置是否和 Studio 里一致。
 
 【步骤 8：交付】
 写一份 gpu-acceptance-out/ACCEPTANCE_REPORT.md，结构固定：

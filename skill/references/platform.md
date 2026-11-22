@@ -1,4 +1,4 @@
-# 当前主体＋插件平台（Desktop/Skill 0.7.0）
+# 当前主体＋插件平台（Desktop/Skill 0.9.0）
 
 ## 入口与能力
 
@@ -25,6 +25,14 @@
 5. 升级一个已发布作品：同作者、同编号、版本加 1（检查会提示下一个版本号）；从别人的作品派生：在“派生自”里选它，可选授权会按来源自动收窄（来源含 BY-SA 则只能 BY-SA）。
 6. 打开别人的作品时，缺少的工具/插件不会让场景打不开：该部分不运行，其余照常显示，原因写在场景诊断里；旧工具编号按现行编号运行并提示。
 
+## Studio 的作图与分析（0.9.0）
+
+- 选择语言（`chain A and resi 10-50`、`within 5 of ligands`、`resn HIS`…）是所有作图与分析的输入。外观页对选择设表示/颜色/表面，规则写进结构文件 `provenance.viewerState`（`colors`、`styles`、`surfaces`、`measures`、`labels`、`bonds`、`plugins[面板编号]`、`camera` …），Viewer 读同一处；不要手造这些字段，用 Studio 的命令 `setViewerState` 与各模块的 `validate*`（`plugins/structure/look.mjs`、`annotations.mjs`、`molecular-surface.mjs`）。
+- 镜头关键帧是 `presentation.cameraKeys`（时间 + 视角书签），`packages/schema/camera-track.mjs` 的 `cameraAt` 在 Studio 与 Viewer 里共用。
+- 插件面板规矩见 `packages/plugin-host/panels.mjs`：面板只读结构（`api.model()/models()`）和选择，只能通过 `applyLook`、`annotate`、`addEvidence`（只能记“推导/建模”，必须写明方法）、`placePart`（整条链的刚性移动，不碰坐标文件）、`setData`（自己的命名空间，≤ 64 KB）写回。新增分析一律做成面板，不要各搞一套界面。
+- 现有五个面板：界面接触（含氢键/盐桥/疏水分类，距离判据、无角度）、组成与性质、序列与二级结构、结构叠合（Cα 的 Horn 拟合，可跨结构）、分子表面与静电（高斯表面 + 简化库仑，不是 APBS）。每个面板的限制写在 `plugins/packages/*.json` 的 `status.limits` 里；对外说明时要如实引用。
+- 验证叠合/放置一类几何功能时，要用导出文件里的变换和原始坐标**独立重算**一遍（见 `tools/superposition-check.cjs`、`tools/cross-superposition-check.cjs`），不要只看数字合理——跨结构的坐标系错误就是这样抓到的。
+
 ## 在仓库里实现
 
 - apps/viewer-web 协调加载/UI，mechanism-runtime 只适配原场景/player；packages 提供 Core、Schema、宿主、渲染、兼容和编辑器。
@@ -40,7 +48,7 @@ feature-parity.json 和 docs/parity/cases.json 绑定经典/新版案例、数�
 
 ## 命令与嵌入
 
-window.glow 是页面内接口，先 help() 了解当前入口：它列出命令，也列出已注册的工具及其运行参数。新版现已支持选择语言、measure、sequence、按整条链的 color、clip 和经典写法的 camera（orbit / az,el,dist / focus）；style（画风）、按残基范围上色、按选择换表示尚未迁移，被明确拒绝而不是静默忽略。导出新版返回 glow-v2 的 base64 包装，不能假装是 v1 对象。
+window.glow 是页面内接口，先 help() 了解当前入口：它列出命令，也列出已注册的工具及其运行参数。新版现已支持选择语言、measure、sequence、按整条链的 color、clip 和经典写法的 camera（orbit / az,el,dist / focus）；`show(选择, cartoon|backbone|blob|sticks|hidden)`（对选择换表示，PyMOL 的 show/hide）、`color(选择, 颜色|hydrophobicity|bfactor|charge|secondary)` 按残基上色也已支持；经典的 style（画风）尚未迁移，被明确拒绝而不是静默忽略。导出新版返回 glow-v2 的 base64 包装，不能假装是 v1 对象。
 
 embed=1/dev=1 只启用桥。固定可信 origin 也需要用户明确授权；请求绑定父窗口/opener、origin 和当前场景。控制只回确认，info/snapshot/exportPack/log/sequence/measure 为单独敏感权限；撤销/换场景使权限失效。URL origin 参数不能自授权。同源页面仍有原有 DOM 权限；完整插件沙箱待收尾。
 

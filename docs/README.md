@@ -1,6 +1,6 @@
 # 当前文档入口
 
-日期：2026-11-20；Desktop/Skill 发布系列 0.7.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
+日期：2026-11-22；Desktop/Skill 发布系列 0.9.0，确切提交和哈希以发行清单及 EXE 帮助菜单为准。旧叙述在 [history](history/README.md)，综合脉络见 [历史沿革总结](history/EVOLUTION_SUMMARY.md)。先制作基底，再经典已有功能插件化，最后新增科研插件。
 
 | 文档 | 阅读目的 |
 |---|---|

@@ -15,7 +15,7 @@
 | 4.0 | 打包闭环与真实 EXE 回归 | 原范围已交付；[P0](history/RELEASE_VALIDATION_2026-11-19.md) |
 | 4.1 | 指定安全风险整改 | 原范围已交付；[安全记录](history/SECURITY_REMEDIATION_2026-11-19.md)，不是完整沙箱 |
 | 4.2 | 经典对照、科学卡、数值与证据基础 | 已建立；[对照记录](history/PARITY_BASELINE_2026-11-19.md)，完整等价仍待验收 |
-| 发行维护 | Desktop/Skill 0.7.0（标签触发 desktop-release 工作流：闸门全过后自动建 Release）、docs/README 整理 | Release 内 release-manifest.json；[0.5.0 固定构建记录](validation/desktop-v0.5.0.json)，不等于新增架构完成 |
+| 发行维护 | Desktop/Skill 0.9.0（标签触发 desktop-release 工作流：闸门全过后自动建 Release）、docs/README 整理 | Release 内 release-manifest.json；[0.5.0 固定构建记录](validation/desktop-v0.5.0.json)，不等于新增架构完成 |
 | 4.3 | 软件制作基底 | **闭环与完成门槛已做到**（2026-11-21）：第二个真实结构对（麦芽糖结合蛋白 1OMP 开 / 1ANF 闭）只改配置就用同一个构象工具预览、保存、重开，数值与真实浏览器都过；余项见下表（Studio 残基级拾取，更细的工具拆分随 4.4）。科学上的专业审阅仍列为维护者事项 |
 | 4.4 | Claude 历史功能按功能插件化 | **进行中：4.4.0–4.4.7 主要部分完成；4.4.8 已做呼吸链/叶绿体作品与接力、转子联动、翻译核糖体运动与因子/抗生素、整细胞部件、能量条、构象状态机与构象集，并随 Desktop 0.6.0 发布；余：ATP/KcsA/AdK 完整对照、鞭毛/翻译/细胞一角/整细胞由“预览”转正、15 包逐包验收**；见 [STATUS](STATUS.md) |
 | 4.5 | 作者、API、工坊两区完整闭环 | **代码层面已做**：4.5.0 命令接口补齐、4.5.1 工坊详情/版本/授权/派生/依赖诊断、4.5.2 发布检查/版本升级/派生/场景包入库/草稿恢复/缺失能力；见 [STATUS](STATUS.md)。官方作品用到的结构已全部登记为资源（2026-11-21，哈希待维护者评审）。未做：按残基范围上色、style 画风 |
