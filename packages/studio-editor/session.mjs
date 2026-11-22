@@ -122,6 +122,13 @@ function mergeCore(scene, coreDocument, renderableAssetIds, assetIntents) {
   });
 }
 
+/** A bookmark made for a camera key (id starts with "camkey-") goes with it, unless something else (a navigation view, another key) still uses it. */
+function dropAutoBookmark(presentation, bookmarkId) {
+  if (!String(bookmarkId).startsWith('camkey-')) return;
+  const used = (presentation.cameraKeys ?? []).some((key) => key.bookmarkId === bookmarkId) || (presentation.navigation?.views ?? []).some((view) => view.bookmarkId === bookmarkId);
+  if (!used) presentation.bookmarks = presentation.bookmarks.filter(({ id }) => id !== bookmarkId);
+}
+
 function applyMetadata(scene, command) {
   const next = clone(scene);
   switch (command.type) {
@@ -160,6 +167,28 @@ function applyMetadata(scene, command) {
       }
       next.presentation ??= { notes: [], bookmarks: [] };
       next.presentation.bookmarks.push(clone(bookmark));
+      break;
+    }
+    case 'addCameraKey': {
+      // a camera keyframe: a time and the view the camera has then (saved as a bookmark of its own); a key already at that time is replaced
+      const { key, bookmark } = command;
+      if (!key || typeof key.id !== 'string' || !Number.isFinite(key.time) || key.time < 0 || !bookmark || typeof bookmark.id !== 'string' || typeof bookmark.name !== 'string' || !Array.isArray(bookmark.position) || !Array.isArray(bookmark.target)) {
+        throw new TypeError('addCameraKey requires { key: { id, time }, bookmark: { id, name, position, target } }');
+      }
+      next.presentation ??= { notes: [], bookmarks: [] };
+      const old = (next.presentation.cameraKeys ??= []).find((entry) => entry.time === key.time);
+      if (old) { next.presentation.cameraKeys = next.presentation.cameraKeys.filter((entry) => entry !== old); dropAutoBookmark(next.presentation, old.bookmarkId); }
+      next.presentation.bookmarks.push(clone(bookmark));
+      next.presentation.cameraKeys.push({ id: key.id, time: key.time, bookmarkId: bookmark.id });
+      next.presentation.cameraKeys.sort((a, b) => a.time - b.time);
+      break;
+    }
+    case 'removeCameraKey': {
+      const keys = next.presentation?.cameraKeys ?? [], key = keys.find(({ id }) => id === command.id);
+      if (!key) throw new TypeError(`没有镜头关键帧 ${String(command.id)}。`);
+      next.presentation.cameraKeys = keys.filter((entry) => entry !== key);
+      if (!next.presentation.cameraKeys.length) delete next.presentation.cameraKeys;
+      dropAutoBookmark(next.presentation, key.bookmarkId);
       break;
     }
     case 'setViewerState': {
@@ -244,7 +273,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setViewerState', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setViewerState', 'addCameraKey', 'removeCameraKey', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 

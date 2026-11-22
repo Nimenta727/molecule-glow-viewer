@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStudioSession } from '../session.mjs';
 import { GEOMETRY_MEDIA_TYPE } from '../../schema/geometry.mjs';
+import { validateScene } from '../../schema/documents.mjs';
 
 const transform = () => ({ position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] });
 const scene = () => ({
@@ -252,4 +253,25 @@ test('the look of a structure is one undoable step in its viewer state, keeps th
   session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { camera: null, colors: null, styles: null } }); assert.equal(geometry().provenance?.viewerState, undefined, 'an empty viewer state is removed');
   assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'primitive', patch: { colors: {} } }), /没有结构文件/); assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'nope', patch: {} }), /没有结构文件/);
   assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: { big: 'x'.repeat(300 * 1024) } }), /太大/); assert.throws(() => session.dispatch({ type: 'setViewerState', assetId: 'geometry', patch: [] }), /patch object/);
+});
+
+test('camera keys: adding one saves a view of its own, the same time replaces, removing takes the view with it, and each step undoes', () => {
+  const session = createStudioSession(scene());
+  const key = (id, time, x) => ({ key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time} 秒`, position: [x, 0, 5], target: [0, 0, 0] } });
+  assert.equal(session.dispatch({ type: 'addCameraKey', ...key('k1', 2, 1) }), true); session.dispatch({ type: 'addCameraKey', ...key('k2', 0, 2) });
+  assert.deepEqual(session.getScene().presentation.cameraKeys.map((k) => [k.id, k.time]), [['k2', 0], ['k1', 2]], 'sorted by time');
+  session.dispatch({ type: 'addCameraKey', ...key('k3', 2, 3) });
+  assert.deepEqual(session.getScene().presentation.cameraKeys.map((k) => k.id), ['k2', 'k3'], 'the key at the same time is replaced'); assert.equal(session.getScene().presentation.bookmarks.some(({ id }) => id === 'camkey-k1'), false, 'and its view goes');
+  session.dispatch({ type: 'removeCameraKey', id: 'k3' }); assert.deepEqual(session.getScene().presentation.cameraKeys.map((k) => k.id), ['k2']);
+  assert.throws(() => session.dispatch({ type: 'removeCameraKey', id: 'nope' }), /没有镜头关键帧/); assert.throws(() => session.dispatch({ type: 'addCameraKey', key: { id: 'x', time: -1 }, bookmark: {} }), /addCameraKey requires/);
+  session.dispatch({ type: 'removeCameraKey', id: 'k2' }); assert.equal(session.getScene().presentation.cameraKeys, undefined); assert.equal(session.getScene().presentation.bookmarks.filter(({ id }) => id.startsWith('camkey-')).length, 0);
+  assert.equal(session.undo(), true); assert.equal(session.getScene().presentation.cameraKeys.length, 1, 'undo brings the key and its view back');
+});
+
+test('a scene with camera keys is valid only when every key has a view and no two keys share a time', () => {
+  const session = createStudioSession(scene());
+  session.dispatch({ type: 'addCameraKey', key: { id: 'k1', time: 1 }, bookmark: { id: 'camkey-k1', name: '镜头', position: [0, 0, 5], target: [0, 0, 0] } });
+  const exported = session.getScene(); assert.doesNotThrow(() => validateScene(exported));
+  const broken = structuredClone(exported); broken.presentation.cameraKeys[0].bookmarkId = 'gone'; assert.throws(() => validateScene(broken), /unknown bookmark/);
+  const twice = structuredClone(exported); twice.presentation.cameraKeys.push({ id: 'k2', time: 1, bookmarkId: 'camkey-k1' }); assert.throws(() => validateScene(twice), /duplicate camera key/);
 });

@@ -135,6 +135,10 @@ const SCENE_PROPERTIES = {
         type: 'object', additionalProperties: false, required: ['id', 'name', 'position', 'target'],
         properties: { id: ID, name: { type: 'string', minLength: 1, maxLength: 200 }, position: VEC3, target: VEC3 },
       } },
+      cameraKeys: { type: 'array', maxItems: 64, items: {
+        type: 'object', additionalProperties: false, required: ['id', 'time', 'bookmarkId'],
+        properties: { id: ID, time: { type: 'number', minimum: 0 }, bookmarkId: ID },
+      } },
       navigation: {
         type: 'object', additionalProperties: false, required: ['version', 'entryId', 'views'],
         properties: {
@@ -303,6 +307,9 @@ function checkSceneReferences(scene) {
     if (bookmarks.some(({ position, target }) => position.every((value, index) => value === target[index]))) {
       throw new SchemaValidationError('bookmark camera position must differ from its target');
     }
+    const keys = scene.presentation.cameraKeys ?? [], bookmarkIds = new Set(bookmarks.map(({ id }) => id));
+    if (new Set(keys.map(({ id }) => id)).size !== keys.length || new Set(keys.map(({ time }) => time)).size !== keys.length) throw new SchemaValidationError('duplicate camera key ID or time');
+    if (keys.some(({ bookmarkId }) => !bookmarkIds.has(bookmarkId))) throw new SchemaValidationError('camera key refers to an unknown bookmark');
     checkNavigation(scene.presentation, nodeIds, scene.timeline);
   }
   if (scene.schemaVersion === 3) checkWorkReferences(scene);

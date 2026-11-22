@@ -192,6 +192,9 @@
             <input id="bookmark-name" type="text">
             <button id="add-bookmark" type="button">保存当前视角</button>
             <ul id="bookmark-list" class="text-list" aria-label="视角书签列表"></ul>
+            <h3 class="wide">镜头关键帧</h3>
+            <p class="tool-note wide">在时间线上拖到某个时间，摆好镜头，点“🎥 镜头关键帧”。播放（和 Viewer 里播放）时镜头在关键帧之间平滑移动；第一帧之前和最后一帧之后镜头停在该帧。</p>
+            <ul id="camera-key-list" class="text-list" aria-label="镜头关键帧列表"></ul>
           </details>
           </div>
 
@@ -230,6 +233,7 @@
             <input id="studio-playhead" type="range" min="0" max="10" step="any" value="0" aria-label="播放头">
             <label for="duration">时长（秒）</label><input id="duration" type="number" min="0" step="0.1" value="10">
             <button id="add-keyframe" type="button">◆ 添加关键帧</button>
+            <button id="add-camera-key" type="button" title="把当前镜头存为这个时间点的关键帧；播放时镜头按关键帧平滑移动">🎥 镜头关键帧</button>
           </div>
         </footer>
         <p id="status" role="status" class="status">正在启动 Studio…</p>

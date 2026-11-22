@@ -42,6 +42,7 @@ import { residueConfidence, confidenceColor, residueIdentity } from '../../plugi
 import { lookFor, applyStyle, validateStyles } from '../../plugins/structure/look.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
+import { cameraAt } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
@@ -1130,6 +1131,12 @@ function boot() {
     if (active.structureSelection && !viewport.setPointSelection(active.structureSelection)) showStructurePick();
   });
 
+  /** Camera keyframes of the work: while the timeline plays or is dragged, the camera follows them (nothing when the work has none). */
+  function followCameraTrack() {
+    if (!active) return;
+    const time = active.player ? active.player.snapshot().time : active.timeline.time, camera = cameraAt(active.scene?.presentation, time);
+    if (camera) viewport.setCamera(camera);
+  }
   function showPose() {
     if (active?.player) {
       const snapshot = active.player.snapshot();
@@ -1830,6 +1837,7 @@ function boot() {
     if (active?.player) active.player.seek(Number(elements.playhead.value));
     else active.timeline.seek(Number(elements.playhead.value));
     showPose();
+    followCameraTrack();
   });
   elements.play.addEventListener('click', () => {
     active.inspectionStep = undefined;
@@ -1844,6 +1852,7 @@ function boot() {
         player.advance(Math.min(0.1, Math.max(0, (now - previous) / 1000)));
         previous = now;
         showPose();
+        followCameraTrack();
         frame = player.snapshot().playing ? requestAnimationFrame(tick) : undefined;
       }
       frame = requestAnimationFrame(tick);
@@ -1864,6 +1873,7 @@ function boot() {
       timeline.advance(Math.max(0, (now - previous) / 1000));
       previous = now;
       showPose();
+      followCameraTrack();
       frame = timeline.playing ? requestAnimationFrame(tick) : undefined;
     }
     frame = requestAnimationFrame(tick);

@@ -1,3 +1,4 @@
+import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { Euler, MathUtils, Quaternion } from 'three';
@@ -552,6 +553,13 @@ function renderPanels(scene, document) {
     listItem(text, nodeId ? () => select(nodeId) : null)));
   ui['bookmark-list'].replaceChildren(...(scene.presentation?.bookmarks ?? []).map((bookmark) =>
     listItem(bookmark.name, () => viewport.setCamera(bookmark))));
+  ui['camera-key-list'].replaceChildren(...sortedCameraKeys(scene.presentation).map((key) => {
+    const page = globalThis.document, item = page.createElement('li'), jump = page.createElement('button'), remove = page.createElement('button');
+    jump.type = remove.type = 'button'; jump.textContent = `${key.time.toFixed(2)} 秒`; remove.textContent = '×'; remove.setAttribute('aria-label', `删除 ${key.time.toFixed(2)} 秒的镜头关键帧`);
+    jump.addEventListener('click', run(() => { timeline.seek(Math.min(key.time, timeline.duration)); showPose(); applyCameraTrack(); }));
+    remove.addEventListener('click', run(() => edit({ type: 'removeCameraKey', id: key.id }, '已删除镜头关键帧。')));
+    item.append(jump, remove); return item;
+  }));
   ui['evidence-list'].replaceChildren(...scene.evidence.map(({ type, citation, assetId }) =>
     listItem([TYPES[type] || type, citation || assetId].filter(Boolean).join(' · '))));
   navigationEditor.render(scene);
@@ -846,6 +854,15 @@ onClick('add-evidence', () => {
   edit({ type: 'addEvidence', entry: { type: ui['evidence-kind'].value, citation } }, '已保存证据。');
   ui.citation.value = '';
 });
+/** The camera the keys give at the playhead (nothing when the scene has no keys). */
+function applyCameraTrack() {
+  const camera = cameraAt(session().getScene().presentation, timeline.time);
+  if (camera) viewport.setCamera(camera);
+}
+onClick('add-camera-key', () => {
+  const time = Math.round(timeline.time * 100) / 100, id = makeId('camkey');
+  edit({ type: 'addCameraKey', key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time.toFixed(2)} 秒`, ...viewport.getCamera() } }, `已保存 ${time.toFixed(2)} 秒的镜头关键帧。`);
+});
 onClick('add-bookmark', () => {
   const name = ui['bookmark-name'].value.trim();
   if (!name) throw new Error('请输入视角书签名称。');
@@ -873,6 +890,7 @@ ui['studio-playhead'].addEventListener('input', () => {
   editingPose = false;
   timeline.seek(ui['studio-playhead'].valueAsNumber);
   showPose();
+  applyCameraTrack();
 });
 onClick('studio-play', () => {
   if (timeline.playing) { stopPlayback(); showPose(); return; }
@@ -884,6 +902,7 @@ onClick('studio-play', () => {
     timeline.advance(Math.max(0, (now - previous) / 1000));
     previous = now;
     showPose();
+    applyCameraTrack();
     frame = timeline.playing ? requestAnimationFrame(tick) : undefined;
   };
   frame = requestAnimationFrame(tick);
