@@ -11,13 +11,14 @@ const files = fs.readdirSync(dir).filter((name) => name.endsWith('.json')).sort(
 const manifests = files.map((name) => ({ name, manifest: validatePluginManifest(JSON.parse(fs.readFileSync(new URL(name, dir), 'utf8'))) }));
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
-const STUDIO_PANELS = new Set([contactsPanel.id, compositionPanel.id]);   // the panels apps/studio-web/main.mjs registers
+import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
+const STUDIO_PANELS = new Set([contactsPanel.id, compositionPanel.id, secondaryPanel.id]);   // the panels apps/studio-web/main.mjs registers
 const KNOWN_PLUGINS = new Set(['org.glow.structure']);
 const exists = (path) => fs.existsSync(new URL(path, root));
 
-test('the nineteen plugins are all packaged, each under its own id and file name', () => {
-  assert.equal(manifests.length, 19);
-  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 19, 'ids are unique');
+test('the twenty plugins are all packaged, each under its own id and file name', () => {
+  assert.equal(manifests.length, 20);
+  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 20, 'ids are unique');
   for (const { name, manifest } of manifests) assert.equal(manifest.id, `org.glow.plugin.${name.replace(/\.json$/, '')}`, `${name}: the id follows the file name`);
 });
 

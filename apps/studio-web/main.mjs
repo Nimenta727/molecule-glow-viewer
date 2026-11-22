@@ -2,6 +2,7 @@ import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
 import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
+import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
 import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
@@ -433,6 +434,7 @@ lookPanel = createLookPanel(ui['pane-look'], lookPanelContext);
 const panelRegistry = createPanelRegistry();
 panelRegistry.register(contactsPanel);
 panelRegistry.register(compositionPanel);
+panelRegistry.register(secondaryPanel);
 const pluginData = (id) => primarySource(session().getScene())?.provenance?.viewerState?.plugins?.[id];
 const panelEnv = {
   hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),

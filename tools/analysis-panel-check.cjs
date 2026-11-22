@@ -34,7 +34,14 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.fill('#composition-part', 'banana'); await studio.click('#composition-run'); assert.match(await studio.$eval('#composition-out', (n) => n.textContent), /不认识/); await studio.fill('#composition-part', 'chain A and resi 1-60'); await studio.click('#composition-run');
   await studio.click('#composition-hydro'); await studio.waitForFunction(() => /已按疏水性涂色/.test(document.querySelector('#composition-out').textContent));
   await studio.click('#composition-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#composition-out').textContent));
-  await studio.waitForTimeout(1500); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
+  // the third panel: sequence and secondary structure
+  await studio.fill('#secondary-part', 'chain A'); await studio.click('#secondary-run'); await studio.waitForSelector('#secondary-out pre', { timeout: 15000 });
+  const seqText = await studio.$eval('#secondary-out', (n) => n.textContent); assert.match(seqText, /链 A：214 个残基，螺旋 \d+%，折叠 \d+%/); assert.match(seqText, /MRIILLGAPGAGKGTQAQFIMEKYGIPQIS/, '4AKE chain A starts with its known sequence');
+  const segs = await studio.$$('#secondary-out button[data-expr]'); assert.ok(segs.length >= 5, 'helix and strand segments are listed'); await studio.evaluate(() => document.querySelector('#secondary-out button[data-expr]').click());
+  await studio.fill('#secondary-part', 'banana'); await studio.click('#secondary-run'); assert.match(await studio.$eval('#secondary-out', (n) => n.textContent), /不认识/); await studio.fill('#secondary-part', 'chain A'); await studio.click('#secondary-run'); await studio.waitForSelector('#secondary-out pre');
+  await studio.click('#secondary-paint'); await studio.waitForFunction(() => /已按二级结构涂色/.test(document.querySelector('#secondary-out').textContent));
+  await studio.click('#secondary-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#secondary-out').textContent));
+  await studio.evaluate(() => document.querySelector('[data-panel="org.glow.panel.secondary"]').scrollIntoView()); await studio.waitForTimeout(1200); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
   const pack = await exportPack('contacts'); const { readScenePackage } = await import(path.join(ROOT, 'packages/schema/archive.mjs'));
   const { scene } = await readScenePackage(new Uint8Array(fs.readFileSync(pack))), state = scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)).provenance.viewerState;
   const colours = state.colors.residues.map((r) => r.color); assert.ok(colours.includes('#e1873a') && colours.includes('#3b9ae6'), 'both sides are painted');
@@ -42,6 +49,8 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   const evidence = scene.evidence.filter((e) => e.source === 'org.glow.panel.contacts'); assert.equal(evidence.length, 1); assert.equal(evidence[0].type, 'derived'); assert.match(evidence[0].citation, /界面接触.*chain A 与 chain B.*≤ 4\.5 Å/);
   assert.ok(state.colors.residues.some((r) => r.scheme === 'hydrophobicity' && r.expr === 'chain A and resi 1-60'), 'the part is coloured by hydrophobicity');
   const cdata = state.plugins['org.glow.panel.composition']; assert.deepEqual([cdata.part, cdata.residues], ['chain A and resi 1-60', 60]); assert.equal(scene.evidence.filter((e) => e.source === 'org.glow.panel.composition' && e.type === 'derived').length, 1);
+  assert.ok(state.colors.residues.some((r) => r.scheme === 'secondary'), 'the part is coloured by secondary structure'); const sdata = state.plugins['org.glow.panel.secondary']; assert.equal(sdata.chains[0].residues, 214); assert.ok(sdata.chains[0].helix > 0);
+  assert.equal(scene.evidence.filter((e) => e.source === 'org.glow.panel.secondary' && e.type === 'derived').length, 1);
   await studio.click('#undo'); await studio.click('#undo'); await studio.click('#redo'); await studio.click('#redo');
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
   await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack); await viewer.waitForTimeout(3000);

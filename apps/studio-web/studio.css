@@ -254,3 +254,8 @@ h2 { color: #2f3f86; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03e
 #pane-analysis .button-row input[type="text"] { flex: 1 1 8rem; min-width: 0; }
 #pane-analysis .button-row input[type="number"] { width: 4.5rem; }
 #pane-analysis .button-row button { padding: 0.25rem 0.55rem; font-size: 0.84rem; }
+#pane-analysis { overflow-x: hidden; }
+#pane-analysis .panel-body { min-width: 0; max-width: 100%; }
+#pane-analysis pre.sequence-lines { margin: 0.3rem 0; max-width: 100%; overflow-x: auto; font-size: 0.74rem; line-height: 1.25; }
+.right-panel > [role="tabpanel"] { min-width: 0; max-width: 100%; box-sizing: border-box; }
+#pane-analysis .panel-section { grid-template-columns: minmax(0, 1fr); }
