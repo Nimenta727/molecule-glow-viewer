@@ -29,8 +29,9 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.fill('#look-expression', 'chain A and resi 1-60'); await studio.click('button[data-style="hidden"]'); await studio.waitForFunction(() => /画成“隐藏”/.test(document.querySelector('#status').textContent));
   await studio.fill('#look-expression', 'chain A and resi 100-140'); await studio.evaluate(() => { const c = document.querySelector('#look-color'); c.value = '#e05a4a'; c.dispatchEvent(new Event('input', { bubbles: true })); }); await studio.click('#look-apply-color'); await studio.waitForFunction(() => /染成/.test(document.querySelector('#status').textContent));
   await studio.fill('#look-expression', 'chain B'); await studio.click('button[data-scheme="hydrophobicity"]'); await studio.waitForFunction(() => /疏水性/.test(document.querySelector('#status').textContent));
-  assert.deepEqual(await rules(), ['颜色 · chain A and resi 100-140 → #e05a4a', '样式 · chain A and resi 1-60 → 隐藏'].sort((a, b) => a.localeCompare(b)).length ? await rules() : [], 'rules listed'); const listed = await rules();
-  assert.equal(listed.length, 3, `three rules: ${JSON.stringify(listed)}`); assert.ok(listed.some((t) => /链 B → |chain B.*疏水性|疏水性/.test(t)) || listed.some((t) => /疏水性/.test(t)), 'the scheme rule is listed');
+  const listed = await rules(); assert.equal(listed.length, 3, `three rules: ${JSON.stringify(listed)}`);
+  assert.deepEqual(listed.map((t) => t.replace(/ → .*/, '')).sort(), ['样式 · chain A and resi 1-60', '颜色 · chain A and resi 100-140', '颜色 · chain B'].sort(), 'the three rules are listed');
+  assert.ok(listed.some((t) => /chain B → 疏水性/.test(t)) && listed.some((t) => /→ #e05a4a/.test(t)) && listed.some((t) => /→ 隐藏/.test(t)), 'each says what it does');
   // undo / redo / delete one
   await studio.click('#undo'); assert.equal((await rules()).length, 2, 'undo takes the last rule back'); await studio.click('#redo'); assert.equal((await rules()).length, 3, 'redo brings it again');
   await studio.locator('#look-rules li', { hasText: '隐藏' }).locator('button').click(); await studio.waitForFunction(() => document.querySelectorAll('#look-rules li').length === 2); assert.ok(!(await rules()).some((t) => /隐藏/.test(t)), 'the hidden rule is deleted on its own');
@@ -43,7 +44,7 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   console.log('exported viewer state:', JSON.stringify(state).slice(0, 200));
   // a fresh Viewer opens both packages: the look is drawn
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
-  const open = async (file) => { await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', file); await viewer.waitForFunction(() => !document.querySelector('#selection-form').hidden || window.glow.info().sceneId, null, { timeout: 90000 }); await viewer.waitForTimeout(2500); return viewer.evaluate(() => window.__glowStats()); };
+  const open = async (file) => { await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', file); await viewer.waitForFunction(() => !document.querySelector('#selection-form').hidden, null, { timeout: 90000 }); await viewer.waitForTimeout(2500); return viewer.evaluate(() => window.__glowStats()); };
   const plain = await open(plainPack), looked = await open(lookPack);
   console.log('shapes drawn: plain', plain.triangles, plain.drawables, '| with the look', looked.triangles, looked.drawables); assert.notEqual(looked.drawables + looked.triangles, plain.drawables + plain.triangles, 'the Viewer draws the saved look');
   await viewer.screenshot({ path: path.join(OUT, 'viewer-look.png') });

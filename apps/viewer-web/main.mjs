@@ -1310,10 +1310,21 @@ function boot() {
     try {
       const committed = await scenes.load(input);
       if (!committed && propagate) throw new Error('加载已被后续操作取消。');
+      if (committed) await enableStructureForWork();
     } catch (error) {
       setStatus(`无法打开场景。 ${error.message}`);
       if (propagate) throw error;
     }
+  }
+
+  /**
+   * A work made in the Studio carries its structure file. It is drawn from that structure (so the colours and styles the author gave parts of it show), not only from the preview geometry saved in it:
+   * the official structure plugin is switched on for it, as the workshop does when it opens a work. A classic (v1/v2) pack, or a file with no structure, is left as it was.
+   */
+  async function enableStructureForWork() {
+    const scene = active?.scene;
+    if (!scene || scene.schemaVersion !== 3 || !structureSources(scene).length || host.getImporter(IMPORTER)) return;
+    try { await setStructureEnabled(true); } catch (error) { setStatus(`无法启用结构插件：${error.message}`); }
   }
 
   // ---- workshop: works and resources of the official/community catalogues -------------------------------------------------
