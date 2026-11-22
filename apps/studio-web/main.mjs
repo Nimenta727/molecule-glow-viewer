@@ -1,4 +1,6 @@
 import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
+import { createCommandApi } from '../viewer-web/command-api.mjs';
+import { createStudioAdapter, createStudioHelp, STUDIO_COMMANDS, READ_ONLY as STUDIO_READ_ONLY } from './studio-commands.mjs';
 import { createPanelHost } from './panel-host.mjs';
 import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
 import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
@@ -809,18 +811,22 @@ function structureLabel(scene, source, index) {
 }
 
 // A second (third, fourth) structure in the same scene, for comparing two entries. The first structure keeps the look, annotations and surfaces; the added ones are drawn in the work's representation.
-watchFile('structure-add-file', async (file) => {
-  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+async function addStructureToScene(structure) {
+  const file = { name: structure.name };
   const current = session(), scene = current.getScene();
   if (!structureSources(scene).length) throw new Error('先导入一个结构，再往同一个场景里加第二个。');
   status('正在导入结构…');
-  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene(structure);
   if (session() !== current) return;
   const { scene: upgraded } = await upgradeSceneToV3({ ...imported.scene, id: makeId(imported.scene.id), timeline: { duration: 4, tracks: [] } }, imported.resources);
   current.addStructure(upgraded, imported.resources, { title: file.name.replace(/\.[^.]+$/, '') });
   structureViews.delete(current); previews.delete(current);   // the models and the preview geometry are read again, with the new structure among them
   markDirty(); refresh(); upgradeRepresentation();
   status(`已把 ${file.name} 加入当前场景（它从原点开始，和第一个结构重叠；用“分析”页的结构叠合把它们对齐）。`);
+}
+watchFile('structure-add-file', async (file) => {
+  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+  await addStructureToScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
 });
 
 watchFile('structure-file', async (file) => {
@@ -1012,6 +1018,48 @@ onClick('studio-play', () => {
   frame = requestAnimationFrame(tick);
   showPose();
 });
+// ---- the command interface for AI: window.studio (apps/studio-web/studio-commands.mjs); the same doors and checks as the panels, no page clicking ----
+{
+  const contacts = contactsPanel;   // any registered panel gives the structure list: it is the same host
+  const adapter = createStudioAdapter({
+    ready: async () => { const current = session(); if (await ensureStructureView(current) && session() === current) refresh(); },
+    scene: () => session().getScene(),
+    structureList: () => panelEnv.hostFor(contacts).models(),
+    selectionBox: { get: () => lookPanel.selection(), set: (expression) => lookPanel.setSelection(expression) },
+    hostFor: (panel) => panelEnv.hostFor(panel),
+    lookState: () => lookStateOf(session().getScene()),
+    chainIds: () => lookPanelContext.chainIds(),
+    applyLook: (patch, message) => lookPanelContext.apply(patch, message),
+    annotations: () => lookPanelContext.annotations(),
+    applyAnnotations: (patch, message) => lookPanelContext.applyAnnotations(patch, message),
+    importWork: (structure) => importStructureAsWork(structure, { message: `已导入 ${structure.name}。` }),
+    addStructure: (structure) => addStructureToScene(structure),
+    loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
+    camera: { get: () => viewport.getCamera(), set: (pose) => viewport.setCamera(pose), reset: () => viewport.resetCamera() },
+    cameraKeys: {
+      list: () => sortedCameraKeys(session().getScene().presentation).map(({ id, time }) => ({ id, time })),
+      add(time, pose) { const id = makeId('camkey'); edit({ type: 'addCameraKey', key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time.toFixed(2)} 秒`, position: pose.position, target: pose.target } }, `已保存 ${time.toFixed(2)} 秒的镜头关键帧。`); },
+      remove(id) { edit({ type: 'removeCameraKey', id }, '已删除镜头关键帧。'); },
+    },
+    note: (content, nodeId) => edit({ type: 'addNote', note: { id: makeId('note'), text: content, nodeId } }, '已添加讲解。'),
+    title: (value) => edit({ type: 'setSceneTitle', title: value }, '已重命名场景。'),
+    undo: () => { if (!session().undo()) return false; editingPose = false; refresh(); status('已撤销。'); return true; },
+    redo: () => { if (!session().redo()) return false; editingPose = false; refresh(); status('已重做。'); return true; },
+    canUndo: () => session().canUndo(), canRedo: () => session().canRedo(),
+    snapshot: (width) => viewport.snapshot(width),
+    async exportScene() {
+      const current = session(), bytes = await writeScenePackage(current.getScene(), current.getResources());
+      let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { base64: btoa(binary), bytes: bytes.length };
+    },
+  });
+  const commands = createCommandApi(adapter, { commands: STUDIO_COMMANDS, readOnly: STUDIO_READ_ONLY, version: '1.0.0', help: (api, table, input) => {
+    const full = createStudioHelp()(api, table);
+    if (typeof input === 'string') { if (!Object.hasOwn(table, input)) throw new Error(`没有命令 ${input}：help() 列出全部。`); return { api: api.version, commands: [{ cmd: input, doc: table[input] }], rules: full.rules }; }
+    return full;
+  } });
+  window.studio = commands.api;
+}
 window.addEventListener('pagehide', (event) => { if (!event.persisted) { stopPlayback(); viewport.dispose(); } });
 newProject();
 offerRecovery();

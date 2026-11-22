@@ -23,6 +23,13 @@ export function resultData(result, expression) {
   return { part: expression, chains: result.chains.map((c) => ({ chain: c.label, residues: c.residues, helix: c.helix, sheet: c.sheet, segments: c.segments.map(({ type, from, to }) => [type === 'helix' ? 'H' : 'E', from, to]).slice(0, 40) })).slice(0, 16) };
 }
 
+/** Writes the result into the work through the panel doors: the evidence entry (derived, with its method) and the panel's own data. Also used by the Studio command API. */
+export function recordResult(api, result, expression) {
+  const helix = result.chains.reduce((n, c) => n + c.helix, 0), sheet = result.chains.reduce((n, c) => n + c.sheet, 0), total = result.chains.reduce((n, c) => n + c.residues, 0);
+  api.addEvidence({ method: `序列与二级结构：${expression} 共 ${total} 个残基，螺旋 ${helix}、折叠 ${sheet}（读取文件登记的二级结构，未重新计算）` });
+  api.setData(resultData(result, expression), '序列与二级结构：已保存结果。');
+}
+
 export const secondaryPanel = Object.freeze({
   id: SECONDARY_PANEL_ID, title: '序列与二级结构', needs: ['structure', 'selection'],
   summary: '显示选中部分的序列、文件里登记的二级结构，可点螺旋/折叠段在画面里亮出来，并涂色、记入作品。',
@@ -61,8 +68,8 @@ export const secondaryPanel = Object.freeze({
     paint.addEventListener('click', () => guard(() => { if (!last) return; api.applyLook({ colors: { residues: [{ expr: last.expression, scheme: 'secondary' }] } }, `序列与二级结构：${last.expression} 按二级结构涂色。`); render('已按二级结构涂色（螺旋红、折叠金、其他灰蓝）。'); }));
     record.addEventListener('click', () => guard(() => {
       if (!last) return; const { result, expression } = last, helix = result.chains.reduce((n, c) => n + c.helix, 0), sheet = result.chains.reduce((n, c) => n + c.sheet, 0), total = result.chains.reduce((n, c) => n + c.residues, 0);
-      api.addEvidence({ method: `序列与二级结构：${expression} 共 ${total} 个残基，螺旋 ${helix}、折叠 ${sheet}（读取文件登记的二级结构，未重新计算）` });
-      api.setData(resultData(result, expression), '序列与二级结构：已保存结果。'); render('已作为“推导”证据记入作品。');
+      recordResult(api, result, expression);
+      render('已作为“推导”证据记入作品。');
     }));
     return { dispose() { api.highlight(null); } };
   },

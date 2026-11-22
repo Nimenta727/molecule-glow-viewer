@@ -19,6 +19,13 @@ export function resultData(result, mobile, reference, mode) {
   return { mobile, reference, mode, chain: result.chainId, pairs: result.pairs, rmsdBefore: +result.rmsdBefore.toFixed(3), rmsd: +result.rmsd.toFixed(3), placed: false };
 }
 
+/** Writes the result into the work through the panel doors: the evidence entry (derived, with its method) and the panel's own data. `last` is { result, mobileExpr, referenceExpr, mode, cross, mobileLabel, referenceLabel }. Also used by the Studio command API. */
+export function recordResult(api, last, placed) {
+  const { result, mobileExpr, referenceExpr } = last;
+  api.addEvidence({ method: `结构叠合：${last.cross ? `${last.mobileLabel} 的 ` : ''}${short(mobileExpr)} 按 Cα 叠到 ${last.cross ? `${last.referenceLabel} 的 ` : ''}${short(referenceExpr)}（Horn 四元数拟合，${result.pairs} 对，${MODES[last.mode]}），RMSD ${result.rmsdBefore.toFixed(2)} → ${result.rmsd.toFixed(2)} Å；位置是计算出来的，不是测得的`, citation: 'Horn 1987' });
+  api.setData({ ...resultData(result, mobileExpr, referenceExpr, last.mode), ...(last.cross ? { mobileStructure: last.mobileLabel, referenceStructure: last.referenceLabel } : {}), placed }, '结构叠合：已保存结果。');
+}
+
 export const superpositionPanel = Object.freeze({
   id: SUPERPOSITION_PANEL_ID, title: '结构叠合', needs: ['structure', 'selection'],
   summary: '把一条链按 Cα 叠到参考部分上，给出叠合前后的 RMSD，可移动画面里的链、标出仍然偏远的残基。',
@@ -62,8 +69,8 @@ export const superpositionPanel = Object.freeze({
     }));
     record.addEventListener('click', () => guard(() => {
       if (!last) return; const { result, mobileExpr, referenceExpr } = last;
-      api.addEvidence({ method: `结构叠合：${last.cross ? `${last.mobileLabel} 的 ` : ''}${short(mobileExpr)} 按 Cα 叠到 ${last.cross ? `${last.referenceLabel} 的 ` : ''}${short(referenceExpr)}（Horn 四元数拟合，${result.pairs} 对，${MODES[last.mode]}），RMSD ${result.rmsdBefore.toFixed(2)} → ${result.rmsd.toFixed(2)} Å；位置是计算出来的，不是测得的`, citation: 'Horn 1987' });
-      api.setData({ ...resultData(result, mobileExpr, referenceExpr, last.mode), ...(last.cross ? { mobileStructure: last.mobileLabel, referenceStructure: last.referenceLabel } : {}), placed }, '结构叠合：已保存结果。'); out.textContent = `${summarize(result)} 已作为“推导”证据记入作品。`;
+      recordResult(api, last, placed);
+      out.textContent = `${summarize(result)} 已作为“推导”证据记入作品。`;
     }));
     return { dispose() { /* nothing to undo here: a placement is part of the work, undone with Undo */ } };
   },

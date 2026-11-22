@@ -21,6 +21,12 @@ export function resultData(result, expression) {
   return { part: expression, residues: result.protein, classes: result.classes, gravy: result.gravy === null ? null : +result.gravy.toFixed(3), netCharge: result.netCharge };
 }
 
+/** Writes the result into the work through the panel doors: the evidence entry (derived, with its method) and the panel's own data. Also used by the Studio command API. */
+export function recordResult(api, result, expression) {
+  api.addEvidence({ method: `组成统计：${expression} 的 ${result.protein} 个残基，GRAVY ${result.gravy.toFixed(2)}（Kyte–Doolittle），按个数数出的净电荷 ${result.netCharge}（不含 pKa 与环境）`, citation: 'Kyte & Doolittle 1982' });
+  api.setData(resultData(result, expression), '组成与性质：已保存结果。');
+}
+
 export const compositionPanel = Object.freeze({
   id: COMPOSITION_PANEL_ID, title: '组成与性质', needs: ['structure', 'selection'],
   summary: '数选中部分的残基组成、平均亲水性和净电荷，可涂色并记为推导证据。',
@@ -45,8 +51,8 @@ export const compositionPanel = Object.freeze({
     hydro.addEventListener('click', () => paint('hydrophobicity', '疏水性')); charge.addEventListener('click', () => paint('charge', '电荷'));
     record.addEventListener('click', () => guard(() => {
       if (!last) return; const { result, expression } = last;
-      api.addEvidence({ method: `组成统计：${expression} 的 ${result.protein} 个残基，GRAVY ${result.gravy.toFixed(2)}（Kyte–Doolittle），按个数数出的净电荷 ${result.netCharge}（不含 pKa 与环境）`, citation: 'Kyte & Doolittle 1982' });
-      api.setData(resultData(result, expression), '组成与性质：已保存结果。'); show([...describe(result), '已作为“推导”证据记入作品。']);
+      recordResult(api, result, expression);
+      show([...describe(result), '已作为“推导”证据记入作品。']);
     }));
     return { dispose() { api.highlight(null); } };
   },
