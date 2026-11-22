@@ -28,12 +28,20 @@ setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).
   await studio.fill('#contacts-b', 'chain B'); await studio.click('#contacts-run');
   await studio.click('#contacts-paint'); await studio.waitForFunction(() => /已涂色/.test(document.querySelector('#contacts-out').textContent));
   await studio.click('#contacts-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#contacts-out').textContent));
+  // the second panel: composition of a part, coloured by hydrophobicity, recorded
+  await studio.fill('#composition-part', 'chain A and resi 1-60'); await studio.click('#composition-run'); await studio.waitForFunction(() => /60 个氨基酸残基/.test(document.querySelector('#composition-out').textContent), null, { timeout: 15000 });
+  const comp = await studio.$eval('#composition-out', (n) => n.textContent); console.log(comp.slice(0, 260)); assert.match(comp, /GRAVY：-?\d+\.\d\d.*净电荷：[+-]?\d+/);
+  await studio.fill('#composition-part', 'banana'); await studio.click('#composition-run'); assert.match(await studio.$eval('#composition-out', (n) => n.textContent), /不认识/); await studio.fill('#composition-part', 'chain A and resi 1-60'); await studio.click('#composition-run');
+  await studio.click('#composition-hydro'); await studio.waitForFunction(() => /已按疏水性涂色/.test(document.querySelector('#composition-out').textContent));
+  await studio.click('#composition-record'); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#composition-out').textContent));
   await studio.waitForTimeout(1500); await studio.screenshot({ path: path.join(os.tmpdir(), 'analysis-panel.png') });
   const pack = await exportPack('contacts'); const { readScenePackage } = await import(path.join(ROOT, 'packages/schema/archive.mjs'));
   const { scene } = await readScenePackage(new Uint8Array(fs.readFileSync(pack))), state = scene.assets.find((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)).provenance.viewerState;
   const colours = state.colors.residues.map((r) => r.color); assert.ok(colours.includes('#e1873a') && colours.includes('#3b9ae6'), 'both sides are painted');
   const data = state.plugins['org.glow.panel.contacts']; assert.deepEqual([data.a, data.b, data.cutoff], ['chain A', 'chain B', 4.5]);
   const evidence = scene.evidence.filter((e) => e.source === 'org.glow.panel.contacts'); assert.equal(evidence.length, 1); assert.equal(evidence[0].type, 'derived'); assert.match(evidence[0].citation, /界面接触.*chain A 与 chain B.*≤ 4\.5 Å/);
+  assert.ok(state.colors.residues.some((r) => r.scheme === 'hydrophobicity' && r.expr === 'chain A and resi 1-60'), 'the part is coloured by hydrophobicity');
+  const cdata = state.plugins['org.glow.panel.composition']; assert.deepEqual([cdata.part, cdata.residues], ['chain A and resi 1-60', 60]); assert.equal(scene.evidence.filter((e) => e.source === 'org.glow.panel.composition' && e.type === 'derived').length, 1);
   await studio.click('#undo'); await studio.click('#undo'); await studio.click('#redo'); await studio.click('#redo');
   const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message));
   await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack); await viewer.waitForTimeout(3000);
