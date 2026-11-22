@@ -42,3 +42,11 @@ test('the panel summary gives before and after RMSD and the motion; far residues
   const data = resultData(out, 'chain B', 'chain A', 'number'); assert.deepEqual(Object.keys(data), ['mobile', 'reference', 'mode', 'chain', 'pairs', 'rmsdBefore', 'rmsd', 'placed']); assert.equal(data.placed, false);
   assert.deepEqual(validatePanel(superpositionPanel).needs, ['structure', 'selection']);
 });
+
+
+test('the reference may lie in another structure: the fit uses its own coordinates, the same-chain rule applies only inside one structure', () => {
+  const other = model(); for (const a of other.atoms) a.position = [a.position[0] + 50, a.position[1], a.position[2]];   // a second structure with the same chain names, in another place
+  const out = superposeParts(model(), 'chain B', 'chain A', { referenceModel: other }); assert.ok(out.rmsd < 1e-6 && out.pairs === 10 && out.rmsdBefore > 10);
+  const same = superposeParts(model(), 'chain A', 'chain A', { referenceModel: other }); assert.ok(same.rmsdBefore > 10 && same.rmsd < 1e-6, 'chain A of one structure onto chain A of another is allowed (they are different structures)');
+  assert.throws(() => superposeParts(model(), 'chain A', 'chain A'), /不能包含/); assert.throws(() => superposeParts(model(), 'chain B', 'resi 99', { referenceModel: other }), /参考的部分.*没有选中/);
+});

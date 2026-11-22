@@ -51,3 +51,11 @@ test('placing a chain takes a unit rotation and a bounded shift, or a reset; not
   api.placePart({ chain: 'B', reset: true }); assert.deepEqual(log.at(-1)[1], { chain: 'B', reset: true });
   for (const bad of [null, {}, { chain: '', quaternion: q, from: [0, 0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: [0, 0, 0, 2], from: [0, 0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0], to: [0, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [NaN, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [5000, 0, 0] }, { chain: 'B', quaternion: q, from: [0, 0, 0], to: [0, 0, 0], extra: 1 }]) assert.throws(() => api.placePart(bad), PanelError, JSON.stringify(bad));
 });
+
+test('a placement may name the structure of the chain and the structure it is placed against; both must be plain ids', () => {
+  const { host, log } = recording(); host.placePart = (...a) => log.push(['place', ...a]); host.models = () => [{ id: 'source', label: '1. A', model: {} }];
+  const api = createPanelContext(validatePanel(descriptor()), host), q = [0, 0, 0, 1];
+  api.placePart({ chain: 'A', quaternion: q, from: [0, 0, 0], to: [1, 0, 0], source: 'source', frame: 's1-source' }); assert.deepEqual(log.at(-1)[1], { chain: 'A', quaternion: q, from: [0, 0, 0], to: [1, 0, 0], source: 'source', frame: 's1-source' });
+  assert.throws(() => api.placePart({ chain: 'A', quaternion: q, from: [0, 0, 0], to: [1, 0, 0], frame: 5 }), /frame/); assert.throws(() => api.placePart({ chain: 'A', reset: true, source: '' }), /source/);
+  assert.deepEqual(api.models().map((m) => m.id), ['source']);
+});

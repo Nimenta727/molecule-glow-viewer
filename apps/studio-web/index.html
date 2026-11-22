@@ -32,11 +32,13 @@
               <button id="open-project" type="button" role="menuitem">打开项目…</button>
               <hr>
               <button id="import-structure" type="button" role="menuitem">导入结构为新场景…</button>
+              <button id="add-structure" type="button" role="menuitem" title="把第二个结构放进当前场景，用来比较（例如同一蛋白的开放态和闭合态）">把另一个结构加入当前场景…</button>
               <button id="import-package" type="button" role="menuitem">导入场景包…</button>
             </div>
           </details>
           <input id="package-file" type="file" accept=".glow,application/zip" hidden>
           <input id="structure-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
+          <input id="structure-add-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
           <input id="project-file" type="file" accept=".glow-project,.json,application/json" hidden>
         </nav>
         <div class="history-bar" aria-label="编辑历史">

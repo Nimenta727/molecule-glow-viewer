@@ -451,9 +451,13 @@ const panelEnv = {
   hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),
   // once a part has been chosen in this scene, a panel stays usable (clearing the box must not throw away what was typed in a panel)
   hasSelection: () => { const key = panelEnv.key(); if (lookPanel?.selection().expression) panelEnv.chosen = key; return panelEnv.chosen === key; },
-  key: () => `${session().getScene().id}|${primarySource(session().getScene())?.id ?? ''}|${lookPanelContext.model() ? 1 : 0}`,
+  key: () => `${session().getScene().id}|${structureSources(session().getScene()).map(({ id }) => id).join(',')}|${lookPanelContext.model() ? 1 : 0}`,
   hostFor: () => ({
     model: () => lookPanelContext.model(),
+    models: () => {
+      const scene = session().getScene(), models = structureViews.get(session())?.models;
+      return structureSources(scene).filter((source) => models?.get(source.id)).map((source, i) => ({ id: source.id, label: structureLabel(scene, source, i), model: models.get(source.id) }));
+    },
     selection: () => lookPanel.selection(),
     readData: pluginData,
     writeData(id, data, message) {
@@ -474,17 +478,20 @@ const panelEnv = {
       if (patch.bonds) next.bonds = validateBonds([...state.bonds, ...patch.bonds]);
       lookPanelContext.applyAnnotations(next, message);
     },
-    placePart({ chain, reset, quaternion, from, to }, message) {
+    placePart({ chain, reset, quaternion, from, to, source: sourceId, frame: frameId }, message) {
       // a rigid move of one whole chain, as the transform of its node: the structure file is not touched. Structure coordinates (Å) become scene coordinates (0.05 m per Å, about the centre of the model).
-      const scene = session().getScene(), source = primarySource(scene), model = lookPanelContext.model();
+      const scene = session().getScene(), source = sourceId ? structureSources(scene).find(({ id }) => id === sourceId) : primarySource(scene), model = source ? structureViews.get(session())?.models?.get(source.id) : undefined;
       if (!source || !model) throw new Error('这个场景没有可移动的结构。');
       const nodes = scene.nodes.filter((node) => node.extensions?.[STRUCTURE_EXT]?.sourceAssetId === source.id && node.extensions[STRUCTURE_EXT].chainId === chain);
       if (nodes.length !== 1) throw new Error(nodes.length ? `链 ${chain} 对应多个对象，不能移动。` : `找不到链 ${chain} 对应的对象。`);
       const [node] = nodes, k = PRESENTATION_METERS_PER_ANGSTROM;
       if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
-      const c = glowPoints.get(model).center;
+      const frameSource = frameId ? structureSources(scene).find(({ id }) => id === frameId) : source, frameModel = frameSource ? structureViews.get(session())?.models?.get(frameSource.id) : undefined;
+      if (!frameModel) throw new Error('找不到参考结构。');
+      if (!glowPoints.has(frameModel)) glowPoints.set(frameModel, centerAndScale(selectCoordinateAtoms(frameModel)));
+      const c = glowPoints.get(model).center, cFrame = glowPoints.get(frameModel).center;   // each structure is centred on its own box: the chain starts in its own frame and must end in the frame of the structure it is placed against
       const transform = reset ? { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: node.transform.scale }
-        : { position: rotateVector(c.map((v, i) => v - from[i]), quaternion).map((v, i) => k * (v + to[i] - c[i])), rotation: [...quaternion], scale: node.transform.scale };
+        : { position: rotateVector(c.map((v, i) => v - from[i]), quaternion).map((v, i) => k * (v + to[i] - cFrame[i])), rotation: [...quaternion], scale: node.transform.scale };
       edit({ type: 'updateNode', id: node.id, patch: { transform } }, message);
     },
     addEvidence: (entry, message) => edit({ type: 'addEvidence', entry }, message),
@@ -707,6 +714,7 @@ viewport = createViewport(ui.viewport, {
 
 onClick('new-project', newProject);
 onClick('import-structure', () => { navigationEditor.assertSaved(); ui['structure-file'].click(); });
+onClick('add-structure', () => ui['structure-add-file'].click());
 onClick('import-package', () => { navigationEditor.assertSaved(); ui['package-file'].click(); });
 onClick('open-project', () => { navigationEditor.assertSaved(); ui['project-file'].click(); });
 onClick('reset-camera', () => viewport.resetCamera());
@@ -793,6 +801,27 @@ async function importStructureAsWork(structure, { title, message }) {
   refresh({ resetCamera: true, resetTime: true });
   status(message);
 }
+
+/** A readable name of a structure of the scene: its file name or accession, else its number. */
+function structureLabel(scene, source, index) {
+  const origin = source.provenance?.source?.accession ?? source.provenance?.source?.name ?? source.path;
+  return `${index + 1}. ${String(origin).replace(/^assets\//, '')}`;
+}
+
+// A second (third, fourth) structure in the same scene, for comparing two entries. The first structure keeps the look, annotations and surfaces; the added ones are drawn in the work's representation.
+watchFile('structure-add-file', async (file) => {
+  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+  const current = session(), scene = current.getScene();
+  if (!structureSources(scene).length) throw new Error('先导入一个结构，再往同一个场景里加第二个。');
+  status('正在导入结构…');
+  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  if (session() !== current) return;
+  const { scene: upgraded } = await upgradeSceneToV3({ ...imported.scene, id: makeId(imported.scene.id), timeline: { duration: 4, tracks: [] } }, imported.resources);
+  current.addStructure(upgraded, imported.resources, { title: file.name.replace(/\.[^.]+$/, '') });
+  structureViews.delete(current); previews.delete(current);   // the models and the preview geometry are read again, with the new structure among them
+  markDirty(); refresh(); upgradeRepresentation();
+  status(`已把 ${file.name} 加入当前场景（它从原点开始，和第一个结构重叠；用“分析”页的结构叠合把它们对齐）。`);
+});
 
 watchFile('structure-file', async (file) => {
   if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');

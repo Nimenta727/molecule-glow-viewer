@@ -4,7 +4,7 @@ import { superposeFit, rotateVector } from './alignment.mjs';
 /**
  * Superposition of one part of a structure onto another (Horn's quaternion fit on the alpha carbons, nucleotides: P): which residues pair up, the RMSD before and after the fit, the rotation and the
  * translation, and how far each pair still is from its partner. Residues are paired by author residue number AND residue name (`number`), or in order when both parts have the same number of residues
- * (`order`, for parts numbered differently). Pure geometry on the coordinates of ONE structure; nothing is moved here.
+ * (`order`, for parts numbered differently). Pure geometry; the reference may lie in another structure (`referenceModel`), whose coordinates are used as they are (both are in their own deposited frames). Nothing is moved here.
  */
 export class SuperpositionError extends Error { constructor(message) { super(message); this.name = 'SuperpositionError'; } }
 export const MODES = Object.freeze({ number: '按残基编号和名称配对', order: '按顺序配对（两部分残基数相同）' });
@@ -12,18 +12,18 @@ export const MIN_PAIRS = 3;
 
 const rms = (pairs, move) => Math.sqrt(pairs.reduce((sum, { a, b }) => { const q = move(b); return sum + (a[0] - q[0]) ** 2 + (a[1] - q[1]) ** 2 + (a[2] - q[2]) ** 2; }, 0) / pairs.length);
 
-export function superposeParts(model, mobileExpr, referenceExpr, { mode = 'number' } = {}) {
+export function superposeParts(model, mobileExpr, referenceExpr, { mode = 'number', referenceModel } = {}) {
   if (!Object.hasOwn(MODES, mode)) throw new SuperpositionError(`配对方式应为 ${Object.keys(MODES).join(' 或 ')}。`);
-  const space = selectionSpace(model);
-  const part = (expr, name) => {
-    let found; try { found = evaluateSelection(expr, space).residues; } catch (error) { throw new SuperpositionError(`${name}：${error.message}`); }
+  const space = selectionSpace(model), other = referenceModel && referenceModel !== model ? selectionSpace(referenceModel) : space;   // `referenceModel`: the reference lies in another structure (two entries of the PDB)
+  const part = (expr, name, within = space) => {
+    let found; try { found = evaluateSelection(expr, within).residues; } catch (error) { throw new SuperpositionError(`${name}：${error.message}`); }
     if (!found.length) throw new SuperpositionError(`${name}“${expr}”没有选中任何残基。`);
     return found.slice().sort((p, q) => p.labelSeq - q.labelSeq || p.authSeq - q.authSeq);
   };
-  const mobile = part(mobileExpr, '移动的部分'), reference = part(referenceExpr, '参考的部分');
+  const mobile = part(mobileExpr, '移动的部分'), reference = part(referenceExpr, '参考的部分', other);
   const chains = [...new Set(mobile.map((r) => r.asym))];
   if (chains.length !== 1) throw new SuperpositionError('移动的部分必须在同一条链里（叠合会移动整条链）。');
-  if (reference.some((r) => r.asym === chains[0])) throw new SuperpositionError('参考的部分不能包含要移动的那条链。');
+  if (other === space && reference.some((r) => r.asym === chains[0])) throw new SuperpositionError('参考的部分不能包含要移动的那条链。');
   let pairs;
   if (mode === 'order') {
     if (mobile.length !== reference.length) throw new SuperpositionError(`按顺序配对要求两部分残基数相同（现在是 ${mobile.length} 和 ${reference.length}）。`);

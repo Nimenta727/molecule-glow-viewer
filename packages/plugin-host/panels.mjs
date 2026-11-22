@@ -48,12 +48,13 @@ const plain = (value) => { try { return JSON.parse(JSON.stringify(value ?? null)
 
 /**
  * The only thing a panel is given. `host` is what the Studio provides (it holds all the state); every method here checks its input before it reaches the host:
- *   host.model() / host.selection()                       what is open and chosen
+ *   host.model() / host.models() / host.selection()        what is open (models(): every structure of the work, [{ id, label, model }]) and chosen
  *   host.readData(id) / host.writeData(id, data, message) the panel's own namespace in the work (one undo step)
  *   host.applyLook(patch, message)                         { colors?: { residues: [{ expr, color | scheme }] }, styles?: [{ expr, style }], surfaces?: [{ expr, scheme }] }: rules ADDED after the author's own (later rules win), checked like the Appearance tab
  *   host.annotate(patch, message)                          { measures?, labels?, bonds? }: entries ADDED to the work's own
  *   host.addEvidence(entry, message)                       one evidence entry of the work
- *   host.placePart(placement, message)                     { chain, quaternion, from, to }: rotate the chain about `from`, then carry `from` to `to` (structure coordinates, Å); null fit = back to the deposited place
+ *   host.placePart(placement, message)                     { chain, quaternion, from, to, source?, frame? }: rotate the chain (of structure `source`, default the first) about `from`, then carry `from` to `to` (Å, in the
+ *                                                           deposited frame of structure `frame`, default the same one: the structure the chain is placed AGAINST); { chain, reset: true } = back to the deposited place
  *   host.highlight(residues | null) / host.status(text)
  */
 export function createPanelContext(panel, host) {
@@ -61,6 +62,8 @@ export function createPanelContext(panel, host) {
   const api = {
     id: own,
     model: () => host.model(),
+    /** Every structure of the work: [{ id, label, model }]; the first is the one `model()` returns. */
+    models: () => (host.models ? host.models() : [{ id: 'primary', label: '当前结构', model: host.model() }]),
     selection: () => host.selection(),
     data: () => plain(host.readData(own) ?? null),
     setData(data, message = `${panel.title}：已保存结果。`) {
@@ -84,14 +87,15 @@ export function createPanelContext(panel, host) {
       host.addEvidence({ type, citation: `${panel.title}（${own}）：${method.trim()}${citation ? `；${citation}` : ''}` , source: own }, message);
     },
     placePart(placement, message = `${panel.title}：已移动一条链。`) {
-      const { chain, quaternion, from, to, reset, ...rest } = placement ?? {};
+      const { chain, quaternion, from, to, reset, source, frame, ...rest } = placement ?? {};
+      for (const [name, value] of [['source', source], ['frame', frame]]) if (value !== undefined && (typeof value !== 'string' || !value || value.length > 80)) throw new PanelError(`placePart 的 ${name} 应为结构编号（字符串）。`);
       if (Object.keys(rest).length || typeof chain !== 'string' || !chain || chain.length > 40) throw new PanelError('placePart 需要 { chain, quaternion, from, to }（或 { chain, reset: true } 还原）。');
-      if (reset === true) { host.placePart({ chain, reset: true }, message); return; }
+      if (reset === true) { host.placePart({ chain, reset: true, ...(source ? { source } : {}) }, message); return; }
       const vec = (v, n) => Array.isArray(v) && v.length === n && v.every((x) => Number.isFinite(x));
       if (!vec(quaternion, 4) || !vec(from, 3) || !vec(to, 3)) throw new PanelError('placePart 的 quaternion 要 4 个数，from、to 各 3 个数。');
       if (Math.abs(Math.hypot(...quaternion) - 1) > 1e-6) throw new PanelError('placePart 的旋转（四元数）长度必须是 1。');
       if (Math.hypot(...to.map((v, i) => v - from[i])) > MAX_SHIFT || [...from, ...to].some((v) => Math.abs(v) > 1e5)) throw new PanelError(`移动太远（超过 ${MAX_SHIFT} Å）。`);
-      host.placePart({ chain, quaternion: [...quaternion], from: [...from], to: [...to] }, message);
+      host.placePart({ chain, quaternion: [...quaternion], from: [...from], to: [...to], ...(source ? { source } : {}), ...(frame ? { frame } : {}) }, message);
     },
     highlight: (residues) => host.highlight(residues ?? null),
     status: (text) => host.status(String(text ?? '')),

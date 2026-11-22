@@ -1,6 +1,7 @@
 import { createDocumentStore } from '../core/index.mjs';
 import { validateScene, toCoreDocument } from '../schema/documents.mjs';
 import { GEOMETRY_MEDIA_TYPE } from '../schema/geometry.mjs';
+import { mergeStructure } from './add-structure.mjs';
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -289,6 +290,15 @@ export function createStudioSession(sceneInput, resources = new Map()) {
     return commit(mergeCore(current, coreStore.getSnapshot(), renderableAssetIds, intents));
   }
 
+  /** Adds a second structure (the v3 scene and resources of an import) to the work: one undoable step; the file bytes are kept for the life of the session (undo removes the structure from the scene). */
+  function addStructure(imported, importedResources, options) {
+    const merged = mergeStructure(current, storedResources, imported, importedResources, options);
+    const check = validateScene(merged.scene);
+    for (const [path, bytes] of merged.resources) if (!storedResources.has(path)) storedResources.set(path, bytes);
+    commit(check);
+    return merged.prefix;
+  }
+
   function restore(from, to) {
     if (from.length === 0) return false;
     to.push(current);
@@ -301,6 +311,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
     getCoreDocument() { return projected(current, storedResources); },
     getResources() { return copyResources(storedResources); },
     dispatch,
+    addStructure,
     undo() { return restore(undoStack, redoStack); },
     redo() { return restore(redoStack, undoStack); },
     canUndo() { return undoStack.length > 0; },
