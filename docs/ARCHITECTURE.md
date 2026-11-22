@@ -48,7 +48,7 @@
 ## 3. 已交付与尚未完成
 
 - 经典大量功能仍保留；新版已有 PDB/mmCIF/RCSB/组装体、五种表示、基础选择/接触、v2 保存、ATP/KcsA/AdK 部分机制和 Studio 通用制作能力。具体范围见 [现有功能](CURRENT_FEATURES.md)。
-- 4.0 打包/实际 EXE、4.1 指定安全问题、4.2 对照基础已按当时范围交付；不代表完整科学/视觉等价。Desktop/Skill 0.5.0 构建源为 20cf079，145 项 Node 测试及选定 EXE/安全用例通过，见 [发行记录](validation/desktop-v0.5.0.json)；0.6.0 由 desktop-release 工作流在同一标签提交上构建并通过全部闸门后发布，身份见该 Release 的 release-manifest.json。文档修订没有重跑所有科学/GUI 用例。
+- 4.0 打包/实际 EXE、4.1 指定安全问题、4.2 对照基础已按当时范围交付；不代表完整科学/视觉等价。Desktop/Skill 0.5.0 构建源为 20cf079，145 项 Node 测试及选定 EXE/安全用例通过，见 [发行记录](history/validation/desktop-v0.5.0.json)；0.6.0 由 desktop-release 工作流在同一标签提交上构建并通过全部闸门后发布，身份见该 Release 的 release-manifest.json。文档修订没有重跑所有科学/GUI 用例。
 - 当前仍有经典与新版的解析/表示/模拟双实现、播放器内容耦合、完整选择/API/工作台缺口；资源区、作品区、通用工具制作路径和完整隔离尚待实现。
 - 15 个旧包的数据合法性、结构兼容与其完整动态语义分开验收。能够打开经典版也不能替代新版制作功能验收。
 
@@ -116,3 +116,10 @@
 ## 8. 本轮与后续交付界限
 
 本轮只交付当前结构/现状、历史总结、功能拆分矩阵与修订计划。旧叙述归 history，routine 不动；machine parity 和科学证据保持可追溯。后续按 [ROADMAP](ROADMAP.md) 实现制作基底、经典功能插件、作者/工坊闭环，随后做新增科研插件。任何文档中的“目标/候选/待做”都不是现有功能声明。
+
+## 9. 0.9.0 增补的结构（2026-11-22）
+
+- `plugins/structure/`：`look.mjs`（按选择的颜色与样式规则）、`annotations.mjs` + `annotation-draw.mjs`（测量、标签、原子级连线）、`molecular-surface.mjs` + `surface-draw.mjs`（高斯分子表面与简化库仑）、`interactions.mjs`/`contacts.mjs`（相互作用与接触）、`composition.mjs`、`secondary.mjs`、`superposition.mjs`，以及 `panels/*.mjs`（五个 Studio 面板）。
+- `packages/plugin-host/panels.mjs`：面板注册与五扇受检查的门（`applyLook`、`annotate`、`addEvidence`、`placePart`、`setData`）；`apps/studio-web/panel-host.mjs` 是“分析”页的宿主。
+- `packages/schema/camera-track.mjs`：镜头关键帧的缓入缓出，Studio 与 Viewer 共用；`packages/studio-editor/add-structure.mjs`：一个场景放多个结构。
+- 这些规则都存在结构文件的 `provenance.viewerState`（`colors`、`styles`、`surfaces`、`measures`、`labels`、`bonds`、`plugins`、`camera`…），Studio 用 `setViewerState` 命令写，Viewer 读同一处。

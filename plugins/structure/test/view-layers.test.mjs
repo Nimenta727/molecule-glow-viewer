@@ -117,3 +117,22 @@ test('residue colours split the blob spheres by colour; other styles and untouch
   const cartoon = buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'cartoon', residueColor: red });
   assert.deepEqual([...cartoon.layers.values()].flat().map((layer) => layer.color), [...buildStructureLayers({ scene, models, layers: new Map(layers), build, style: 'cartoon' }).layers.values()].flat().map((layer) => layer.color), 'a style without one sphere per residue is left as it is');
 });
+
+test('the author’s look reaches every chain node in every residue-level style, and a chain-wide colour does not paint over a coloured part', async () => {
+  const { lookFor } = await import('../look.mjs');
+  const { scene, model, layers, build } = await imported();
+  const source = structureSources(scene)[0], models = new Map([[source.id, model]]), before = new Map(layers);
+  const look = (m) => lookFor(m, { colors: { residues: [{ expr: 'chain A and resi 5-8', color: '#e05a4a' }] }, styles: [{ expr: 'chain B and resi 1-2', style: 'hidden' }] });
+  for (const style of ['cartoon', 'backbone', 'blob']) {
+    const result = buildStructureLayers({ scene, models, layers: new Map(before), build, style, defaultStyle: 'blob', look, recolor: (group) => (group.chainId === 'A' ? '#0000ff' : '#00aa00') });
+    const [a, b] = [...result.layers.values()].map((list) => list.filter((l) => l.mode !== 'points'));
+    assert.ok(a.some((l) => l.color === '#e05a4a' && l.pinned), `${style}: the coloured residues keep their colour, pinned`);
+    assert.ok(a.some((l) => l.color === '#0000ff'), `${style}: the rest of chain A takes the chain-wide colour`); assert.ok(!a.some((l) => l.pinned && l.color === '#0000ff'));
+    assert.ok(b.every((l) => l.color === '#00aa00'), `${style}: chain B has no coloured part, so the chain colour is all there is`);
+    const markers = (list) => list.find((l) => l.mode === 'points')?.positions.length / 3;
+    assert.equal(markers([...result.layers.values()][1]), 6, `${style}: two residues of chain B are hidden, so 6 of 8 can still be picked`);
+  }
+  const plain = buildStructureLayers({ scene, models, layers: new Map(before), build, style: 'blob', defaultStyle: 'blob' });
+  const same = buildStructureLayers({ scene, models, layers: new Map(before), build, style: 'blob', defaultStyle: 'blob', look: () => null });
+  assert.deepEqual([...same.layers.values()], [...plain.layers.values()], 'a look that says nothing changes nothing');
+});

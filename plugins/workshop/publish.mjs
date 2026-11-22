@@ -9,6 +9,19 @@ import { LICENSES, checkDerivation, derivativeLicenses, licenseTerms } from './d
 export const WORK_ID = /^[a-z0-9][a-z0-9._-]{2,63}$/;
 export const TOPIC_IDS = Object.freeze(['mechanism', 'protein', 'local-system', 'cell']);
 
+/**
+ * Whether `id` can be the work's number in the workshop (what the file is named after, and what other works name when they derive from it): lower-case letters, digits, dots, underscores and hyphens,
+ * 3–64 characters; community works cannot take the `official.` / `example.` prefixes; and not one of the other scenes of the same project (`taken`). Returns { ok, message }.
+ */
+export function validateWorkId(id, { taken = [], source = 'community' } = {}) {
+  const value = String(id ?? '').trim();
+  if (!value) return { ok: false, message: '请输入作品编号。' };
+  if (!WORK_ID.test(value)) return { ok: false, message: '编号只能用小写字母、数字、点、下划线、连字符，长度 3–64，并以字母或数字开头。' };
+  if (source === 'community' && /^(official|example)\./.test(value)) return { ok: false, message: '社区作品的编号不能以 official. 或 example. 开头。' };
+  if (taken.includes(value)) return { ok: false, message: `这个项目里已经有编号为 ${value} 的场景。` };
+  return { ok: true, message: '' };
+}
+
 export function checkPublication(scene, catalog, { toolAvailable = () => true, source = 'community' } = {}) {
   const problems = [], add = (level, code, message) => problems.push({ level, code, message });
   const publication = scene.publication;

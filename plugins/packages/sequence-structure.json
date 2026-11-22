@@ -1,0 +1,68 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.sequence-structure",
+  "version": "1.0.0",
+  "name": "序列与二级结构标注（Studio 面板）",
+  "summary": "在 Studio 的“分析”页里，显示选中部分的序列和文件里登记的二级结构（螺旋、折叠），可点段落在画面里亮出，按二级结构涂色，并作为“推导”证据记进作品。",
+  "category": "interaction",
+  "adds": [
+    "Studio“分析”页的面板：部分默认取“外观”页的选择",
+    "每条链显示一字母序列、H/E/- 二级结构行（缺失的残基用 / 标出）和螺旋、折叠段列表",
+    "点一个螺旋/折叠段，在画面里把这段残基亮出来",
+    "按二级结构涂色（螺旋红、折叠金、其他灰蓝），写成作品的残基上色规则",
+    "把结果记进作品：证据（类型“推导”，写明读自文件登记）与面板自己的数据（每条链的残基数、螺旋/折叠数和段落）"
+  ],
+  "usage": [
+    {
+      "title": "看一条链的序列和螺旋、折叠分布",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页“序列与二级结构”→ 显示 → 点某个螺旋段亮出 → 按二级结构涂色 → 记入作品",
+      "note": "二级结构是文件登记的，不预测也不重新计算；没有登记的文件（如部分预测结构）会显示为全部“其他”"
+    }
+  ],
+  "provides": [
+    {
+      "type": "panel",
+      "id": "org.glow.panel.secondary"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/secondary.mjs",
+      "exports": [
+        "secondaryOf",
+        "LETTER"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实：单元测试核对序列、结构行、段落和缺失标记；真实浏览器里对 4AKE 走完“显示 → 亮出 → 涂色 → 记入 → 导出”。",
+    "limits": [
+      "二级结构只读文件登记的，不预测、不重新计算（没有登记的文件会全部显示为“其他”）",
+      "序列取自有坐标的残基，缺失的残基只用 / 标出位置，不显示它们的氨基酸",
+      "核酸显示为核苷酸末位字母，不显示二级结构",
+      "一次最多显示 2000 个残基，更多要缩小选择",
+      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-22-authoring-core.md"
+  ],
+  "tags": [
+    "序列",
+    "二级结构"
+  ]
+}

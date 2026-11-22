@@ -39,8 +39,13 @@ import { createTakeApart } from './take-apart.mjs';
 import { createSequenceBar } from './sequence-bar.mjs';
 import { SELECTION_HELP, describeSelection, selectionSpace, evaluateSelection } from '../../plugins/structure/selection.mjs';
 import { residueConfidence, confidenceColor, residueIdentity } from '../../plugins/structure/confidence.mjs';
+import { lookFor, applyStyle, validateStyles } from '../../plugins/structure/look.mjs';
 import { sequenceRows } from '../../plugins/structure/sequence.mjs';
 import { displayCenter } from '../../plugins/motion/state-pair.mjs';
+import { cameraAt } from '../../packages/schema/camera-track.mjs';
+import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
+import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
+import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
@@ -56,6 +61,7 @@ import { normalizeCompositionConfig } from '../../plugins/simulation/composition
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
+import { createPanelTabs } from './panel-tabs.mjs';
 import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
@@ -78,6 +84,7 @@ import { renderControls, readControl, writeControl } from '../../packages/plugin
 const elements = Object.fromEntries(
   [...document.querySelectorAll('[id]')].map((element) => [element.id, element]),
 );
+const panelTabs = createPanelTabs(elements['info-panel']);   // the left panel as task pages; every block keeps its id, so everything below still finds its elements
 
 let active;
 let frame;
@@ -127,6 +134,8 @@ function syncControls() {
   elements['atp-enabled'].disabled = !structureEnabled;
   const staticTemplate = Boolean(active?.isTemplate);
   elements['template-note'].hidden = !staticTemplate;
+  // A work made in the Studio carries its structure file. Opening a file never switches a plugin on by itself (the person does): this says what the work needs and offers the one click.
+  elements['structure-offer'].hidden = !(active?.scene?.schemaVersion === 3 && structureSources(active.scene).length && !host.getImporter(IMPORTER));
   elements['mechanism-controls'].hidden = !active?.player;
   elements['selection-form'].hidden = !structureEnabled || !active?.model;
   elements['selection-expression-form'].hidden = !structureEnabled || !active?.model;
@@ -866,6 +875,8 @@ function boot() {
     if (view?.colors) {   // the colours the author gave the chains come back with the file (a damaged block is ignored, the plugin's own palette stays)
       try { active.colorState = validateColorState(view.colors); Promise.resolve().then(() => { if (active?.colorState) refreshStructureView(); }); } catch { /* keep the default palette */ }
     }
+    try { active.annotationState = { measures: validateMeasures(view?.measures), labels: validateLabels(view?.labels), bonds: validateBonds(view?.bonds) }; active.surfaceState = validateSurfaces(view?.surfaces); Promise.resolve().then(drawAnnotationsNow); } catch { /* a damaged block is ignored */ }
+    if (Array.isArray(view?.styles)) { try { active.styleState = validateStyles(view.styles); Promise.resolve().then(() => { if (active?.styleState?.length) refreshStructureView(); }); } catch { /* a damaged block is ignored */ } }
     if (view?.spin) Promise.resolve().then(() => objectSpin.restore(view.spin));
     const particles = toolEntryFor(active.scene, SOLUTION_TOOL, (id) => host.resolveToolId(id) ?? id)?.config ?? view?.particles;   // the tool entry is the place; earlier files kept it in the view state
     if (particles) Promise.resolve().then(() => particleFlow.restore(particles));
@@ -910,15 +921,18 @@ function boot() {
     const [first] = structureSources(loaded.scene);
     return Boolean(first && (loaded.scene.resources ?? []).some((record) => record.kind === 'predicted-structure' && first.resource?.id === record.id));
   }
-  /** (group, atom) -> colour of one residue, from the colour state's selection rules and, for a predicted structure, the confidence scheme; undefined when nothing colours residues. */
-  function residueColorOf(loaded) {
-    const state = loaded.colorState, model = loaded.model;
-    if (!state || !model || (!state.residues?.length && state.scheme !== 'confidence')) return undefined;
-    const colors = new Map();
-    if (state.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) colors.set(key, confidenceColor(value));
-    const space = selectionSpace(model);
-    for (const rule of state.residues ?? []) for (const residue of evaluateSelection(rule.expr, space).residues) colors.set(residueIdentity(residue.atom), rule.color);
-    return (group, atom) => colors.get(residueIdentity(atom));
+  /**
+   * The author's per-residue look (colours and styles of chosen parts) as the `look` the structure layers ask for: the colour rules in the colour state (a colour, or a scheme computed from a property),
+   * the confidence bands for a predicted structure, and the style rules (cartoon / backbone / blob / hidden). Both the Studio and the Viewer read the same rules (plugins/structure/look.mjs).
+   */
+  function lookOf(loaded) {
+    const state = loaded.colorState, styles = loaded.styleState ?? [];
+    if (!loaded.model || (!(state?.residues?.length) && state?.scheme !== 'confidence' && !styles.length)) return undefined;
+    return (model) => {
+      const base = new Map();
+      if (state?.scheme === 'confidence' && hasConfidence(loaded)) for (const [key, value] of residueConfidence(model).values) base.set(key, confidenceColor(value));
+      return lookFor(model, { colors: state, styles }, { base });
+    };
   }
   function structureLayers(loaded, requestedStyle) {
     const layers = geometryLayers(loaded);
@@ -932,7 +946,7 @@ function boot() {
     const result = buildStructureLayers({
       scene: loaded.scene, models: loaded.models, layers, build: representation.build, style: requestedStyle, defaultStyle: defaultStyleFor(loaded.scene),
       recolor: loaded.colorState && !isDefault(loaded.colorState) ? (group, index, count) => resolveColor(loaded.colorState, group.chainId, index, count) : undefined,
-      residueColor: residueColorOf(loaded),
+      look: lookOf(loaded),
       onTarget(target, source, primary) {
         target.sourceAssetId = source.id;
         loaded.structureTargets.set(structureObjectId(target.kind, target.atom, source.id), target);
@@ -946,6 +960,16 @@ function boot() {
   /** Ids of the assets of the structure part nodes of one source (the layers a conformation morph has to move). */
   function structureAssetIds(source) {
     return new Set((active?.scene.nodes ?? []).filter((node) => node.assetId && node.extensions?.[STRUCTURE]?.sourceAssetId === source?.id).map((node) => node.assetId));
+  }
+  /** The measurements and labels kept with the work, drawn on the structure (same coordinates as the measure tool). */
+  function drawAnnotationsNow() {
+    const state = active?.annotationState;
+    if (!active?.model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
+    const centre = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM;
+    const problems = drawAnnotations(viewport, active.model, state ?? {}, (p) => p.map((v, i) => (v - centre[i]) * k));
+    if (problems.length) console.warn('标注未能画出：', problems.map((p) => p.message).join('；'));
+    const surfaceProblems = drawSurfaces(viewport, active.model, active.surfaceState ?? [], (p) => p.map((v, i) => (v - centre[i]) * k));
+    if (surfaceProblems.length) console.warn('表面未能画出：', surfaceProblems.map((p) => p.message).join('；'));
   }
   function refreshStructureView(style) {
     if (!active?.model && !active?.representationSource) return;
@@ -969,6 +993,7 @@ function boot() {
     if (style && active.representationSource) active.representationSource.provenance.viewerStyle = style;
     active.modeState = undefined;
     viewport.setCamera(camera);
+    drawAnnotationsNow();
     showPose();
     if (active.structureSelection) {
       const { kind, atom } = active.structureSelection;
@@ -1109,6 +1134,12 @@ function boot() {
     if (active.structureSelection && !viewport.setPointSelection(active.structureSelection)) showStructurePick();
   });
 
+  /** Camera keyframes of the work: while the timeline plays or is dragged, the camera follows them (nothing when the work has none). */
+  function followCameraTrack() {
+    if (!active) return;
+    const time = active.player ? active.player.snapshot().time : active.timeline.time, camera = cameraAt(active.scene?.presentation, time);
+    if (camera) viewport.setCamera(camera);
+  }
   function showPose() {
     if (active?.player) {
       const snapshot = active.player.snapshot();
@@ -1419,6 +1450,7 @@ function boot() {
     }
   }
   elements['structure-enabled'].addEventListener('change', (event) => setStructureEnabled(event.currentTarget.checked));
+  elements['structure-offer-enable'].addEventListener('click', () => setStructureEnabled(true, { propagate: true }).then(() => syncControls()).catch((error) => setStatus(`无法启用结构插件：${error.message}`)));
 
   elements['atp-enabled'].addEventListener('change', async (event) => {
     stopFrame();
@@ -1719,6 +1751,11 @@ function boot() {
         camera,
         ...(active.clipping?.enabled || active.clipping?.wedgeParts.length ? { clipping: active.clipping } : {}),
         ...(active.colorState && !isDefault(active.colorState) ? { colors: active.colorState } : {}),
+        ...(active.styleState?.length ? { styles: active.styleState } : {}),
+        ...(active.annotationState?.measures.length ? { measures: active.annotationState.measures } : {}),
+        ...(active.annotationState?.labels.length ? { labels: active.annotationState.labels } : {}),
+        ...(active.annotationState?.bonds.length ? { bonds: active.annotationState.bonds } : {}),
+        ...(active.surfaceState?.length ? { surfaces: active.surfaceState } : {}),
         ...(objectSpin.save() ? { spin: objectSpin.save() } : {}),
         selection: structureSelection ? structureObjectId(structureSelection.kind, structureSelection.atom, structureSelection.sourceAssetId) : null,
       } };
@@ -1805,6 +1842,7 @@ function boot() {
     if (active?.player) active.player.seek(Number(elements.playhead.value));
     else active.timeline.seek(Number(elements.playhead.value));
     showPose();
+    followCameraTrack();
   });
   elements.play.addEventListener('click', () => {
     active.inspectionStep = undefined;
@@ -1819,6 +1857,7 @@ function boot() {
         player.advance(Math.min(0.1, Math.max(0, (now - previous) / 1000)));
         previous = now;
         showPose();
+        followCameraTrack();
         frame = player.snapshot().playing ? requestAnimationFrame(tick) : undefined;
       }
       frame = requestAnimationFrame(tick);
@@ -1839,6 +1878,7 @@ function boot() {
       timeline.advance(Math.max(0, (now - previous) / 1000));
       previous = now;
       showPose();
+      followCameraTrack();
       frame = timeline.playing ? requestAnimationFrame(tick) : undefined;
     }
     frame = requestAnimationFrame(tick);
@@ -1973,6 +2013,8 @@ function boot() {
     colorCheck: (expression) => (active?.model ? evaluateSelection(expression, selectionSpace(active.model)).residues.length : 0),
     hasConfidence: () => Boolean(active && hasConfidence(active)),
     setColors: (state) => { active.colorState = state; refreshStructureView(); },
+    styleState: () => active?.styleState ?? [],
+    setStyles: (styles) => { active.styleState = styles; refreshStructureView(); },
     sequence: () => {
       if (!active?.model) return null;
       const { rows, hidden } = sequenceRows(active.model);

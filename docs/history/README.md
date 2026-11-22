@@ -4,6 +4,12 @@
 
 本轮归档映射见 [ARCHIVE_MAP.json](ARCHIVE_MAP.json)。validation 和 images 保留稳定证据路径，历史通过不代表当前提交通过。routine 未纳入整理。
 
+## 2026-11-22 归档（Desktop 0.9.0 发布时）
+
+- `routine/`：2026-11-19 至 2026-11-21 的 105 份逐步记录（做了什么、改了什么、下一步）按原文件名放在这里；当前的 routine 记录留在 `docs/routine/`。这些文件里的相对链接按归档前的位置写，可能已不指向现在的位置。
+- `releases/`：Desktop 0.6.0、0.7.0、0.8.0 的发行说明（GitHub 上的发行页仍在）。
+- `validation/`：Desktop 0.5.0、0.6.0 的发行验证记录；当前文档里指向它们的链接已改到这里。
+
 ## 当前修订与综合
 
 - [历史沿革总结](EVOLUTION_SUMMARY.md)：经典、平台契约、交接、审计/整改与最新用户要求如何衔接。

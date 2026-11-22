@@ -1,6 +1,7 @@
 import { createDocumentStore } from '../core/index.mjs';
 import { validateScene, toCoreDocument } from '../schema/documents.mjs';
 import { GEOMETRY_MEDIA_TYPE } from '../schema/geometry.mjs';
+import { mergeStructure } from './add-structure.mjs';
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -122,6 +123,13 @@ function mergeCore(scene, coreDocument, renderableAssetIds, assetIntents) {
   });
 }
 
+/** A bookmark made for a camera key (id starts with "camkey-") goes with it, unless something else (a navigation view, another key) still uses it. */
+function dropAutoBookmark(presentation, bookmarkId) {
+  if (!String(bookmarkId).startsWith('camkey-')) return;
+  const used = (presentation.cameraKeys ?? []).some((key) => key.bookmarkId === bookmarkId) || (presentation.navigation?.views ?? []).some((view) => view.bookmarkId === bookmarkId);
+  if (!used) presentation.bookmarks = presentation.bookmarks.filter(({ id }) => id !== bookmarkId);
+}
+
 function applyMetadata(scene, command) {
   const next = clone(scene);
   switch (command.type) {
@@ -160,6 +168,41 @@ function applyMetadata(scene, command) {
       }
       next.presentation ??= { notes: [], bookmarks: [] };
       next.presentation.bookmarks.push(clone(bookmark));
+      break;
+    }
+    case 'addCameraKey': {
+      // a camera keyframe: a time and the view the camera has then (saved as a bookmark of its own); a key already at that time is replaced
+      const { key, bookmark } = command;
+      if (!key || typeof key.id !== 'string' || !Number.isFinite(key.time) || key.time < 0 || !bookmark || typeof bookmark.id !== 'string' || typeof bookmark.name !== 'string' || !Array.isArray(bookmark.position) || !Array.isArray(bookmark.target)) {
+        throw new TypeError('addCameraKey requires { key: { id, time }, bookmark: { id, name, position, target } }');
+      }
+      next.presentation ??= { notes: [], bookmarks: [] };
+      const old = (next.presentation.cameraKeys ??= []).find((entry) => entry.time === key.time);
+      if (old) { next.presentation.cameraKeys = next.presentation.cameraKeys.filter((entry) => entry !== old); dropAutoBookmark(next.presentation, old.bookmarkId); }
+      next.presentation.bookmarks.push(clone(bookmark));
+      next.presentation.cameraKeys.push({ id: key.id, time: key.time, bookmarkId: bookmark.id });
+      next.presentation.cameraKeys.sort((a, b) => a.time - b.time);
+      break;
+    }
+    case 'removeCameraKey': {
+      const keys = next.presentation?.cameraKeys ?? [], key = keys.find(({ id }) => id === command.id);
+      if (!key) throw new TypeError(`没有镜头关键帧 ${String(command.id)}。`);
+      next.presentation.cameraKeys = keys.filter((entry) => entry !== key);
+      if (!next.presentation.cameraKeys.length) delete next.presentation.cameraKeys;
+      dropAutoBookmark(next.presentation, key.bookmarkId);
+      break;
+    }
+    case 'setViewerState': {
+      // The look the author gave the structure (colours, styles of chosen parts), kept in the structure file's viewer state, where the Viewer reads it back. One undoable step; other keys of the viewer state (camera,
+      // clipping, spin) are kept. The contents are checked by whoever writes them (plugins/structure/look.mjs, the colour state); here only the shape and the size.
+      const asset = next.assets.find(({ id }) => id === command.assetId);
+      if (!asset || asset.kind !== 'file') throw new TypeError(`作品里没有结构文件 ${String(command.assetId)}。`);
+      if (!command.patch || typeof command.patch !== 'object' || Array.isArray(command.patch)) throw new TypeError('setViewerState requires a patch object');
+      const viewerState = { ...(asset.provenance?.viewerState ?? {}) };
+      for (const [key, value] of Object.entries(command.patch)) { if (value === null) delete viewerState[key]; else viewerState[key] = clone(value); }
+      if (JSON.stringify(viewerState).length > 256 * 1024) throw new RangeError('外观设置太大（超过 256 KB）。');
+      asset.provenance = { ...(asset.provenance ?? {}), viewerState };
+      if (!Object.keys(viewerState).length) delete asset.provenance.viewerState;
       break;
     }
     case 'setToolConfig': {
@@ -231,7 +274,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
 
   function dispatch(command) {
     if (!command || typeof command !== 'object' || Array.isArray(command)) throw new TypeError('command must be an object');
-    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
+    if (['addNote', 'addBookmark', 'addEvidence', 'setNavigation', 'setSceneTitle', 'setPublication', 'setViewerState', 'addCameraKey', 'removeCameraKey', 'setToolConfig', 'addToolEntry', 'removeToolEntry', 'setToolBindings'].includes(command.type)) {
       return commit(applyMetadata(current, command));
     }
 
@@ -247,6 +290,15 @@ export function createStudioSession(sceneInput, resources = new Map()) {
     return commit(mergeCore(current, coreStore.getSnapshot(), renderableAssetIds, intents));
   }
 
+  /** Adds a second structure (the v3 scene and resources of an import) to the work: one undoable step; the file bytes are kept for the life of the session (undo removes the structure from the scene). */
+  function addStructure(imported, importedResources, options) {
+    const merged = mergeStructure(current, storedResources, imported, importedResources, options);
+    const check = validateScene(merged.scene);
+    for (const [path, bytes] of merged.resources) if (!storedResources.has(path)) storedResources.set(path, bytes);
+    commit(check);
+    return merged.prefix;
+  }
+
   function restore(from, to) {
     if (from.length === 0) return false;
     to.push(current);
@@ -259,6 +311,7 @@ export function createStudioSession(sceneInput, resources = new Map()) {
     getCoreDocument() { return projected(current, storedResources); },
     getResources() { return copyResources(storedResources); },
     dispatch,
+    addStructure,
     undo() { return restore(undoStack, redoStack); },
     redo() { return restore(redoStack, undoStack); },
     canUndo() { return undoStack.length > 0; },

@@ -1,0 +1,48 @@
+// Real-browser check of cross-entry superposition: 4AKE (open adenylate kinase) and 1AKE (closed) in one scene; the core domain of the open form is fitted onto the closed form and moved; the exported node transform, applied to the two deposited files, must reproduce the RMSD the panel reported.
+const { chromium } = require('playwright'); const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict');
+const ROOT = path.resolve(__dirname, '..'), ORIGIN = 'http://localhost:8765', FIX = path.resolve(process.argv[2] || path.join(ROOT, 'desktop/dist/smoke-structures')), OUT = process.argv[3] || 'docs/images';
+const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.glow': 'application/json', '.png': 'image/png' };
+setTimeout(() => { console.error('the check hung'); process.exit(1); }, 540000).unref?.();
+(async () => {
+  const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }), context = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
+  await context.route('**/*', (route) => { const url = new URL(route.request().url()), cdn = /^https:\/\/cdn\.jsdelivr\.net\/npm\/three@0\.160\.0\/(.+)$/.exec(url.href);
+    if (cdn) { const f = [path.join(ROOT, 'desktop/vendor/three', cdn[1]), path.join(ROOT, 'desktop/node_modules/three', cdn[1])].find((x) => fs.existsSync(x)) ?? ''; return fs.existsSync(f) ? route.fulfill({ status: 200, contentType: 'text/javascript', body: fs.readFileSync(f) }) : route.abort(); }
+    if (url.origin !== ORIGIN) return route.abort(); const file = path.join(ROOT, decodeURIComponent(url.pathname));
+    if (!file.startsWith(ROOT) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) return route.fulfill({ status: 404, body: 'nf' }); route.fulfill({ status: 200, contentType: TYPES[path.extname(file)] ?? 'application/octet-stream', body: fs.readFileSync(file) }); });
+  const FIX = path.resolve(process.argv[2] || path.join(ROOT, 'desktop/dist/smoke-structures'));
+  const errors = [], studio = await context.newPage(); studio.on('pageerror', (e) => errors.push('studio: ' + e.message));
+  const exportPack = async (name) => { const [d] = await Promise.all([studio.waitForEvent('download', { timeout: 60000 }), studio.evaluate(() => { document.querySelector('#export-scene').click(); })]); const f = path.join(os.tmpdir(), `${name}-${process.pid}.glow`); await d.saveAs(f); return f; };
+  await studio.goto(ORIGIN + '/apps/studio-web/index.html'); await studio.waitForSelector('#tab-analysis', { timeout: 30000 }); await studio.waitForTimeout(1200);
+  await studio.setInputFiles('#structure-file', path.join(FIX, '4AKE.cif')); await studio.waitForFunction(() => document.querySelectorAll('#scene-tree li').length >= 2, null, { timeout: 90000 });
+  await studio.setInputFiles('#structure-add-file', path.join(FIX, '1AKE.cif')); await studio.waitForTimeout(6000); console.log('status:', await studio.$eval('#status', (n) => n.textContent), '| errors:', JSON.stringify(errors)); await studio.waitForFunction(() => document.querySelectorAll('#scene-tree li').length >= 3, null, { timeout: 30000 });
+  const names = await studio.$$eval('#scene-tree li', (l) => l.map((x) => x.textContent.trim())); console.log('outline:', JSON.stringify(names)); assert.ok(names.some((n) => /1AKE · Chain A/.test(n)) && names.some((n) => /^Chain A/.test(n)), 'both structures are in the outline');
+  await studio.click('#tab-look'); await studio.waitForSelector('#look-body:not([hidden])', { timeout: 90000 });
+  await studio.fill('#look-expression', 'chain A'); await studio.click('#look-select'); await studio.waitForFunction(() => /选中/.test(document.querySelector('#look-info').textContent));
+  await studio.click('#tab-analysis'); await studio.waitForSelector('#superposition-reference-structure', { timeout: 60000 });
+  const labels = await studio.$$eval('#superposition-mobile-structure option', (o) => o.map((x) => x.textContent)); console.log('structures offered:', JSON.stringify(labels)); assert.equal(labels.length, 2);
+  const CORE = 'chain A and (resi 1-29 or resi 60-121 or resi 160-214)';
+  await studio.selectOption('#superposition-mobile-structure', { index: 0 }); await studio.selectOption('#superposition-reference-structure', { index: 1 });
+  await studio.fill('#superposition-mobile', CORE); await studio.fill('#superposition-reference', CORE); await studio.click('#superposition-run'); await studio.waitForFunction(() => /叠合后/.test(document.querySelector('#superposition-out').textContent), null, { timeout: 15000 });
+  const summary = await studio.$eval('#superposition-out', (n) => n.textContent); console.log(summary); const m = /(\d+) 个残基对到参考上：叠合前 RMSD ([\d.]+) Å，叠合后 ([\d.]+) Å/.exec(summary); assert.ok(m); const [pairs, before, after] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  assert.ok(pairs > 120 && after < before && after < 3, `core fit of open onto closed adenylate kinase: ${before} -> ${after} over ${pairs} pairs`);
+  await studio.click('#superposition-place'); await studio.waitForTimeout(1500); console.log('after place:', await studio.$eval('#superposition-out', (n) => n.textContent), '| status:', await studio.$eval('#status', (n) => n.textContent), JSON.stringify(await studio.$$eval('#scene-tree li', (l) => l.map((x) => x.textContent.trim())))); await studio.waitForFunction(() => /已移动画面里的链 A/.test(document.querySelector('#superposition-out').textContent)); await studio.click('#superposition-record'); await studio.waitForTimeout(2000); console.log('after record:', await studio.$eval('#superposition-out', (n) => n.textContent), '| status:', await studio.$eval('#status', (n) => n.textContent)); await studio.waitForFunction(() => /证据记入作品/.test(document.querySelector('#superposition-out').textContent));
+  await studio.waitForTimeout(1500); await studio.screenshot({ path: path.join(os.tmpdir(), 'cross-superposition.png') });
+  const pack = await exportPack('cross'); const { readScenePackage } = await import(path.join(ROOT, 'packages/schema/archive.mjs'));
+  const { scene, resources } = await readScenePackage(new Uint8Array(fs.readFileSync(pack))); const sources = scene.assets.filter((a) => a.kind === 'file' && /mmcif/.test(a.mediaType)); assert.equal(sources.length, 2);
+  const nodeOf = (sourceId, chain) => scene.nodes.find((n) => n.extensions?.['org.glow.structure']?.sourceAssetId === sourceId && n.extensions['org.glow.structure'].chainId === chain);
+  const moved = nodeOf(sources[0].id, 'A'), still = nodeOf(sources[1].id, 'A'); assert.notDeepEqual(moved.transform.rotation, [0, 0, 0, 1], 'the open form moved'); assert.deepEqual(still.transform.rotation, [0, 0, 0, 1], 'the closed form stays');
+  // independent recomputation from the exported transform and the two deposited files
+  const { parseMmcif } = await import(path.join(ROOT, 'plugins/structure/parser.mjs')), { centerAndScale, selectCoordinateAtoms } = await import(path.join(ROOT, 'plugins/structure/representation.mjs')), { rotateVector } = await import(path.join(ROOT, 'plugins/structure/alignment.mjs'));
+  const load = (source) => { const bytes = resources instanceof Map ? resources.get(source.path) : resources[source.path]; const model = parseMmcif(Buffer.from(bytes).toString('utf8')); return { model, centred: centerAndScale(selectCoordinateAtoms(model)) }; };
+  const open = load(sources[0]), closed = load(sources[1]), k = 0.05, t = moved.transform;
+  const inCore = (a) => { const n = Number(a.authSeqId); return (n >= 1 && n <= 29) || (n >= 60 && n <= 121) || (n >= 160 && n <= 214); };
+  const ca = (model) => new Map(model.atoms.filter((a) => a.name === 'CA' && a.authChainId === 'A' && !a.altLoc.trim().replace('A', '') && inCore(a)).map((a) => [`${a.authSeqId}|${a.residueName}`, a]));
+  const A = ca(open.model), B = ca(closed.model); let sum = 0, n = 0;
+  for (const [key, a] of A) { const b = B.get(key); if (!b) continue; const s = open.centred.point(a.position), placed = rotateVector(s, t.rotation).map((v, i) => v + t.position[i]);   // the open form in scene metres
+    const ref = closed.centred.point(b.position); sum += (placed[0] - ref[0]) ** 2 + (placed[1] - ref[1]) ** 2 + (placed[2] - ref[2]) ** 2; n++; }
+  const rmsd = Math.sqrt(sum / n) / k; console.log('RMSD recomputed from the exported transform and both deposited files:', rmsd.toFixed(3), 'over', n, 'pairs (panel said', after, ')'); assert.ok(Math.abs(rmsd - after) < 0.02, 'the placement reproduces the reported fit across two entries');
+  const data = scene.assets.find((a) => a.id === sources[0].id).provenance.viewerState.plugins['org.glow.panel.superposition']; assert.equal(data.placed, true); assert.ok(data.mobileStructure && data.referenceStructure);
+  const viewer = await context.newPage(); viewer.on('pageerror', (e) => errors.push('viewer: ' + e.message)); await viewer.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await viewer.waitForFunction(() => window.glow, null, { timeout: 30000 }); await viewer.setInputFiles('#file', pack);
+  await viewer.waitForSelector('#structure-offer-enable', { state: 'visible', timeout: 60000 }); await viewer.click('#structure-offer-enable'); await viewer.waitForTimeout(5000); const stats = await viewer.evaluate(() => window.__glowStats()); console.log('viewer with two structures: triangles', stats.triangles, 'drawables', stats.drawables); assert.ok(stats.drawables > 4, 'the Viewer draws both structures');
+  assert.deepEqual(errors, [], 'no page errors'); await browser.close(); console.log('cross-entry superposition: ok');
+})().catch((e) => { console.error(e); process.exit(1); });

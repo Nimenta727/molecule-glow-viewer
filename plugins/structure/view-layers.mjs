@@ -17,6 +17,8 @@ export const structureSources = (scene) => scene.assets.filter(({ kind, mediaTyp
  *   style    the style asked for the primary structure; otherwise the stored style of the structure, then `defaultStyle`
  *   onTarget optional (target, source, isPrimary) for callers that keep pick targets
  *   recolor  optional (group, index, count) -> colour string or undefined: the colour a chain group is drawn in (the Viewer's `color` command); wins over a classic scene's own colour
+ *   look     optional (model, source) -> { colorOf(atom), styleOf(atom) } | undefined: the per-residue colour and style the author gave parts of the structure (look.mjs). Every residue-level
+ *            representation (cartoon, backbone, blob) draws it itself; layers that carry a residue colour are `pinned` and keep it when a chain-wide colour is applied.
  *   residueColor  optional (group, atom) -> colour string or undefined: the colour of one residue (`atom` is the residue's first atom); only the blob representation, which has one sphere per
  *            residue, can show it. The sphere layer is split by colour; a layer that carries conformations is left whole.
  * A preview that cannot be matched to a group keeps its preview geometry. Returns { layers, representationSource }.
@@ -40,7 +42,7 @@ function splitByResidueColor(mapped, group, residueColor) {
   return out;
 }
 
-export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget, recolor, residueColor }) {
+export function buildStructureLayers({ scene, models, layers, build, style, defaultStyle, onTarget, recolor, residueColor, look }) {
   const sources = structureSources(scene);
   let representationSource;
   const nodesByAsset = new Map(scene.nodes.map((node) => [node.assetId, node]));
@@ -55,7 +57,7 @@ export function buildStructureLayers({ scene, models, layers, build, style, defa
     const builds = new Map();
     const built = (mode) => {
       if (!builds.has(mode)) {
-        const groups = build(model, { style: mode, functionalRules: scene.legacy?.scene });
+        const groups = build(model, { style: mode, functionalRules: scene.legacy?.scene, ...(look ? { look: look(model, source) ?? {} } : {}) });
         builds.set(mode, { groups, byKey: new Map(groups.map((group) => [group.key, group])) });
       }
       return builds.get(mode);
@@ -70,7 +72,7 @@ export function buildStructureLayers({ scene, models, layers, build, style, defa
       const tint = recolor?.(group, groups.indexOf(group), groups.length) ?? asset.provenance.legacyColor;
       const mapped = group.layers.map((layer, layerIndex) => ({
         ...layer, representationStyle: effective,
-        ...(tint && layer.mode !== 'points' && layer.role !== 'functional-core' ? { color: tint } : {}),
+        ...(tint && !layer.pinned && layer.mode !== 'points' && layer.role !== 'functional-core' ? { color: tint } : {}),
         pointTargets: group.pointTargets[layerIndex],
       }));
       layers.set(asset.id, residueColor ? splitByResidueColor(mapped, group, residueColor) : mapped);

@@ -77,6 +77,6 @@ frame.contentWindow.postMessage({
 
 ## 当前兼容范围与验收
 
-保留命令名称、`run`、日志重放及消息信封；尚未完整兼容经典参数和回包。复杂选择语言、`color`、`style`、`sequence`、`measure`、工坊/预设别名，以及其他机制命令仍待迁移。未支持的命令明确报错。导出返回 v2 ZIP 包装，与经典 v1 对象不同。
+保留命令名称、`run`、日志重放及消息信封；尚未完整兼容经典参数和回包。（0.9.0 补记：`show(选择, cartoon|backbone|blob|sticks|hidden)` 与 `color(选择, 颜色|hydrophobicity|bfactor|charge|secondary|rainbow)` 已按残基生效，表面、标注、连线和镜头关键帧来自作品里保存的规则，Viewer 里没有对应命令。）复杂选择语言、`color`、`style`、`sequence`、`measure`、工坊/预设别名，以及其他机制命令仍待迁移。未支持的命令明确报错。导出返回 v2 ZIP 包装，与经典 v1 对象不同。
 
 单元测试覆盖命令串行、失败恢复、参数快照、日志脱敏/重放、关闭、精确来源、请求窗口、分级授权、拒绝/撤销和排队结果失效。`GLOW_COMMAND_SMOKE=<目录>` 用 Electron 运行 `tools/studio-smoke.cjs`，验证本地结构的插入码选择、表示、错误恢复、导出重开、镜头、截图及自发消息被拒绝。真实父 iframe 的分级授权由 `node tools/security-smoke.cjs --stage <目录> --live` 验证，经典和新版均覆盖；同样可传 `--exe <候选>`。`GLOW_ATP_SMOKE` 额外验证实际 6ZPO 的命令定步、跳转、种子和播放暂停。截图已检查宽屏、560 px 窄屏及独立导出的 PNG。

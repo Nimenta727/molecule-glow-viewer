@@ -75,8 +75,42 @@ input[type="text"], input[type="number"], select {
   backdrop-filter: blur(8px);
 }
 body.panel-collapsed .info-panel { display: none; }
-.info-panel { display: flex; flex-direction: column; }
+.info-panel { display: flex; flex-direction: column; overflow: hidden; }
 .info-panel > * { flex: none; }
+/* ---- the panel as pages (panel-tabs.mjs): a fixed tab bar, one scrolling page, titled groups ---- */
+.panel-tabs { display: flex; flex: none; border-bottom: 1px solid var(--line); background: var(--head); }
+.panel-tabs button {
+  flex: 1 1 0; min-width: 0; padding: 0.42rem 0.2rem; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--dim); font-weight: 600; font-size: 0.82rem; white-space: nowrap;
+}
+.panel-tabs button:hover { background: #e4e7ee; color: var(--head-ink); }
+.panel-tabs button[aria-selected="true"] { color: var(--acc-ink); border-bottom-color: var(--acc); background: var(--card); }
+.panel-pane { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; font-size: 0.9rem; }
+.panel-pane[hidden] { display: none; }
+.panel-group { padding: 0.5rem 0.75rem 0.65rem; border-bottom: 1px solid var(--line); }
+.panel-group[hidden] { display: none; }
+.panel-group:last-child { border-bottom: 0; }
+.group-title { margin: 0 0 0.35rem; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; color: var(--dim); text-transform: uppercase; }
+/* blocks that bring their own header (accordions, the mechanism card) sit flush in their group */
+.panel-group > details, .panel-group > .mechanism-controls, .panel-group > #scene-navigation { margin: -0.5rem -0.75rem -0.65rem; }
+.panel-group > details:not(:only-child), .panel-group > .mechanism-controls:not(:only-child) { margin: 0; }
+.panel-pane details > :not(summary) { margin-left: 0.75rem; margin-right: 0.75rem; }
+.panel-pane details > :last-child { margin-bottom: 0.65rem; }
+.panel-pane details > summary + * { margin-top: 0.55rem; }
+.panel-pane summary {
+  list-style: none; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer; font-weight: 600; color: var(--head-ink);
+  padding: 0.32rem 0.75rem; background: var(--head); border-bottom: 1px solid var(--line);
+}
+.panel-pane details:not([open]) > summary { border-bottom: 0; }
+.panel-pane summary:hover { background: #e4e7ee; }
+.panel-pane summary::-webkit-details-marker { display: none; }
+.panel-pane summary::before {
+  content: ''; width: 0.42rem; height: 0.42rem; flex: none; border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim);
+  transform: rotate(-45deg); transition: transform 0.12s;
+}
+.panel-pane details[open] > summary::before { transform: rotate(45deg); }
+.panel-pane > .panel-group > .structure-form:first-child, .panel-pane .panel-group > .group-title + .structure-form { margin-top: 0; }
+.panel-pane .empty-hint, .panel-group > .empty-hint { margin: 0; padding: 0; border: 0; }
+.panel-pane #scene-navigation, .panel-pane .mechanism-controls { padding: 0.55rem 0.75rem 0.7rem; }
 .info-panel > .empty-hint { order: 0; }
 .info-panel > #scene-navigation { order: 1; }
 .info-panel > .mechanism-controls { order: 2; }
@@ -300,3 +334,7 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .energy-follow[aria-pressed="true"] { background: var(--acc-soft); border-color: var(--acc); color: var(--acc-ink); }
 .energy-detail { flex-basis: 100%; margin: 0.2rem 0 0; max-height: 9rem; overflow-y: auto; line-height: 1.55; color: var(--ink, #2c3440); }
 @media (max-width: 760px) { .energy-strip:not([hidden]) { top: 5.6rem; max-width: calc(100% - 2 * var(--gap)); font-size: 0.74rem; } }
+
+.structure-offer { margin: 0.4rem 0; padding: 0.45rem 0.55rem; background: #fff6df; border: 1px solid #e3cf9a; border-radius: 4px; color: #5b4510; font-size: 0.84rem; line-height: 1.5; }
+.structure-offer[hidden] { display: none; }
+.structure-offer button { margin-top: 0.3rem; }

@@ -11,8 +11,13 @@ import { describeStructureAsset, sha256Hex } from './resource.mjs';
 const isStructureFile = (asset) => asset.kind === 'file' && /^chemical\//.test(asset.mediaType ?? '') &&
   Boolean(asset.provenance?.parserVersion || asset.provenance?.mechanismState);
 
-/** Makes a v3 scene resource-complete: records and links for every raw structure file. Mutates `scene`. */
-export async function attachStructureResources(scene, resources) {
+/**
+ * Makes a v3 scene resource-complete: records and links for every raw structure file. Mutates `scene`.
+ * `templates` are resource records the person chose in the template library (their licence, credit and whether the file may be embedded, and the scientific card read from the file): a derived record
+ * with the SAME id and version (the same file, by its hash) takes the template's attribution and card, so a work made from a template keeps what is known about it. A template that is not the same
+ * file changes nothing.
+ */
+export async function attachStructureResources(scene, resources, { templates = [] } = {}) {
   const diagnostics = [];
   for (const asset of scene.assets) {
     if (!isStructureFile(asset)) continue;
@@ -31,7 +36,9 @@ export async function attachStructureResources(scene, resources) {
       diagnostics.push({ code: 'res-hash-mismatch', assetId: asset.id, message: `资源文件与其哈希不符：${asset.path}` });
       continue;
     }
-    const { record } = describeStructureAsset(asset, bytes);
+    const { record: derived } = describeStructureAsset(asset, bytes);
+    const template = templates.find((item) => item.id === derived.id && item.version === derived.version);
+    const record = template ? { ...derived, attribution: structuredClone(template.attribution), ...(template.card ? { card: structuredClone(template.card) } : {}) } : derived;
     if (!scene.resources.some((item) => item.id === record.id && item.version === record.version)) scene.resources.push(record);
     asset.resource = { id: record.id, version: record.version, sha256: asset.sha256 };
   }
@@ -39,10 +46,10 @@ export async function attachStructureResources(scene, resources) {
 }
 
 /** Returns { scene, diagnostics }. A v3 scene is returned as it is; `tools` only applies to a scene that is being upgraded. */
-export async function upgradeSceneToV3(input, resources = new Map(), { tools = [] } = {}) {
+export async function upgradeSceneToV3(input, resources = new Map(), { tools = [], templates = [] } = {}) {
   const scene = validateScene(input);
   if (scene.schemaVersion === 3) return { scene, diagnostics: [] };
   const upgraded = { ...scene, schemaVersion: 3, tools: structuredClone(tools), resources: [] };
-  const { diagnostics } = await attachStructureResources(upgraded, resources);
+  const { diagnostics } = await attachStructureResources(upgraded, resources, { templates });
   return { scene: validateScene(upgraded), diagnostics };
 }

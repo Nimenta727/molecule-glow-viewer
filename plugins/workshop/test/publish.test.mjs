@@ -62,3 +62,14 @@ test('a predicted structure needs a "modelled" evidence entry that names it, or 
   assert.ok(codes(checkPublication(withRecord([{ type: 'derived', resourceId: record.id }]), catalog())).includes('prediction-unlabelled'), 'nor is another kind of evidence');
   assert.ok(!codes(checkPublication(withRecord([predictionEvidence(record)]), catalog())).includes('prediction-unlabelled'), 'the evidence the helper writes satisfies the rule');
 });
+
+test('a work number: lower-case words, 3–64 characters, not a reserved prefix, not one already used in the project', async () => {
+  const { validateWorkId } = await import('../publish.mjs');
+  for (const good of ['hemoglobin-2hhb', 'my.lab_work.1', 'abc', 'a'.repeat(64)]) assert.deepEqual(validateWorkId(good), { ok: true, message: '' }, good);
+  for (const [bad, pattern] of [['', /请输入/], ['ab', /小写字母/], ['Hemoglobin', /小写字母/], ['-leading', /小写字母/], ['has space', /小写字母/], ['血红蛋白', /小写字母/], ['a'.repeat(65), /3–64/], ['official.x1', /official/], ['example.demo', /official/]]) {
+    const result = validateWorkId(bad); assert.equal(result.ok, false, bad); assert.match(result.message, pattern, bad);
+  }
+  assert.equal(validateWorkId('official.kcsa', { source: 'official' }).ok, true, 'the official source may use its own prefix');
+  assert.match(validateWorkId('mine-1', { taken: ['mine-1'] }).message, /已经有编号为 mine-1/);
+  assert.equal(validateWorkId('  spaced-ok  ').ok, true, 'surrounding spaces are ignored');
+});

@@ -1,6 +1,7 @@
 import { openSceneFile } from './scene-io.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { applyColor } from './color-scheme.mjs';
+import { applyStyle } from '../../plugins/structure/look.mjs';
 import { applyCameraSpec } from './camera-spec.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
@@ -214,6 +215,18 @@ export function createViewerCommands(host) {
       try { outcome = applyColor(host.colorState(), args[0], args[1], chains, { check: host.colorCheck, confidence: host.hasConfidence?.() }); } catch (error) { throw new Error(error.message); }
       host.setColors(outcome.state);
       return { scheme: outcome.state.scheme, chains: { ...outcome.state.chains }, residues: outcome.state.residues.length, note: outcome.note };
+    },
+    show(value) {
+      needScene();
+      const args = Array.isArray(value) ? value : [value];
+      if (value == null || args.length > 2) throw new Error('show 需要 (样式) 或 (目标, 样式)；show("reset") 清除。');
+      if (!host.styleState) throw new Error('相应结构插件或坐标不可用。');
+      if (args.length === 1 && /^(reset|default)$/i.test(String(args[0]))) { host.setStyles([]); return { rules: 0, note: '已恢复默认样式。' }; }
+      const [target, style] = args.length === 1 ? ['all', args[0]] : args;
+      let outcome;
+      try { outcome = applyStyle(host.styleState(), target, style, { check: host.colorCheck }); } catch (error) { throw new Error(error.message); }
+      host.setStyles(outcome.styles);
+      return { rules: outcome.styles.length, note: outcome.note };
     },
     clip(value) {
       needScene();

@@ -1,3 +1,15 @@
+import { createPanelRegistry } from '../../packages/plugin-host/panels.mjs';
+import { createPanelHost } from './panel-host.mjs';
+import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
+import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
+import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
+import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
+import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
+import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
+import { rotateVector } from '../../plugins/structure/alignment.mjs';
+import { cameraAt, sortedCameraKeys } from '../../packages/schema/camera-track.mjs';
+import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
+import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { Euler, MathUtils, Quaternion } from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createTimeline } from '../../packages/core/index.mjs';
@@ -17,12 +29,18 @@ import { buildStructureLayers, structureSources } from '../../plugins/structure/
 import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { shortcutFor, wireMenus } from './shortcuts.mjs';
+import { createLookPanel } from './look-panel.mjs';
+import { lookFor, validateStyles } from '../../plugins/structure/look.mjs';
+import { validateColorState, createColorState, isDefault as isDefaultColors, resolveColor } from '../viewer-web/color-scheme.mjs';
+import { centerAndScale, selectCoordinateAtoms, PRESENTATION_METERS_PER_ANGSTROM } from '../../plugins/structure/representation.mjs';
+import { selectionSpace } from '../../plugins/structure/selection.mjs';
 import { createParticlePreview } from './particle-preview.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { readScenePackage } from '../../packages/schema/archive.mjs';
 import { upgradeSceneToV3 } from '../../packages/schema/migrate.mjs';
 import { toolEntriesForScene, toolTitle, isKnownTool } from '../../plugins/mechanism-catalog.mjs';
-import { checkPublication, nextRevision } from '../../plugins/workshop/publish.mjs';
+import { checkPublication, nextRevision, validateWorkId } from '../../plugins/workshop/publish.mjs';
 import { TOPICS } from '../../plugins/workshop/catalog.mjs';
 import { clickSelection, reparentPlan, groupPlan, removePlan, reconcileSelection } from './outline-edit.mjs';
 import { readForm, fillForm, licenseChoices, revisionHint, FormError } from './publish-form.mjs';
@@ -37,6 +55,8 @@ const status = (message) => { ui.status.textContent = message; };
 
 let project;
 let sessions;
+let selectionChanged = () => {};
+let lookPanel = null;   // the appearance tab (created further down; the first refresh can come before)
 let selection = null;   // the node the inspector shows (the one clicked last)
 let multi = [];         // every selected outline row, in row order (Ctrl/Cmd-click toggles, Shift-click selects a range)
 let rowAnchor = null;
@@ -131,6 +151,7 @@ function syncPublish(scene) {
   const stamp = JSON.stringify([scene.id, scene.publication ?? null]);   // the form is rewritten only when the scene or its saved publication changed, never over what is being typed
   if (stamp === publishSynced) return;
   publishSynced = stamp;
+  ui['pub-id'].value = scene.id;
   const form = fillForm(scene.publication);
   for (const [key, id] of Object.entries(FIELDS)) ui[id].value = form[key];
   if (!ui['pub-topic'].options.length || ui['pub-topic'].options.length === 1) for (const [id, name] of Object.entries(TOPICS)) ui['pub-topic'].append(new Option(name, id));
@@ -164,6 +185,21 @@ onClick('pub-catalog', async () => {
   ui['pub-note'].textContent = `已读取工坊目录（${publishCatalog.templates.length + publishCatalog.works.length} 个作品、${publishCatalog.resources.length} 个资源）。`;
 });
 onClick('pub-save', () => { savePublication(); });
+// The work's number: the scene id. Sessions are keyed by it, so this is not an undoable edit: the scene gets a new session under the new number (its undo history starts again) and the key is replaced in place.
+onClick('pub-id-apply', () => {
+  navigationEditor.assertSaved();
+  const next = ui['pub-id'].value.trim(), old = project.activeSceneId;
+  if (next === old) { ui['pub-note'].textContent = '编号没有变化。'; return; }
+  const checked = validateWorkId(next, { taken: [...sessions.keys()].filter((id) => id !== old) });
+  if (!checked.ok) { ui['pub-note'].textContent = checked.message; return; }
+  const entry = sessions.get(old), renamed = createStudioSession({ ...entry.getScene(), id: next }, entry.getResources());
+  geometryFor(renamed);
+  sessions = new Map([...sessions].map(([id, value]) => (id === old ? [next, renamed] : [id, value])));
+  project = { ...project, activeSceneId: next };
+  publishSynced = '';   // the form is rebuilt from the scene under its new number
+  markDirty(); refresh();
+  ui['pub-note'].textContent = `作品编号已设为 ${next}。导出的文件将是 ${next}.glow。`; status(`作品编号已设为 ${next}。`);
+});
 onClick('pub-check', () => {
   if (!savePublication()) return;
   const result = checkPublication(session().getScene(), publishCatalog ?? { templates: [], works: [], resources: [], errors: [] }, { toolAvailable: isKnownTool });
@@ -274,10 +310,21 @@ function previewLayers(current) {
 const structureViews = new WeakMap();   // session -> { models, built: Map(style -> layers), failed }
 const viewStyle = { value: '' };         // '' = follow the work (stored style, then the default for this kind of work)
 
+// The look the author gave the structure (colours and styles of chosen parts) lives in the structure file's viewer state, where the Viewer reads it back.
+const primarySource = (scene) => structureSources(scene)[0];
+function lookStateOf(scene) {
+  const view = primarySource(scene)?.provenance?.viewerState ?? {};
+  let colors; try { colors = view.colors ? validateColorState(view.colors) : createColorState(); } catch { colors = createColorState(); }
+  let styles; try { styles = validateStyles(view.styles); } catch { styles = []; }
+  let surfaces; try { surfaces = validateSurfaces(view.surfaces); } catch { surfaces = []; }
+  return { colors, styles, surfaces };
+}
+const viewKey = (current) => { const { colors, styles } = lookStateOf(current.getScene()); return `${viewStyle.value || ''}|${JSON.stringify([isDefaultColors(colors) ? null : colors, styles])}`; };
+
 function geometryFor(current) {
-  const view = structureViews.get(current);
-  const style = viewStyle.value || '';
-  return view?.built.get(style) ?? previewLayers(current);
+  const view = structureViews.get(current), key = viewKey(current), built = view?.built.get(key);
+  if (built) { view.shown = key; return built; }
+  return (view?.shown && view.built.get(view.shown)) ?? previewLayers(current);   // until the new look is built, the last one stays on screen
 }
 
 // The particle preview: the engines of the solution-particles and data-animation tools run on the primary structure while the author edits them (see particle-preview.mjs).
@@ -300,8 +347,8 @@ async function ensureStructureView(current) {
   if (!structureSources(scene).length) return false;
   const view = structureViews.get(current) ?? { models: undefined, built: new Map(), failed: false };
   structureViews.set(current, view);
-  const style = viewStyle.value || '';
-  if (view.failed || view.built.has(style)) return false;
+  const style = viewStyle.value || '', key = viewKey(current);
+  if (view.failed || view.built.has(key)) return false;
   await ensureStructurePlugin();
   const service = host.getService('org.glow.structure.model', '1.0.0'), representation = host.getRepresentation('org.glow.structure.preview');
   if (!service || !representation) { view.failed = true; return false; }
@@ -315,9 +362,13 @@ async function ensureStructureView(current) {
       } catch { /* a structure that cannot be parsed keeps its preview geometry */ }
     }
   }
+  const { colors, styles } = lookStateOf(scene), primary = primarySource(scene);
   const { layers } = buildStructureLayers({ scene, models: view.models, layers: new Map(previewLayers(current)), build: representation.build,
-    style: style || undefined, defaultStyle: defaultStyleFor(scene) });
-  view.built.set(style, layers);
+    style: style || undefined, defaultStyle: defaultStyleFor(scene),
+    look: (model, source) => (source === primary ? lookFor(model, { colors, styles }) : undefined),
+    recolor: isDefaultColors(colors) ? undefined : (group, index, count) => resolveColor(colors, group.chainId, index, count) });
+  view.built.set(key, layers);
+  while (view.built.size > 4) view.built.delete([...view.built.keys()].find((k) => k !== view.shown && k !== key));   // a few recent looks are kept (undo goes back and forth)
   return true;
 }
 
@@ -325,7 +376,7 @@ let representationTicket = 0;
 function upgradeRepresentation() {
   const current = session(), ticket = ++representationTicket;
   const style = viewStyle.value || '';
-  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(style) || structureViews.get(current)?.failed) return;
+  if (!structureSources(current.getScene()).length || structureViews.get(current)?.built.has(viewKey(current)) || structureViews.get(current)?.failed) return;
   // Progress goes to its own note next to the selector, never to the status line the author's last action reports on.
   ui['representation-note'].textContent = '正在构建结构表示…';
   ensureStructureView(current).then((built) => {
@@ -338,6 +389,120 @@ function upgradeRepresentation() {
     if (ticket === representationTicket) ui['representation-note'].textContent = `结构表示不可用，保留预览几何：${error.message}`;
   });
 }
+
+// ---- the appearance tab: select a part, give it a style or a colour; the result is a rule kept with the work ---------------------------------------------------------------------
+const glowPoints = new WeakMap();   // model -> the function that puts a residue where the structure is drawn
+function highlightResidues(residues) {
+  if (!residues?.length) { viewport.setParticleCloud('look-selection', []); return; }
+  const model = lookPanelContext.model();
+  if (!model) return;
+  if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+  const centered = glowPoints.get(model), step = Math.ceil(residues.length / 2500);
+  viewport.setParticleCloud('look-selection', residues.filter((_, i) => i % step === 0).map((residue) => ({ position: centered.point(Array.isArray(residue.position) ? residue.position : [residue.position.x, residue.position.y, residue.position.z]), radius: 0.085, color: '#ffd34e', alpha: 0.9, name: '选中' })), { overlay: true });
+}
+function drawStudioAnnotations() {
+  const model = lookPanelContext.model();
+  if (!model) { clearAnnotations(viewport); drawSurfaces(viewport, null, [], (p) => p); return; }
+  if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+  const centered = glowPoints.get(model);
+  drawAnnotations(viewport, model, lookPanelContext.annotations(), (p) => centered.point(p));
+  const problems = drawSurfaces(viewport, model, lookStateOf(session().getScene()).surfaces, (p) => centered.point(p));
+  if (problems.length) status(`表面未能画出：${problems.map((p) => p.message).join('；')}`);
+}
+const lookPanelContext = {
+  hasStructure: () => structureSources(session().getScene()).length > 0,
+  model: () => { const models = structureViews.get(session())?.models; return models ? [...models.values()][0] : undefined; },
+  chainIds: () => { const model = lookPanelContext.model(); return model ? [...new Set(selectionSpace(model).residues.map((r) => r.chain))] : []; },
+  state: () => lookStateOf(session().getScene()),
+  highlight: highlightResidues,
+  selectionChanged: () => selectionChanged(),
+  annotations() {
+    const view = primarySource(session().getScene())?.provenance?.viewerState ?? {};
+    let measures = [], labels = [], bonds = []; try { measures = validateMeasures(view.measures); labels = validateLabels(view.labels); bonds = validateBonds(view.bonds); } catch { /* a damaged block is shown as empty */ }
+    return { measures, labels, bonds };
+  },
+  applyAnnotations(patch, message) {
+    const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+    const viewer = {};
+    for (const key of ['measures', 'labels', 'bonds']) if (patch[key]) viewer[key] = patch[key].length ? patch[key] : null;
+    edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
+  },
+  apply(patch, message) {
+    const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+    const viewer = {};
+    if (patch.colors) viewer.colors = isDefaultColors(patch.colors) ? null : patch.colors;
+    if (patch.styles) viewer.styles = patch.styles.length ? patch.styles : null;
+    if (patch.surfaces) viewer.surfaces = patch.surfaces.length ? patch.surfaces : null;
+    edit({ type: 'setViewerState', assetId: source.id, patch: viewer }, message);
+  },
+};
+lookPanel = createLookPanel(ui['pane-look'], lookPanelContext);
+
+// ---- the analysis tab: the panels of science plugins; they read the structure and the author's selection, and write back only through the checked doors (packages/plugin-host/panels.mjs) ----
+const STRUCTURE_EXT = 'org.glow.structure';
+const panelRegistry = createPanelRegistry();
+panelRegistry.register(contactsPanel);
+panelRegistry.register(compositionPanel);
+panelRegistry.register(secondaryPanel);
+panelRegistry.register(superpositionPanel);
+panelRegistry.register(surfacePanel);
+const pluginData = (id) => primarySource(session().getScene())?.provenance?.viewerState?.plugins?.[id];
+const panelEnv = {
+  hasStructure: () => structureSources(session().getScene()).length > 0 && Boolean(lookPanelContext.model()),
+  // once a part has been chosen in this scene, a panel stays usable (clearing the box must not throw away what was typed in a panel)
+  hasSelection: () => { const key = panelEnv.key(); if (lookPanel?.selection().expression) panelEnv.chosen = key; return panelEnv.chosen === key; },
+  key: () => `${session().getScene().id}|${structureSources(session().getScene()).map(({ id }) => id).join(',')}|${lookPanelContext.model() ? 1 : 0}`,
+  hostFor: () => ({
+    model: () => lookPanelContext.model(),
+    models: () => {
+      const scene = session().getScene(), models = structureViews.get(session())?.models;
+      return structureSources(scene).filter((source) => models?.get(source.id)).map((source, i) => ({ id: source.id, label: structureLabel(scene, source, i), model: models.get(source.id) }));
+    },
+    selection: () => lookPanel.selection(),
+    readData: pluginData,
+    writeData(id, data, message) {
+      const source = primarySource(session().getScene()); if (!source) throw new Error('这个场景没有结构。');
+      edit({ type: 'setViewerState', assetId: source.id, patch: { plugins: { ...(source.provenance?.viewerState?.plugins ?? {}), [id]: data } } }, message);
+    },
+    applyLook(patch, message) {
+      const state = lookStateOf(session().getScene()), next = {};
+      if (patch.colors?.residues) next.colors = validateColorState({ ...state.colors, residues: [...state.colors.residues, ...patch.colors.residues] });
+      if (patch.styles) next.styles = validateStyles([...state.styles, ...patch.styles]);
+      if (patch.surfaces) next.surfaces = validateSurfaces([...state.surfaces, ...patch.surfaces]);
+      lookPanelContext.apply(next, message);
+    },
+    annotate(patch, message) {
+      const state = lookPanelContext.annotations(), next = {};
+      if (patch.measures) next.measures = validateMeasures([...state.measures, ...patch.measures]);
+      if (patch.labels) next.labels = validateLabels([...state.labels, ...patch.labels]);
+      if (patch.bonds) next.bonds = validateBonds([...state.bonds, ...patch.bonds]);
+      lookPanelContext.applyAnnotations(next, message);
+    },
+    placePart({ chain, reset, quaternion, from, to, source: sourceId, frame: frameId }, message) {
+      // a rigid move of one whole chain, as the transform of its node: the structure file is not touched. Structure coordinates (Å) become scene coordinates (0.05 m per Å, about the centre of the model).
+      const scene = session().getScene(), source = sourceId ? structureSources(scene).find(({ id }) => id === sourceId) : primarySource(scene), model = source ? structureViews.get(session())?.models?.get(source.id) : undefined;
+      if (!source || !model) throw new Error('这个场景没有可移动的结构。');
+      const nodes = scene.nodes.filter((node) => node.extensions?.[STRUCTURE_EXT]?.sourceAssetId === source.id && node.extensions[STRUCTURE_EXT].chainId === chain);
+      if (nodes.length !== 1) throw new Error(nodes.length ? `链 ${chain} 对应多个对象，不能移动。` : `找不到链 ${chain} 对应的对象。`);
+      const [node] = nodes, k = PRESENTATION_METERS_PER_ANGSTROM;
+      if (!glowPoints.has(model)) glowPoints.set(model, centerAndScale(selectCoordinateAtoms(model)));
+      const frameSource = frameId ? structureSources(scene).find(({ id }) => id === frameId) : source, frameModel = frameSource ? structureViews.get(session())?.models?.get(frameSource.id) : undefined;
+      if (!frameModel) throw new Error('找不到参考结构。');
+      if (!glowPoints.has(frameModel)) glowPoints.set(frameModel, centerAndScale(selectCoordinateAtoms(frameModel)));
+      const c = glowPoints.get(model).center, cFrame = glowPoints.get(frameModel).center;   // each structure is centred on its own box: the chain starts in its own frame and must end in the frame of the structure it is placed against
+      const transform = reset ? { position: [0, 0, 0], rotation: [0, 0, 0, 1], scale: node.transform.scale }
+        : { position: rotateVector(c.map((v, i) => v - from[i]), quaternion).map((v, i) => k * (v + to[i] - cFrame[i])), rotation: [...quaternion], scale: node.transform.scale };
+      edit({ type: 'updateNode', id: node.id, patch: { transform } }, message);
+    },
+    addEvidence: (entry, message) => edit({ type: 'addEvidence', entry }, message),
+    evidenceFrom: (id) => session().getScene().evidence.filter((entry) => entry.source === id).length,
+    highlight: highlightResidues,
+    status: (text) => status(text),
+  }),
+};
+const analysisPanels = createPanelHost(ui['pane-analysis'], { registry: panelRegistry, env: panelEnv });
+ui['tab-analysis'].addEventListener('click', () => analysisPanels.render());
+selectionChanged = () => analysisPanels.render();
 
 function newProject() {
   navigationEditor.assertSaved();
@@ -373,6 +538,9 @@ function refresh({ resetCamera = false, resetTime = false } = {}) {
   timeline.seek(previousTime);
   ({ selection, multi } = reconcileSelection({ selection, multi, ids: document.nodes.map((node) => node.id) }));
   renderPanels(scene, document);
+  lookPanel?.render();
+  if (lookPanel) drawStudioAnnotations();
+  if (lookPanel) analysisPanels.render();
   showPose();
   syncParticlePreview();
   const hasStructure = structureSources(scene).length > 0;
@@ -467,6 +635,13 @@ function renderPanels(scene, document) {
     listItem(text, nodeId ? () => select(nodeId) : null)));
   ui['bookmark-list'].replaceChildren(...(scene.presentation?.bookmarks ?? []).map((bookmark) =>
     listItem(bookmark.name, () => viewport.setCamera(bookmark))));
+  ui['camera-key-list'].replaceChildren(...sortedCameraKeys(scene.presentation).map((key) => {
+    const page = globalThis.document, item = page.createElement('li'), jump = page.createElement('button'), remove = page.createElement('button');
+    jump.type = remove.type = 'button'; jump.textContent = `${key.time.toFixed(2)} 秒`; remove.textContent = '×'; remove.setAttribute('aria-label', `删除 ${key.time.toFixed(2)} 秒的镜头关键帧`);
+    jump.addEventListener('click', run(() => { timeline.seek(Math.min(key.time, timeline.duration)); showPose(); applyCameraTrack(); }));
+    remove.addEventListener('click', run(() => edit({ type: 'removeCameraKey', id: key.id }, '已删除镜头关键帧。')));
+    item.append(jump, remove); return item;
+  }));
   ui['evidence-list'].replaceChildren(...scene.evidence.map(({ type, citation, assetId }) =>
     listItem([TYPES[type] || type, citation || assetId].filter(Boolean).join(' · '))));
   navigationEditor.render(scene);
@@ -539,6 +714,7 @@ viewport = createViewport(ui.viewport, {
 
 onClick('new-project', newProject);
 onClick('import-structure', () => { navigationEditor.assertSaved(); ui['structure-file'].click(); });
+onClick('add-structure', () => ui['structure-add-file'].click());
 onClick('import-package', () => { navigationEditor.assertSaved(); ui['package-file'].click(); });
 onClick('open-project', () => { navigationEditor.assertSaved(); ui['project-file'].click(); });
 onClick('reset-camera', () => viewport.resetCamera());
@@ -580,6 +756,12 @@ tree.addEventListener('drop', (event) => {
 });
 onClick('undo', () => { navigationEditor.assertSaved(); if (session().undo()) { editingPose = false; refresh(); status('已撤销。'); } });
 onClick('redo', () => { navigationEditor.assertSaved(); if (session().redo()) { editingPose = false; refresh(); status('已重做。'); } });
+wireMenus(document);
+document.addEventListener('keydown', (event) => {   // the usual authoring shortcuts; never while typing in a field
+  const action = shortcutFor(event); if (!action) return;
+  const button = { undo: ui.undo, redo: ui.redo, remove: ui['remove-node'] }[action];
+  if (button && !button.disabled) { event.preventDefault(); button.click(); }
+});
 onClick('save-project', async () => {
   navigationEditor.assertSaved();
   const current = snapshotProject();
@@ -608,7 +790,7 @@ async function importStructureAsWork(structure, { title, message }) {
   navigationEditor.assertSaved();
   const id = makeId(imported.scene.id);
   // Scenes in Studio are always the current format: the imported structure becomes a resource of a v3 work.
-  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources);
+  const { scene } = await upgradeSceneToV3({ ...imported.scene, id, ...(title ? { title } : {}), timeline: { duration: 4, tracks: [] } }, imported.resources, { templates: structure.templateRecord ? [structure.templateRecord] : [] });   // a work made from a template keeps its licence and scientific card
   const next = createStudioSession(scene, imported.resources);
   geometryFor(next);
   sessions.set(id, next);
@@ -619,6 +801,27 @@ async function importStructureAsWork(structure, { title, message }) {
   refresh({ resetCamera: true, resetTime: true });
   status(message);
 }
+
+/** A readable name of a structure of the scene: its file name or accession, else its number. */
+function structureLabel(scene, source, index) {
+  const origin = source.provenance?.source?.accession ?? source.provenance?.source?.name ?? source.path;
+  return `${index + 1}. ${String(origin).replace(/^assets\//, '')}`;
+}
+
+// A second (third, fourth) structure in the same scene, for comparing two entries. The first structure keeps the look, annotations and surfaces; the added ones are drawn in the work's representation.
+watchFile('structure-add-file', async (file) => {
+  if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
+  const current = session(), scene = current.getScene();
+  if (!structureSources(scene).length) throw new Error('先导入一个结构，再往同一个场景里加第二个。');
+  status('正在导入结构…');
+  const importer = host.getImporter(await ensureStructurePlugin()), imported = await importer.importScene({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+  if (session() !== current) return;
+  const { scene: upgraded } = await upgradeSceneToV3({ ...imported.scene, id: makeId(imported.scene.id), timeline: { duration: 4, tracks: [] } }, imported.resources);
+  current.addStructure(upgraded, imported.resources, { title: file.name.replace(/\.[^.]+$/, '') });
+  structureViews.delete(current); previews.delete(current);   // the models and the preview geometry are read again, with the new structure among them
+  markDirty(); refresh(); upgradeRepresentation();
+  status(`已把 ${file.name} 加入当前场景（它从原点开始，和第一个结构重叠；用“分析”页的结构叠合把它们对齐）。`);
+});
 
 watchFile('structure-file', async (file) => {
   if (file.size > 64 * 1024 * 1024) throw new Error('结构文件超过 64 MiB。');
@@ -642,7 +845,7 @@ const workshop = createWorkshopDialog(document, {
     actions: [{ label: '用此模板新建作品', title: '这份原文件成为新作品的第一个资源（先核对哈希）', run: async (entry) => {
       navigationEditor.assertSaved();
       const structure = { name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
-        source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } };
+        source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name }, templateRecord: entry.record };
       await importStructureAsWork(structure, { title: entry.title, message: `已用模板 ${entry.title} 新建作品。` });
     } }] } } : {}),
   load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
@@ -755,6 +958,15 @@ onClick('add-evidence', () => {
   edit({ type: 'addEvidence', entry: { type: ui['evidence-kind'].value, citation } }, '已保存证据。');
   ui.citation.value = '';
 });
+/** The camera the keys give at the playhead (nothing when the scene has no keys). */
+function applyCameraTrack() {
+  const camera = cameraAt(session().getScene().presentation, timeline.time);
+  if (camera) viewport.setCamera(camera);
+}
+onClick('add-camera-key', () => {
+  const time = Math.round(timeline.time * 100) / 100, id = makeId('camkey');
+  edit({ type: 'addCameraKey', key: { id, time }, bookmark: { id: `camkey-${id}`, name: `镜头 ${time.toFixed(2)} 秒`, ...viewport.getCamera() } }, `已保存 ${time.toFixed(2)} 秒的镜头关键帧。`);
+});
 onClick('add-bookmark', () => {
   const name = ui['bookmark-name'].value.trim();
   if (!name) throw new Error('请输入视角书签名称。');
@@ -782,6 +994,7 @@ ui['studio-playhead'].addEventListener('input', () => {
   editingPose = false;
   timeline.seek(ui['studio-playhead'].valueAsNumber);
   showPose();
+  applyCameraTrack();
 });
 onClick('studio-play', () => {
   if (timeline.playing) { stopPlayback(); showPose(); return; }
@@ -793,6 +1006,7 @@ onClick('studio-play', () => {
     timeline.advance(Math.max(0, (now - previous) / 1000));
     previous = now;
     showPose();
+    applyCameraTrack();
     frame = timeline.playing ? requestAnimationFrame(tick) : undefined;
   };
   frame = requestAnimationFrame(tick);

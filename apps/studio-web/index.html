@@ -23,39 +23,62 @@
     <script src="../../src/ui/startup.js" data-glow-startup></script>
     <main class="studio">
       <header class="topbar">
-        <div class="brand"><h1>Glow Studio</h1><label for="project-title">项目</label><input id="project-title" type="text" value="未命名项目" aria-label="项目名称"></div>
-        <nav class="project-actions" aria-label="项目操作">
-          <button id="new-project" type="button">新建项目</button>
-          <button id="import-structure" type="button">导入结构为新场景</button>
-          <button id="import-package" type="button">导入场景包</button>
-          <button id="workshop" type="button">工坊</button>
+        <div class="brand"><h1>Glow Studio</h1></div>
+        <nav class="menubar" aria-label="菜单">
+          <details class="menu" id="menu-file">
+            <summary>文件</summary>
+            <div class="menu-list" role="menu">
+              <button id="new-project" type="button" role="menuitem">新建项目</button>
+              <button id="open-project" type="button" role="menuitem">打开项目…</button>
+              <hr>
+              <button id="import-structure" type="button" role="menuitem">导入结构为新场景…</button>
+              <button id="add-structure" type="button" role="menuitem" title="把第二个结构放进当前场景，用来比较（例如同一蛋白的开放态和闭合态）">把另一个结构加入当前场景…</button>
+              <button id="import-package" type="button" role="menuitem">导入场景包…</button>
+            </div>
+          </details>
           <input id="package-file" type="file" accept=".glow,application/zip" hidden>
           <input id="structure-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
-          <button id="open-project" type="button">打开项目</button>
+          <input id="structure-add-file" type="file" accept=".pdb,.ent,.cif,.mmcif" hidden>
           <input id="project-file" type="file" accept=".glow-project,.json,application/json" hidden>
+        </nav>
+        <div class="history-bar" aria-label="编辑历史">
+          <button id="undo" type="button" title="撤销 (Ctrl+Z)">↶ 撤销</button><button id="redo" type="button" title="重做 (Ctrl+Shift+Z)">↷ 重做</button>
+        </div>
+        <div class="project-name"><label for="project-title">项目</label><input id="project-title" type="text" value="未命名项目" aria-label="项目名称"></div>
+        <nav class="project-actions" aria-label="项目操作">
+          <button id="workshop" type="button">工坊</button>
           <button id="save-project" type="button">保存项目</button>
-          <button id="export-scene" type="button">导出场景</button>
+          <button id="export-scene" type="button" class="primary">导出场景</button>
         </nav>
       </header>
       <div id="recovery-banner" class="recovery-banner" role="status" aria-live="polite" hidden><span id="recovery-text"></span> <button id="recovery-restore" type="button">恢复草稿</button> <button id="recovery-discard" type="button">丢弃</button></div>
 
       <div class="workspace">
-        <aside class="panel left-panel" aria-label="项目资源与场景">
-          <section class="panel-section scene-section">
-            <h2>对象</h2>
-            <label for="scene-picker">当前场景</label>
-            <select id="scene-picker"></select>
-            <form id="scene-title-form" class="navigation-form">
-              <label for="scene-title">场景名称</label>
-              <input id="scene-title" type="text" required>
-              <button type="submit">重命名场景</button>
-            </form>
+        <aside class="panel left-panel" aria-label="大纲与资源">
+          <section class="outliner">
+            <header class="panel-head">
+              <h2>大纲</h2>
+              <div class="icon-actions" role="toolbar" aria-label="对象操作">
+                <button id="add-box" type="button" title="添加方盒">＋方盒</button>
+                <button id="add-sphere" type="button" title="添加球体">＋球体</button>
+                <button id="group-node" type="button" title="把所选对象放进一个新组">组</button>
+                <button id="remove-node" type="button" title="删除所选对象 (Delete)">删除</button>
+              </div>
+            </header>
+            <div class="scene-row">
+              <select id="scene-picker" aria-label="当前场景"></select>
+              <form id="scene-title-form" class="scene-rename">
+                <label for="scene-title" class="sr-only">场景名称</label>
+                <input id="scene-title" type="text" required placeholder="场景名称">
+                <button type="submit" title="用输入框里的名称重命名场景">改名</button>
+              </form>
+            </div>
             <ul id="scene-tree" class="tree-list" aria-label="场景树"></ul>
           </section>
-          <section class="panel-section asset-section">
-            <h2>资源</h2>
+          <details class="asset-section" open>
+            <summary><h2>资源</h2></summary>
             <ul id="asset-list" class="tree-list" aria-label="资源列表"></ul>
-          </section>
+          </details>
         </aside>
 
         <section class="viewport-panel" aria-label="场景视口">
@@ -80,21 +103,14 @@
               </select>
               <span id="representation-note" class="toolbar-note" role="status" aria-live="polite"></span>
             </div>
-            <div class="primitive-tools" aria-label="添加对象">
-              <button id="add-box" type="button">添加方盒</button>
-              <button id="add-sphere" type="button">添加球体</button>
-              <button id="group-node" type="button">新建组</button>
-              <button id="remove-node" type="button">删除对象</button>
-            </div>
           </div>
         </section>
 
         <aside class="panel right-panel" aria-label="属性与制作信息">
-          <div class="history-bar" aria-label="编辑历史">
-            <button id="undo" type="button">撤销</button><button id="redo" type="button">重做</button>
-          </div>
           <div class="tabs" role="tablist" aria-label="面板">
             <button id="tab-properties" type="button" role="tab" aria-controls="pane-properties" aria-selected="true">属性</button>
+            <button id="tab-look" type="button" role="tab" aria-controls="pane-look" aria-selected="false">外观</button>
+            <button id="tab-analysis" type="button" role="tab" aria-controls="pane-analysis" aria-selected="false">分析</button>
             <button id="tab-tools" type="button" role="tab" aria-controls="pane-tools" aria-selected="false">工具</button>
             <button id="tab-story" type="button" role="tab" aria-controls="pane-story" aria-selected="false">讲解</button>
             <button id="tab-publish" type="button" role="tab" aria-controls="pane-publish" aria-selected="false">发布</button>
@@ -133,6 +149,10 @@
           </section>
 
           </div>
+
+          <div id="pane-look" role="tabpanel" aria-labelledby="tab-look" hidden></div>
+
+          <div id="pane-analysis" role="tabpanel" aria-labelledby="tab-analysis" hidden></div>
 
           <div id="pane-tools" role="tabpanel" aria-labelledby="tab-tools" hidden>
             <section class="panel-section" id="tool-settings">
@@ -177,6 +197,9 @@
             <input id="bookmark-name" type="text">
             <button id="add-bookmark" type="button">保存当前视角</button>
             <ul id="bookmark-list" class="text-list" aria-label="视角书签列表"></ul>
+            <h3 class="wide">镜头关键帧</h3>
+            <p class="tool-note wide">在时间线上拖到某个时间，摆好镜头，点“🎥 镜头关键帧”。播放（和 Viewer 里播放）时镜头在关键帧之间平滑移动；第一帧之前和最后一帧之后镜头停在该帧。</p>
+            <ul id="camera-key-list" class="text-list" aria-label="镜头关键帧列表"></ul>
           </details>
           </div>
 
@@ -184,6 +207,9 @@
             <section class="panel-section" id="publish-settings">
               <h2>发布到工坊</h2>
               <p class="tool-note">填写作者、授权和主题，检查通过后用“导出场景”得到场景包，投稿到工坊。检查规则和工坊校验是同一套。</p>
+              <label class="wide" for="pub-id">作品编号</label>
+              <span class="id-row"><input id="pub-id" type="text" maxlength="64" spellcheck="false" autocomplete="off"> <button id="pub-id-apply" type="button" title="用输入框里的编号作为这个作品的编号（导出的文件也叫这个名字）">设置编号</button></span>
+              <p id="pub-id-hint" class="tool-note" aria-live="polite">小写字母、数字、点、下划线、连字符，3–64 个字符；导出的文件名就是“编号.glow”，别人派生你的作品时也用这个编号。设置编号会清空这个场景的撤销记录。</p>
               <label class="wide" for="pub-author">作者名</label><input id="pub-author" type="text" maxlength="80">
               <label class="wide" for="pub-author-url">作者链接（https，可选）</label><input id="pub-author-url" type="url" maxlength="300">
               <label class="wide" for="pub-license">授权</label><select id="pub-license"></select>
@@ -205,8 +231,15 @@
 
       <div class="bottom-dock">
         <footer class="timeline-panel" aria-label="时间线">
-          <div class="timeline-heading"><h2>时间线</h2><label for="duration">时长（秒）</label><input id="duration" type="number" min="0" step="0.1" value="10"><button id="add-keyframe" type="button">添加关键帧</button></div>
-          <div class="timeline-controls"><button id="studio-play" type="button">播放</button><input id="studio-playhead" type="range" min="0" max="10" step="any" value="0"><output id="studio-time">0.00 / 10.00 秒</output></div>
+          <div class="timeline-controls">
+            <h2>时间线</h2>
+            <button id="studio-play" type="button">▶ 播放</button>
+            <output id="studio-time">0.00 / 10.00 秒</output>
+            <input id="studio-playhead" type="range" min="0" max="10" step="any" value="0" aria-label="播放头">
+            <label for="duration">时长（秒）</label><input id="duration" type="number" min="0" step="0.1" value="10">
+            <button id="add-keyframe" type="button">◆ 添加关键帧</button>
+            <button id="add-camera-key" type="button" title="把当前镜头存为这个时间点的关键帧；播放时镜头按关键帧平滑移动">🎥 镜头关键帧</button>
+          </div>
         </footer>
         <p id="status" role="status" class="status">正在启动 Studio…</p>
       </div>

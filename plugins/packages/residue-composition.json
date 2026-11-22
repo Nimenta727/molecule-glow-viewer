@@ -1,0 +1,68 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.residue-composition",
+  "version": "1.0.0",
+  "name": "组成与性质分析（Studio 面板）",
+  "summary": "在 Studio 的“分析”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
+  "category": "interaction",
+  "adds": [
+    "Studio“分析”页的面板：部分默认取“外观”页的选择",
+    "按五类数残基：疏水、极性、带正电、带负电、甘氨酸/脯氨酸",
+    "平均亲水性 GRAVY（Kyte–Doolittle 1982）与按个数数出的净电荷",
+    "对这部分按疏水性或电荷涂色（写成作品的残基上色规则，Viewer 里一样显示）",
+    "把结果记进作品：证据（类型“推导”，写明方法和出处）与面板自己的数据"
+  ],
+  "usage": [
+    {
+      "title": "看一条链或一段区域是偏疏水还是偏带电",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A and resi 10-50 → “分析”页“组成与性质”→ 分析 → 按疏水性涂色 → 记入作品",
+      "note": "净电荷只是数个数，不含 pKa、环境、末端和配体的影响"
+    }
+  ],
+  "provides": [
+    {
+      "type": "panel",
+      "id": "org.glow.panel.composition"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/composition.mjs",
+      "exports": [
+        "compositionOf",
+        "CLASSES"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实：单元测试逐项核对计数、GRAVY 和净电荷；真实浏览器里对 4AKE 的链走完“分析 → 涂色 → 记入 → 导出”。",
+    "limits": [
+      "净电荷只数 Lys、Arg（+1）和 Asp、Glu（−1），His 记 0，不含 pKa 位移、环境、末端和配体",
+      "GRAVY 用 Kyte–Doolittle 标度，是经验标度，不等于真实溶解性或埋藏程度",
+      "五类的划分是常用约定（例如 Cys 归疏水、His 归极性），不同教材略有差别",
+      "核酸和未知残基只报告个数，不计入蛋白质的数字",
+      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-22-authoring-core.md"
+  ],
+  "tags": [
+    "组成",
+    "性质"
+  ]
+}

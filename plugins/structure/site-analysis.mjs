@@ -87,8 +87,8 @@ export function siteInteractions({ ligand, residues, het = [], ligandComp }) {
  * isolated atom's surface at its radius. Surface nets on a 0.5 Å grid; quads farther than `cut` from `centre` are dropped. `pos` is a flat xyz array, `rad` one radius
  * per atom, `cls` a class (0–254, 255 = none) per atom, copied to the nearest surface vertex. Returns { pos, idx, cls } typed arrays (empty if the grid would be too big).
  */
-export function pocketSurface({ pos, rad, cls, centre, cut }) {
-  const n = rad.length, h = 0.5, lvl = Math.exp(-2);
+export function pocketSurface({ pos, rad, cls, centre = [0, 0, 0], cut = Infinity, h = 0.5 }) {
+  const n = rad.length, lvl = Math.exp(-2);
   let mnx = 1e9, mny = 1e9, mnz = 1e9, mxx = -1e9, mxy = -1e9, mxz = -1e9;
   for (let i = 0; i < n; i++) { const x = pos[3 * i], y = pos[3 * i + 1], z = pos[3 * i + 2]; if (x < mnx) mnx = x; if (y < mny) mny = y; if (z < mnz) mnz = z; if (x > mxx) mxx = x; if (y > mxy) mxy = y; if (z > mxz) mxz = z; }
   mnx -= 4; mny -= 4; mnz -= 4; mxx += 4; mxy += 4; mxz += 4;

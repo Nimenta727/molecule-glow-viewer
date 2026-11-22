@@ -8,7 +8,7 @@
   {
    "id": "org.glow.plugin.assembly",
    "file": "plugins/packages/assembly.json",
-   "sha256": "f036aa6f8c00a5f9183fbb0a3a4bde77915c8bd1f102ab134cc1ab65a9b17a68",
+   "sha256": "974a570dd59e37fe8ba85638078231f39bfe544281b171d885a4a3d28979abef",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -70,7 +70,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-assembly-compose.md"
+     "docs/history/routine/2026-11-21-assembly-compose.md"
     ],
     "tags": [
      "装配",
@@ -81,7 +81,7 @@
   {
    "id": "org.glow.plugin.binding",
    "file": "plugins/packages/binding.json",
-   "sha256": "70e8f4f2c900b43490e03a40f55147ec71d07afc37dd106b56335f49ccb7b24b",
+   "sha256": "94582de8c32339c91e25f6a61d9ef6513b18a05c0afe1aa8e1628c4c449b9e0c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -137,7 +137,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-binding.md"
+     "docs/history/routine/2026-11-21-binding.md"
     ],
     "tags": [
      "结合",
@@ -148,7 +148,7 @@
   {
    "id": "org.glow.plugin.complex-records",
    "file": "plugins/packages/complex-records.json",
-   "sha256": "6d7f17ec8ad2294ec7593c98380e470c440d3a27208021b8320437fd9bd14eba",
+   "sha256": "7999b6e4b38cbf50ee36f8f77f16ddf9481bfd4d8024fb740b6e3a3469c8e4de",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -218,7 +218,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-complex-record.md"
+     "docs/history/routine/2026-11-21-complex-record.md"
     ],
     "tags": [
      "装配",
@@ -229,7 +229,7 @@
   {
    "id": "org.glow.plugin.composition-planner",
    "file": "plugins/packages/composition-planner.json",
-   "sha256": "6938c2a71e4b6d0191dc32ba163166206bc449c69dba18b5da213a09f54bd797",
+   "sha256": "25e4ec249db51aefb7cf9a0113c070af4846c5e786c5110bc766525ecf6b535c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -288,7 +288,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-placement.md"
+     "docs/history/routine/2026-11-21-placement.md"
     ],
     "tags": [
      "细胞器",
@@ -299,7 +299,7 @@
   {
    "id": "org.glow.plugin.data-sources",
    "file": "plugins/packages/data-sources.json",
-   "sha256": "394277bb97a7df1e60cd79fe0b9055adf1bab764563b33e1ca868d777bfcab38",
+   "sha256": "fc58d0fffbd821bc65b22a41ad88023acbbdd8fc9e8bf256d2e373f6d2b6e68a",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -367,7 +367,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-data-sources.md"
+     "docs/history/routine/2026-11-21-data-sources.md"
     ],
     "tags": [
      "数据源",
@@ -378,7 +378,7 @@
   {
    "id": "org.glow.plugin.density-maps",
    "file": "plugins/packages/density-maps.json",
-   "sha256": "ab988855ce40ee94b35f22711d8a07c5a4d456010e4735420b87b08099975d4f",
+   "sha256": "8d4740cc427a37084af9ac98585ee917ac2374edccdb2f10b26fffadaa18780f",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -451,7 +451,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-density-maps.md"
+     "docs/history/routine/2026-11-21-density-maps.md"
     ],
     "tags": [
      "冷冻电镜",
@@ -462,7 +462,7 @@
   {
    "id": "org.glow.plugin.filament",
    "file": "plugins/packages/filament.json",
-   "sha256": "6ddc340b8c43aafd5caad9e87fa9a8726e91cb10ad1cef74e22653ce10d8b029",
+   "sha256": "ac2336b61dd2166a09e7d0a02c0163f12cf402330cceb4dcc90a0fdcd22cfe15",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -525,7 +525,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -536,7 +536,7 @@
   {
    "id": "org.glow.plugin.hardware-budget",
    "file": "plugins/packages/hardware-budget.json",
-   "sha256": "81086b933fdc5b9b7f241e48d90004a9caa85faff8192d477df9fb060dd617e7",
+   "sha256": "18c8673840394e2aabd590eb9c42763093d0d02faf52ffdd33df100d60aff1cb",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -603,7 +603,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-hardware-budget.md"
+     "docs/history/routine/2026-11-21-hardware-budget.md"
     ],
     "tags": [
      "性能",
@@ -614,7 +614,7 @@
   {
    "id": "org.glow.plugin.instancing",
    "file": "plugins/packages/instancing.json",
-   "sha256": "0d096fa42d6ed63efa6f28259a99f19778a4747bc393a2d706d30cabac87b248",
+   "sha256": "336c8d7b440fbe29f4acb1d0019a23815872579e451d37ba7b25d7ea5b01da1a",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -699,7 +699,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-instancing-lod.md"
+     "docs/history/routine/2026-11-21-instancing-lod.md"
     ],
     "tags": [
      "性能",
@@ -710,7 +710,7 @@
   {
    "id": "org.glow.plugin.interaction-evidence",
    "file": "plugins/packages/interaction-evidence.json",
-   "sha256": "8d4fa3c6d68b905f7936ab63a14fdf138e64cac25d2824c381d423d3603d1049",
+   "sha256": "78412565c04d820fef6a19c51dc26cb4fc86fd03c4516fe222f10c7f95d00760",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -772,7 +772,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-interaction-evidence.md"
+     "docs/history/routine/2026-11-21-interaction-evidence.md"
     ],
     "tags": [
      "相互作用"
@@ -780,9 +780,95 @@
    }
   },
   {
+   "id": "org.glow.plugin.interface-contacts",
+   "file": "plugins/packages/interface-contacts.json",
+   "sha256": "b9924bf8f4976a44cfc0c0e010c09a2a8ce975fb29dcdba162a680f91d8986e8",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.interface-contacts",
+    "version": "1.0.0",
+    "name": "界面接触分析（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，选两部分，列出互相接触的残基，把接触分成氢键、盐桥、疏水接触并画出氢键和盐桥的线，把界面涂色，并作为“推导”证据记进作品。",
+    "category": "interaction",
+    "adds": [
+     "Studio“分析”页的面板：A 部分默认取“外观”页的选择，B 部分用选择语言写，距离 1–8 Å（默认 4.5）",
+     "列出接触的残基对（最近的 10 对，写出原子名和距离）、两侧界面残基数",
+     "分类：氢键（供体—受体重原子 2.4–3.5 Å）、盐桥（Asp/Glu 羧基氧到 Lys NZ / Arg NE,NH1,NH2 ≤ 4.0 Å）、疏水接触（侧链碳 ≤ 4.0 Å，每对残基一条）",
+     "把氢键和盐桥画成按类型着色的线（蓝 = 氢键，粉 = 盐桥，指到线上看距离），随作品保存，Viewer 里一样显示",
+     "把界面涂色（A 侧橙、B 侧蓝，写成作品的残基上色规则）",
+     "把结果记进作品：证据（类型“推导”，写明方法、距离和分类计数）与面板自己的数据"
+    ],
+    "usage": [
+     {
+      "title": "算一个二聚体的界面并看氢键和盐桥",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页 B 填 chain B → 计算界面 → 分类 → 画出氢键和盐桥的线 → 涂色 → 记入作品",
+      "note": "4AKE 的 A/B 两条链：36 对残基接触，分类为盐桥 7、氢键 2、疏水接触 0（距离判据，无氢原子与角度）"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.contacts"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/contacts.mjs",
+      "exports": [
+       "contactsBetween",
+       "expressionsFor"
+      ]
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/interactions.mjs",
+      "exports": [
+       "interactionsBetween",
+       "CUTOFFS"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：用 4AKE 的两条链在真实浏览器里走完“选择 → 计算 → 分类 → 画线 → 涂色 → 记入 → 导出 → 新 Viewer 打开”，Viewer 里画出了保存的 9 条线；分类规则由构造好的小结构逐类核对。",
+     "limits": [
+      "分类只用重原子距离，没有氢原子和角度判据；成熟软件（如 ChimeraX）按原子类型用距离加角度并默认放宽 0.4 Å / 20°，这里只是常用经验阈值的筛查，不能替代它们",
+      "供体/受体按残基和原子名查表，Asn/Gln 酰胺和 His 咪唑环的翻转没有判断；His 不计入盐桥（它的电荷随 pH 与环境而变）",
+      "不看水分子介导的接触、金属配位和 π 相互作用，也不计算埋藏表面积",
+      "同一条链里相邻的残基对被跳过（主链总是相邻）",
+      "氢键和盐桥画线最多 150 条，疏水接触只列出不画线",
+      "接触对超过 5000 会拒绝，要求缩小两部分的范围",
+      "界面涂色占用残基上色规则（共 64 条上限）",
+      "只在 Studio 里使用；Viewer 里只显示保存的线和颜色，没有面板",
+      "距离阈值是常用经验值，不是由结构决定的结论"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "相互作用",
+     "界面"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.membrane-builder",
    "file": "plugins/packages/membrane-builder.json",
-   "sha256": "b071024ff37d60fd5bfcf3ca02eddfc140f41e663a091b3b9a9018e407631485",
+   "sha256": "d31bbad04a2a3eeccc0fc9bfc64549b6f47f5b4dd78a34a396e02f422ed05d0c",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -851,7 +937,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-membrane-builder.md"
+     "docs/history/routine/2026-11-21-membrane-builder.md"
     ],
     "tags": [
      "膜"
@@ -861,7 +947,7 @@
   {
    "id": "org.glow.plugin.membrane-embedding",
    "file": "plugins/packages/membrane-embedding.json",
-   "sha256": "0ebd27c70611e745c3c1dc0275ddc2dd6b5e9b432f05b82ba40d2f06c03e2041",
+   "sha256": "b9a1788beee84f205a243ef7ac487c5f5e23cc1d533f62da4af0330269edd0c8",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -925,7 +1011,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-placement.md"
+     "docs/history/routine/2026-11-21-placement.md"
     ],
     "tags": [
      "膜",
@@ -934,9 +1020,85 @@
    }
   },
   {
+   "id": "org.glow.plugin.molecular-surface",
+   "file": "plugins/packages/molecular-surface.json",
+   "sha256": "1acda9819c568dfd290d2417428362ad1366e8069494e7add0f63910f4a6873e",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.molecular-surface",
+    "version": "1.0.0",
+    "name": "分子表面与静电（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，给选中的部分画逐原子的分子表面（高斯分子表面），按静电势（简化库仑）、疏水性或单色着色；表面随作品保存，Viewer 里一样显示。",
+    "category": "render",
+    "adds": [
+     "Studio“分析”页的面板：部分默认取“外观”页的选择，配色选静电势 / 疏水性 / 单色，最多 4 个表面",
+     "表面：每个原子一个按范德华半径的高斯函数，网格 0.5 Å（超过 600 个原子的部分用 0.75 Å，更大时自动放粗到最多 1.5 Å），接近 ChimeraX / PyMOL 的溶剂排除面",
+     "静电着色：表面外 1.4 Å 处按整个结构的形式电荷加通用主链部分电荷计算库仑势，ε = 4r，单位 kcal/(mol·e)，红 −10 … 白 0 … 蓝 +10（与 ChimeraX coulombic 的默认介电设置一致）",
+     "表面作为规则存进作品（viewerState.surfaces），打开作品时按坐标重新生成；“外观”页的规则列表里可单独删除",
+     "把结果记进作品：证据（类型“推导”，写明方法和限制）与面板自己的数据（原子数、三角形数、势的范围）"
+    ],
+    "usage": [
+     {
+      "title": "看一条链的静电表面",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页“分子表面与静电”→ 配色选静电势 → 画出表面 → 记入作品",
+      "note": "静电势是简化库仑，不是 APBS 的泊松–玻尔兹曼结果；红 = 负，蓝 = 正"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.surface"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/molecular-surface.mjs",
+      "exports": [
+       "buildSurface",
+       "potentialAt",
+       "atomCharge"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：单元测试用解析解核对库仑势（单个 +1 电荷在 r 处为 83.02/r² kcal/(mol·e)）、电荷表和颜色方向（Lys 簇偏蓝、Asp 簇偏红）；真实浏览器里对 4AKE 的 A 链画出静电表面、保存、新 Viewer 里画出同样数量的三角形。",
+     "limits": [
+      "静电势不是 APBS 的泊松–玻尔兹曼结果：没有溶剂介电边界、离子强度、配体电荷和 pH；只用形式电荷（Lys、Arg、Asp、Glu、核酸磷酸）加通用主链部分电荷（AMBER ff14SB 数值加到重原子上），His、末端和其他侧链原子记 0",
+      "距离相关介电 ε = 4r 是 ChimeraX coulombic 的默认设置，不是对真实介电环境的描述；数值只适合定性比较（哪里偏正、哪里偏负），不适合当作定量结果",
+      "表面是高斯分子表面，近似溶剂排除面，不是严格的 SES；网格最细 0.5 Å，较大的部分用 0.75 Å 或更粗，表面会变粗糙一些",
+      "一个表面最多 40000 个原子，最多同时 4 个表面；太大的部分会要求缩小选择",
+      "表面按结构坐标生成并固定在场景里：移动过的链（结构叠合）上表面不会跟着走；表面是半透明的叠加层，不参与拾取",
+      "软件渲染下已验证，真实显卡上的帧率和观感未验收",
+      "只在 Studio 里使用；Viewer 里显示保存的表面，没有面板"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "表面",
+     "静电"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.motor",
    "file": "plugins/packages/motor.json",
-   "sha256": "49ed998b0b4ab419b7e13d28d3081d56f38b381e938b766efdcd3e45d37345cc",
+   "sha256": "dd15713e70434ee3406f322052f6b1c7bbb5344e6341106d93260592e2e12d87",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -999,7 +1161,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1010,7 +1172,7 @@
   {
    "id": "org.glow.plugin.predicted-structures",
    "file": "plugins/packages/predicted-structures.json",
-   "sha256": "91bc7f8ba6b8c005f91db76b4aba7c7c293079906caef6d2ad219c2c49d9d6d2",
+   "sha256": "c45fc655bb5db1cb9998739d38ef928a13167f0e2353f935f6b181032fa5d322",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1087,7 +1249,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-predicted-structures.md"
+     "docs/history/routine/2026-11-21-predicted-structures.md"
     ],
     "tags": [
      "资源",
@@ -1098,7 +1260,7 @@
   {
    "id": "org.glow.plugin.reaction-networks",
    "file": "plugins/packages/reaction-networks.json",
-   "sha256": "ae892fce704d7f1ded1c224b497cdd5fc00b7d5aa524c9de30821b240a898b8a",
+   "sha256": "5c0862677795452abb2e8a941d3bed2f7127140ab4cce1a32912bcaaca918eac",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1161,7 +1323,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1170,9 +1332,232 @@
    }
   },
   {
+   "id": "org.glow.plugin.residue-composition",
+   "file": "plugins/packages/residue-composition.json",
+   "sha256": "3309bcd8eeda73b7a44e2b7881cbd74a4091e1f063179205a56c4aefaead017d",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.residue-composition",
+    "version": "1.0.0",
+    "name": "组成与性质分析（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
+    "category": "interaction",
+    "adds": [
+     "Studio“分析”页的面板：部分默认取“外观”页的选择",
+     "按五类数残基：疏水、极性、带正电、带负电、甘氨酸/脯氨酸",
+     "平均亲水性 GRAVY（Kyte–Doolittle 1982）与按个数数出的净电荷",
+     "对这部分按疏水性或电荷涂色（写成作品的残基上色规则，Viewer 里一样显示）",
+     "把结果记进作品：证据（类型“推导”，写明方法和出处）与面板自己的数据"
+    ],
+    "usage": [
+     {
+      "title": "看一条链或一段区域是偏疏水还是偏带电",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A and resi 10-50 → “分析”页“组成与性质”→ 分析 → 按疏水性涂色 → 记入作品",
+      "note": "净电荷只是数个数，不含 pKa、环境、末端和配体的影响"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.composition"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/composition.mjs",
+      "exports": [
+       "compositionOf",
+       "CLASSES"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：单元测试逐项核对计数、GRAVY 和净电荷；真实浏览器里对 4AKE 的链走完“分析 → 涂色 → 记入 → 导出”。",
+     "limits": [
+      "净电荷只数 Lys、Arg（+1）和 Asp、Glu（−1），His 记 0，不含 pKa 位移、环境、末端和配体",
+      "GRAVY 用 Kyte–Doolittle 标度，是经验标度，不等于真实溶解性或埋藏程度",
+      "五类的划分是常用约定（例如 Cys 归疏水、His 归极性），不同教材略有差别",
+      "核酸和未知残基只报告个数，不计入蛋白质的数字",
+      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "组成",
+     "性质"
+    ]
+   }
+  },
+  {
+   "id": "org.glow.plugin.sequence-structure",
+   "file": "plugins/packages/sequence-structure.json",
+   "sha256": "0265459bdb7c3029cda98d8ac0c9c42b7993d049c8d13e07c426d247860f8e1a",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.sequence-structure",
+    "version": "1.0.0",
+    "name": "序列与二级结构标注（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，显示选中部分的序列和文件里登记的二级结构（螺旋、折叠），可点段落在画面里亮出，按二级结构涂色，并作为“推导”证据记进作品。",
+    "category": "interaction",
+    "adds": [
+     "Studio“分析”页的面板：部分默认取“外观”页的选择",
+     "每条链显示一字母序列、H/E/- 二级结构行（缺失的残基用 / 标出）和螺旋、折叠段列表",
+     "点一个螺旋/折叠段，在画面里把这段残基亮出来",
+     "按二级结构涂色（螺旋红、折叠金、其他灰蓝），写成作品的残基上色规则",
+     "把结果记进作品：证据（类型“推导”，写明读自文件登记）与面板自己的数据（每条链的残基数、螺旋/折叠数和段落）"
+    ],
+    "usage": [
+     {
+      "title": "看一条链的序列和螺旋、折叠分布",
+      "how": "Studio 导入结构 → “外观”页选择里写 chain A → “分析”页“序列与二级结构”→ 显示 → 点某个螺旋段亮出 → 按二级结构涂色 → 记入作品",
+      "note": "二级结构是文件登记的，不预测也不重新计算；没有登记的文件（如部分预测结构）会显示为全部“其他”"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.secondary"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/secondary.mjs",
+      "exports": [
+       "secondaryOf",
+       "LETTER"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：单元测试核对序列、结构行、段落和缺失标记；真实浏览器里对 4AKE 走完“显示 → 亮出 → 涂色 → 记入 → 导出”。",
+     "limits": [
+      "二级结构只读文件登记的，不预测、不重新计算（没有登记的文件会全部显示为“其他”）",
+      "序列取自有坐标的残基，缺失的残基只用 / 标出位置，不显示它们的氨基酸",
+      "核酸显示为核苷酸末位字母，不显示二级结构",
+      "一次最多显示 2000 个残基，更多要缩小选择",
+      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "序列",
+     "二级结构"
+    ]
+   }
+  },
+  {
+   "id": "org.glow.plugin.structure-superposition",
+   "file": "plugins/packages/structure-superposition.json",
+   "sha256": "244be7b61d5a4cdad67e4cda497e0067d5eff43505df139ba4b67ca3dd71c6f2",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.structure-superposition",
+    "version": "1.0.0",
+    "name": "结构叠合（Studio 面板）",
+    "summary": "在 Studio 的“分析”页里，把一条链按 Cα 叠到参考部分上（参考可以在同一结构里，也可以在同一场景里的另一个结构里，例如开放态和闭合态两个条目）：给出叠合前后的 RMSD，可在画面里移动那条链、标出仍然偏远的残基，并作为“推导”证据记进作品。",
+    "category": "interaction",
+    "adds": [
+     "Studio“分析”页的面板：移动的部分必须是同一条链，参考部分默认取“外观”页的选择；参考部分也可以在同一场景的另一个结构里（“文件”菜单的“把另一个结构加入当前场景…”，最多共 4 个结构）",
+     "配对方式：按作者残基编号加残基名配对，或在两部分残基数相同时按顺序配对",
+     "Horn 四元数拟合（Cα，核酸取 P）：叠合前后 RMSD、旋转角、质心平移、偏差最大的 10 个残基",
+     "“移动这条链”：把整条链按拟合结果移动，保存为这条链的变换（原始坐标文件不变，撤销一步即可，也可“还原位置”）",
+     "标出叠合后偏差大于 2 Å 的残基（写成作品的残基上色规则）",
+     "把结果记进作品：证据（类型“推导”，写明方法和出处）与面板自己的数据"
+    ],
+    "usage": [
+     {
+      "title": "把同一蛋白的开放态和闭合态叠在一起",
+      "how": "Studio 导入 4AKE → “文件”菜单“把另一个结构加入当前场景…”选 1AKE → “外观”页选择里随便选一部分 → “分析”页“结构叠合”：移动的结构选 4AKE、参考的结构选 1AKE，两边都写核心域 chain A and (resi 1-29 or resi 60-121 or resi 160-214) → 计算叠合 → 移动这条链 → 记入作品",
+      "note": "4AKE（开放）核心域叠到 1AKE（闭合）：146 个残基对，RMSD 79.33 → 1.98 Å；同一结构里 4AKE 的 B 链叠到 A 链：214 对，48.27 → 0.61 Å"
+     }
+    ],
+    "provides": [
+     {
+      "type": "panel",
+      "id": "org.glow.panel.superposition"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/superposition.mjs",
+      "exports": [
+       "superposeParts",
+       "motionOf"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/superposition-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实：单元测试用已知刚体运动核对（RMSD ≈ 0、旋转角恢复到 40°）；真实浏览器里两条路径都用导出文件里的链变换从原始坐标独立重算——同一结构内（4AKE 的 B 链到 A 链）0.607 Å 对 0.61 Å，两个条目之间（4AKE 核心域到 1AKE）1.975 Å 对 1.98 Å，都与面板报告一致。",
+     "limits": [
+      "只用 Cα（核酸取 P）拟合，不迭代剔除离群点，也不做序列比对；残基编号对不上时只能“按顺序配对”",
+      "移动的是整条链：拟合只用选中的残基，但整条链都跟着动；移动的部分必须在同一条链里",
+      "两个结构各在自己的原始坐标系里，叠合前的 RMSD 没有意义（可能很大），要看叠合后的；哪些残基算“核心”要由使用者决定（开放/闭合的例子里选了核心域，选全长会得到很差的结果）",
+      "结构带生物组装体时，同一个链名会对应多份拷贝（例如 chain A 同时选中 A 和 A_2），拷贝多于一份的结构不能直接移动其中一条链，请改用 asym 选择，或导入时不展开组装体",
+      "移动之后，已经算好的选择高亮、测量、标签、界面列表仍按原始坐标，表面也不跟着走",
+      "后加入的结构（第 2 个起）不带外观规则、标注和表面：这些只作用在第一个结构上",
+      "位置是计算出来的，不是测得的；RMSD 的好坏要结合配对的残基数和结构的实际含义来读",
+      "只在 Studio 里使用；Viewer 里只显示移动后的位置，没有面板"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-authoring-core.md"
+    ],
+    "tags": [
+     "叠合",
+     "比较"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.transporter",
    "file": "plugins/packages/transporter.json",
-   "sha256": "c54da337e621fd5f6c5784288c7623e4295e70c8e7cd16e5bd763471fb2c39b7",
+   "sha256": "f501ce64c5d023fafe50e2d40b4f700b087ed5fa617dc3686527a9d5d4bde4f6",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1235,7 +1620,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-process-models.md"
+     "docs/history/routine/2026-11-21-process-models.md"
     ],
     "tags": [
      "过程",
@@ -1246,7 +1631,7 @@
   {
    "id": "org.glow.plugin.volume-render",
    "file": "plugins/packages/volume-render.json",
-   "sha256": "9a0f423447b6e1d5fff3b4bee56be7872d3324f480334fe42c968eb3d78108ed",
+   "sha256": "11290d57f7dc4b637718bdc61a85491dc38434e9621b7604f0d01a4bf20b3767",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
@@ -1308,7 +1693,7 @@
     "license": "Apache-2.0",
     "author": "Molecule Glow 官方",
     "docs": [
-     "docs/routine/2026-11-21-volume-render.md"
+     "docs/history/routine/2026-11-21-volume-render.md"
     ],
     "tags": [
      "体积",

@@ -9,12 +9,18 @@ import { PROCESS_TOOL } from '../../plugins/simulation/process-tool.mjs';
 const root = new URL('../../', import.meta.url), dir = new URL('plugins/packages/', root);
 const files = fs.readdirSync(dir).filter((name) => name.endsWith('.json')).sort();
 const manifests = files.map((name) => ({ name, manifest: validatePluginManifest(JSON.parse(fs.readFileSync(new URL(name, dir), 'utf8'))) }));
+import { contactsPanel } from '../../plugins/structure/panels/contacts-panel.mjs';
+import { compositionPanel } from '../../plugins/structure/panels/composition-panel.mjs';
+import { secondaryPanel } from '../../plugins/structure/panels/secondary-panel.mjs';
+import { superpositionPanel } from '../../plugins/structure/panels/superposition-panel.mjs';
+import { surfacePanel } from '../../plugins/structure/panels/surface-panel.mjs';
+const STUDIO_PANELS = new Set([contactsPanel.id, compositionPanel.id, secondaryPanel.id, superpositionPanel.id, surfacePanel.id]);   // the panels apps/studio-web/main.mjs registers
 const KNOWN_PLUGINS = new Set(['org.glow.structure']);
 const exists = (path) => fs.existsSync(new URL(path, root));
 
-test('the seventeen planned plugins are all packaged, each under its own id and file name', () => {
-  assert.equal(manifests.length, 17);
-  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 17, 'ids are unique');
+test('the twenty-two plugins are all packaged, each under its own id and file name', () => {
+  assert.equal(manifests.length, 22);
+  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 22, 'ids are unique');
   for (const { name, manifest } of manifests) assert.equal(manifest.id, `org.glow.plugin.${name.replace(/\.json$/, '')}`, `${name}: the id follows the file name`);
 });
 
@@ -27,6 +33,7 @@ test('every plugin adds a function a user can reach, and what its manifest says 
         if (entry.tool !== PROCESS_TOOL) problems.push(`${manifest.id}: presets of the tool ${entry.tool} cannot be checked here`);
         else if (!PROCESS_PRESETS.some((p) => p.id === entry.preset)) problems.push(`${manifest.id}: the preset "${entry.preset}" is not a preset of ${PROCESS_TOOL}`);
       }
+      if (entry.type === 'panel' && !STUDIO_PANELS.has(entry.id)) problems.push(`${manifest.id}: the panel "${entry.id}" is not registered in the Studio`);
       if (entry.type === 'cli' && !exists(entry.path)) problems.push(`${manifest.id}: the script ${entry.path} does not exist`);
       if (entry.type === 'module') {
         if (!exists(entry.path)) { problems.push(`${manifest.id}: the module ${entry.path} does not exist`); continue; }
