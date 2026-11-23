@@ -1,7 +1,7 @@
 {
   "name": "glow-studio",
   "productName": "分子光影",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "分子光影查看器桌面版：离线缓存结构，后续接入创意工坊",
   "license": "Apache-2.0",
   "main": "main.js",

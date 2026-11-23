@@ -1,0 +1,35 @@
+name: works-release
+# Builds the bacteriophage T7 works (tools/build-phage-model.py + tools/make-phage-works.cjs, Studio command interface only) from the public PDB entries and attaches them to an existing
+# release. The whole-virion work is over 100 MB, more than a file in the repository may be, so it is built here instead of being committed.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the works to (the release must already exist)'
+        required: true
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --prefix desktop
+      - run: npm i --no-save --no-package-lock playwright@1.50.1
+      - run: npx playwright install --with-deps chromium
+      - run: pip install numpy scipy
+      - name: Build the composite model (downloads 3J7X, 9JYZ, 9JYY, 4A0T from RCSB)
+        run: python3 tools/build-phage-model.py "$RUNNER_TEMP/phage/out" "$RUNNER_TEMP/phage"
+      - name: Build the works
+        run: node tools/make-phage-works.cjs "$RUNNER_TEMP/works" "$RUNNER_TEMP/phage"
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/works" && sha256sum *.glow *.png > SHA256SUMS-works.txt)
+          gh release upload "${{ inputs.tag }}" "$RUNNER_TEMP"/works/*.glow "$RUNNER_TEMP"/works/*.png "$RUNNER_TEMP/works/SHA256SUMS-works.txt" --clobber --repo "$GITHUB_REPOSITORY"
