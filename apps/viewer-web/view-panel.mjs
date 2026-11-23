@@ -97,6 +97,10 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     button('清除键线', () => run('hbonds', 'clear', '已清除键线。')),
   );
 
+  // ---- text labels (plugin: 文字标签) ----
+  const labelText = field('view-label-text', '标签文字（如 催化残基）', '', { maxlength: '60' });
+  const labelRow = row(labelText, button('给当前对象加标签', () => run('label', [target(), labelText.value.trim()], `已给 ${target()} 加标签`)), button('清除标签', () => run('label', 'clear', '已清除标签。')));
+
   // ---- cut ----
   const depth = make('input', { type: 'range', min: '-1', max: '1', step: '0.05', value: '0', 'aria-label': '剖切深度' });
   const cutButtons = row(button('沿视线剖开', () => run('clip', { enabled: true, depth: Number(depth.value), aim: true }, '已剖开：拖动滑块改变深度；换角度后再按一次可重新对准。')), button('关闭剖开', () => run('clip', { enabled: false }, '已关闭剖开。')));
@@ -112,6 +116,7 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     title('周边残基（插件）'), row(centre), row(make('label', {}, '半径 ', radius, ' Å'), nbButton),
     title('组成与性质（插件）'), row(compButton),
     title('界面接触（插件）'), row(sideA), row(sideB), row(make('label', {}, '距离 ', cutoff, ' Å'), ctButton), report,
+    title('文字标签（插件）'), labelRow,
     title('剖开'), cutButtons, row(make('label', {}, '深度 ', depth)),
     title('亚基'), allButtons, list, message,
   );

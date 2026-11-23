@@ -5,6 +5,7 @@ import { applyStyle } from '../../plugins/structure/look.mjs';
 import { compositionOf, CompositionError } from '../../plugins/structure/composition.mjs';
 import { interactionsBetween } from '../../plugins/structure/interactions.mjs';
 import { contactsBetween } from '../../plugins/structure/contacts.mjs';
+import { validateLabels, computeAnnotations } from '../../plugins/structure/annotations.mjs';
 import { applyCameraSpec } from './camera-spec.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
@@ -306,6 +307,20 @@ export function createViewerCommands(host) {
       return { part, lines: lines.length, found: pairs.length, counts, nearest: pairs.slice(0, 5).map((i) => ({ a: `${i.a.resn} ${i.a.chain}:${i.a.authSeq} ${i.atomA}`, b: `${i.b.resn} ${i.b.chain}:${i.b.authSeq} ${i.atomB}`, type: i.type, distance: +i.distance.toFixed(2) })),
         note: pairs.length > lines.length ? `共 ${pairs.length} 条，只画最近的 ${lines.length} 条。` : '氢键蓝线、盐桥粉线；用 hbonds("clear") 清除。',
         limits: ['只用重原子距离（氢键 2.4–3.5 Å，盐桥 ≤ 4.0 Å），结构里通常没有氢原子，所以没有角度判据：是筛查，不是结论；相邻残基之间的主链作用被跳过。'] };
+    },
+    label(value) {
+      const current = needScene(); if (!current.model) throw new Error('相应结构插件或坐标不可用。');
+      const state = host.labelState?.(); if (!state) throw new Error('相应结构插件或坐标不可用。');
+      if (value == null) return { labels: state };
+      if (/^clear$/i.test(String(value))) { host.setLabels([]); return { labels: [], note: '已清除标签。' }; }
+      const args = Array.isArray(value) ? value : object(value) ? [value.part, value.text] : [value];
+      if (typeof args[0] !== 'string' || !args[0].trim()) throw new Error('label 需要 (选择, 文字?) 或 {part, text?}：给选中的部分写一个标签，文字省略则显示选择本身；label("clear") 清除。');
+      if (state.length >= 48) throw new Error('标签最多 48 个：先 label("clear")。');
+      let item; try { [item] = validateLabels([{ expr: args[0].trim(), ...(args[1] ? { text: String(args[1]) } : {}) }]); } catch (error) { throw new Error(error.message); }
+      const probe = computeAnnotations(current.model, { labels: [item] });
+      if (probe.problems.length) throw new Error(probe.problems[0].message);
+      host.setLabels([...state, item]);
+      return { labels: state.length + 1, note: '标签画在这部分的中心，随作品保存；label("clear") 清除。' };
     },
     lookPack(value) {
       needScene();

@@ -1568,6 +1568,76 @@
    }
   },
   {
+   "id": "org.glow.plugin.residue-labels",
+   "file": "plugins/packages/residue-labels.json",
+   "sha256": "d075f87169a57c43fd6f0c678ad905654d25fb6fe4afde81efbbf9af2b3d7ce6",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.residue-labels",
+    "version": "1.0.0",
+    "name": "文字标签",
+    "summary": "给选中的一处（一个残基、一段或一条链）写上文字标签，画在它的中心；标签随作品保存，Viewer“查看”页有按钮。",
+    "category": "interaction",
+    "adds": [
+     "Viewer“查看”页的“文字标签”：写文字后点“给当前对象加标签”，对象用“作用对象”或自己写的选择",
+     "命令 glow.label：label(\"chain A and resi 57\",\"催化残基\")，label(\"clear\") 清除；最多 48 个，文字最多 60 个字符",
+     "标签画在所选部分的中心，随作品保存（与 Studio 的标签是同一份数据，Studio 里也能看到、改）"
+    ],
+    "usage": [
+     {
+      "title": "标出一个位点",
+      "how": "Viewer 打开结构 → “查看”页 → “作用对象”里写 chain A and resi 57 → “文字标签”里写“催化残基”→ 点“给当前对象加标签”",
+      "note": "标签只是文字，不表示任何计算结果"
+     }
+    ],
+    "provides": [
+     {
+      "type": "command",
+      "name": "label"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/annotations.mjs",
+      "exports": [
+       "validateLabels",
+       "computeAnnotations"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/viewer-view-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实浏览器里对 2HHB 写标签并读回；单元测试核对参数检查、数量上限和报错。",
+     "limits": [
+      "标签只是文字，画在所选部分的中心，不避让别的标签，密集处会叠在一起",
+      "一个标签对应一个选择表达式；移动过的链（结构叠合）上标签仍在原始位置",
+      "最多 48 个标签，每个最多 60 个字符",
+      "软件渲染下已验证，真实显卡上未验收"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-23-view-panel-and-navigation.md"
+    ],
+    "tags": [
+     "标签",
+     "标注"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.residue-neighborhood",
    "file": "plugins/packages/residue-neighborhood.json",
    "sha256": "2ee16e3183fa6072614020fbd8fed19351b367f6868c9c57ce70fcbbd00bd969",
