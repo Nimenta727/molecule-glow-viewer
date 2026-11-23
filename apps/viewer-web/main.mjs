@@ -66,6 +66,7 @@ import { createPanelTabs } from './panel-tabs.mjs';
 import { createViewPanel } from './view-panel.mjs';
 import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { createLocalWorks, fileNameFor, sizeText, MAX_LOCAL_BYTES } from '../../plugins/workshop/local-works.mjs';
 import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
 import { toolControls, mergeToolDependencies, descriptorsForScene } from '../../packages/plugin-host/tool-model.mjs';
 import { buildLevels, colorByNearest } from '../../packages/render-three/lod.mjs';
@@ -1342,9 +1343,11 @@ function boot() {
     try {
       const committed = await scenes.load(input);
       if (!committed && propagate) throw new Error('加载已被后续操作取消。');
+      return Boolean(committed);
     } catch (error) {
       setStatus(`无法打开场景。 ${error.message}`);
       if (propagate) throw error;
+      return false;
     }
   }
 
@@ -1352,10 +1355,14 @@ function boot() {
   // Opening a work or a resource downloads it, checks it against the hash the catalogue records, and only then loads it.
   const pluginSwitch = createPluginSwitch((() => { try { return window.localStorage; } catch { return null; } })());
   // the person's own protein templates (originals from the PDB or from disk), kept on this machine; no IndexedDB (a private window) = the zone is not offered
+  // the works opened or imported on this machine, listed in the workshop's 本地 zone (plugins/workshop/local-works.mjs)
+  const localWorks = (() => { try { return createLocalWorks({ store: indexedDbStore({ name: 'glow-local-works' }) }); } catch { return null; } })();
   const templateLibrary = (() => { try { return createTemplateLibrary({ store: indexedDbStore({ name: 'glow-templates' }) }); } catch { return null; } })();
   const templateStructure = async (entry) => ({ name: entry.name, bytes: await templateLibrary.bytes(entry.id), mediaType: entry.mediaType,
     source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name } });
   const workshop = createWorkshopDialog(document, {
+    ...(localWorks ? { local: { library: localWorks, importFile: () => elements.file.click(),
+      open: async (entry, bytes) => { if (!(await openScene({ file: new File([bytes], entry.fileName) }, { propagate: true }))) throw new Error('没有打开。'); return `已打开“${entry.title}”。`; } } } : {}),
     pluginState: pluginSwitch,
     ...(templateLibrary ? { templates: { library: templateLibrary, loadRcsb: (code) => loadAccession(code, new AbortController().signal),
       actions: [{ label: '打开结构', title: '把这份原文件作为结构打开（先核对哈希）', run: async (entry) => { await setStructureEnabled(true); await openScene({ structure: await templateStructure(entry), assembly: elements['structure-assembly'].checked }, { propagate: true }); } }] } } : {}),
@@ -1701,16 +1708,37 @@ function boot() {
   }
   const parseHex = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 
+  const KNOWN_FILE = /\.(glow|json|cif|mmcif|pdb|ent|mrc|map|ccp4)$/i, REMEMBER = /\.(glow|json)$/i;
+  /** One way in for a file from disk, whether it was picked or dropped: checks the kind and the size first and says what it is doing and what went wrong. */
+  async function openLocalFile(file) {
+    if (!KNOWN_FILE.test(file.name)) { setStatus(`不支持的文件：${file.name}。可以打开 .glow 作品、.cif / .pdb 结构，或 .mrc / .map 体积。`); return; }
+    if (file.size > MAX_LOCAL_BYTES) { setStatus(`${file.name} 有 ${sizeText(file.size)}，超过 ${MAX_LOCAL_BYTES / 1048576} MB 的上限，打不开。`); return; }
+    if (/\.(mrc|map|ccp4)$/i.test(file.name)) {   // a density map is shown over what is open, not as a scene of its own
+      if (!active) { setStatus('请先打开一个结构或示例，再加载体积（.mrc / .map）。'); return; }
+      try { setStatus(`正在读取体积 ${file.name}（${sizeText(file.size)}）…`); const result = showVolume({ bytes: new Uint8Array(await file.arrayBuffer()) }); setStatus(`体积 ${file.name}：${result.dims.join(' × ')} 体素，阈值 ${result.level.toFixed(4)}（${result.auto ? '自动' : '指定'}）。`); }
+      catch (error) { setStatus(error instanceof MapError ? `无法读取体积：${error.message}` : `体积失败：${error.message}`); }
+      return;
+    }
+    if (file.size > 8 * 1048576) setStatus(`正在读取 ${file.name}（${sizeText(file.size)}）…大文件需要一会儿，请稍等。`);
+    const opened = await openScene({ file, assembly: elements['structure-assembly'].checked });
+    if (!opened || !localWorks || !REMEMBER.test(file.name)) return;
+    try {
+      const { entry, added } = await localWorks.add({ bytes: new Uint8Array(await file.arrayBuffer()), fileName: file.name, title: active?.scene?.title });
+      setStatus(`已打开“${entry.title}”（${sizeText(entry.bytes)}），${added ? '并记入工坊的“本地”。' : '“本地”里已有这个文件，已更新。'}`);
+      workshop.refreshLocal?.();
+    } catch (error) { setStatus(`已打开，但没能记入“本地”：${error.message}`); }
+  }
   elements.file.addEventListener('change', () => {
     const [file] = elements.file.files;
     elements.file.value = '';
-    if (file && /\.(mrc|map|ccp4)$/i.test(file.name)) {   // a density map is shown over what is open, not as a scene of its own
-      if (!active) { setStatus('请先打开一个结构或示例，再加载体积（.mrc / .map）。'); return; }
-      file.arrayBuffer().then((buffer) => { const result = showVolume({ bytes: new Uint8Array(buffer) }); setStatus(`体积 ${file.name}：${result.dims.join(' × ')} 体素，阈值 ${result.level.toFixed(4)}${result.note ? '。' + result.note : ''}`); })
-        .catch((error) => setStatus(error instanceof MapError ? `无法读取体积：${error.message}` : `体积失败：${error.message}`));
-      return;
-    }
-    if (file) openScene({ file, assembly: elements['structure-assembly'].checked });
+    if (file) openLocalFile(file);
+  });
+  // dropping a file anywhere on the page opens it the same way
+  window.addEventListener('dragover', (event) => { if (event.dataTransfer?.types?.includes('Files')) event.preventDefault(); });
+  window.addEventListener('drop', (event) => {
+    const [file] = event.dataTransfer?.files ?? [];
+    if (!file) return;
+    event.preventDefault(); openLocalFile(file);
   });
   /** The particle set goes into the work as the tool's entry (config), replacing the configuration it was opened with; a set nobody touched leaves the work alone. */
   function storeParticles(scene) {
@@ -1804,9 +1832,10 @@ function boot() {
       const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${scene.id}.glow`;
+      link.download = fileNameFor(scene.title || scene.name || scene.id);
       link.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus(`已导出 ${fileNameFor(scene.title || scene.name || scene.id)}（${sizeText(bytes.byteLength)}）。`);
     } catch (error) {
       setStatus(`无法保存场景。 ${error.message}`);
     } finally {

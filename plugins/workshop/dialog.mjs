@@ -2,6 +2,7 @@ import { queryCatalog, relatedResources, worksUsing, allTags, TOPICS } from './c
 import { describeEntry, diagnose } from './diagnose.mjs';
 import { VERIFICATION, PERMISSIONS, CATEGORIES } from '../../packages/plugin-host/plugin-manifest.mjs';
 import { createTemplateZone } from '../templates/zone.mjs';
+import { createLocalZone } from './local-zone.mjs';
 
 /**
  * The workshop dialog shared by Viewer and Studio: three zones (模板区 templates: static, for looking and reading; 作品区 works: animated, for how it works; 资源区 resources), a subject filter (机理 / 蛋白质 / 局部系统 / 细胞), a source filter, a text search, and for
@@ -18,7 +19,7 @@ const ENTRY_LABELS = { command: 'glow 命令', 'tool-preset': '工具预设', to
 const entryText = (p) => p.type === 'command' ? `glow.${p.name}()` : p.type === 'tool-preset' ? `${p.preset}（${p.tool}）` : p.type === 'module' || p.type === 'cli' ? p.path : p.id;
 
 /** `pluginState` ({ isEnabled(id), canToggle(id), set(id, enabled) }) is the app's on/off switch for official plugins; without it the plugin zone is read-only (Studio). */
-export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id) => id, toolAvailable = () => true, pluginState, templates }) {
+export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id) => id, toolAvailable = () => true, pluginState, templates, local }) {
   const el = (tag, props = {}, ...children) => {
     const node = doc.createElement(tag);
     for (const [key, value] of Object.entries(props)) { if (key === 'class') node.className = value; else if (key === 'text') node.textContent = value; else node.setAttribute(key, value); }
@@ -31,7 +32,8 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
   const zoneTabs = { templates: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-templates', text: '静态作品' }), works: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-works', text: '作品区' }), resources: el('button', { type: 'button', role: 'tab', id: 'workshop-tab-resources', text: '资源区' }) };
   zoneTabs.plugins = el('button', { type: 'button', role: 'tab', id: 'workshop-tab-plugins', text: '插件区' });
   zoneTabs.mine = el('button', { type: 'button', role: 'tab', id: 'workshop-tab-mine', text: '我的模板' });
-  tabs.append(zoneTabs.templates, zoneTabs.works, zoneTabs.resources, zoneTabs.plugins, ...(templates ? [zoneTabs.mine] : []));
+  zoneTabs.local = el('button', { type: 'button', role: 'tab', id: 'workshop-tab-local', text: '本地' });
+  tabs.append(zoneTabs.templates, zoneTabs.works, zoneTabs.resources, zoneTabs.plugins, ...(local ? [zoneTabs.local] : []), ...(templates ? [zoneTabs.mine] : []));
   const source = el('select', { 'aria-label': '来源' });
   const search = el('input', { type: 'search', placeholder: '搜索标题、标签、结构编号…', 'aria-label': '搜索' });
   const topic = el('select', { 'aria-label': '主题' });
@@ -46,6 +48,9 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
   let catalog, zone = 'templates', busy = false;
   // the zone of the person's own protein templates (originals from the PDB or from disk); it does not depend on the workshop catalogue, so it works offline
   const mine = templates ? createTemplateZone(doc, { ...templates, close: () => dialog.close(), setNote: (message, kind) => setNote(message, kind), changed: () => { if (zone === 'mine') render(); } }) : null;
+
+  // the zone of the works opened or imported on this machine (plugins/workshop/local-works.mjs): their names, with open, export, rename and remove; it does not depend on the catalogue either
+  const here = local ? createLocalZone(doc, { ...local, close: () => dialog.close(), setNote: (message, kind) => setNote(message, kind), changed: () => { if (zone === 'local') render(); } }) : null;
 
   function setNote(message, kind = '') { note.textContent = message; note.dataset.kind = kind; }
 
@@ -162,7 +167,13 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
   let renderToken = 0;
   function render() {
     for (const [name, tab] of Object.entries(zoneTabs)) { tab.setAttribute('aria-selected', String(name === zone)); tab.tabIndex = name === zone ? 0 : -1; }
-    mine?.form.remove();
+    mine?.form.remove(); here?.form.remove();
+    if (zone === 'local' && here) {
+      topic.hidden = true; tag.hidden = true; source.hidden = true; list.before(here.form);
+      const mark = ++renderToken;
+      here.render(search.value).then((nodes) => { if (mark === renderToken && zone === 'local') list.replaceChildren(...nodes); });
+      return;
+    }
     if (zone === 'mine' && mine) {
       topic.hidden = true; tag.hidden = true; source.hidden = true; list.before(mine.form);
       const mark = ++renderToken;
@@ -215,5 +226,7 @@ export function createWorkshopDialog(doc, { load, actions = {}, toolTitle = (id)
     close: () => dialog.close(),
     /** The loaded catalogue (loading it if needed), for callers that open a work by id without showing the dialog. */
     async catalog() { if (!catalog) { catalog = await load(); } return catalog; },
+    /** Re-draws the local zone (after the app remembered a new work). */
+    refreshLocal() { if (zone === 'local' && dialog.open) render(); },
   };
 }
