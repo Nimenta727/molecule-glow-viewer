@@ -104,7 +104,7 @@ function showSelInfo(g, a) {
     const chains = new Set(g.atoms.map(x => x.asym)).size;
     h += `<div>${chains > 1 ? chains + ' 条链 · ' : ''}${g.atoms.length.toLocaleString()} 个残基${g.coreIdx?.length ? `，其中 ${g.coreIdx.length} 个属于功能核心（原子细节）` : ''}</div>`;
   }
-  h += note ? `<div class="sec">${note[2]}</div>` : a ? '' : `<div class="sec" style="color:var(--dim)">${esc(g.name)}（预设里加 notes 可写讲解）</div>`;
+  h += note ? `<div class="sec">${esc(note[2])}</div>` : a ? '' : `<div class="sec" style="color:var(--dim)">${esc(g.name)}（预设里加 notes 可写讲解）</div>`;
   { const sid = (a?.src || g.atoms[0]?.src || current?.id || '').toUpperCase(), org = current?.local ? null : orgOf(sid), si = org && standIn(sid, org);
     if (org) h = `<div class="sec"${si ? ' style="color:#a14a00"' : ''}><b>物种：${esc(orgName(org))}</b>${si ? '<br>' + esc(si) : ''}</div>` + h; }
   /* evidence for this object (audit 10): what is measured, what is computed or placed */
