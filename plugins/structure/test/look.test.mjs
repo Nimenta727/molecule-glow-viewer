@@ -59,8 +59,8 @@ test('style rules: validated, refused with the reason, capped', () => {
   const check = (expr) => residues(model(), expr).length;
   const { styles, note } = applyStyle([], 'chain A and resi 1-3', 'cartoon', { check }); assert.deepEqual(styles, [{ expr: 'chain A and resi 1-3', style: 'cartoon' }]); assert.match(note, /3 个残基.*卡通/);
   assert.throws(() => applyStyle([], 'resi 99', 'blob', { check }), (e) => e instanceof LookError && /没有选中任何残基/.test(e.message)); assert.throws(() => applyStyle([], 'resi 1', 'spaghetti', { check }), /样式应为/);
-  assert.match(applyStyle([], 'resi 1', 'sticks', { check }).note, /价键/); assert.throws(() => applyStyle([], 'all', 'sticks', { check: () => 30001 }), /最多 30000 个残基/);
-  assert.doesNotThrow(() => applyStyle([], 'all', 'sticks', { check: () => 5000 }), 'the bond model of a whole protein is allowed'); assert.throws(() => applyStyle([], 'all', 'ballstick', { check: () => 6001 }), /球棍.*最多 6000 个残基/);
+  assert.match(applyStyle([], 'resi 1', 'sticks', { check }).note, /价键/); assert.throws(() => applyStyle([], 'all', 'sticks', { check: () => 100001 }), /最多 100000 个残基/);
+  assert.doesNotThrow(() => applyStyle([], 'all', 'sticks', { check: () => 5000 }), 'the bond model of a whole protein is allowed'); assert.throws(() => applyStyle([], 'all', 'ballstick', { check: () => 20001 }), /球棍.*最多 20000 个残基/);
   assert.throws(() => applyStyle([], 'banana', 'blob', { check }), /无法读取选择/ ); assert.throws(() => applyStyle(Array.from({ length: 64 }, () => ({ expr: 'all', style: 'blob' })), 'all', 'blob', { check }), /最多 64/);
   assert.deepEqual(validateStyles([{ expr: 'all', style: 'hidden' }]), [{ expr: 'all', style: 'hidden' }]); assert.deepEqual(validateStyles(undefined), []);
   assert.throws(() => validateStyles([{ expr: '', style: 'blob' }]), LookError); assert.throws(() => validateStyles([{ expr: 'all', style: 'x' }]), LookError); assert.throws(() => validateStyles('x'), LookError);

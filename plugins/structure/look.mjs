@@ -10,7 +10,7 @@ import { rangeTypeFor } from './representation.mjs';
  */
 export const LOOK_STYLES = Object.freeze(['cartoon', 'backbone', 'blob', 'sticks', 'ballstick', 'hidden']);
 export const STYLE_LABELS = Object.freeze({ cartoon: '卡通', backbone: '主链', blob: '团块', sticks: '价键（按原子的棍状模型）', ballstick: '球棍（原子球加键）', hidden: '隐藏' });
-export const MAX_STICK_RESIDUES = 30000, MAX_BALL_RESIDUES = 6000;   // atom-level drawing: the bond model of a whole protein (or a small ribosome) as instanced cylinders; ball-and-stick adds a sphere per atom, so it is held lower
+export const MAX_STICK_RESIDUES = 100000, MAX_BALL_RESIDUES = 20000;   // atom-level drawing: the bond model of a whole protein (or a small ribosome) as instanced cylinders; ball-and-stick adds a sphere per atom, so it is held lower
 export const PROPERTY_SCHEMES = Object.freeze({ bfactor: 'B 因子（柔性）', hydrophobicity: '疏水性', charge: '电荷', secondary: '二级结构', rainbow: '彩虹（N→C）' });
 export const MAX_STYLE_RULES = 64, MAX_EXPRESSION = 400, BANDS = 12;
 
