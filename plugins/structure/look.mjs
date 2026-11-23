@@ -47,7 +47,7 @@ export function propertyColors(model, residues, scheme) {
     for (const r of residues) { if (r.nucleic) continue; out.set(key(r), SECONDARY[rangeTypeFor(r.atom, ranges)] ?? SECONDARY.default); }
   } else if (scheme === 'bfactor') {
     const values = residues.map((r) => [r, r.atom.bFactor]).filter(([, b]) => Number.isFinite(b) && b >= 0);
-    if (values.length) { const lo = Math.min(...values.map(([, b]) => b)), hi = Math.max(...values.map(([, b]) => b)); for (const [r, b] of values) out.set(key(r), spectrum(hi > lo ? (b - lo) / (hi - lo) : 0)); }
+    if (values.length) { let lo = Infinity, hi = -Infinity; for (const [, b] of values) { if (b < lo) lo = b; if (b > hi) hi = b; } for (const [r, b] of values) out.set(key(r), spectrum(hi > lo ? (b - lo) / (hi - lo) : 0)); }
   } else {   // rainbow: position along each chain, N to C
     const byChain = new Map(); for (const r of residues) { if (!byChain.has(r.asym)) byChain.set(r.asym, []); byChain.get(r.asym).push(r); }
     for (const chain of byChain.values()) { chain.sort((a, b) => a.labelSeq - b.labelSeq || a.authSeq - b.authSeq); chain.forEach((r, i) => out.set(key(r), spectrum(chain.length > 1 ? i / (chain.length - 1) : 0))); }

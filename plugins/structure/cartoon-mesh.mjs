@@ -65,10 +65,11 @@ function guides(points) {
   return out;
 }
 
-function sectionOf(item) { return item.type === 'backbone' ? SECTION.backbone : item.nucleotide ? { w: 0.45, t: 0.45 } : SECTION[item.type]; }
+const BULK = { w: 1.4, t: 1.4 };   // a whole virus: every residue a thick round tube, so each part reads as a solid body of its colour (ribbons are not visible at that scale)
+function sectionOf(item, bulk) { return bulk ? BULK : item.type === 'backbone' ? SECTION.backbone : item.nucleotide ? { w: 0.45, t: 0.45 } : SECTION[item.type]; }
 
 export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon', { rangeTypeFor, residueGap, colors, quality = 'fine' }) {
-  const { samples: SAMPLES, sides: SIDES } = QUALITY[quality] ?? QUALITY.fine;
+  const { samples: SAMPLES, sides: SIDES } = QUALITY[quality] ?? QUALITY.fine, bulk = quality === 'minimal';
   const bins = new Map();   // colour key -> { positions, normals } (growing Float32Arrays)
   const bin = (key) => { if (!bins.has(key)) bins.set(key, { positions: new Floats(), normals: new Floats() }); return bins.get(key); };
   for (const run of runsOf(markers, ranges, look, defaultStyle, { rangeTypeFor, residueGap })) {
@@ -77,17 +78,17 @@ export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle 
     const samples = [];
     for (let i = 0; i < n - 1; i++) {
       const p0 = P[Math.max(i - 1, 0)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(i + 2, n - 1)];
-      const a = sectionOf(run[i]), b = sectionOf(run[i + 1]);
-      const arrow = run[i].type === 'sheet' && run[i + 1].type !== 'sheet';   // the last strand residue: the arrow head
+      const a = sectionOf(run[i], bulk), b = sectionOf(run[i + 1], bulk);
+      const arrow = !bulk && run[i].type === 'sheet' && run[i + 1].type !== 'sheet';   // the last strand residue: the arrow head
       for (let s = 0; s < SAMPLES; s++) {
         const t = s / SAMPLES, at = catmull(p0, p1, p2, p3, t), ahead = catmull(p0, p1, p2, p3, Math.min(t + 0.02, 1)), behind = catmull(p0, p1, p2, p3, Math.max(t - 0.02, 0));
         let w = lerp(a.w, b.w, smooth(t)), th = lerp(a.t, b.t, smooth(t));
         if (arrow) { w = lerp(ARROW, SECTION.coil.w, t); th = lerp(SECTION.sheet.t, SECTION.coil.t, t); }
-        else if (run[i].type === 'sheet' && run[i + 1].type === 'sheet') { w = SECTION.sheet.w; th = SECTION.sheet.t; }
+        else if (!bulk && run[i].type === 'sheet' && run[i + 1].type === 'sheet') { w = SECTION.sheet.w; th = SECTION.sheet.t; }
         samples.push({ at, tangent: unit(sub(ahead, behind)), guide: unit(add(scale(G[i], 1 - t), scale(G[i + 1], t))), w, th, owner: t < 0.5 ? run[i] : run[i + 1], arrowStart: arrow && s === 0 });
       }
     }
-    const last = run[n - 1], lastSection = sectionOf(last);
+    const last = run[n - 1], lastSection = sectionOf(last, bulk);
     samples.push({ at: P[n - 1], tangent: unit(sub(P[n - 1], P[n - 2])), guide: G[n - 1], w: lastSection.w, th: lastSection.t, owner: last });
     // rings: N = guide made perpendicular to the tangent (thickness direction), B = across the ribbon (width direction)
     const rings = samples.map((sample) => {

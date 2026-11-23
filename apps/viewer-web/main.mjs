@@ -2080,7 +2080,7 @@ function boot() {
       const points = [...found.residues.map((r) => r.position), ...found.ligands.flatMap((l) => l.atoms.map((a) => a.position))];
       if (!points.length) throw new Error(`“${expression}”没有选中任何东西。`);
       const c = displayCenter(active.model), k = PRESENTATION_METERS_PER_ANGSTROM, mean = [0, 1, 2].map((i) => points.reduce((sum, p) => sum + p[i], 0) / points.length);
-      return { point: mean.map((v, i) => (v - c[i]) * k), radius: Math.max(...points.map((p) => Math.hypot(p[0] - mean[0], p[1] - mean[1], p[2] - mean[2]))) * k };
+      return { point: mean.map((v, i) => (v - c[i]) * k), radius: points.reduce((m, p) => Math.max(m, Math.hypot(p[0] - mean[0], p[1] - mean[1], p[2] - mean[2])), 0) * k };
     },
     clip: (spec) => {
       const state = clipState();
