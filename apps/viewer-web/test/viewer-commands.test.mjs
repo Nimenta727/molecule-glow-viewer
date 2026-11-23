@@ -94,3 +94,10 @@ test('surface adds, reads and clears molecular surfaces, refuses an empty select
   await assert.rejects(api.surface(['chain A']), /最多 4 个/);
   assert.deepEqual((await api.surface('clear')).surfaces, []); assert.deepEqual(calls.at(-1), ['setSurfaces', []]);
 });
+
+test('composition, contacts and neighborhood refuse a missing structure and bad arguments with a sentence that says what to write', async () => {
+  const { api } = fake();
+  await assert.rejects(api.composition('chain A'), /结构插件或坐标不可用/);
+  await assert.rejects(api.contacts({ a: 'chain A', b: 'chain B' }), /结构插件或坐标不可用/);
+  await assert.rejects(api.neighborhood({ center: 'ligands' }), /结构插件或坐标不可用/);
+});

@@ -6,7 +6,7 @@
 export const COMMAND_OWNERS = Object.freeze({
   instances: 'org.glow.plugin.instancing', volume: 'org.glow.plugin.density-maps', membrane: 'org.glow.plugin.membrane-builder', benchmark: 'org.glow.plugin.hardware-budget',
   complex: 'org.glow.plugin.complex-records', assemble: 'org.glow.plugin.assembly', embed: 'org.glow.plugin.membrane-embedding', compose: 'org.glow.plugin.composition-planner',
-  interactions: 'org.glow.plugin.interaction-evidence', binding: 'org.glow.plugin.binding', source: 'org.glow.plugin.data-sources', lookPack: 'org.glow.plugin.look-packs',
+  interactions: 'org.glow.plugin.interaction-evidence', binding: 'org.glow.plugin.binding', source: 'org.glow.plugin.data-sources', lookPack: 'org.glow.plugin.look-packs', neighborhood: 'org.glow.plugin.residue-neighborhood', composition: 'org.glow.plugin.residue-composition', contacts: 'org.glow.plugin.interface-contacts',
 });
 /** Display names of the switchable plugins (checked against the manifests by the repository tests). */
 export const PLUGIN_NAMES = Object.freeze({
@@ -20,6 +20,9 @@ export const PLUGIN_NAMES = Object.freeze({
   'org.glow.plugin.instancing': "实例化与细节分级",
   'org.glow.plugin.interaction-evidence': "相互作用证据层",
   'org.glow.plugin.look-packs': "光影包",
+  'org.glow.plugin.residue-neighborhood': "周边残基查看",
+  'org.glow.plugin.residue-composition': "组成与性质分析",
+  'org.glow.plugin.interface-contacts': "界面接触分析",
   'org.glow.plugin.membrane-builder': "脂双层构建",
   'org.glow.plugin.membrane-embedding': "膜蛋白插膜",
 });

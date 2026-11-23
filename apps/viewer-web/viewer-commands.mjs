@@ -2,6 +2,9 @@ import { openSceneFile } from './scene-io.mjs';
 import { defaultStyleFor } from '../../plugins/default-style.mjs';
 import { applyColor } from './color-scheme.mjs';
 import { applyStyle } from '../../plugins/structure/look.mjs';
+import { compositionOf, CompositionError } from '../../plugins/structure/composition.mjs';
+import { interactionsBetween } from '../../plugins/structure/interactions.mjs';
+import { contactsBetween } from '../../plugins/structure/contacts.mjs';
 import { applyCameraSpec } from './camera-spec.mjs';
 
 const STYLES = new Set(['cartoon', 'backbone', 'blob', 'functional', 'surface']);
@@ -244,6 +247,41 @@ export function createViewerCommands(host) {
       const rule = { expr, scheme, ...(color ? { color: String(color) } : {}), ...(inflate ? { inflate } : {}) };
       const outcome = host.setSurfaces([...state, rule]);
       return { surfaces: outcome ?? [...state, rule], note: '高斯分子表面（近似溶剂排除面）；静电着色是简化库仑，不是 APBS。' };
+    },
+    composition(value) {
+      const current = needScene(); if (!current.model) throw new Error('相应结构插件或坐标不可用。');
+      const part = typeof value === 'string' ? value : object(value) ? value.part : undefined;
+      if (typeof part !== 'string' || !part.trim()) throw new Error('composition 需要一个选择表达式，例如 composition("chain A")。');
+      let found; try { found = compositionOf(current.model, part.trim()); } catch (error) { throw new Error(error.message); }
+      return { part: part.trim(), ...found, gravy: found.gravy == null ? null : +found.gravy.toFixed(3),
+        limits: ['净电荷是按个数数出来的（Lys、Arg 记 +1，Asp、Glu 记 −1），不含 pKa 和环境；GRAVY 是 Kyte–Doolittle 的平均值。'] };
+    },
+    contacts(value) {
+      const current = needScene(); if (!current.model) throw new Error('相应结构插件或坐标不可用。');
+      if (!object(value) || typeof value.a !== 'string' || typeof value.b !== 'string') throw new Error('contacts 需要 {a, b, cutoff?, select?}：两部分的选择表达式。');
+      if (Object.keys(value).some((key) => !['a', 'b', 'cutoff', 'select'].includes(key))) throw new Error('contacts 只接受 a、b、cutoff、select。');
+      let found, typed; try { found = contactsBetween(current.model, value.a, value.b, { cutoff: value.cutoff ?? 4.5 }); typed = interactionsBetween(current.model, value.a, value.b); } catch (error) { throw new Error(error.message); }
+      const name = (r) => `${r.resn} ${r.chain}:${r.authSeq}${r.insertion || ''}`;
+      if (value.select === true && found.residuesA.length + found.residuesB.length) {
+        const chains = new Map(); for (const r of [...found.residuesA, ...found.residuesB]) { if (!chains.has(r.chain)) chains.set(r.chain, new Set()); chains.get(r.chain).add(r.authSeq); }
+        const expression = [...chains].map(([chain, ids]) => `(chain ${chain} and resi ${[...ids].sort((x, y) => x - y).join(',')})`).join(' or ');
+        if (expression.length <= 380) host.selectSet?.(expression);
+      }
+      return { a: value.a, b: value.b, cutoff: found.cutoff, pairs: found.pairs.length, interfaceA: found.residuesA.length, interfaceB: found.residuesB.length,
+        counts: typed.counts, nearest: found.pairs.slice(0, 8).map((p) => ({ a: name(p.a), b: name(p.b), distance: +p.distance.toFixed(2) })),
+        limits: ['只用重原子距离（常用经验阈值），没有氢原子和角度：是筛查，不是结论；接触不代表亲和力。'] };
+    },
+    neighborhood(value) {
+      const current = needScene(); if (!current.model) throw new Error('相应结构插件或坐标不可用。');
+      if (!object(value) || typeof value.center !== 'string' || !value.center.trim()) throw new Error('neighborhood 需要 {center, radius?, style?}：center 是选择表达式（如 ligands 或 chain A and resi 57）。');
+      if (Object.keys(value).some((key) => !['center', 'radius', 'style'].includes(key))) throw new Error('neighborhood 只接受 center、radius、style。');
+      const radius = value.radius == null ? 5 : finite(value.radius, 1, 12, 'radius'), style = value.style ?? 'sticks';
+      if (!['sticks', 'ballstick', 'cartoon', 'backbone', 'blob'].includes(style)) throw new Error('style 应为 sticks、ballstick、cartoon、backbone 或 blob。');
+      const center = value.center.trim(), expression = `within ${radius} of ${center}`;
+      let composition; try { composition = compositionOf(current.model, expression); } catch (error) { throw new Error(`${center} 周围 ${radius} Å 内没有残基，或选择无效：${error.message}`); }
+      let outcome; try { outcome = applyStyle(host.styleState(), expression, style, { check: host.colorCheck }); } catch (error) { throw new Error(error.message); }
+      host.setStyles(outcome.styles);
+      return { center, radius, residues: composition.selected, classes: composition.classes, note: `周围 ${radius} Å 内的 ${composition.selected} 个残基（含中心自身）已设为${style}；用 show("reset") 清除。距离按原子到原子。` };
     },
     lookPack(value) {
       needScene();

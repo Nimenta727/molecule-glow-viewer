@@ -70,6 +70,24 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     } catch (error) { packRow.replaceChildren(make('span', { class: 'view-hint', text: error.message })); }
   }
 
+  // ---- looking at a place and at numbers: neighbourhood, composition, interface contacts (plugins: 周边残基查看, 组成与性质分析, 界面接触分析) ----
+  const report = make('div', { class: 'view-report', role: 'status' });
+  const field = (id, label, value, props = {}) => { const node = make('input', { type: 'text', id, value, 'aria-label': label, placeholder: label, ...props }); return node; };
+  const centre = field('view-nb-center', '中心（如 ligands 或 chain A and resi 57）', 'ligands'), radius = field('view-nb-radius', '半径 Å', '5', { size: '3' });
+  const nbButton = button('显示周围残基', async () => {
+    const result = await run('neighborhood', { center: centre.value.trim(), radius: Number(radius.value), style: 'sticks' });
+    if (result) report.textContent = `周围 ${result.radius} Å 内共 ${result.residues} 个残基：疏水 ${result.classes.hydrophobic}、极性 ${result.classes.polar}、带正电 ${result.classes.positive}、带负电 ${result.classes.negative}、G/P ${result.classes.special}。（几何上的“附近”，不等于相互作用）`;
+  });
+  const compButton = button('算当前对象的组成与性质', async () => {
+    const result = await run('composition', { part: target() });
+    if (result) report.textContent = `${result.part}：${result.selected} 个残基（蛋白 ${result.protein}）；疏水 ${result.classes.hydrophobic}、极性 ${result.classes.polar}、带正电 ${result.classes.positive}、带负电 ${result.classes.negative}、G/P ${result.classes.special}；平均亲水性 GRAVY ${result.gravy ?? '—'}；按个数数的净电荷 ${result.netCharge ?? '—'}（不含 pKa 与环境）。`;
+  });
+  const sideA = field('view-ct-a', 'A 部分', 'chain A'), sideB = field('view-ct-b', 'B 部分', 'chain B'), cutoff = field('view-ct-cutoff', '距离 Å', '4.5', { size: '3' });
+  const ctButton = button('计算并高亮界面', async () => {
+    const result = await run('contacts', { a: sideA.value.trim(), b: sideB.value.trim(), cutoff: Number(cutoff.value), select: true });
+    if (result) report.textContent = `${result.a} 与 ${result.b}：重原子距离 ≤ ${result.cutoff} Å 的残基对 ${result.pairs} 对（界面残基 ${result.interfaceA} + ${result.interfaceB}）；盐桥 ${result.counts.salt}、氢键 ${result.counts.hbond}、疏水接触 ${result.counts.hydrophobic}（只用距离，无角度，是筛查不是结论）。最近：${result.nearest.slice(0, 3).map((p) => `${p.a}–${p.b} ${p.distance} Å`).join('；') || '—'}`;
+  });
+
   // ---- cut ----
   const depth = make('input', { type: 'range', min: '-1', max: '1', step: '0.05', value: '0', 'aria-label': '剖切深度' });
   const cutButtons = row(button('沿视线剖开', () => run('clip', { enabled: true, depth: Number(depth.value), aim: true }, '已剖开：拖动滑块改变深度；换角度后再按一次可重新对准。')), button('关闭剖开', () => run('clip', { enabled: false }, '已关闭剖开。')));
@@ -81,6 +99,9 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     title('颜色'), colorButtons, row(swatch, swatchButton),
     title('分子表面'), surfaceButtons,
     title('光影（插件：光影包）'), packRow,
+    title('周边残基（插件）'), row(centre), row(make('label', {}, '半径 ', radius, ' Å'), nbButton),
+    title('组成与性质（插件）'), row(compButton),
+    title('界面接触（插件）'), row(sideA), row(sideB), row(make('label', {}, '距离 ', cutoff, ' Å'), ctButton), report,
     title('剖开'), cutButtons, row(make('label', {}, '深度 ', depth)),
     title('亚基'), allButtons, list, message,
   );

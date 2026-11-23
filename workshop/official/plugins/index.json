@@ -782,22 +782,22 @@
   {
    "id": "org.glow.plugin.interface-contacts",
    "file": "plugins/packages/interface-contacts.json",
-   "sha256": "b9924bf8f4976a44cfc0c0e010c09a2a8ce975fb29dcdba162a680f91d8986e8",
+   "sha256": "acf0763cabf8d970f727ffa3bd962abec0dc5b5fc6e6e3248e81fdfb8738e47d",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
     "id": "org.glow.plugin.interface-contacts",
     "version": "1.0.0",
-    "name": "界面接触分析（Studio 面板）",
-    "summary": "在 Studio 的“分析”页里，选两部分，列出互相接触的残基，把接触分成氢键、盐桥、疏水接触并画出氢键和盐桥的线，把界面涂色，并作为“推导”证据记进作品。",
+    "name": "界面接触分析",
+    "summary": "在 Studio 的“分析”页和 Viewer 的“查看”页里，选两部分，列出互相接触的残基，把接触分成氢键、盐桥、疏水接触并画出氢键和盐桥的线，把界面涂色，并作为“推导”证据记进作品。",
     "category": "interaction",
     "adds": [
+     "Viewer“查看”页的“界面接触”：选 A、B 两部分，直接看残基对数、盐桥/氢键/疏水接触个数和最近的几对，可高亮界面残基；命令 glow.contacts",
      "Studio“分析”页的面板：A 部分默认取“外观”页的选择，B 部分用选择语言写，距离 1–8 Å（默认 4.5）",
      "列出接触的残基对（最近的 10 对，写出原子名和距离）、两侧界面残基数",
      "分类：氢键（供体—受体重原子 2.4–3.5 Å）、盐桥（Asp/Glu 羧基氧到 Lys NZ / Arg NE,NH1,NH2 ≤ 4.0 Å）、疏水接触（侧链碳 ≤ 4.0 Å，每对残基一条）",
      "把氢键和盐桥画成按类型着色的线（蓝 = 氢键，粉 = 盐桥，指到线上看距离），随作品保存，Viewer 里一样显示",
-     "把界面涂色（A 侧橙、B 侧蓝，写成作品的残基上色规则）",
-     "把结果记进作品：证据（类型“推导”，写明方法、距离和分类计数）与面板自己的数据"
+     "把界面涂色（A 侧橙、B 侧蓝，写成作品的残基上色规则）；把结果记进作品：证据（类型“推导”，写明方法、距离和分类计数）与面板自己的数据"
     ],
     "usage": [
      {
@@ -807,6 +807,10 @@
      }
     ],
     "provides": [
+     {
+      "type": "command",
+      "name": "contacts"
+     },
      {
       "type": "panel",
       "id": "org.glow.panel.contacts"
@@ -850,7 +854,7 @@
       "氢键和盐桥画线最多 150 条，疏水接触只列出不画线",
       "接触对超过 5000 会拒绝，要求缩小两部分的范围",
       "界面涂色占用残基上色规则（共 64 条上限）",
-      "只在 Studio 里使用；Viewer 里只显示保存的线和颜色，没有面板",
+      "Studio 的面板能涂色、画线并记入作品；Viewer 的命令只读（统计与高亮）；Viewer 里只显示保存的线和颜色，没有面板",
       "距离阈值是常用经验值，不是由结构决定的结论"
      ]
     },
@@ -1408,16 +1412,17 @@
   {
    "id": "org.glow.plugin.residue-composition",
    "file": "plugins/packages/residue-composition.json",
-   "sha256": "3309bcd8eeda73b7a44e2b7881cbd74a4091e1f063179205a56c4aefaead017d",
+   "sha256": "87746021c38f6a7c7558b8312d84082ff5dfbd9109566489a9c2fa1a51225ead",
    "manifest": {
     "format": "glow-plugin",
     "schemaVersion": 1,
     "id": "org.glow.plugin.residue-composition",
     "version": "1.0.0",
-    "name": "组成与性质分析（Studio 面板）",
-    "summary": "在 Studio 的“分析”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
+    "name": "组成与性质分析",
+    "summary": "在 Studio 的“分析”页和 Viewer 的“查看”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
     "category": "interaction",
     "adds": [
+     "Viewer“查看”页的“组成与性质”：选一部分，直接看残基组成、GRAVY 和按个数数的净电荷；命令 glow.composition",
      "Studio“分析”页的面板：部分默认取“外观”页的选择",
      "按五类数残基：疏水、极性、带正电、带负电、甘氨酸/脯氨酸",
      "平均亲水性 GRAVY（Kyte–Doolittle 1982）与按个数数出的净电荷",
@@ -1432,6 +1437,10 @@
      }
     ],
     "provides": [
+     {
+      "type": "command",
+      "name": "composition"
+     },
      {
       "type": "panel",
       "id": "org.glow.panel.composition"
@@ -1464,7 +1473,7 @@
       "GRAVY 用 Kyte–Doolittle 标度，是经验标度，不等于真实溶解性或埋藏程度",
       "五类的划分是常用约定（例如 Cys 归疏水、His 归极性），不同教材略有差别",
       "核酸和未知残基只报告个数，不计入蛋白质的数字",
-      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+      "Studio 的面板能涂色、画线并记入作品；Viewer 的命令只读（统计与高亮）；Viewer 里只显示涂好的颜色，没有面板"
      ]
     },
     "license": "Apache-2.0",
@@ -1475,6 +1484,76 @@
     "tags": [
      "组成",
      "性质"
+    ]
+   }
+  },
+  {
+   "id": "org.glow.plugin.residue-neighborhood",
+   "file": "plugins/packages/residue-neighborhood.json",
+   "sha256": "2ee16e3183fa6072614020fbd8fed19351b367f6868c9c57ce70fcbbd00bd969",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.residue-neighborhood",
+    "version": "1.0.0",
+    "name": "周边残基查看",
+    "summary": "选一处（小分子、一个残基或一段），把周围一定距离内的残基用棍状或球棍画出来，并给出个数和分类；Viewer“查看”页有按钮。",
+    "category": "interaction",
+    "adds": [
+     "Viewer“查看”页的“周边残基”：写中心（如 ligands、chain A and resi 57）和半径（默认 5 Å），点按钮即把周围残基设为棍状/球棍",
+     "命令 glow.neighborhood：返回周围残基个数和按疏水/极性/带电的分类；用 show(\"reset\") 清除",
+     "距离按原子到原子计算（选择语言的 within）"
+    ],
+    "usage": [
+     {
+      "title": "看配体周围的口袋",
+      "how": "Viewer 打开结构 → “查看”页 → “周边残基”→ 中心写 ligands，半径 5 → 点“显示周围残基”",
+      "note": "这是几何上的“附近”，不等于结合或相互作用；要看相互作用分类用“界面接触”"
+     }
+    ],
+    "provides": [
+     {
+      "type": "command",
+      "name": "neighborhood"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/composition.mjs",
+      "exports": [
+       "compositionOf"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "真实浏览器里对 2HHB 的配体和单个残基点按钮，周围残基按选择语言取出并画成棍状；单元测试核对参数检查和报错。",
+     "limits": [
+      "只按几何距离取残基，不代表结合、相互作用或功能",
+      "棍状/球棍一次最多 300 个残基，半径大了会被拒绝（会说明）",
+      "没有对照 PyMOL/ChimeraX 的同一输入",
+      "软件渲染下已验证，真实显卡上未验收"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-23-view-panel-and-navigation.md"
+    ],
+    "tags": [
+     "查看",
+     "残基",
+     "口袋"
     ]
    }
   },

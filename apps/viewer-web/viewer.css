@@ -359,3 +359,7 @@ button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}
 .view-hint { margin: 0.3rem 0; font-size: 0.8rem; color: var(--dim); }
 .view-message { margin: 0.5rem 0 0; font-size: 0.82rem; min-height: 1.2em; }
 .view-message[data-state="error"] { color: #b3261e; }
+.view-report { margin: 0.4rem 0; padding: 0.4rem 0.5rem; font-size: 0.82rem; line-height: 1.45; background: var(--acc-soft); border-radius: 3px; }
+.view-report:empty { display: none; }
+.view-row label { display: flex; align-items: center; gap: 0.3rem; }
+.view-row label input[type="text"] { flex: 0 0 auto; width: 3.2rem; }
