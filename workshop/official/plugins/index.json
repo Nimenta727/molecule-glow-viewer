@@ -866,6 +866,80 @@
    }
   },
   {
+   "id": "org.glow.plugin.look-packs",
+   "file": "plugins/packages/look-packs.json",
+   "sha256": "36633a7679f3a520f06d3fc380e1ed5550e0e97b0ae62083fa834f687c56dab6",
+   "manifest": {
+    "format": "glow-plugin",
+    "schemaVersion": 1,
+    "id": "org.glow.plugin.look-packs",
+    "version": "1.0.0",
+    "name": "光影包",
+    "summary": "四套成套的光影（暗场、冷光、暖光、论文白底）：只改光线、背景、环境遮蔽、轮廓光和景深，不改坐标和颜色；可在工坊的插件区单独停用。",
+    "category": "render",
+    "adds": [
+     "Viewer“查看”页的“光影”一行：四个光影包按钮和“默认墨线”，作品里存的光影包打开时照常显示",
+     "命令 glow.lookPack：读取、套用或取消光影包；Studio 的 studio.lookPack 用同一份定义（另可同时套用配色）",
+     "四个包：暗场·细胞内部（glow.cell-dark）、冷光·膜蛋白（glow.membrane-cool）、暖光·活性位点（glow.active-site-warm）、论文白底（paper.clean-white，无轮廓和景深，用于投稿图）",
+     "渲染：渐变天空、抖动采样的屏幕空间环境遮蔽、轮廓光、雾、景深和一遍平滑；只影响画面，不进入坐标、证据或分析结果"
+    ],
+    "usage": [
+     {
+      "title": "给一个结构换光影",
+      "how": "Viewer 打开结构 → “查看”页 → “光影”一行点一个包；再点“默认墨线”回到原样",
+      "note": "光影包不改颜色；颜色在同一页的“颜色”里改。截图或导出时画面里的光影与屏幕一致"
+     }
+    ],
+    "provides": [
+     {
+      "type": "command",
+      "name": "lookPack"
+     },
+     {
+      "type": "module",
+      "path": "plugins/structure/look-packs.mjs",
+      "exports": [
+       "LOOK_PACKS",
+       "LOOK_PACK_IDS",
+       "lookPackById",
+       "validateLookPack"
+      ]
+     },
+     {
+      "type": "cli",
+      "path": "tools/studio-look-check.cjs"
+     }
+    ],
+    "dependencies": [
+     {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+     }
+    ],
+    "permissions": [],
+    "status": {
+     "level": "browser",
+     "summary": "单测核对包的校验和颜色表；真实浏览器里套用、保存、重新打开，并用多模态逐包看过画面（软件渲染）。",
+     "limits": [
+      "只在软件渲染下看过效果，真实显卡上的帧率和观感没有验收",
+      "环境遮蔽、景深是屏幕空间近似，不是物理正确的光照；深色包不适合投稿图",
+      "包是固定的四套，没有自己调参数的界面",
+      "光影包只是外观：不表示任何数值，也不改变科学结论"
+     ]
+    },
+    "license": "Apache-2.0",
+    "author": "Molecule Glow 官方",
+    "docs": [
+     "docs/routine/2026-11-22-ai-interface-and-look-packs.md"
+    ],
+    "tags": [
+     "光影",
+     "外观",
+     "渲染"
+    ]
+   }
+  },
+  {
    "id": "org.glow.plugin.membrane-builder",
    "file": "plugins/packages/membrane-builder.json",
    "sha256": "d31bbad04a2a3eeccc0fc9bfc64549b6f47f5b4dd78a34a396e02f422ed05d0c",

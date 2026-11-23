@@ -46,7 +46,7 @@ import { cameraAt } from '../../packages/schema/camera-track.mjs';
 import { validateMeasures, validateLabels, validateBonds } from '../../plugins/structure/annotations.mjs';
 import { drawAnnotations, clearAnnotations } from '../../plugins/structure/annotation-draw.mjs';
 import { drawSurfaces, validateSurfaces } from '../../plugins/structure/surface-draw.mjs';
-import { lookPackById, validateLookPack } from '../../plugins/structure/look-packs.mjs';
+import { lookPackById, validateLookPack, LOOK_PACKS, LOOK_PACK_IDS } from '../../plugins/structure/look-packs.mjs';
 import { createColorState, resolveColor, isDefault, validateColorState } from './color-scheme.mjs';
 import { describeTools } from './tool-help.mjs';
 import { capabilityReport } from './capabilities.mjs';
@@ -63,6 +63,7 @@ import { normalizeTranslationConfig, translationProcessConfig } from '../../plug
 import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createPanelTabs } from './panel-tabs.mjs';
+import { createViewPanel } from './view-panel.mjs';
 import { createPluginSwitch } from '../../plugins/workshop/plugin-gate.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { indexedDbStore } from '../../packages/studio-editor/recovery.mjs';
@@ -1005,8 +1006,11 @@ function boot() {
     }
   }
 
+  let viewPanel = null;   // the 查看 page (apps/viewer-web/view-panel.mjs); made once the command queue exists
   function showStructureSummary() {
     const model = active?.model;
+    const ready = Boolean(model && host.getImporter(IMPORTER)); elements['view-controls'].hidden = !ready; elements['view-offer'].hidden = ready;
+    if (ready) viewPanel?.refresh();
     const summary = elements['structure-summary'];
     const components = new Map();
     for (const node of active?.scene.nodes ?? []) {
@@ -2020,6 +2024,12 @@ function boot() {
     setColors: (state) => { active.colorState = state; refreshStructureView(); },
     styleState: () => active?.styleState ?? [],
     setStyles: (styles) => { active.styleState = styles; refreshStructureView(); },
+    lookPack: () => active?.lookPackId ?? null,
+    lookPacks: () => LOOK_PACK_IDS.map((id) => ({ id, name: LOOK_PACKS[id].name, summary: LOOK_PACKS[id].summary })),
+    setLookPack: (id) => { active.lookPackId = id ?? undefined; viewport.setLook(id ? lookPackById(id).render : null); drawAnnotationsNow(); },
+    surfaceCheck: (expression) => (active?.model ? evaluateSelection(expression, selectionSpace(active.model)).residues.length : 0),
+    surfaceState: () => (active?.model ? active.surfaceState ?? [] : null),
+    setSurfaces: (surfaces) => { active.surfaceState = validateSurfaces(surfaces); drawAnnotationsNow(); return active.surfaceState; },
     sequence: () => {
       if (!active?.model) return null;
       const { rows, hidden } = sequenceRows(active.model);
@@ -2082,6 +2092,7 @@ function boot() {
     },
   })));
   window.glow = commands.api;
+  viewPanel = createViewPanel({ root: elements['view-controls'], navRoot: elements['view-navigation'], api: commands.api, viewport, chains: () => (active?.model ? [...new Set(selectionSpace(active.model).residues.map((r) => r.chain))] : []) });
   window.__glowStats = () => ({ ...viewport.stats(), ribosome: ribosomeView.status() });   // read-only render statistics, for leak checks (tools/viewer-stability-check.cjs)
   const detachBridge = attachCommandBridge(window, commands.api, { getSceneToken: () => active });
   window.addEventListener('pagehide', (event) => {

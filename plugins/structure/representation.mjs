@@ -238,23 +238,25 @@ const ELEMENT_TINT = { N: '4e79d6', O: 'e05a4a', S: 'e0b83a', P: 'e58a3a' };
  * One `lines` layer per colour (carbon takes the residue's colour; N, O, S, P their usual tints). Hydrogens are left out. The number of residues is limited by the look rules (MAX_STICK_RESIDUES).
  */
 function stickLayers(ordered, model, centered, look, defaultStyle) {
-  const byColor = new Map(), add = (color, a, b) => { if (!byColor.has(color)) byColor.set(color, []); byColor.get(color).push(centered.point(a), centered.point(b)); };
+  const byColor = new Map(), balls = new Map(), add = (color, a, b) => { if (!byColor.has(color)) byColor.set(color, []); byColor.get(color).push(centered.point(a), centered.point(b)); };
   const heavy = (residue) => residue.atoms.filter(({ atom }) => !['H', 'D'].includes(text(atom.element).toUpperCase()));
   const tint = (item, base) => ELEMENT_TINT[text(item.atom.element).toUpperCase()] ?? base;
   const draw = (items, base, bonds) => { for (const [i, j] of bonds) { const a = items[i], b = items[j], mid = a.pos.map((v, k) => (v + b.pos[k]) / 2); add(tint(a, base), a.pos, mid); add(tint(b, base), mid, b.pos); } };
   let previous = null;
   for (const residue of ordered) {
-    const sticks = look.styleOf?.(residue.atom) === 'sticks' && isPolymer(residue.atom, model.format);
+    const wanted = look.styleOf?.(residue.atom), sticks = (wanted === 'sticks' || wanted === 'ballstick') && isPolymer(residue.atom, model.format);
     const items = sticks ? heavy(residue) : null;
     if (items?.length) {
       const base = look.colorOf?.(residue.atom) ?? '9aa7b4';
+      if (wanted === 'ballstick') for (const item of items) { const color = tint(item, base); if (!balls.has(color)) balls.set(color, []); balls.get(color).push(centered.point(item.pos)); }
       draw(items, base, bondsByDistance(items.map(({ atom, pos }) => ({ element: text(atom.element).toUpperCase(), position: pos }))));
       const pc = previous?.items.find((item) => item.name === 'C'), nn = items.find((item) => item.name === 'N');
       if (pc && nn && residueGap(previous.residue, residue) && Math.hypot(...pc.pos.map((v, k) => v - nn.pos[k])) < 1.8) draw([pc, nn], base, [[0, 1]]);
     }
     previous = items?.length ? { residue, items } : null;
   }
-  return [...byColor].map(([color, points]) => ({ mode: 'lines', positions: flat(points), color, pinned: true, role: 'sticks' }));
+  return [...byColor].map(([color, points]) => ({ mode: 'lines', positions: flat(points), color, pinned: true, role: 'sticks' }))
+    .concat([...balls].map(([color, points]) => ({ mode: 'spheres', positions: flat(points), color, radius: 0.4 * PRESENTATION_METERS_PER_ANGSTROM, pinned: true, role: 'balls' })));   // atom balls of 0.4 A (not van der Waals radii)
 }
 
 /**

@@ -228,6 +228,33 @@ export function createViewerCommands(host) {
       host.setStyles(outcome.styles);
       return { rules: outcome.styles.length, note: outcome.note };
     },
+    surface(value) {
+      needScene();
+      const args = Array.isArray(value) ? value : [value], state = host.surfaceState?.();
+      if (!state) throw new Error('相应结构插件或坐标不可用。');
+      if (args[0] == null) return { surfaces: state };
+      if (/^clear$/i.test(String(args[0]))) { host.setSurfaces([]); return { surfaces: [], note: '已清除表面。' }; }
+      if (args.length > 4) throw new Error('surface 需要 (选择, 着色方案?, 颜色?, {inflate?})。');
+      if (state.length >= 4) throw new Error('最多 4 个表面：先 surface("clear")。');
+      const [expr, scheme = 'plain', color, extra] = args;
+      if (typeof expr !== 'string' || !expr.trim()) throw new Error('surface 的第一个参数应为选择表达式。');
+      if (!['plain', 'hydrophobicity', 'electrostatic'].includes(scheme)) throw new Error('着色方案应为 plain、hydrophobicity 或 electrostatic。');
+      if (!(host.surfaceCheck ?? host.colorCheck)?.(expr)) throw new Error(`“${expr}”没有选中任何残基。`);
+      const inflate = object(extra) ? extra.inflate : undefined;
+      const rule = { expr, scheme, ...(color ? { color: String(color) } : {}), ...(inflate ? { inflate } : {}) };
+      const outcome = host.setSurfaces([...state, rule]);
+      return { surfaces: outcome ?? [...state, rule], note: '高斯分子表面（近似溶剂排除面）；静电着色是简化库仑，不是 APBS。' };
+    },
+    lookPack(value) {
+      needScene();
+      const id = Array.isArray(value) ? value[0] : value;
+      if (id == null) return { current: host.lookPack?.() ?? null, packs: host.lookPacks?.() ?? [] };
+      if (typeof id !== 'string') throw new Error('光影包应为名称字符串，或 "none"。');
+      const packs = host.lookPacks?.() ?? [];
+      if (id !== 'none' && !packs.some((pack) => pack.id === id)) throw new Error(`没有光影包“${id}”：可用的有 ${packs.map((pack) => pack.id).join('、') || '（无）'}，或 "none"。`);
+      host.setLookPack(id === 'none' ? null : id);
+      return { current: id === 'none' ? null : id, note: id === 'none' ? '已回到默认的墨线风格。' : `光影包只改外观（光、背景、环境遮蔽、景深），不改坐标；颜色不变。` };
+    },
     clip(value) {
       needScene();
       if (value == null) return host.clip({});

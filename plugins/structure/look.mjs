@@ -8,8 +8,8 @@ import { rangeTypeFor } from './representation.mjs';
  * (it is saved with the work, in the structure file's viewer state, and read back by both the Studio and the Viewer); no executable content. `lookFor` turns the rules into the two
  * per-residue questions the representation asks (`colorOf(atom)`, `styleOf(atom)`); the representation does the drawing (representation.mjs, `look`).
  */
-export const LOOK_STYLES = Object.freeze(['cartoon', 'backbone', 'blob', 'sticks', 'hidden']);
-export const STYLE_LABELS = Object.freeze({ cartoon: '卡通', backbone: '主链', blob: '团块', sticks: '棍状（原子，叠在卡通上）', hidden: '隐藏' });
+export const LOOK_STYLES = Object.freeze(['cartoon', 'backbone', 'blob', 'sticks', 'ballstick', 'hidden']);
+export const STYLE_LABELS = Object.freeze({ cartoon: '卡通', backbone: '主链', blob: '团块', sticks: '棍状（原子，叠在卡通上）', ballstick: '球棍（原子球加键线，叠在卡通上）', hidden: '隐藏' });
 export const MAX_STICK_RESIDUES = 300;   // atom-level drawing is heavy: only a pocket or a few segments, not a whole protein
 export const PROPERTY_SCHEMES = Object.freeze({ bfactor: 'B 因子（柔性）', hydrophobicity: '疏水性', charge: '电荷', secondary: '二级结构', rainbow: '彩虹（N→C）' });
 export const MAX_STYLE_RULES = 64, MAX_EXPRESSION = 400, BANDS = 12;
@@ -75,7 +75,7 @@ export function applyStyle(styles, target, style, { check } = {}) {
   if (expr.length > MAX_EXPRESSION) throw new LookError(`选择表达式太长（最多 ${MAX_EXPRESSION} 个字符）。`);
   let found; try { found = check ? check(expr) : undefined; } catch (error) { throw new LookError(`无法读取选择“${expr}”：${error.message}`); }
   if (found === 0) throw new LookError(`选择“${expr}”没有选中任何残基。`);
-  if (style === 'sticks' && found > MAX_STICK_RESIDUES) throw new LookError(`棍状是逐原子绘制，一次最多 ${MAX_STICK_RESIDUES} 个残基（这次选中 ${found} 个）：请缩小选择，例如 within 5 of ligands。`);
+  if ((style === 'sticks' || style === 'ballstick') && found > MAX_STICK_RESIDUES) throw new LookError(`棍状是逐原子绘制，一次最多 ${MAX_STICK_RESIDUES} 个残基（这次选中 ${found} 个）：请缩小选择，例如 within 5 of ligands。`);
   if (styles.length >= MAX_STYLE_RULES) throw new LookError(`最多 ${MAX_STYLE_RULES} 条样式规则：先清除一些再来。`);
   return { styles: [...styles, { expr, style }], note: `${found ?? '所选'} 个残基（${expr}）画成“${STYLE_LABELS[style]}”。` };
 }

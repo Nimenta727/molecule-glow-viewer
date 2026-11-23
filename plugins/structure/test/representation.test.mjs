@@ -217,3 +217,14 @@ test('sticks draw the bonds of the chosen residues (and the peptide bond between
   assert.equal(segments, 14);
   assert.equal(drawn(backboneChain(), 'cartoon', { styleOf: () => undefined }).filter((l) => l.role === 'sticks').length, 0, 'no sticks unless asked');
 });
+
+test('ball-and-stick draws the same bonds as sticks plus one ball per heavy atom, tinted by element; plain sticks have no balls', () => {
+  const ball = { styleOf: (a) => (seqOf(a) <= 2 ? 'ballstick' : undefined) }, stick = { styleOf: (a) => (seqOf(a) <= 2 ? 'sticks' : undefined) };
+  const withBalls = drawn(backboneChain(), 'cartoon', ball), plain = drawn(backboneChain(), 'cartoon', stick);
+  const lines = (layers) => layers.filter((l) => l.role === 'sticks').reduce((n, l) => n + l.positions.length / 6, 0);
+  assert.equal(lines(withBalls), lines(plain), 'the bonds are the same');
+  const balls = withBalls.filter((l) => l.role === 'balls'); assert.ok(balls.length && balls.every((l) => l.mode === 'spheres' && l.pinned && l.radius > 0));
+  assert.equal(balls.reduce((n, l) => n + l.positions.length / 3, 0), 8, '2 residues x 4 heavy atoms');
+  assert.ok(balls.some((l) => l.color === 'e05a4a'), 'oxygen is tinted');
+  assert.equal(plain.filter((l) => l.role === 'balls').length, 0);
+});
