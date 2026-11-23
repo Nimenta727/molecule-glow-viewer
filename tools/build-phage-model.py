@@ -6,7 +6,7 @@ Chains: T* = portal-tail complex, C* = core, H01..H12 = head shell, G1/G2 = geno
                                 the tail axis is z, the tail tip points to +z. The two entries are separate reconstructions: the core is moved along z by -204 A and turned 5 degrees about z, the
                                 position with the most contacts and no clashes (< 2.4 A) against the portal-tail complex (found by scanning, see CORE_* below). Not a measured relative position.
   (part 2) shell and genome     the head shell and the genome:
-                                shell  = 415 copies of the major capsid protein gp10A (C-alpha only), made from the 7-chain asymmetric unit of PDB 3J7X (mature head, 3.6 A; 3J7W is the capsid-II packaging intermediate, not used) with the 60 icosahedral
+                                shell  = 415 copies of the major capsid protein gp10A (C-alpha only) as 60 hexons (chains X01-X60) and 11 pentons (P01-P11), made from the 7-chain asymmetric unit of PDB 3J7X (mature head, 3.6 A; 3J7W is the capsid-II packaging intermediate, not used) with the 60 icosahedral
                                          operators of its assembly 1; the 5 subunits of the vertex on the +z axis are left out (the portal vertex), as in the real head (415 = 420 - 5).
                                          Chains H01..H12 are the 12 vertex regions (H01 = the portal vertex); residue number = 1000 x (subunit in the region) + residue number of gp10A.
                                          The shell centre is put at z = -371 A so that the portal vertex points at the tail.
@@ -120,24 +120,32 @@ def shell_points():
         v = ops[str(k)][0] @ np.array([0, 0, 1.0])
         if not any(np.dot(v, u) > 0.99 for u in vertices): vertices.append(v)
     vertices.sort(key=lambda v: -v[2]); assert len(vertices) == 12 and vertices[0][2] > 0.99
-    subunits = []
+    # capsomers: in the asymmetric unit of 3J7X the six non-penton chains form one hexamer ring (their centres lie on a ring about 35 A across), so each of the 60 symmetry copies
+    # of those six chains is one hexon; the penton chain's copies are grouped by the 5-fold vertex they sit at (5 each), and the vertex at +z is the portal vertex (left out)
+    hexons, pentons = [], collections.defaultdict(list)
     for k in range(1, 61):
         M, t = ops[str(k)]
-        for c, residues in chains.items():
-            if c == penton and k <= 5: continue
-            pts = np.array([p[2] for p in residues]) @ M.T + t
-            centre = pts.mean(axis=0); region = int(np.argmax([np.dot(v, centre) for v in vertices]))
-            subunits.append((region, residues, pts))
-    return subunits, penton
+        ring = [(residues, np.array([p[2] for p in residues]) @ M.T + t) for c, residues in chains.items() if c != penton]
+        hexons.append(ring)
+        pts = np.array([p[2] for p in chains[penton]]) @ M.T + t
+        region = int(np.argmax([np.dot(v, pts.mean(axis=0)) for v in vertices]))
+        if region != 0: pentons[region].append((chains[penton], pts))
+    assert all(len(v) == 5 for v in pentons.values()) and len(pentons) == 11, 'every vertex but the portal vertex has a pentamer'
+    return hexons, [pentons[r] for r in sorted(pentons)], penton
 
 
 def shell_and_genome(w):
-    subunits, penton = shell_points(); count = collections.Counter(); w.entity('S', 'Major capsid protein gp10A [3J7X, C-alpha only]')
-    for region in range(12): w.asym(f'H{region + 1:02d}', 'S')
-    for region, residues, pts in sorted(subunits, key=lambda s: s[0]):
-        count[region] += 1; unit = count[region]; chain = f'H{region + 1:02d}'
-        for (seq, comp, _), p in zip(residues, pts): w.atom('ATOM', 'C', 'CA', comp, chain, 'S', unit * 1000 + seq, p + [0, 0, SHELL_CENTRE_Z])
-    print('shell subunits', sum(count.values()), 'penton chain left out at the portal vertex:', penton)
+    hexons, pentons, penton = shell_points()
+    w.entity('S', 'Major capsid protein gp10A, hexon subunit [3J7X, C-alpha only]'); w.entity('Q', 'Major capsid protein gp10A, penton subunit [3J7X, C-alpha only]')
+    for i in range(len(hexons)): w.asym(f'X{i + 1:02d}', 'S')
+    for i in range(len(pentons)): w.asym(f'P{i + 1:02d}', 'Q')
+    for i, ring in enumerate(hexons):          # one chain per hexon (6 subunits, numbered 1001.., 2001.., ...)
+        for unit, (residues, pts) in enumerate(ring, start=1):
+            for (seq, comp, _), p in zip(residues, pts): w.atom('ATOM', 'C', 'CA', comp, f'X{i + 1:02d}', 'S', unit * 1000 + seq, p + [0, 0, SHELL_CENTRE_Z])
+    for i, five in enumerate(pentons):         # one chain per penton (5 subunits)
+        for unit, (residues, pts) in enumerate(five, start=1):
+            for (seq, comp, _), p in zip(residues, pts): w.atom('ATOM', 'C', 'CA', comp, f'P{i + 1:02d}', 'Q', unit * 1000 + seq, p + [0, 0, SHELL_CENTRE_Z])
+    print('shell: %d hexons and %d pentons = %d subunits; penton chain of the asymmetric unit: %s; the portal vertex has no penton' % (len(hexons), len(pentons), 6 * len(hexons) + 5 * len(pentons), penton))
     # genome spool
     inner = 266.0 - 4.0
     path, layer, r = [], 0, R_MIN
@@ -171,6 +179,11 @@ if __name__ == '__main__':
     w = Writer('Bacteriophage T7 virion, illustrative composite: portal-tail (9JYZ) + core (9JYY) + head shell (3J7X) + genome spool; placements are assumptions')
     machinery(w); bp = shell_and_genome(w); print('genome nucleotides drawn per strand:', bp)
     w.save(os.path.join(OUT, 't7-virion-model.cif'))
+    # part name -> chains of the composite, so a work can colour and name the parts (tools/make-phage-works.cjs)
+    import json
+    parts = collections.OrderedDict()
+    for aid, eid in w.asyms.items(): parts.setdefault(w.entities[eid], []).append(aid)
+    json.dump(parts, open(os.path.join(OUT, 't7-virion-parts.json'), 'w'), ensure_ascii=False, indent=1)
     # protein name -> chain names (as the Studio importer names them: author chain ids) for the two tail/core entries, used by tools/make-phage-works.cjs to colour the parts
     import json
     groups = {}
