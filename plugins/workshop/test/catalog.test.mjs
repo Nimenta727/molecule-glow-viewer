@@ -127,3 +127,17 @@ test('the catalogue location: local checkout, GitHub otherwise, same-origin over
   assert.equal(at('https://example.org/apps/viewer-web/index.html?workshop=https://evil.example/ws/', 'example.org'), WORKSHOP_BASE, 'an absolute URL from the address bar is ignored');
   assert.equal(at('https://example.org/apps/viewer-web/index.html?workshop=//evil.example/ws/', 'example.org'), WORKSHOP_BASE, 'so is a protocol-relative one');
 });
+
+test('in the packaged app (app://) the official source comes from the bundled folder and the community source from the base; elsewhere nothing is bundled', async () => {
+  const { bundledSources, loadCatalog: load } = await import('../catalog.mjs');
+  assert.deepEqual(bundledSources({ href: 'app://glow/apps/viewer-web/index.html' }), { official: 'app://glow/workshop/' });
+  assert.deepEqual(bundledSources({ href: 'https://example.org/apps/viewer-web/index.html' }), {});
+  assert.deepEqual(bundledSources({ href: 'http://localhost:8765/apps/studio-web/index.html' }), {});
+  const asked = [], remote = 'https://remote.example/workshop/', bundled = 'app://glow/workshop/';
+  const spy = async (url) => { asked.push(String(url)); return { ok: false, status: 404, arrayBuffer: async () => new ArrayBuffer(0), text: async () => '', json: async () => ({}) }; };
+  const catalog = await load({ base: remote, bundled: { official: bundled }, fetch: spy });
+  assert.ok(asked.some((url) => url.startsWith(`${bundled}official/`)), 'the official index is read from the application');
+  assert.ok(asked.every((url) => !url.startsWith(`${remote}official/`)), 'and never from the network');
+  assert.ok(asked.some((url) => url.startsWith(`${remote}community/`)), 'the community index still comes from the base');
+  assert.equal(catalog.bundled.official, bundled);
+});

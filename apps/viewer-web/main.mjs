@@ -60,7 +60,7 @@ import { normalizeDataConfig } from '../../plugins/simulation/data-tool.mjs';
 import { normalizeProcessConfig } from '../../plugins/simulation/process-tool.mjs';
 import { normalizeCompositionConfig } from '../../plugins/simulation/composition-tool.mjs';
 import { normalizeTranslationConfig, translationProcessConfig } from '../../plugins/simulation/translation-tool.mjs';
-import { loadCatalog, workshopBase, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { loadCatalog, workshopBase, bundledSources, fetchWorkBytes, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createPanelTabs } from './panel-tabs.mjs';
 import { createViewPanel } from './view-panel.mjs';
@@ -1359,7 +1359,7 @@ function boot() {
     pluginState: pluginSwitch,
     ...(templateLibrary ? { templates: { library: templateLibrary, loadRcsb: (code) => loadAccession(code, new AbortController().signal),
       actions: [{ label: '打开结构', title: '把这份原文件作为结构打开（先核对哈希）', run: async (entry) => { await setStructureEnabled(true); await openScene({ structure: await templateStructure(entry), assembly: elements['structure-assembly'].checked }, { propagate: true }); } }] } } : {}),
-    load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+    load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }), bundled: bundledSources({ href: location.href }) }),
     toolTitle, toolAvailable: isKnownTool,
     actions: {
       templates: [{ label: '查看', title: '静态作品：下载、核对哈希后只看结构、读解说，没有动画', run: (entry, catalog) => openWorkshopWork(entry, catalog) }],
