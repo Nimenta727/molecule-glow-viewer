@@ -27,7 +27,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
         row.modes[style] = await page.evaluate((s) => window.glow.show(['all', s]).then(() => 'ok', (e) => e.message), style);
         await page.waitForTimeout(style === 'sticks' ? 6000 : 2500);
       }
-      await page.screenshot({ path: path.join(OUT, `${pack.file.split('/').pop().replace('.glow', '')}-sticks.png`) });
+      await page.screenshot({ path: path.join(OUT, `${pack.file.split('/').pop().replace('.glow', '')}-sticks.png`), timeout: 180000 }).catch((e) => { row.screenshot = `没有截图：${e.message.split('\n')[0]}`; });   // a very large complex can take minutes to draw in software rendering
     }
     row.errors = errors; report.push(row); console.log(JSON.stringify(row)); await page.close();
   }
