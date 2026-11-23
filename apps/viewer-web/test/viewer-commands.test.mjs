@@ -100,4 +100,6 @@ test('composition, contacts and neighborhood refuse a missing structure and bad 
   await assert.rejects(api.composition('chain A'), /结构插件或坐标不可用/);
   await assert.rejects(api.contacts({ a: 'chain A', b: 'chain B' }), /结构插件或坐标不可用/);
   await assert.rejects(api.neighborhood({ center: 'ligands' }), /结构插件或坐标不可用/);
+  await assert.rejects(api.label('chain A'), /结构插件或坐标不可用/);
+  await assert.rejects(api.hbonds('chain A'), /结构插件或坐标不可用/);
 });

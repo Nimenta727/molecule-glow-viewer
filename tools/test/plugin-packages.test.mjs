@@ -18,9 +18,9 @@ const STUDIO_PANELS = new Set([contactsPanel.id, compositionPanel.id, secondaryP
 const KNOWN_PLUGINS = new Set(['org.glow.structure']);
 const exists = (path) => fs.existsSync(new URL(path, root));
 
-test('the twenty-four plugins are all packaged, each under its own id and file name', () => {
-  assert.equal(manifests.length, 24);
-  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 24, 'ids are unique');
+test('the twenty-six plugins are all packaged, each under its own id and file name', () => {
+  assert.equal(manifests.length, 26);
+  assert.equal(new Set(manifests.map(({ manifest }) => manifest.id)).size, 26, 'ids are unique');
   for (const { name, manifest } of manifests) assert.equal(manifest.id, `org.glow.plugin.${name.replace(/\.json$/, '')}`, `${name}: the id follows the file name`);
 });
 

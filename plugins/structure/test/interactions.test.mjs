@@ -29,3 +29,14 @@ test('residues next to each other in one chain are skipped, shared residues neve
   assert.deepEqual([CUTOFFS.hbond, CUTOFFS.salt, CUTOFFS.hydrophobic], [3.5, 4, 4]);
   assert.throws(() => interactionsBetween(model(), 'resi 99', 'chain B'), (e) => e instanceof InteractionError && /A 部分.*没有选中/.test(e.message)); assert.throws(() => interactionsBetween(model(), 'chain A', 'banana'), /B 部分：/);
 });
+
+test('within: true finds the hydrogen bonds inside one part once each, and the default still keeps shared residues out', () => {
+  // inside chain C: a backbone N (residue 1) and a backbone O (residue 4) 2.9 A apart — a helix-like hydrogen bond between residues that are not neighbours
+  const m = { format: 'pdb', atoms: [
+    atom('C', 1, 'ALA', 'N', 'N', [0, 0, 0]), atom('C', 1, 'ALA', 'CA', 'C', [1.4, 0.5, 0]), atom('C', 2, 'ALA', 'CA', 'C', [8, 3, 0]), atom('C', 3, 'ALA', 'CA', 'C', [16, 3, 0]),
+    atom('C', 4, 'ALA', 'O', 'O', [2.9, 0, 0]), atom('C', 4, 'ALA', 'CA', 'C', [3.5, 4, 0]),
+  ] };
+  const inside = interactionsBetween(m, 'chain C', 'chain C', { within: true });
+  assert.equal(inside.counts.hbond, 1, 'one hydrogen bond, reported once');
+  assert.equal(interactionsBetween(m, 'chain C and resi 1', 'chain C and resi 1-4').counts.hbond, 0, 'without within the shared residues are skipped, as before');
+});

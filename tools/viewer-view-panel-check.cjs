@@ -20,6 +20,14 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   const click = async (text, scopeSel = '#view-controls') => { await page.locator(scopeSel + ' button', { hasText: text }).first().click(); await page.waitForTimeout(2500); };
   await click('球棍'); console.log('ballstick:', await msg());
   await page.selectOption('#view-scope', 'chain A'); await click('球棍'); console.log('chain A ballstick:', await msg());
+  await page.fill('#view-scope-custom', 'within 6 of ligands'); await click('球棍模型'); console.log('ballstick pocket:', await msg());
+  await click('价键模型'); console.log('sticks pocket:', await msg());
+  await click('画氢键和盐桥线'); console.log('hbonds:', await page.evaluate(() => document.querySelector('.view-report').textContent), '|', await msg());
+  const bonds = await page.evaluate(() => window.glow.hbonds()); console.log('lines in scene', JSON.stringify(bonds));
+  await page.fill('#view-scope-custom', 'chain A and resi 1-60'); await click('球棍模型'); await click('画氢键和盐桥线'); console.log('hbonds helix part:', await page.evaluate(() => document.querySelector('.view-report').textContent)); console.log('lines drawn', JSON.stringify(await page.evaluate(() => window.glow.hbonds()))); await page.waitForTimeout(2500); await page.screenshot({ path: OUT.replace('.png', '-bonds.png') });
+  await click('清除键线');
+  await page.fill('#view-label-text', '催化残基'); await page.fill('#view-scope-custom', 'chain A and resi 87'); await click('给当前对象加标签'); console.log('label:', await msg(), JSON.stringify(await page.evaluate(() => window.glow.label())));
+  await click('清除标签'); await page.fill('#view-scope-custom', '');
   await click('疏水性'); console.log('hydrophobicity:', await msg());
   await click('暖光'); console.log('pack:', await msg());
   await click('单色表面'); console.log('surface:', await msg());

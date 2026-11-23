@@ -28,6 +28,8 @@ export const COMMANDS = {
   composition: '一部分的组成与性质：composition("chain A") 或 {part}；返回残基数、按疏水/极性/带电的分类、各氨基酸个数、平均亲水性 GRAVY 和按个数数的净电荷。是只读的统计，不含 pKa 与环境。',
   contacts: '两部分之间的界面接触：{a, b, cutoff?(默认 4.5 Å，≤8), select?:true 高亮界面残基}；返回残基对数、界面残基数、盐桥/氢键/疏水接触的个数和最近的几对。只用重原子距离，无氢原子与角度，是筛查不是结论。',
   neighborhood: '看一处周围的残基：{center:"选择", radius?:1..12（默认 5 Å）, style?:"sticks"|"ballstick"|…}；把中心周围的残基设为该样式并返回个数和分类。用 show("reset") 清除。',
+  label: '给一部分写文字标签：label("选择", "文字") 或 {part, text}；文字省略则显示选择本身；label("clear") 清除；不带参数读取；最多 48 个，文字最多 60 个字符，画在这部分的中心，随作品保存。',
+  hbonds: '一部分内部的氢键和盐桥线：hbonds({part, salt?:false, limit?:1..200}) 或 hbonds("选择")；hbonds("clear") 清除。画成蓝（氢键）/粉（盐桥）的线，随作品保存。只用重原子距离，无氢原子与角度，是筛查不是结论；part 请选一小段或一处口袋。',
   lookPack: '光影包（插件：光影包）：lookPack() 读当前与可用的；lookPack("glow.cell-dark"|"glow.membrane-cool"|"glow.active-site-warm"|"paper.clean-white") 套用；lookPack("none") 回到默认墨线风格。只改光线、背景、环境遮蔽和景深，不改坐标和颜色；随作品保存。',
   clip: '剖切：{enabled?:布尔, depth?:-1..1, scope?:"all"|"parts", aim?:true（对准当前视线）}；不带参数读取状态。',
   snapshot: '返回视口 PNG data URL，接受 {width:64..4096}。',

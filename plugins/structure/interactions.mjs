@@ -23,7 +23,8 @@ const isDonor = (a) => (a.name === 'N' && String(a.residueName).toUpperCase() !=
 const isAcceptor = (a) => a.name === 'O' || a.name === 'OXT' || ACCEPTORS.has(key(a));
 const hydrophobicCarbon = (a) => String(a.element).toUpperCase() === 'C' && !['C', 'CA'].includes(a.name) && ['ALA', 'VAL', 'LEU', 'ILE', 'MET', 'PHE', 'TRP', 'PRO', 'TYR', 'CYS'].includes(String(a.residueName).toUpperCase());
 
-export function interactionsBetween(model, exprA, exprB) {
+/** `within: true` lets the two parts be the same part (the interactions inside one selection): residues in both are kept, and each pair of atoms is reported once. */
+export function interactionsBetween(model, exprA, exprB, { within = false } = {}) {
   const space = selectionSpace(model);
   const part = (expr, name) => {
     let found; try { found = evaluateSelection(expr, space).residues; } catch (error) { throw new InteractionError(`${name}：${error.message}`); }
@@ -32,7 +33,7 @@ export function interactionsBetween(model, exprA, exprB) {
   };
   const A = part(exprA, 'A 部分'), B = part(exprB, 'B 部分'), idsA = new Set(A.map((r) => residueIdentity(r.atom))), idsB = new Set(B.map((r) => residueIdentity(r.atom)));
   const residueOf = new Map([...A, ...B].map((r) => [residueIdentity(r.atom), r]));
-  const atomsOf = (ids) => { const out = []; for (const { atom, pos } of selectCoordinateAtoms(model)) { if (['H', 'D'].includes(String(atom.element).toUpperCase())) continue; const id = residueIdentity(atom); if (ids.has(id) && !(idsA.has(id) && idsB.has(id))) out.push({ atom, pos, id }); } return out; };
+  const atomsOf = (ids) => { const out = []; for (const { atom, pos } of selectCoordinateAtoms(model)) { if (['H', 'D'].includes(String(atom.element).toUpperCase())) continue; const id = residueIdentity(atom); if (ids.has(id) && (within || !(idsA.has(id) && idsB.has(id)))) out.push({ atom, pos, id }); } return out; };
   const atomsA = atomsOf(idsA), atomsB = atomsOf(idsB), cell = 4.0, grid = new Map();
   for (const b of atomsB) { const k = b.pos.map((v) => Math.floor(v / cell)).join(','); if (!grid.has(k)) grid.set(k, []); grid.get(k).push(b); }
   const adjacent = (p, q) => p.asym === q.asym && Math.abs(p.labelSeq - q.labelSeq) <= 1 && p.labelSeq !== 0;
@@ -42,6 +43,7 @@ export function interactionsBetween(model, exprA, exprB) {
     for (let x = cx - 1; x <= cx + 1; x++) for (let y = cy - 1; y <= cy + 1; y++) for (let z = cz - 1; z <= cz + 1; z++) for (const b of grid.get(`${x},${y},${z}`) ?? []) {
       const d = Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]); if (d > CUTOFFS.salt) continue;
       const ra = residueOf.get(a.id), rb = residueOf.get(b.id); if (adjacent(ra, rb)) continue;
+      if (within && `${a.id}|${a.atom.name}` >= `${b.id}|${b.atom.name}`) continue;   // inside one part every pair is seen from both ends: keep one
       let type = null;
       if (((ANION.has(key(a.atom)) && CATION.has(key(b.atom))) || (CATION.has(key(a.atom)) && ANION.has(key(b.atom)))) && d <= CUTOFFS.salt) type = 'salt';
       else if (d <= CUTOFFS.hbond && d >= CUTOFFS.hbondMin && ((isDonor(a.atom) && isAcceptor(b.atom)) || (isAcceptor(a.atom) && isDonor(b.atom)))) type = 'hbond';
