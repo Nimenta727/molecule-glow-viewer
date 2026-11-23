@@ -80,3 +80,16 @@ frame.contentWindow.postMessage({
 保留命令名称、`run`、日志重放及消息信封；尚未完整兼容经典参数和回包。（0.9.0 补记：`show(选择, cartoon|backbone|blob|sticks|hidden)` 与 `color(选择, 颜色|hydrophobicity|bfactor|charge|secondary|rainbow)` 已按残基生效，表面、标注、连线和镜头关键帧来自作品里保存的规则，Viewer 里没有对应命令。）复杂选择语言、`color`、`style`、`sequence`、`measure`、工坊/预设别名，以及其他机制命令仍待迁移。未支持的命令明确报错。导出返回 v2 ZIP 包装，与经典 v1 对象不同。
 
 单元测试覆盖命令串行、失败恢复、参数快照、日志脱敏/重放、关闭、精确来源、请求窗口、分级授权、拒绝/撤销和排队结果失效。`GLOW_COMMAND_SMOKE=<目录>` 用 Electron 运行 `tools/studio-smoke.cjs`，验证本地结构的插入码选择、表示、错误恢复、导出重开、镜头、截图及自发消息被拒绝。真实父 iframe 的分级授权由 `node tools/security-smoke.cjs --stage <目录> --live` 验证，经典和新版均覆盖；同样可传 `--exe <候选>`。`GLOW_ATP_SMOKE` 额外验证实际 6ZPO 的命令定步、跳转、种子和播放暂停。截图已检查宽屏、560 px 窄屏及独立导出的 PNG。
+
+## 0.11.0 新增的命令
+
+| 命令 | 作用 | 备注 |
+|---|---|---|
+| `surface(选择, 方案, 颜色?, {inflate?})` / `surface("clear")` | 分子表面（最多 4 个） | 高斯近似表面；静电是简化库仑 |
+| `lookPack(id)` / `lookPack("none")` / `lookPack()` | 光影包 | 由插件“光影包”拥有，可在工坊插件区停用 |
+| `composition(选择)` | 组成与性质（只读） | 净电荷按个数数，不含 pKa |
+| `contacts({a, b, cutoff?, select?})` | 两部分的界面接触（只读，可高亮） | 只用距离，无角度 |
+| `neighborhood({center, radius?, style?})` | 把中心周围的残基画成棍状/球棍 | 几何上的“附近” |
+| `show(选择, "ballstick")` | 球棍样式 | 一次最多 300 个残基 |
+
+界面上的“查看”页和“视角”页只是调用这些命令（视角用 viewport 的 `setNavigationMode`、`panBy`、`rotateBy`、`zoomBy`、`recentre`、`setViewDirection`）。

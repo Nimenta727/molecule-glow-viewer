@@ -27,7 +27,8 @@ function* renderables(asset, layers) {
     return;
   }
   if (!layers) throw new Error(`Missing geometry: ${asset.id}`);
-  for (const { mode, positions, color, pointSize, pointTargets, radius, radii, ink, conformations, role, faded } of layers) {
+  for (const { mode, positions, color: given, pointSize, pointTargets, radius, radii, ink, conformations, role, faded } of layers) {
+    const color = typeof given === 'string' && /^[0-9a-f]{6}$/i.test(given) ? `#${given}` : given;   // a colour written without the leading # (the element tints of the sticks) is still a colour
     if (mode === 'spheres') {
       const geometry = new THREE.SphereGeometry(1, 12, 8);
       const surface = new THREE.InstancedMesh(geometry,
@@ -1309,6 +1310,7 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     cancelAnimationFrame(frameId);
     resizeObserver.disconnect();
     renderer.domElement.removeEventListener('pointerdown', pointerDown);
+    renderer.domElement.removeEventListener('dblclick', recentreOnDoubleClick);
     renderer.domElement.removeEventListener('pointermove', pointerMove);
     renderer.domElement.removeEventListener('pointerup', pointerUp);
     renderer.domElement.removeEventListener('pointercancel', cancelPick);
@@ -1338,7 +1340,57 @@ export function createViewport(container, { onSelect, selectOnTap = false, Trans
     return canvas.toDataURL('image/png');
   }
 
+  // ---- free navigation: what the left button does, buttons that move the view, standard views, and re-centring on a point (double click) ----
+  controls.screenSpacePanning = true;   // panning slides the view in the screen plane, not along the ground
+  controls.zoomToCursor = true;         // the wheel zooms toward the point under the pointer, so the centre can be steered while zooming
+  const NAVIGATION = { rotate: THREE.MOUSE.ROTATE, pan: THREE.MOUSE.PAN, zoom: THREE.MOUSE.DOLLY };
+  let navigationMode = 'rotate';
+  function setNavigationMode(mode) {
+    if (!Object.hasOwn(NAVIGATION, mode)) throw new RangeError('mode must be rotate, pan or zoom');
+    navigationMode = mode; controls.mouseButtons.LEFT = NAVIGATION[mode];
+    controls.touches.ONE = mode === 'pan' ? THREE.TOUCH.PAN : mode === 'zoom' ? THREE.TOUCH.DOLLY_PAN : THREE.TOUCH.ROTATE;
+    return navigationMode;
+  }
+  const frameOf = () => { const pose = getCamera({ destination: true }), position = new THREE.Vector3(...pose.position), target = new THREE.Vector3(...pose.target), back = position.clone().sub(target), distance = Math.max(back.length(), 1e-6), forward = back.clone().negate().normalize(), right = new THREE.Vector3().crossVectors(forward, camera.up).normalize(), up = new THREE.Vector3().crossVectors(right, forward).normalize(); return { pose, position, target, distance, forward, right, up }; };
+  /** Slides the view in the screen plane; dx and dy are fractions of the view height (positive: the scene moves right / up). */
+  function panBy(dx, dy, { duration = 0 } = {}) {
+    const f = frameOf(), height = 2 * f.distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), move = f.right.clone().multiplyScalar(-dx * height).add(f.up.clone().multiplyScalar(-dy * height));
+    setCamera({ ...f.pose, position: f.position.clone().add(move).toArray(), target: f.target.clone().add(move).toArray() }, { duration });
+  }
+  /** Turns the view around the rotation centre by azimuth (around the up axis) and elevation (up and down), in radians. */
+  function rotateBy(azimuth, elevation = 0, { duration = 0 } = {}) {
+    const f = frameOf(); let back = f.position.clone().sub(f.target).applyAxisAngle(camera.up, -azimuth);
+    const right = new THREE.Vector3().crossVectors(camera.up, back).normalize(); back = back.applyAxisAngle(right, -elevation);
+    if (Math.abs(back.clone().normalize().dot(camera.up)) > 0.995) return;   // never flip over the pole
+    setCamera({ ...f.pose, position: f.target.clone().add(back).toArray() }, { duration });
+  }
+  function zoomBy(factor, { duration = 0 } = {}) {
+    if (!(factor > 0)) throw new RangeError('factor must be positive');
+    const f = frameOf(); setCamera({ ...f.pose, position: f.target.clone().add(f.position.clone().sub(f.target).multiplyScalar(factor)).toArray() }, { duration });
+  }
+  /** Makes `point` the rotation centre without changing the distance or the viewing direction. */
+  function recentre(point, { duration = 250 } = {}) {
+    const f = frameOf(), to = new THREE.Vector3(...point); setCamera({ ...f.pose, position: to.clone().add(f.position.clone().sub(f.target)).toArray(), target: to.toArray() }, { duration });
+  }
+  const VIEW_DIRECTIONS = { front: [0, 0, 1], back: [0, 0, -1], left: [-1, 0, 0], right: [1, 0, 0], top: [0, 1, 0], bottom: [0, -1, 0] };
+  function setViewDirection(name, { duration = 300 } = {}) {
+    if (!Object.hasOwn(VIEW_DIRECTIONS, name)) throw new RangeError('view must be front, back, left, right, top or bottom');
+    const f = frameOf(), direction = new THREE.Vector3(...VIEW_DIRECTIONS[name]).normalize();
+    if (Math.abs(direction.dot(camera.up)) > 0.99) direction.add(new THREE.Vector3(0, 0, 1e-3)).normalize();   // looking straight along the up axis needs a tiny tilt
+    setCamera({ ...f.pose, position: f.target.clone().add(direction.multiplyScalar(f.distance)).toArray() }, { duration });
+  }
+  function recentreOnDoubleClick(event) {
+    if (!active || disposed || event.button !== 0) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.set(((event.clientX - rect.left) / rect.width) * 2 - 1, -((event.clientY - rect.top) / rect.height) * 2 + 1);
+    camera.updateMatrixWorld(); raycaster.setFromCamera(pointer, camera); active.root.updateMatrixWorld(true);
+    const hit = raycaster.intersectObjects(active.meshes, false).find(({ object, point }) => isVisible(object) && !clippedAt(object, point ?? new THREE.Vector3()));
+    if (hit?.point) recentre(hit.point.toArray());
+  }
+  renderer.domElement.addEventListener('dblclick', recentreOnDoubleClick);
+
   return { prepare, commit, applyPose, setMechanism, setPresentation, resetCamera, getCamera, setCamera, focusNode, snapshot,
+    setNavigationMode, getNavigationMode: () => navigationMode, panBy, rotateBy, zoomBy, recentre, setViewDirection,
     setLook, getLook: () => look, orbitBy, setSelection, setPointSelection, setPointSelections, setNodeOffsets, setNodeSpins, setLinks, setMolecules, showMolecules, setParticleCloud, setInstanceSet, instanceSetInfo, collectTriangles, benchmark, pickParticle, setEventTags, setOverlayLines, setOverlayMesh, setOverlayVisible, focusPoint, setConformation, setClipping, clipFrame, setNodeVisibility, setGizmoMode, clear, dispose,
     get renderStyle() { return glow ? 'glow' : ink ? ink.style.id : 'plain'; },
     /** What the renderer holds right now (for leak checks across scene loads): GPU geometries and textures, compiled programs, and the number of objects in the scene graph. */

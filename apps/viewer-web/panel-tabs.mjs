@@ -11,13 +11,20 @@ export const VIEWER_PANEL_LAYOUT = Object.freeze([
     { nodes: ['#presentation'] },
     { nodes: ['#resources'] },
   ] },
+  { id: 'view', label: '查看', groups: [
+    { nodes: ['#view-offer'] },
+    { title: '显示', nodes: ['#view-controls'] },
+    { title: '拆装（把亚基取下来）', nodes: ['#take-apart-controls', '#take-apart-panel'] },
+  ] },
+  { id: 'navigate', label: '视角', groups: [
+    { nodes: ['#view-navigation'] },
+  ] },
   { id: 'structure', label: '结构', groups: [
     { title: '打开结构', nodes: ['#structure-offer', 'label:has(#structure-enabled)', 'label:has(#atp-enabled)', '#rcsb-form', 'label:has(#structure-assembly)', '#template-note'] },
     { title: '表示', nodes: ['#representation-controls', '#functional-evidence', '#structure-summary'] },
     { title: '条目简介', nodes: ['#entry-intro-controls', '#entry-intro'] },
     { nodes: ['#legacy-components'] },
     { nodes: ['#structure-parts'] },
-    { title: '拆装', nodes: ['#take-apart-controls', '#take-apart-panel'] },
     { title: '当前选取', nodes: ['#structure-pick', '#ligand-view-controls'] },
     { nodes: ['#structure-contacts'] },
   ] },
@@ -45,6 +52,7 @@ export const VIEWER_PANEL_LAYOUT = Object.freeze([
 /** When one of these blocks becomes visible (or opens), the page it lives on comes to the front. */
 export const VIEWER_PANEL_AUTOSHOW = Object.freeze([
   { selector: '#scene-navigation', tab: 'scene', attribute: 'hidden' },
+  { selector: '#view-controls', tab: 'view', attribute: 'hidden' },
   { selector: '#mechanism-controls', tab: 'animate', attribute: 'hidden' },
   { selector: '#structure-tools', tab: 'structure', attribute: 'open' },
   { selector: '#structure-offer', tab: 'structure', attribute: 'hidden' },

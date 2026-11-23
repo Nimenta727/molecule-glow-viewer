@@ -3,10 +3,11 @@
   "schemaVersion": 1,
   "id": "org.glow.plugin.residue-composition",
   "version": "1.0.0",
-  "name": "组成与性质分析（Studio 面板）",
-  "summary": "在 Studio 的“分析”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
+  "name": "组成与性质分析",
+  "summary": "在 Studio 的“分析”页和 Viewer 的“查看”页里，数选中部分的残基组成、平均亲水性（GRAVY）和按个数数出的净电荷，可按疏水性或电荷涂色，并作为“推导”证据记进作品。",
   "category": "interaction",
   "adds": [
+    "Viewer“查看”页的“组成与性质”：选一部分，直接看残基组成、GRAVY 和按个数数的净电荷；命令 glow.composition",
     "Studio“分析”页的面板：部分默认取“外观”页的选择",
     "按五类数残基：疏水、极性、带正电、带负电、甘氨酸/脯氨酸",
     "平均亲水性 GRAVY（Kyte–Doolittle 1982）与按个数数出的净电荷",
@@ -21,6 +22,10 @@
     }
   ],
   "provides": [
+    {
+      "type": "command",
+      "name": "composition"
+    },
     {
       "type": "panel",
       "id": "org.glow.panel.composition"
@@ -53,7 +58,7 @@
       "GRAVY 用 Kyte–Doolittle 标度，是经验标度，不等于真实溶解性或埋藏程度",
       "五类的划分是常用约定（例如 Cys 归疏水、His 归极性），不同教材略有差别",
       "核酸和未知残基只报告个数，不计入蛋白质的数字",
-      "只在 Studio 里使用；Viewer 里只显示涂好的颜色，没有面板"
+      "Studio 的面板能涂色、画线并记入作品；Viewer 的命令只读（统计与高亮）；Viewer 里只显示涂好的颜色，没有面板"
     ]
   },
   "license": "Apache-2.0",

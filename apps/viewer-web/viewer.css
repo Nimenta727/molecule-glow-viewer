@@ -14,7 +14,7 @@
   --acc-soft: #eceffa;
   --radius: 4px;
   --shadow: 0 1px 3px rgba(31, 39, 51, 0.12), 0 4px 14px rgba(31, 39, 51, 0.06);
-  --panel-w: 19rem;
+  --panel-w: 22rem;
   --gap: 0.75rem;
   --startup-bg: var(--paper);
   --startup-fg: var(--ink);
@@ -338,3 +338,28 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .structure-offer { margin: 0.4rem 0; padding: 0.45rem 0.55rem; background: #fff6df; border: 1px solid #e3cf9a; border-radius: 4px; color: #5b4510; font-size: 0.84rem; line-height: 1.5; }
 .structure-offer[hidden] { display: none; }
 .structure-offer button { margin-top: 0.3rem; }
+
+/* buttons and tabs show their whole label: it wraps instead of being cut */
+button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}
+
+/* ---- the 查看 page: display, colour, surfaces, subunits, view navigation ---- */
+
+.view-controls { padding: 0.1rem 0; }
+.view-title { margin: 0.7rem 0 0.3rem; font-size: 0.78rem; font-weight: 700; color: var(--dim); letter-spacing: 0.03em; }
+.view-title:first-child { margin-top: 0; }
+.view-row { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin: 0.2rem 0; }
+.view-row select, .view-row input[type="text"] { flex: 1 1 100%; min-width: 0; font: inherit; padding: 0.25rem 0.4rem; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+.view-row button { flex: 0 1 auto; }
+.view-row .view-arrow, .view-modes button { min-width: 2.2rem; }
+.view-modes { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+.view-modes button[aria-checked="true"] { background: var(--acc-soft); border-color: var(--acc); color: var(--acc-ink); font-weight: 650; }
+.view-chains { display: flex; flex-direction: column; gap: 0.25rem; max-height: 14rem; overflow: auto; margin: 0.25rem 0; }
+.view-chain { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; padding: 0.15rem 0; border-bottom: 1px solid var(--line); }
+.view-chain label { flex: 1 1 4.5rem; }
+.view-hint { margin: 0.3rem 0; font-size: 0.8rem; color: var(--dim); }
+.view-message { margin: 0.5rem 0 0; font-size: 0.82rem; min-height: 1.2em; }
+.view-message[data-state="error"] { color: #b3261e; }
+.view-report { margin: 0.4rem 0; padding: 0.4rem 0.5rem; font-size: 0.82rem; line-height: 1.45; background: var(--acc-soft); border-radius: 3px; }
+.view-report:empty { display: none; }
+.view-row label { display: flex; align-items: center; gap: 0.3rem; }
+.view-row label input[type="text"] { flex: 0 0 auto; width: 3.2rem; }

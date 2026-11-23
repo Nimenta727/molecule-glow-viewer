@@ -31,7 +31,7 @@ export const STUDIO_COMMANDS = {
   import: '用一个结构新建作品：{pdb:"4位编号"} 或 {name:"x.cif", text:"mmCIF/PDB 文本"} 或 {name, base64}。会替换当前场景（当前工程里新增一个场景）。',
   addStructure: '把另一个结构加入当前场景（最多共 4 个）：参数同 import。它从原点开始，和第一个结构重叠；之后用 superpose 对齐。',
   select: '用选择语言选一部分：select("chain A and resi 10-50")；select("none") 清除。返回选中的残基数和说明，并把它设为“当前选择”（分析命令的默认输入）。选择语言：all | protein | nucleic | ligands | chain A | resi 10-50 | resn HIS | within 5 of <选择> | and / or / not。',
-  show: '对选择设表示（PyMOL 的 show/hide）：show("resi 1-30","hidden")；show("chain B","sticks")；样式 cartoon / backbone / blob / sticks（逐原子，叠在卡通上，一次最多 300 个残基）/ hidden；show("reset") 清除。规则，随作品保存，后面的覆盖前面的。',
+  show: '对选择设表示（PyMOL 的 show/hide）：show("resi 1-30","hidden")；show("chain B","sticks")；样式 cartoon / backbone / blob / ballstick（球棍）/ sticks（逐原子，叠在卡通上，一次最多 300 个残基）/ hidden；show("reset") 清除。规则，随作品保存，后面的覆盖前面的。',
   color: '上色：color("chain A","#e05a4a")；多个结构时可指定哪一个：color("chain A","#e05a4a",{structure:"结构编号"})（不写则是第 1 个）；color("resi 1-60","hydrophobicity")；方案 hydrophobicity / bfactor / charge / secondary / rainbow；color("chain") 按链；color("reset") 清除。规则，随作品保存。',
   surface: '分子表面：surface("chain A","electrostatic")；配色 electrostatic（简化库仑，不是 APBS）/ hydrophobicity / plain（单色，可带第三个参数 "#rrggbb"：surface("nucleic","plain","#d92f1c")；第四个参数 {inflate:Å} 给只有 Cα 或磷原子的部分加粗，如病毒外壳、DNA 轨迹）；一个表面最多 25 万个原子（核糖体级别用 1.25 Å 以上的粗网格）；surface("clear") 清除；返回三角形数和静电势范围。最多 4 个。',
   lookPack: '光影包（整张图的光影与配色）：lookPack() 列出；lookPack("glow.cell-dark") 应用（同时把它的配色写成颜色规则，lookPack(id,{recolor:false}) 只换光影）；lookPack("none") 回到默认的墨线风格。可用：glow.cell-dark（暗场·细胞内部）、glow.membrane-cool（冷光·膜蛋白）、glow.active-site-warm（暖光·活性位点）、paper.clean-white（论文白底）。只改外观，不改坐标和任何分析结果。',

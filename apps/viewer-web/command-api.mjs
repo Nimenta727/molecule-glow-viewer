@@ -1,6 +1,6 @@
 import { attachScopedCommandBridge } from '../../src/api/embed-permissions.js';
 // Host commands use explicit adapters. Scene packages never supply executable commands.
-const READ_ONLY = new Set(['help', 'info', 'snapshot', 'exportPack', 'validatePack', 'sequence']);
+const READ_ONLY = new Set(['help', 'info', 'snapshot', 'exportPack', 'validatePack', 'sequence', 'composition', 'contacts']);
 export const COMMANDS = {
   help: '列出当前入口支持的命令与迁移限制。',
   info: '返回场景、插件、镜头、选择与播放状态。',
@@ -23,7 +23,12 @@ export const COMMANDS = {
   interactions: '列出当前结构里哪些成员互相接触：{cutoff?:Å（默认 4.5）, minContacts?, limit?}；返回每一对的接触数、最近距离、残基和证据等级。接触是几何事实，不代表亲和力。成员超过 120 份会拒绝。',
   binding: '布朗动力学结合模拟：{box:nm, particles, D:nm²/µs, radius:nm, microseconds, dt?, koff?, seed?, reinject?}；返回结合速率与 Smoluchowski 理论值的比值，koff>0 时返回占有率。点粒子+完全吸收位点，是教学级模型。',
   source: '经受信任的客户端从外部数据源取数据：{source:"alphafold"|"emdb"|…, accession, expectedSha256?, allowUpdate?}；只访问白名单主机、有大小上限、记录哈希、可离线缓存；返回资源记录。未核对条款的数据源会标注 verified:false。',
-  show: '对选择设表示（PyMOL 的 show / hide）：show("resi 1-30","hidden")、show("chain B","backbone")、show("ligands","blob")；样式为 cartoon（卡通）/ backbone（主链）/ blob（团块）/ sticks（棍状：逐原子，叠在卡通上，一次最多 300 个残基，例 show("within 5 of ligands","sticks")）/ hidden（隐藏，也不可选）；show("blob") 对全部；show("reset") 清除。后面的规则覆盖前面的，随作品保存；表面和功能分区表示不受影响。注意：这和经典的 style（画风）不是一回事。',
+  show: '对选择设表示（PyMOL 的 show / hide）：show("resi 1-30","hidden")、show("chain B","backbone")、show("ligands","blob")；样式为 cartoon（卡通）/ backbone（主链）/ blob（团块）/ ballstick（球棍：原子球＋键线，限制同棍状）/ sticks（棍状：逐原子，叠在卡通上，一次最多 300 个残基，例 show("within 5 of ligands","sticks")）/ hidden（隐藏，也不可选）；show("blob") 对全部；show("reset") 清除。后面的规则覆盖前面的，随作品保存；表面和功能分区表示不受影响。注意：这和经典的 style（画风）不是一回事。',
+  surface: '分子表面：surface(选择, "plain"|"hydrophobicity"|"electrostatic", "#颜色"?, {inflate?:0..6})；surface("clear") 清除；不带参数读取。最多 4 个；高斯近似表面，静电是简化库仑（不是 APBS）；随作品保存。',
+  composition: '一部分的组成与性质：composition("chain A") 或 {part}；返回残基数、按疏水/极性/带电的分类、各氨基酸个数、平均亲水性 GRAVY 和按个数数的净电荷。是只读的统计，不含 pKa 与环境。',
+  contacts: '两部分之间的界面接触：{a, b, cutoff?(默认 4.5 Å，≤8), select?:true 高亮界面残基}；返回残基对数、界面残基数、盐桥/氢键/疏水接触的个数和最近的几对。只用重原子距离，无氢原子与角度，是筛查不是结论。',
+  neighborhood: '看一处周围的残基：{center:"选择", radius?:1..12（默认 5 Å）, style?:"sticks"|"ballstick"|…}；把中心周围的残基设为该样式并返回个数和分类。用 show("reset") 清除。',
+  lookPack: '光影包（插件：光影包）：lookPack() 读当前与可用的；lookPack("glow.cell-dark"|"glow.membrane-cool"|"glow.active-site-warm"|"paper.clean-white") 套用；lookPack("none") 回到默认墨线风格。只改光线、背景、环境遮蔽和景深，不改坐标和颜色；随作品保存。',
   clip: '剖切：{enabled?:布尔, depth?:-1..1, scope?:"all"|"parts", aim?:true（对准当前视线）}；不带参数读取状态。',
   snapshot: '返回视口 PNG data URL，接受 {width:64..4096}。',
   exportPack: '返回 {format:"glow-v2",encoding:"base64",data}，包括原始资源。',

@@ -7,7 +7,7 @@ import { createColorState } from '../color-scheme.mjs';
 // A fake host: records what the commands ask of the Viewer, so the argument handling of the classic-style commands can be tested without a browser.
 function fake() {
   const calls = [], scene = { scene: { id: 's', assets: [], nodes: [], evidence: [] }, timeline: { playing: false, time: 0, duration: 1 }, name: 'x', warnings: [] };
-  let colors = createColorState(), camera = { position: [0, 0, 2], target: [0, 0, 0] };
+  let surfaces = [], colors = createColorState(), camera = { position: [0, 0, 2], target: [0, 0, 0] };
   const host = {
     current: () => scene, plugins: () => [], camera: () => camera, selection: () => null,
     setCamera: (value) => { calls.push(['setCamera', value]); camera = value; }, resetCamera: () => calls.push(['resetCamera']),
@@ -19,6 +19,8 @@ function fake() {
     focusPoint: (expression) => { calls.push(['focusPoint', expression]); return { point: [1, 0, 0], radius: 0.5 }; },
     clip: (spec) => { calls.push(['clip', spec]); return { enabled: Boolean(spec.enabled), depth: spec.depth ?? 0, scope: 'all', direction: [0, 0, 1], wedgeParts: [] }; },
     animate: (value) => calls.push(['animate', value]),
+    surfaceCheck: (expression) => (expression === 'chain Z' ? 0 : 5),
+    surfaceState: () => surfaces, setSurfaces: (list) => { surfaces = list; calls.push(['setSurfaces', list]); return list; },
   };
   const { api } = createCommandApi(createViewerCommands(host));
   return { api, calls };
@@ -79,4 +81,23 @@ test('clip validates its arguments and reports the state; animate accepts play a
   for (const bad of [{ depth: 2 }, { enabled: 'on' }, { scope: 'half' }, { plane: 1 }, 'x']) await assert.rejects(api.clip(bad), /clip|depth|enabled|scope|超出|应为/);
   await api.animate('play'); await api.animate('pause');
   assert.deepEqual(calls.filter(([name]) => name === 'animate').map(([, v]) => v), [{ pause: false }, { pause: true }]);
+});
+
+test('surface adds, reads and clears molecular surfaces, refuses an empty selection, a bad scheme and a fifth surface', async () => {
+  const { api, calls } = fake();
+  assert.deepEqual((await api.surface()).surfaces, []);
+  const added = await api.surface(['chain A', 'hydrophobicity', '#336699', { inflate: 1.2 }]);
+  assert.deepEqual(added.surfaces, [{ expr: 'chain A', scheme: 'hydrophobicity', color: '#336699', inflate: 1.2 }]);
+  await assert.rejects(api.surface(['chain Z', 'plain']), /没有选中/);
+  await assert.rejects(api.surface(['chain A', 'rainbow']), /着色方案/);
+  for (const chain of ['B', 'C', 'D']) await api.surface([`chain ${chain}`]);
+  await assert.rejects(api.surface(['chain A']), /最多 4 个/);
+  assert.deepEqual((await api.surface('clear')).surfaces, []); assert.deepEqual(calls.at(-1), ['setSurfaces', []]);
+});
+
+test('composition, contacts and neighborhood refuse a missing structure and bad arguments with a sentence that says what to write', async () => {
+  const { api } = fake();
+  await assert.rejects(api.composition('chain A'), /结构插件或坐标不可用/);
+  await assert.rejects(api.contacts({ a: 'chain A', b: 'chain B' }), /结构插件或坐标不可用/);
+  await assert.rejects(api.neighborhood({ center: 'ligands' }), /结构插件或坐标不可用/);
 });

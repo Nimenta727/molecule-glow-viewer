@@ -8,7 +8,7 @@
   h2{font-size:11px;letter-spacing:1.2px;color:var(--dim);margin:14px 0 6px;border-top:1px solid var(--line);padding-top:10px;font-weight:600}
   .row{display:flex;align-items:center;gap:8px;margin:5px 0}
   .row label{flex:0 0 92px;color:var(--dim)}
-  .row select{flex:1;min-width:0;max-width:100%;text-overflow:ellipsis}
+  .row select{flex:1;min-width:0;max-width:100%;text-overflow:clip}
   #panel{padding-bottom:60px}
   #panel .desktopGroup{margin:10px 0 0;padding-bottom:3px;border-bottom:1px solid var(--line)}
   #panel .desktopGroup>summary{display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;color:var(--text);font-size:12px;font-weight:650;letter-spacing:.35px;padding:6px 7px;border:1px solid var(--line);border-radius:7px;background:rgba(255,255,255,.035)}
@@ -21,7 +21,7 @@
   @media (max-width:600px){ #panel{width:calc(100% - 24px);max-height:55vh;top:auto;bottom:56px} #panel.hidden{transform:translateY(calc(100% + 70px))}
     #caption{top:64px;bottom:auto;max-width:92vw;max-height:4.8em;overflow:auto;font-size:12px;pointer-events:auto}
     body:has(#panel:not(.hidden)) #caption{display:none}
-    #status{left:auto;right:12px;transform:none;max-width:calc(100vw - 110px);overflow:hidden;text-overflow:ellipsis}
+    #status{left:auto;right:12px;transform:none;max-width:calc(100vw - 110px);white-space:normal}
     #title{max-width:60%} #title .id{font-size:18px} }
   .row input[type=range]{flex:1;accent-color:var(--acc)}
   .row output{flex:0 0 38px;text-align:right;color:var(--dim);font-variant-numeric:tabular-nums}
@@ -38,7 +38,7 @@
   #legend .ent,#legend .hdr{display:grid;grid-template-columns:14px 1fr 18px 18px 18px 18px;gap:5px;align-items:center;margin:3px 0;font-size:12px}
   #legend .hdr{font-size:12px;color:var(--dim)}
   #legend .sw{width:13px;height:13px;border-radius:50%;box-shadow:0 0 8px currentColor}
-  #legend .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #legend .nm{white-space:normal;overflow-wrap:anywhere}
   #legend input{accent-color:var(--acc2);margin:0}
   #status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 16px;color:var(--dim);transition:opacity .4s;pointer-events:none;white-space:nowrap}
   #caption{position:fixed;bottom:54px;left:0;right:0;margin:0 auto;width:fit-content;max-width:min(980px,92vw);text-align:center;color:#dfe6f5;font-size:13px;line-height:1.5;text-shadow:0 0 12px #000,0 0 4px #000;pointer-events:none}
@@ -104,7 +104,7 @@
   #kitHud .note{margin-top:6px;font-size:11.5px;color:#9aa6c3;min-height:0}
   body.lightbg #kitHud .note{color:#5a6378}
   #kitHud .klist{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;border-top:1px solid rgba(127,140,170,.25);padding-top:7px}
-  #kitHud .chip{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid rgba(127,140,170,.45);cursor:pointer;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  #kitHud .chip{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid rgba(127,140,170,.45);cursor:pointer;white-space:normal;max-width:100%;line-height:1.3}
   #kitHud .chip i,#kitHud .sw{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;border:1px solid rgba(0,0,0,.45)}
   #kitHud .chip.on{background:rgba(127,182,245,.25);border-color:#7fb6f5}
   #kitInfo:not(:empty){margin-top:8px;padding-top:7px;border-top:1px solid rgba(127,140,170,.25)}
@@ -192,7 +192,7 @@
   #shopGrid .badge{position:absolute;left:8px;top:8px;font-size:11px;padding:1px 7px;border-radius:9px;background:#2448e8;color:#fff} #shopGrid .badge.community{background:#2f9e44}
   #shopGrid .cb{padding:9px 11px 11px;display:flex;flex-direction:column;gap:4px;flex:1} #shopGrid .meta{font-size:11.5px;color:var(--dim)} #shopGrid .upd{color:#e8590c;font-weight:600}
   #shopGrid .desc{font-size:12px;color:var(--dim);flex:1} #shopGrid .tags span{display:inline-block;font-size:11px;padding:0 6px;margin:0 4px 2px 0;border-radius:8px;border:1px solid var(--line)}
-  #shopGrid .soc{display:flex;gap:10px;font-size:11.5px;color:var(--dim)} #shopGrid .cmt{font-size:11.5px;color:var(--dim);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #shopGrid .soc{display:flex;gap:10px;font-size:11.5px;color:var(--dim)} #shopGrid .cmt{font-size:11.5px;color:var(--dim);font-style:italic;white-space:normal}
   #shop select{padding:4px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.45);background:transparent;color:inherit;font:inherit;font-size:12.5px}
   #shopGrid .acts{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap} #shopGrid .acts button{padding:4px 10px;font-size:12px}
   .shopMsg{grid-column:1/-1;padding:30px 10px;text-align:center;color:var(--dim)}
@@ -212,8 +212,11 @@
     background:rgba(255,255,255,.96);color:#1c2233;border:1px solid rgba(0,0,0,.14);border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.12);font-size:12px}
   #seqBar[hidden]{display:none} #seqBar .sh{display:flex;gap:8px;align-items:center;padding:5px 10px;border-bottom:1px solid rgba(0,0,0,.08)} #seqBar .sh span{flex:1;color:#5a6275}
   #seqBar button{padding:1px 8px;font-size:12px} #seqRows{overflow:auto;padding:6px 10px 8px}
-  #seqRows .row{display:flex;align-items:center;white-space:nowrap;margin:2px 0} #seqRows .row b{flex:none;width:58px;font-weight:600;color:#5a6275;overflow:hidden;text-overflow:ellipsis}
+  #seqRows .row{display:flex;align-items:center;white-space:nowrap;margin:2px 0} #seqRows .row b{flex:none;width:58px;font-weight:600;color:#5a6275;overflow-wrap:anywhere}
   #seqRows .r{display:inline-block;width:9px;text-align:center;font:10px/15px ui-monospace,Consolas,monospace;cursor:pointer;border-bottom:3px solid #cfd4dc;user-select:none}
   #seqRows .r.h{border-color:#d9776e} #seqRows .r.e{border-color:#d9b43c} #seqRows .r.on{background:#ffe08a} #seqRows .r.tick{position:relative}
   #seqBar .ftc{padding:0 6px;font-size:11px;background:#fff;border:1px solid} #seqFtChips{flex:none!important} #seqBar .sh{flex-wrap:wrap}
   #seqRows .gap{display:inline-block;width:22px;height:0;border-top:2px dashed #8d96a8;margin:0 2px;vertical-align:middle;cursor:help} body.lightbg #devLink{color:#2a5fae} body.embed #devLink{display:none}
+
+/* buttons and chips show their whole label: it wraps instead of being cut with an ellipsis */
+button,.chip{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}

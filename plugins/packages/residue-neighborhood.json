@@ -1,0 +1,65 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.residue-neighborhood",
+  "version": "1.0.0",
+  "name": "周边残基查看",
+  "summary": "选一处（小分子、一个残基或一段），把周围一定距离内的残基用棍状或球棍画出来，并给出个数和分类；Viewer“查看”页有按钮。",
+  "category": "interaction",
+  "adds": [
+    "Viewer“查看”页的“周边残基”：写中心（如 ligands、chain A and resi 57）和半径（默认 5 Å），点按钮即把周围残基设为棍状/球棍",
+    "命令 glow.neighborhood：返回周围残基个数和按疏水/极性/带电的分类；用 show(\"reset\") 清除",
+    "距离按原子到原子计算（选择语言的 within）"
+  ],
+  "usage": [
+    {
+      "title": "看配体周围的口袋",
+      "how": "Viewer 打开结构 → “查看”页 → “周边残基”→ 中心写 ligands，半径 5 → 点“显示周围残基”",
+      "note": "这是几何上的“附近”，不等于结合或相互作用；要看相互作用分类用“界面接触”"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "neighborhood"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/composition.mjs",
+      "exports": [
+        "compositionOf"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/analysis-panel-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实浏览器里对 2HHB 的配体和单个残基点按钮，周围残基按选择语言取出并画成棍状；单元测试核对参数检查和报错。",
+    "limits": [
+      "只按几何距离取残基，不代表结合、相互作用或功能",
+      "棍状/球棍一次最多 300 个残基，半径大了会被拒绝（会说明）",
+      "没有对照 PyMOL/ChimeraX 的同一输入",
+      "软件渲染下已验证，真实显卡上未验收"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-23-view-panel-and-navigation.md"
+  ],
+  "tags": [
+    "查看",
+    "残基",
+    "口袋"
+  ]
+}
