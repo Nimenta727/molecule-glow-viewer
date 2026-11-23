@@ -52,15 +52,16 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
       [/Portal protein/, '#e8b04a'], [/gp11/, '#3fbf9f'], [/gp12/, '#e0703a'], [/Tail fiber/, '#d65a5a'], [/Protein 6\.7 \[9JYZ\]|Protein 7\.3/, '#b25fd0'],
       [/gp14/, '#2f8f6f'], [/gp15/, '#58c79a'], [/gp16/, '#9bd46a'], [/Protein 6\.7 \[9JYY\]/, '#7fbf5f'],
       [/Genome DNA/, '#e8472f'],
+      [/DRAWN/, '#efb3c4'],   // the drawn middle of the fibres is told apart from the experimental parts by a pale colour
     ];
     for (const [pattern, colour] of COLORS) { const chains = chainsOf(pattern); if (chains.length) await call('color', sel(chains), colour); }
     await call('lookPack', 'paper.clean-white', { recolor: false });
     await sideOn(call, 'all');
     const count = (pattern) => chainsOf(pattern).length;
-    await call('note', `整体结构：头部衣壳由主衣壳蛋白 gp10A 组成（${count(/hexon/)} 个六聚体，蓝；${count(/penton/)} 个五聚体，紫；共 415 个亚基，T=7；门户所在的顶点没有五聚体）。尾部（9JYZ）：门户 gp8（金）、衔接蛋白 gp11（青绿）、喷嘴 gp12（橙）、尾丝 gp17（红）、gp6.7 与 gp7.3（紫红）。头部里面：内部核心（9JYY）gp14、gp15、gp16、gp6.7（深浅绿），以及盘绕的基因组 DNA（红，39,937 bp，两条链）。`);
+    await call('note', `整体结构：头部衣壳由主衣壳蛋白 gp10A 组成（${count(/hexon/)} 个六聚体，蓝；${count(/penton/)} 个五聚体，紫；共 415 个亚基，T=7；门户所在的顶点没有五聚体）。尾部（9JYZ）：门户 gp8（金）、衔接蛋白 gp11（青绿）、喷嘴 gp12（橙）、gp6.7 与 gp7.3（紫红）；6 根尾丝 gp17，每根三条链：靠尾部的一段（红，9JYZ 冷冻电镜）、中段（浅粉，画出来的示意）、末端（红，4A0T 晶体结构）。头部里面：内部核心（9JYY）gp14、gp15、gp16、gp6.7（深浅绿），以及盘绕的基因组 DNA（红，39,937 bp，两条链）。`);
     await call('note', '拆解：在 Viewer 打开后，到“查看”页下方的“拆装”点“拆开”，每个衣壳粒、每个尾部蛋白、核心蛋白和两条 DNA 链各是一块，会沿着离开中心的方向移开；可以逐块移出、放回，也可以看两块之间的接触面。');
-    await call('note', '【实验结构】衣壳（3J7X，成熟噬菌体衣壳，3.6 Å，只用了 Cα）、门户-尾部（9JYZ，2.7 Å）、核心（9JYY，3.0 Å）的坐标都来自已发表的冷冻电镜结构，原样使用。【示意/假设】三部分之间的相对位置（核心放进头部的位置、头部相对门户的距离）和 DNA 的缠绕方式（同轴线轴）是作图时的假设，不是实验测得；DNA 只画了磷酸骨架（每个核苷酸一个点），没有序列。衣壳只有 Cα，所以衣壳不能显示价键模型。');
-    await call('note', `来源：${PAPERS.head}；${PAPERS.tail}；${PAPERS.old}。`);
+    await call('note', '【实验结构】衣壳（3J7X，成熟噬菌体衣壳，3.6 Å，只用了 Cα）、门户-尾部（9JYZ，2.7 Å）、核心（9JYY，3.0 Å）的坐标都来自已发表的冷冻电镜结构，原样使用。【示意/假设】三部分之间的相对位置（核心放进头部的位置、头部相对门户的距离）和 DNA 的缠绕方式（同轴线轴）是作图时的假设，不是实验测得；DNA 只画了磷酸骨架（每个核苷酸一个点），没有序列。衣壳只有 Cα，所以衣壳不能显示价键模型。尾丝中段（第 144–370 号残基）没有任何实验或预测结构（AlphaFold 数据库不收录病毒蛋白，这里也无法运行预测），是按尾丝的长度和折角画出的三股示意链；尾丝末端（4A0T）的位置和朝向也是示意。');
+    await call('note', `来源：${PAPERS.head}；${PAPERS.tail}；${PAPERS.old}；尾丝末端：Garcia-Doval C., van Raaij M. J.，PNAS 2012（PDB 4A0T）。`);
     await call('publication', { ...AUTHOR, topic: 'local-system', description: '噬菌体 T7 完整病毒颗粒的静态整体模型：衣壳按六聚体、五聚体分块，尾部、核心和基因组 DNA 各自成块，可在 Viewer 里逐块拆开；部件之间的位置是示意。', tags: ['噬菌体', 'T7', '病毒', '拆解', '整体模型'] });
   });
 

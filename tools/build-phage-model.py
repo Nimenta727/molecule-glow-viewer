@@ -12,7 +12,7 @@ Chains: T* = portal-tail complex, C* = core, H01..H12 = head shell, G1/G2 = geno
                                          The shell centre is put at z = -371 A so that the portal vertex points at the tail.
                                 genome = a double-helical trace (one phosphorus per nucleotide, 39 937 bp, chains G1/G2) wound as a coaxial spool around the core, 21 A between turns. The WINDING is an
                                          illustration (cryo-EM shows an averaged density, not atoms); the sequence is not represented (residues are DN).
-Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (also writes entities.json into the cache dir)    (downloads 9JYZ, 9JYY and 3J7X from RCSB into the cache dir when they are missing)
+Usage: python3 tools/build-phage-model.py <out-dir> [cache-dir]    (also writes entities.json into the cache dir)    (downloads 9JYZ, 9JYY, 3J7X and 4A0T from RCSB into the cache dir when they are missing)
 """
 import math, os, re, sys, urllib.request, collections
 import numpy as np
@@ -174,10 +174,90 @@ def shell_and_genome(w):
     return bp
 
 
+THREE = {'A': 'ALA', 'R': 'ARG', 'N': 'ASN', 'D': 'ASP', 'C': 'CYS', 'Q': 'GLN', 'E': 'GLU', 'G': 'GLY', 'H': 'HIS', 'I': 'ILE', 'L': 'LEU', 'K': 'LYS', 'M': 'MET', 'F': 'PHE', 'P': 'PRO', 'S': 'SER',
+         'T': 'THR', 'W': 'TRP', 'Y': 'TYR', 'V': 'VAL'}
+SHAFT_PROXIMAL, SHAFT_DISTAL, STRAND_RADIUS = 140.0, 45.0, 5.5   # lengths of the two halves of the drawn shaft (A) and how far apart its three strands run
+
+
+def unit(v): v = np.asarray(v, float); return v / (np.linalg.norm(v) + 1e-12)
+
+
+def align(a, b):
+    """The rotation that turns direction a onto direction b (Rodrigues)."""
+    a, b = unit(a), unit(b); v = np.cross(a, b); c = float(np.dot(a, b))
+    if np.linalg.norm(v) < 1e-9: return np.eye(3) if c > 0 else -np.eye(3)
+    k = np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]]); return np.eye(3) + k + k @ k * ((1 - c) / np.linalg.norm(v) ** 2)
+
+
+def fibres(w):
+    """The six tail fibres made whole. 9JYZ resolves only the N-terminal part of gp17 (residues ~3-143, already in the model); the C-terminal tip (residues 371-553) is the crystal
+    structure 4A0T (a trimer), and residues 144-370 have no experimental or predicted structure (AlphaFold DB does not hold viral proteins and no prediction could be run here), so they are
+    DRAWN: three Ca strands along a path that leaves the resolved part in its own direction, then bends back toward the head as the fibres of a mature T7 particle lie folded along the capsid.
+    The path, the bend and the tip's turn about its axis are illustrations."""
+    path = fetch('9JYZ'); ix, rows = atoms_of(path); desc, asym = entities_of(path)
+    fibre_entity = next(e for e, d in desc.items() if 'fiber' in d.lower())
+    by_chain = collections.defaultdict(list)
+    for r in rows:
+        if r[ix['label_entity_id']] == fibre_entity and r[ix['label_atom_id']] == 'CA': by_chain[r[ix['label_asym_id']]].append((int(r[ix['label_seq_id']]), np.array([float(r[ix['Cartn_x']]), float(r[ix['Cartn_y']]), float(r[ix['Cartn_z']])])))
+    ends = {}
+    for c, cas in by_chain.items():
+        cas.sort(key=lambda t: t[0]); last = cas[-1][1]; before = cas[max(0, len(cas) - 11)][1]
+        ends[c] = (last, unit(last - before), cas[-1][0])
+    # the 18 chains are six trimers: group the chain ends that lie together
+    left, groups = set(ends), []
+    while left:
+        c = left.pop(); near = sorted(left, key=lambda d: np.linalg.norm(ends[d][0] - ends[c][0]))[:2]
+        for d in near: left.discard(d)
+        groups.append([c] + near)
+    assert len(groups) == 6 and all(len(g) == 3 for g in groups), groups
+    seq = re.search(r"FIBER_BPT7 P03748 \? \d+ \n;(.*?)\n;", open(path).read(), re.S).group(1).replace('\n', '')
+    tip_path = fetch('4A0T'); tix, trows = atoms_of(tip_path)
+    tip = [(r[tix['label_asym_id']], r) for r in trows if r[tix['group_PDB']] == 'ATOM']
+    tca = {}
+    for c, r in tip:
+        if r[tix['label_atom_id']] == 'CA': tca.setdefault(c, []).append((int(r[tix['auth_seq_id']]), np.array([float(r[tix['Cartn_x']]), float(r[tix['Cartn_y']]), float(r[tix['Cartn_z']])])))
+    allca = [p for v in tca.values() for _, p in v]; nums = [n for v in tca.values() for n, _ in v]
+    n_end = np.mean([p for v in tca.values() for n, p in v if n <= min(nums) + 15], axis=0); c_end = np.mean([p for v in tca.values() for n, p in v if n >= max(nums) - 15], axis=0)
+    tip_axis = unit(c_end - n_end)
+    w.entity('F', 'Tail fiber protein gp17, residues 144-370: DRAWN (no experimental or predicted structure; Ca strands along an illustrative path)')
+    w.entity('K', 'Tail fiber protein gp17, C-terminal tip residues 371-553 [4A0T, crystal structure; placement illustrative]')
+    shaft_residues = list(range(144, 371)); n_prox = int(len(shaft_residues) * SHAFT_PROXIMAL / (SHAFT_PROXIMAL + SHAFT_DISTAL))
+    for t, group in enumerate(groups, start=1):
+        E = np.mean([ends[c][0] for c in group], axis=0); D = unit(np.mean([ends[c][1] for c in group], axis=0))
+        radial = unit([E[0], E[1], 0.0]); D = unit(radial + np.array([0, 0, 0.25]))   # out from the tail, a little toward its tip (+z)
+        D2 = unit(radial * 0.6 + np.array([0, 0, -1.0]) * 0.8)   # then folded back toward the head (-z), outside the capsid
+        K = E + D * SHAFT_PROXIMAL; K2 = K + D2 * SHAFT_DISTAL
+        def point(i):   # the path point of shaft residue index i, and its direction
+            if i < n_prox: f = i / max(n_prox - 1, 1); return E + D * SHAFT_PROXIMAL * f, D
+            f = (i - n_prox + 1) / (len(shaft_residues) - n_prox); return K + D2 * SHAFT_DISTAL * f, D2
+        for s, c in enumerate(group):
+            chain = f'S{t}{s + 1}'; w.asym(chain, 'F')
+            start = ends[c][0]
+            for i, resno in enumerate(shaft_residues):
+                centre, direction = point(i); u = unit(np.cross(direction, [0, 0, 1.0]) if abs(direction[2]) < 0.95 else np.cross(direction, [1.0, 0, 0])); v = np.cross(direction, u)
+                along = i * (SHAFT_PROXIMAL + SHAFT_DISTAL) / len(shaft_residues); angle = 2 * math.pi * s / 3 + along * 0.04
+                p = centre + STRAND_RADIUS * (math.cos(angle) * u + math.sin(angle) * v)
+                if i < 6: p = start + (p - start) * (i + 1) / 7   # leave the resolved end smoothly
+                w.atom('ATOM', 'C', 'CA', THREE.get(seq[resno - 1], 'GLY'), chain, 'F', resno, p)
+        R = align(tip_axis, D2)
+        for k, (c, r) in enumerate(tip):
+            chain = f'K{t}{c}'
+            if chain not in w.asyms: w.asym(chain, 'K')
+            p = (np.array([float(r[tix['Cartn_x']]), float(r[tix['Cartn_y']]), float(r[tix['Cartn_z']])]) - n_end) @ R.T + K2
+            w.atom('ATOM', r[tix['type_symbol']], r[tix['label_atom_id']].strip('"'), r[tix['label_comp_id']], chain, 'K', r[tix['auth_seq_id']], p, float(r[tix['B_iso_or_equiv']]))
+    inside = 0
+    for line in w.lines:
+        t = line.split()
+        if t[6][0] in 'SK' and len(t[6]) == 3:
+            x, y, z = float(t[10]), float(t[11]), float(t[12])
+            if math.hypot(x, y, z - SHELL_CENTRE_Z) < 335: inside += 1
+    print('fibres: 6 trimers made whole (drawn shaft 144-370 + 4A0T tip 371-553); fibre atoms inside the capsid radius:', inside)
+
+
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)
     w = Writer('Bacteriophage T7 virion, illustrative composite: portal-tail (9JYZ) + core (9JYY) + head shell (3J7X) + genome spool; placements are assumptions')
-    machinery(w); bp = shell_and_genome(w); print('genome nucleotides drawn per strand:', bp)
+    machinery(w); fibres(w); bp = shell_and_genome(w); print('genome nucleotides drawn per strand:', bp)
     w.save(os.path.join(OUT, 't7-virion-model.cif'))
     # part name -> chains of the composite, so a work can colour and name the parts (tools/make-phage-works.cjs)
     import json
