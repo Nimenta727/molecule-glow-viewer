@@ -320,7 +320,7 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
         if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
         else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
       }
-    } else if (drawn('cartoon') || drawn('backbone')) layers.push(...ribbonLayers(markers, ranges, centered, appearance, style === 'backbone' ? 'backbone' : style === 'cartoon' ? 'cartoon' : style, { rangeTypeFor, residueGap, colors: BACKBONE_COLORS, coarse: chosen.length > 60000 }));
+    } else if (drawn('cartoon') || drawn('backbone')) layers.push(...ribbonLayers(markers, ranges, centered, appearance, style === 'backbone' ? 'backbone' : style === 'cartoon' ? 'cartoon' : style, { rangeTypeFor, residueGap, colors: BACKBONE_COLORS, quality: chosen.length > 200000 ? 'minimal' : chosen.length > 60000 ? 'coarse' : 'fine' }));
     if (hasLook && look.styleOf) layers.push(...stickLayers(ordered, model, centered, appearance, style));
     if (drawn('blob') && markers.length) {
       const base = BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius = 2.1 * PRESENTATION_METERS_PER_ANGSTROM;

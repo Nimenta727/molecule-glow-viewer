@@ -7,7 +7,16 @@
  * markers: [{ raw: [x, y, z] (Å), residue }] in chain order. A residue whose look says 'hidden' (or any style other than cartoon / backbone) breaks the curve; colours come from `look.colorOf`
  * (pinned layers) or from the secondary structure (helix / sheet / default). The sizes are drawing sizes in Å, not physical quantities. Pure geometry: no DOM, no Three.js.
  */
-const FINE = { samples: 6, sides: 12 }, COARSE = { samples: 4, sides: 8 };   // a large complex (many thousand residues) uses the coarser sweep: a third of the triangles
+// how finely the curve is swept: a protein gets the smooth sweep; a large complex the coarser one (a third of the triangles); a whole virus (hundreds of thousands of residues) straight
+// pieces between neighbouring residues with a five-sided tube, which at that scale looks the same and still fits in memory
+const QUALITY = { fine: { samples: 6, sides: 12 }, coarse: { samples: 4, sides: 8 }, minimal: { samples: 1, sides: 5 } };
+
+/** A Float32Array that grows: the geometry of a large complex is tens of millions of numbers, which plain arrays would hold at twice the memory and more. */
+class Floats {
+  constructor() { this.data = new Float32Array(1024); this.length = 0; }
+  push3(x, y, z) { if (this.length + 3 > this.data.length) { const next = new Float32Array(this.data.length * 2); next.set(this.data); this.data = next; } this.data[this.length++] = x; this.data[this.length++] = y; this.data[this.length++] = z; }
+  done() { return this.data.slice(0, this.length); }
+}
 const SECTION = {
   backbone: { w: 0.32, t: 0.32 },
   coil: { w: 0.3, t: 0.3 },
@@ -58,10 +67,10 @@ function guides(points) {
 
 function sectionOf(item) { return item.type === 'backbone' ? SECTION.backbone : item.nucleotide ? { w: 0.45, t: 0.45 } : SECTION[item.type]; }
 
-export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon', { rangeTypeFor, residueGap, colors, coarse = false }) {
-  const { samples: SAMPLES, sides: SIDES } = coarse ? COARSE : FINE;
-  const bins = new Map();   // colour key -> { positions: [], normals: [] }
-  const bin = (key) => { if (!bins.has(key)) bins.set(key, { positions: [], normals: [] }); return bins.get(key); };
+export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon', { rangeTypeFor, residueGap, colors, quality = 'fine' }) {
+  const { samples: SAMPLES, sides: SIDES } = QUALITY[quality] ?? QUALITY.fine;
+  const bins = new Map();   // colour key -> { positions, normals } (growing Float32Arrays)
+  const bin = (key) => { if (!bins.has(key)) bins.set(key, { positions: new Floats(), normals: new Floats() }); return bins.get(key); };
   for (const run of runsOf(markers, ranges, look, defaultStyle, { rangeTypeFor, residueGap })) {
     const P = run.map((r) => r.raw), G = guides(P), n = run.length;
     // samples along the curve: position, tangent, guide, width, thickness, and the residue whose colour the piece takes
@@ -95,7 +104,7 @@ export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle 
     for (let k = 0; k < rings.length - 1; k++) {
       const owner = samples[k].owner, key = owner.color ? `#${owner.color}` : owner.type === 'backbone' ? 'default' : owner.type === 'coil' ? 'default' : owner.type;
       const target = bin(key), r0 = rings[k], r1 = rings[k + 1];
-      const put = (v) => { const q = centered.point(v.p); target.positions.push(q[0], q[1], q[2]); target.normals.push(v.n[0], v.n[1], v.n[2]); };
+      const put = (v) => { const q = centered.point(v.p); target.positions.push3(q[0], q[1], q[2]); target.normals.push3(v.n[0], v.n[1], v.n[2]); };
       for (let j = 0; j < SIDES; j++) {
         const a0 = r0[j], a1 = r0[(j + 1) % SIDES], b0 = r1[j], b1 = r1[(j + 1) % SIDES];
         put(a0); put(b0); put(a1); put(a1); put(b0); put(b1);
@@ -110,12 +119,12 @@ export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle 
       const n = scale(samples[k].tangent, k === 0 ? -1 : 1), centre = centered.point(samples[k].at);
       for (let j = 0; j < SIDES; j++) {
         const a = centered.point(ring[j].p), b = centered.point(ring[(j + 1) % SIDES].p), tri = k === 0 ? [centre, b, a] : [centre, a, b];
-        for (const v of tri) { target.positions.push(v[0], v[1], v[2]); target.normals.push(n[0], n[1], n[2]); }
+        for (const v of tri) { target.positions.push3(v[0], v[1], v[2]); target.normals.push3(n[0], n[1], n[2]); }
       }
     }
   }
   return [...bins].filter(([, b]) => b.positions.length).map(([key, b]) => (key.startsWith('#')
-    ? { mode: 'triangles', positions: b.positions, normals: b.normals, color: key.slice(1), pinned: true, role: 'cartoon' }
-    : { mode: 'triangles', positions: b.positions, normals: b.normals, color: colors[key] ?? colors.default, role: 'cartoon' }));
+    ? { mode: 'triangles', positions: b.positions.done(), normals: b.normals.done(), color: key.slice(1), pinned: true, role: 'cartoon' }
+    : { mode: 'triangles', positions: b.positions.done(), normals: b.normals.done(), color: colors[key] ?? colors.default, role: 'cartoon' }));
 }
 function smooth(t) { return t * t * (3 - 2 * t); }
