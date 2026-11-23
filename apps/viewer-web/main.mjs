@@ -2024,6 +2024,8 @@ function boot() {
     setColors: (state) => { active.colorState = state; refreshStructureView(); },
     styleState: () => active?.styleState ?? [],
     setStyles: (styles) => { active.styleState = styles; refreshStructureView(); },
+    bondState: () => (active?.model ? active.annotationState?.bonds ?? [] : null),
+    setBonds: (bonds) => { active.annotationState = { ...(active.annotationState ?? { measures: [], labels: [] }), bonds: validateBonds(bonds) }; drawAnnotationsNow(); },
     lookPack: () => active?.lookPackId ?? null,
     lookPacks: () => LOOK_PACK_IDS.map((id) => ({ id, name: LOOK_PACKS[id].name, summary: LOOK_PACKS[id].summary })),
     setLookPack: (id) => { active.lookPackId = id ?? undefined; viewport.setLook(id ? lookPackById(id).render : null); drawAnnotationsNow(); },

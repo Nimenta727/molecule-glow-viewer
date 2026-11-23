@@ -1,0 +1,75 @@
+{
+  "format": "glow-plugin",
+  "schemaVersion": 1,
+  "id": "org.glow.plugin.bond-details",
+  "version": "1.0.0",
+  "name": "氢键与价键细节",
+  "summary": "看一小段或一处口袋的原子级细节：球棍模型、价键模型，并把氢键和盐桥画成线；Viewer“查看”页有按钮，模板里也能用。",
+  "category": "interaction",
+  "adds": [
+    "Viewer“查看”页的“原子细节”：球棍模型（原子球加键线）、价键模型（按共价距离连的键，按元素着色）、画氢键和盐桥线、清除",
+    "命令 glow.hbonds：一部分内部的氢键（2.4–3.5 Å）和盐桥（≤ 4.0 Å）画成蓝/粉的线，最多 200 条，随作品保存",
+    "球棍和价键沿用 show 的 ballstick / sticks 样式，一次最多 300 个残基（太大会被拒绝并说明）",
+    "模板（静态作品）打开后默认仍是残基样式，这些细节由使用者按需打开"
+  ],
+  "usage": [
+    {
+      "title": "看一个口袋里的氢键",
+      "how": "Viewer 打开结构 → “查看”页 → “周边残基”中心写 ligands、半径 6，点“显示周围残基” → “作用对象”下方写选择 within 6 of ligands → 点“球棍模型”，再点“画氢键和盐桥线”",
+      "note": "氢键只用重原子距离，没有角度判据；蓝线=氢键，粉线=盐桥"
+    }
+  ],
+  "provides": [
+    {
+      "type": "command",
+      "name": "hbonds"
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/interactions.mjs",
+      "exports": [
+        "interactionsBetween",
+        "CUTOFFS"
+      ]
+    },
+    {
+      "type": "module",
+      "path": "plugins/structure/annotations.mjs",
+      "exports": [
+        "validateBonds"
+      ]
+    },
+    {
+      "type": "cli",
+      "path": "tools/viewer-view-panel-check.cjs"
+    }
+  ],
+  "dependencies": [
+    {
+      "id": "org.glow.structure",
+      "version": "1.0.0"
+    }
+  ],
+  "permissions": [],
+  "status": {
+    "level": "browser",
+    "summary": "真实浏览器里对 2HHB 点“球棍模型”“价键模型”和“画氢键和盐桥线”；单元测试核对参数检查和同一对只算一条。",
+    "limits": [
+      "氢键只用重原子的距离（2.4–3.5 Å），没有氢原子和角度判据：是筛查，不是结论；Asn/Gln 酰胺和 His 环的翻转没有处理",
+      "球棍的“棍”是细线，球径固定 0.4 Å（不是范德华半径）；一次最多 300 个残基",
+      "线最多 200 条；相邻残基之间的主链作用被跳过",
+      "没有对照 PyMOL/ChimeraX 的同一输入",
+      "软件渲染下已验证，真实显卡上未验收"
+    ]
+  },
+  "license": "Apache-2.0",
+  "author": "Molecule Glow 官方",
+  "docs": [
+    "docs/routine/2026-11-23-view-panel-and-navigation.md"
+  ],
+  "tags": [
+    "氢键",
+    "球棍",
+    "价键"
+  ]
+}

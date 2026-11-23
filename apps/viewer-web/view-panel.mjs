@@ -88,6 +88,15 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     if (result) report.textContent = `${result.a} 与 ${result.b}：重原子距离 ≤ ${result.cutoff} Å 的残基对 ${result.pairs} 对（界面残基 ${result.interfaceA} + ${result.interfaceB}）；盐桥 ${result.counts.salt}、氢键 ${result.counts.hbond}、疏水接触 ${result.counts.hydrophobic}（只用距离，无角度，是筛查不是结论）。最近：${result.nearest.slice(0, 3).map((p) => `${p.a}–${p.b} ${p.distance} Å`).join('；') || '—'}`;
   });
 
+  // ---- bond details (plugin: 氢键与价键细节): the ball-and-stick and bond models of a small part, with hydrogen-bond and salt-bridge lines ----
+  const detailMessage = make('p', { class: 'view-hint', text: '原子级别的细节一次最多画 300 个残基：先把“作用对象”选成一条链，或写一段选择（如 chain A and resi 50-120），或用上面的“周边残基”看一个口袋。' });
+  const detailButtons = row(
+    button('球棍模型', () => run('show', [target(), 'ballstick'], `球棍模型：${target()}（原子球＋键线）`)),
+    button('价键模型', () => run('show', [target(), 'sticks'], `价键模型：${target()}（按共价距离连的键，按元素着色）`)),
+    button('画氢键和盐桥线', async () => { const result = await run('hbonds', { part: target() }); if (result) report.textContent = `${result.part}：氢键 ${result.counts.hbond} 条、盐桥 ${result.counts.salt} 条（画出 ${result.lines} 条）。${result.nearest.slice(0, 3).map((p) => `${p.a} ⋯ ${p.b} ${p.distance} Å`).join('；')}${result.nearest.length ? '。' : ''}只用距离，无角度，是筛查不是结论。`; }),
+    button('清除键线', () => run('hbonds', 'clear', '已清除键线。')),
+  );
+
   // ---- cut ----
   const depth = make('input', { type: 'range', min: '-1', max: '1', step: '0.05', value: '0', 'aria-label': '剖切深度' });
   const cutButtons = row(button('沿视线剖开', () => run('clip', { enabled: true, depth: Number(depth.value), aim: true }, '已剖开：拖动滑块改变深度；换角度后再按一次可重新对准。')), button('关闭剖开', () => run('clip', { enabled: false }, '已关闭剖开。')));
@@ -97,6 +106,7 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     title('作用对象'), row(scope), row(custom),
     title('显示方式'), styleButtons,
     title('颜色'), colorButtons, row(swatch, swatchButton),
+    title('原子细节：球棍、价键、氢键（插件）'), detailButtons, detailMessage,
     title('分子表面'), surfaceButtons,
     title('光影（插件：光影包）'), packRow,
     title('周边残基（插件）'), row(centre), row(make('label', {}, '半径 ', radius, ' Å'), nbButton),
