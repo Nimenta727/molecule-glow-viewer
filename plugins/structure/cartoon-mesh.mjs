@@ -7,7 +7,7 @@
  * markers: [{ raw: [x, y, z] (Å), residue }] in chain order. A residue whose look says 'hidden' (or any style other than cartoon / backbone) breaks the curve; colours come from `look.colorOf`
  * (pinned layers) or from the secondary structure (helix / sheet / default). The sizes are drawing sizes in Å, not physical quantities. Pure geometry: no DOM, no Three.js.
  */
-const SAMPLES = 6, SIDES = 12;
+const FINE = { samples: 6, sides: 12 }, COARSE = { samples: 4, sides: 8 };   // a large complex (many thousand residues) uses the coarser sweep: a third of the triangles
 const SECTION = {
   backbone: { w: 0.32, t: 0.32 },
   coil: { w: 0.3, t: 0.3 },
@@ -58,7 +58,8 @@ function guides(points) {
 
 function sectionOf(item) { return item.type === 'backbone' ? SECTION.backbone : item.nucleotide ? { w: 0.45, t: 0.45 } : SECTION[item.type]; }
 
-export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon', { rangeTypeFor, residueGap, colors }) {
+export function ribbonLayers(markers, ranges, centered, look = {}, defaultStyle = 'cartoon', { rangeTypeFor, residueGap, colors, coarse = false }) {
+  const { samples: SAMPLES, sides: SIDES } = coarse ? COARSE : FINE;
   const bins = new Map();   // colour key -> { positions: [], normals: [] }
   const bin = (key) => { if (!bins.has(key)) bins.set(key, { positions: [], normals: [] }); return bins.get(key); };
   for (const run of runsOf(markers, ranges, look, defaultStyle, { rangeTypeFor, residueGap })) {

@@ -113,7 +113,7 @@ export async function importStructureScene(input, { signal, previewGroupLimit = 
   const resources = new Map([[path, bytes]]);
   const assets = [rawAsset];
   const nodes = [];
-  const representations = buildRepresentations(model, { style: 'cartoon' });
+  const representations = buildRepresentations(model, { style: 'cartoon', detail: 'preview' });   // the stored fallback picture stays light; the live view draws the full 3D cartoon
   if (!representations.length) throw new Error('结构文件没有可生成预览的坐标。');
   const partName = ({ labelChainId, label }) => Object.hasOwn(model.chainNames ?? {}, labelChainId)
     ? model.chainNames[labelChainId] : label;

@@ -18,8 +18,9 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
     await page.goto(ORIGIN + '/apps/viewer-web/index.html?startup=skip'); await page.waitForFunction(() => window.glow, null, { timeout: 30000 });
     await page.click('#panel-tab-structure'); await page.check('#structure-enabled'); await page.waitForTimeout(1000);
     const t0 = Date.now(); await page.setInputFiles('#file', path.join(ROOT, 'workshop/official', pack.file));
-    const ready = await page.waitForFunction(() => !document.getElementById('view-controls').hidden, null, { timeout: 240000 }).then(() => true, () => false);
+    const ready = await page.waitForFunction(() => !document.getElementById('view-controls').hidden, null, { timeout: Number(process.env.WAIT || 240000) }).then(() => true, () => false);
     const row = { template: pack.title, pdb: pack.pdb, opened: ready, seconds: Math.round((Date.now() - t0) / 1000), modes: {} };
+    if (!ready) row.why = await page.evaluate(() => ({ status: document.getElementById('status')?.textContent, model: typeof window.glow, offer: !document.getElementById('view-offer')?.hidden, title: document.querySelector('.hud')?.textContent.trim().slice(0, 40) }));
     if (ready) {
       await page.waitForTimeout(3000);
       for (const style of ['cartoon', 'backbone', 'blob', 'sticks']) {

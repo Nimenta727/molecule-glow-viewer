@@ -269,7 +269,7 @@ function stickLayers(ordered, model, centered, look, defaultStyle) {
  * Blank alternate locations win; otherwise altLoc A wins, then the alphabetically first ID. No occupancy-based science is inferred.
  * Cartoon colors are only visual hints for deposited helix and sheet ranges (red and gold); they are not calculated predictions.
  */
-export function buildRepresentations(model, { style = 'backbone', functionalRules, look = {} } = {}) {
+export function buildRepresentations(model, { style = 'backbone', functionalRules, look = {}, detail = 'full' } = {}) {
   if (!['backbone', 'cartoon', 'blob', 'functional', 'surface'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
   const chosen = selectCoordinateAtoms(model);
   const centered = centerAndScale(chosen);
@@ -313,7 +313,14 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
     const hasLook = residueLevel && (look.styleOf || look.colorOf);
     const drawn = (wanted) => (hasLook ? true : style === wanted);
     // cartoon and backbone are real 3D geometry: a smooth curve swept with a ribbon (helix, strand with arrow) or a round tube (coil, backbone) — see cartoon-mesh.mjs
-    if (drawn('cartoon') || drawn('backbone')) layers.push(...ribbonLayers(markers, ranges, centered, appearance, style === 'backbone' ? 'backbone' : style === 'cartoon' ? 'cartoon' : style, { rangeTypeFor, residueGap, colors: BACKBONE_COLORS }));
+    // detail 'preview' (the geometry stored in a scene package as a fallback picture) keeps the light flat ribbon and lines: the full 3D geometry of a large complex would not fit in a package
+    if (detail === 'preview') {
+      if (drawn('cartoon')) layers.push(...cartoonLayers(markers, ranges, centered, appearance, style));
+      if (drawn('backbone')) {
+        if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
+        else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
+      }
+    } else if (drawn('cartoon') || drawn('backbone')) layers.push(...ribbonLayers(markers, ranges, centered, appearance, style === 'backbone' ? 'backbone' : style === 'cartoon' ? 'cartoon' : style, { rangeTypeFor, residueGap, colors: BACKBONE_COLORS, coarse: chosen.length > 60000 }));
     if (hasLook && look.styleOf) layers.push(...stickLayers(ordered, model, centered, appearance, style));
     if (drawn('blob') && markers.length) {
       const base = BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius = 2.1 * PRESENTATION_METERS_PER_ANGSTROM;
