@@ -338,3 +338,6 @@ body:not(.panel-collapsed) footer { left: calc(var(--panel-w) + 2 * var(--gap));
 .structure-offer { margin: 0.4rem 0; padding: 0.45rem 0.55rem; background: #fff6df; border: 1px solid #e3cf9a; border-radius: 4px; color: #5b4510; font-size: 0.84rem; line-height: 1.5; }
 .structure-offer[hidden] { display: none; }
 .structure-offer button { margin-top: 0.3rem; }
+
+/* buttons and tabs show their whole label: it wraps instead of being cut */
+button{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}
