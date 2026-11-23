@@ -31,7 +31,7 @@ import { createToolConfigPanel } from './tool-config.mjs';
 import { initTabs } from './panel-tabs.mjs';
 import { autoBindings } from '../../packages/plugin-host/tool-model.mjs';
 import { buildStructureLayers, structureSources } from '../../plugins/structure/view-layers.mjs';
-import { loadCatalog, workshopBase, fetchResource } from '../../plugins/workshop/catalog.mjs';
+import { loadCatalog, workshopBase, bundledSources, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
 import { shortcutFor, wireMenus } from './shortcuts.mjs';
@@ -183,7 +183,7 @@ ui['pub-author'].addEventListener('input', syncRevisionHint);
 onClick('pub-today', () => { ui['pub-updated'].value = new Date().toISOString().slice(0, 10); });
 onClick('pub-catalog', async () => {
   ui['pub-note'].textContent = '正在读取工坊目录…';
-  publishCatalog = await loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) });
+  publishCatalog = await loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }), bundled: bundledSources({ href: location.href }) });
   fillDerivedOptions(); syncLicenseOptions(); syncRevisionHint();
   const scene = session().getScene(), mine = [...publishCatalog.templates, ...publishCatalog.works].find((entry) => entry.id === scene.id);
   if (mine?.author?.name === ui['pub-author'].value.trim() && !ui['pub-revision'].value) ui['pub-revision'].value = String(nextRevision(mine).revision);
@@ -874,7 +874,7 @@ const workshop = createWorkshopDialog(document, {
         source: entry.origin === 'rcsb' ? { provider: 'RCSB PDB', accession: entry.record.source.accession } : { provider: 'local', accession: entry.name }, templateRecord: entry.record };
       await importStructureAsWork(structure, { title: entry.title, message: `已用模板 ${entry.title} 新建作品。` });
     } }] } } : {}),
-  load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }) }),
+  load: () => loadCatalog({ base: workshopBase({ href: location.href, hostname: location.hostname }), bundled: bundledSources({ href: location.href }) }),
   toolTitle, toolAvailable: isKnownTool,
   actions: {
     templates: [{ label: '在 Viewer 中查看', title: '静态作品：在 Viewer 里看结构、读解说', run: (entry) => openInViewer(entry) }],

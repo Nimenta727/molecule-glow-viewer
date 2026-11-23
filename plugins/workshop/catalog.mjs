@@ -91,33 +91,43 @@ function resourceEntry(raw, source) {
 }
 
 /** Loads both catalogues of every requested source. A missing or invalid catalogue becomes an entry of `errors`, never an exception. */
-export async function loadCatalog({ base, fetch: fetchImpl = globalThis.fetch, sources = WORKSHOP_SOURCES } = {}) {
+/**
+ * The sources that ship inside the application: in the packaged app (the page is served from app://) the official catalogue — the basic protein works, the plugin list, the resources — is a folder of the
+ * application itself (`app/workshop/official/`, copied by desktop/scripts/package-platform.cjs), so it always matches the plugin code that ships with it and works offline. The community source is still read
+ * from `workshopBase`. Anywhere else (a browser, a local checkout) nothing is bundled and everything comes from `workshopBase`.
+ */
+export function bundledSources({ href = 'http://localhost/apps/viewer-web/index.html' } = {}) {
+  const page = new URL(href);
+  return page.protocol === 'app:' ? { official: new URL('../../workshop/', page).href } : {};
+}
+
+export async function loadCatalog({ base, bundled = {}, fetch: fetchImpl = globalThis.fetch, sources = WORKSHOP_SOURCES } = {}) {
   if (typeof base !== 'string' || typeof fetchImpl !== 'function') throw new TypeError('loadCatalog needs a base URL and a fetch function');
   const works = [], templates = [], resources = [], plugins = [], errors = [];
   for (const source of sources) {
     try {
-      const index = await fetchIndex(fetchImpl, `${base}${source}/index.json`, 'glow-index', `${SOURCE_NAMES[source] ?? source}作品区`);
+      const index = await fetchIndex(fetchImpl, `${bundled[source] ?? base}${source}/index.json`, 'glow-index', `${SOURCE_NAMES[source] ?? source}作品区`);
       for (const raw of index.packs ?? []) {
         const entry = workEntry(raw, source);
         if (entry) (entry.zone === 'template' ? templates : works).push(entry); else errors.push({ source, zone: 'works', message: `${text(raw?.id, 60) || '（无编号）'}：目录项不完整，已忽略` });
       }
     } catch (error) { errors.push({ source, zone: 'works', message: error.message }); }
     try {
-      const index = await fetchIndex(fetchImpl, `${base}${source}/resources/index.json`, 'glow-resources', `${SOURCE_NAMES[source] ?? source}资源区`);
+      const index = await fetchIndex(fetchImpl, `${bundled[source] ?? base}${source}/resources/index.json`, 'glow-resources', `${SOURCE_NAMES[source] ?? source}资源区`);
       for (const raw of index.resources ?? []) {
         try { resources.push(resourceEntry(raw, source)); }
         catch (error) { errors.push({ source, zone: 'resources', message: `${text(raw?.record?.id, 60) || '（无编号）'}：${error.message}` }); }
       }
     } catch (error) { errors.push({ source, zone: 'resources', message: error.message }); }
     try {
-      const index = await fetchIndex(fetchImpl, `${base}${source}/plugins/index.json`, 'glow-plugins', `${SOURCE_NAMES[source] ?? source}插件区`);
+      const index = await fetchIndex(fetchImpl, `${bundled[source] ?? base}${source}/plugins/index.json`, 'glow-plugins', `${SOURCE_NAMES[source] ?? source}插件区`);
       for (const raw of index.plugins ?? []) {
         try { plugins.push(pluginEntry(raw, source)); }
         catch (error) { errors.push({ source, zone: 'plugins', message: `${text(raw?.id, 60) || '（无编号）'}：${error.message}` }); }
       }
     } catch (error) { errors.push({ source, zone: 'plugins', message: error.message }); }
   }
-  return Object.freeze({ base, templates: Object.freeze(templates), works: Object.freeze(works), resources: Object.freeze(resources), plugins: Object.freeze(plugins), errors: Object.freeze(errors) });
+  return Object.freeze({ base, bundled: Object.freeze({ ...bundled }), templates: Object.freeze(templates), works: Object.freeze(works), resources: Object.freeze(resources), plugins: Object.freeze(plugins), errors: Object.freeze(errors) });
 }
 
 const norm = (value) => String(value ?? '').toLowerCase();
@@ -148,7 +158,7 @@ export const worksUsing = (catalog, resource) => [...catalog.works, ...catalog.t
 
 /** Downloads a work's pack and checks it against the catalogue's hash. */
 export async function fetchWorkBytes(catalog, entry, { fetch: fetchImpl = globalThis.fetch } = {}) {
-  const bytes = await fetchBytes(fetchImpl, `${catalog.base}${entry.source}/${entry.file}`, MAX_WORK, entry.title);
+  const bytes = await fetchBytes(fetchImpl, `${catalog.bundled?.[entry.source] ?? catalog.base}${entry.source}/${entry.file}`, MAX_WORK, entry.title);
   if (await sha256Hex(bytes) !== entry.sha256) throw new WorkshopError('work-hash-mismatch', `${entry.title}：下载内容与目录记录的哈希不符，已拒绝打开。`);
   return bytes;
 }

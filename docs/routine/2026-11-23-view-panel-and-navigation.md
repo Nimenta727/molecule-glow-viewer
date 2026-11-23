@@ -42,3 +42,10 @@
 - 作品本地导出/导入核对：Viewer 打开 `t7-portal-tail.glow`（17 s）、`t7-virion-cutaway.glow`（56 s，约 3092 万三角形）都显示正常；Studio 的“导入场景包”导入后再 `exportScene`，字节数与原文件完全一致（4,222,631 / 112,829,812）。
 - 噬菌体四个作品和说明已作为文件发给用户（不进仓库、不进发行页）；各文件的 sha256 在 `SHA256SUMS.txt`。
 - 版本 0.12.0；发行说明 `docs/releases/desktop-v0.12.0.md`。
+
+## 补充（0.12.0）：插件和官方目录全部随软件
+- 用户要求所有插件和光影包都要在发行包里。核对：插件代码（`plugins/` 整个目录，含 26 份清单、光影包）本来就在打包范围内；但官方工坊目录（基础蛋白质作品、插件列表）是从 GitHub 联网读取的，离线或网络不通时看不到。
+- 改动：`desktop/scripts/package-platform.cjs` 把 `workshop/official` 复制进 `app/workshop/official`；`plugins/workshop/catalog.mjs` 新增 `bundledSources`（页面在 `app://` 下时官方源指向应用自带的目录）和 `loadCatalog` 的 `bundled` 参数；Viewer、Studio 传入。社区源不变。单元测试覆盖。
+- 核对：`--stage-only` 的打包目录里有 26 份清单、`app/workshop/official/plugins/index.json` 列出 26 个插件（含 look-packs、bond-details、residue-labels、residue-neighborhood）、15 个官方作品包、`view-panel.mjs` 和 `look-packs.mjs`。
+- 没做：22 个基础蛋白质的原子结构（约 200 MB，11 个我本地没有）没有内置，第一次打开仍从 RCSB 下载；是否内置是体积和离线的取舍，等用户决定。
+- 因为这个改动，0.12.0 的发布取消重跑（第一次运行 45162053519 在发布前被取消，没有产生发行页）。

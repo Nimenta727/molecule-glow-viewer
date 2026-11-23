@@ -34,6 +34,8 @@ copy('web/dev.html', 'app/dev.html');
 copy('web/index.html', 'app/web/index.html');
 copy('web/dev.html', 'app/web/dev.html');
 // Copy official plugin source as a unit. Execution remains restricted to the application-owned catalog.
+// The official workshop catalogue (basic protein works, the plugin list, resources) ships inside the application; the community source stays online.
+copy('workshop/official', 'app/workshop/official');
 for (const name of ['apps/studio-web', 'apps/viewer-web', 'packages/core', 'packages/legacy-compat', 'packages/plugin-host', 'packages/render-three', 'packages/schema', 'packages/studio-editor', 'plugins']) copy(name, 'app/' + name);
 for (const name of ['src/styles/startup.css', 'src/ui/startup.js', 'src/api/embed-permissions.js', 'src/pack/rules.js', 'src/data/presets.js']) copy(name, 'app/' + name);
 copy('node_modules/@cfworker/json-schema/dist/esm', 'app/vendor/json-schema');
