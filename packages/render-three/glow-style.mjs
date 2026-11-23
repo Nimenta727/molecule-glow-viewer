@@ -23,17 +23,32 @@ export const GLOW_DEFAULTS = Object.freeze({
   exposure: 1.05,
   saturation: 1.1,
   lights: { hemisphere: 1.6, key: 2.4 },
+  outline: { color: '#1b2233', strength: 0, width: 1.5 },   // ink lines at depth jumps (silhouettes and where one part passes in front of another), width in pixels at 900 px height
+  halo: { color: '#000000', strength: 0, radius: 16 },      // a soft shadow / glow that carries the molecule into the background (radius in pixels at 900 px height)
+  shade: 0,                                                  // 0..1 broad shading from the depth normal: rounds whole domains (the volume of the ink style)
 });
 
 const VERTEX = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
 const SHADE = `
-uniform sampler2D tDiffuse, tDepth; uniform vec2 uRes; uniform float uNear, uFar, uPx, uAoStrength, uAoRadius, uRimStrength, uRimPower, uFogN, uFogF, uFogStrength;
-uniform vec3 uTop, uBottom, uRim, uFog; varying vec2 vUv;
+uniform sampler2D tDiffuse, tDepth; uniform vec2 uRes; uniform float uNear, uFar, uPx, uAoStrength, uAoRadius, uRimStrength, uRimPower, uFogN, uFogF, uFogStrength, uLine, uLineW, uHaloS, uHaloR, uShade;
+uniform vec3 uTop, uBottom, uRim, uFog, uInk, uHalo; varying vec2 vUv;
 float lz(vec2 uv) { float z = texture2D(tDepth, uv).x; return z >= 0.99999 ? 1e6 : uNear * uFar / (uFar - z * (uFar - uNear)); }
 void main() {
   vec4 c = texture2D(tDiffuse, vUv); float d0 = lz(vUv);
-  if (d0 > 1e5) { gl_FragColor = vec4(mix(uBottom, uTop, vUv.y), 0.0); return; }
   vec2 p = 1.0 / uRes;
+  if (d0 > 1e5) {
+    vec3 bg = mix(uBottom, uTop, vUv.y);
+    // the soft transition from the molecule into the background: a halo whose strength is how much of the neighbourhood is molecule
+    float near = 0.0, line = 0.0;
+    if (uHaloS > 0.0) {
+      for (int i = 0; i < 16; i++) { float a = float(i) * 2.39996, r = uHaloR * (0.18 + 0.82 * float(i + 1) / 16.0); if (lz(vUv + vec2(cos(a), sin(a)) * r * p) < 1e5) near += 1.0 - 0.6 * float(i) / 16.0; }
+      near = smoothstep(1.2, 8.5, near);   // a few thin strands do not fog the background; a body of molecule does
+    }
+    if (uLine > 0.0) { for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; if (lz(vUv + vec2(cos(a), sin(a)) * uLineW * p) < 1e5) line += 1.0; } line = smoothstep(0.0, 3.0, line) * uLine; }
+    bg = mix(bg, uHalo, uHaloS * near);
+    bg = mix(bg, uInk, line);
+    gl_FragColor = vec4(bg, 0.0); return;
+  }
   // occlusion: neighbours clearly in front of this point darken it, within a radius that follows the distance
   float rpx = clamp(uAoRadius / (d0 * uPx), 2.0, 48.0), occ = 0.0;
   float jitter = 6.2831853 * fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));   // a different rotation per pixel: noise instead of rings (the finishing pass smooths it)
@@ -51,7 +66,14 @@ void main() {
   vec3 n = normalize(vec3(-gx, -gy, 1.0));
   float silhouette = smoothstep(0.0, 1.0, (min(max(max(dl, dr), max(dd, du)), d0 * 1.5) - d0) / (d0 * uPx * 24.0 + 1e-6)) * 0.55;   // a neighbour far behind: this is an edge in front of something
   float rim = clamp(pow(1.0 - clamp(n.z, 0.0, 1.0), uRimPower) * 1.4 + silhouette, 0.0, 1.0) * uRimStrength;
-  vec3 col = c.rgb * ao + uRim * rim * mix(0.6, 1.0, ao);
+  float lam = dot(n, normalize(vec3(-0.45, 0.6, 0.66)));
+  vec3 col = c.rgb * mix(1.0, min(1.0, 0.7 + 0.36 * lam), uShade) * ao + uRim * rim * mix(0.6, 1.0, ao);
+  // ink: a neighbour clearly in front of this point (a depth jump measured in pixels) draws a line here, as in the classic ink style
+  if (uLine > 0.0) {
+    float edge = 0.0;
+    for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; float ds = lz(vUv + vec2(cos(a), sin(a)) * uLineW * p); float gap = d0 - min(ds, 1e5); edge = max(edge, smoothstep(d0 * 0.006, d0 * 0.016, gap)); }   // a part about 1-2 A or more in front of this point
+    col = mix(col, uInk, edge * uLine);
+  }
   float f = uFogStrength * smoothstep(uFogN, uFogF, d0);
   col = mix(col, uFog, f);
   gl_FragColor = vec4(col, 1.0);
@@ -93,7 +115,7 @@ export function createGlowRenderer({ renderer, scene, camera, look = GLOW_DEFAUL
     const make = (depth) => { const t = new THREE.WebGLRenderTarget(Math.max(size.x, 1), Math.max(size.y, 1), { type: THREE.HalfFloatType }); if (depth) { t.depthTexture = new THREE.DepthTexture(); t.depthTexture.type = THREE.UnsignedIntType; } return t; };
     target = make(true); shaded = make(false);
     const U = (value) => ({ value });
-    const shade = { tDiffuse: U(null), tDepth: U(null), uRes: U(new THREE.Vector2(1, 1)), uNear: U(0.01), uFar: U(1000), uPx: U(0.001), uAoStrength: U(0.85), uAoRadius: U(0.1), uRimStrength: U(0.35), uRimPower: U(2.2), uFogN: U(0), uFogF: U(1), uFogStrength: U(0.7), uTop: U(new THREE.Color()), uBottom: U(new THREE.Color()), uRim: U(new THREE.Color()), uFog: U(new THREE.Color()) };
+    const shade = { tDiffuse: U(null), tDepth: U(null), uRes: U(new THREE.Vector2(1, 1)), uNear: U(0.01), uFar: U(1000), uPx: U(0.001), uAoStrength: U(0.85), uAoRadius: U(0.1), uRimStrength: U(0.35), uRimPower: U(2.2), uFogN: U(0), uFogF: U(1), uFogStrength: U(0.7), uTop: U(new THREE.Color()), uBottom: U(new THREE.Color()), uRim: U(new THREE.Color()), uFog: U(new THREE.Color()), uInk: U(new THREE.Color()), uHalo: U(new THREE.Color()), uLine: U(0), uLineW: U(1.5), uHaloS: U(0), uHaloR: U(16), uShade: U(0) };
     const finish = { tColor: U(null), tDepth: U(null), uRes: U(new THREE.Vector2(1, 1)), uNear: U(0.01), uFar: U(1000), uPx: U(0.001), uFocus: U(1), uRange: U(0.3), uDof: U(0.5), uVignette: U(0.35), uExposure: U(1.05), uSaturation: U(1.1) };
     shadeQuad = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: shade, vertexShader: VERTEX, fragmentShader: SHADE, depthTest: false, depthWrite: false }));
     finishQuad = new FullScreenQuad(new THREE.ShaderMaterial({ uniforms: finish, vertexShader: VERTEX, fragmentShader: FINISH, depthTest: false, depthWrite: false }));
@@ -101,9 +123,10 @@ export function createGlowRenderer({ renderer, scene, camera, look = GLOW_DEFAUL
   } catch { target?.dispose(); shaded?.dispose(); return null; }
   let current = GLOW_DEFAULTS;
   function apply(next) {
-    current = { ...GLOW_DEFAULTS, ...next, fog: { ...GLOW_DEFAULTS.fog, ...next.fog }, ao: { ...GLOW_DEFAULTS.ao, ...next.ao }, rim: { ...GLOW_DEFAULTS.rim, ...next.rim }, dof: { ...GLOW_DEFAULTS.dof, ...next.dof } };
+    current = { ...GLOW_DEFAULTS, ...next, fog: { ...GLOW_DEFAULTS.fog, ...next.fog }, ao: { ...GLOW_DEFAULTS.ao, ...next.ao }, rim: { ...GLOW_DEFAULTS.rim, ...next.rim }, dof: { ...GLOW_DEFAULTS.dof, ...next.dof }, outline: { ...GLOW_DEFAULTS.outline, ...next.outline }, halo: { ...GLOW_DEFAULTS.halo, ...next.halo } };
     const s = shadeQuad.uniforms, f = finishQuad.uniforms;
     s.uTop.value.set(current.background[0]); s.uBottom.value.set(current.background[1]); s.uRim.value.set(current.rim.color); s.uFog.value.set(current.fog.color);
+    s.uInk.value.set(current.outline.color); s.uLine.value = current.outline.strength; s.uHalo.value.set(current.halo.color); s.uHaloS.value = current.halo.strength; s.uShade.value = current.shade;
     s.uAoStrength.value = current.ao.strength; s.uRimStrength.value = current.rim.strength; s.uRimPower.value = current.rim.power; s.uFogStrength.value = current.fog.strength;
     f.uDof.value = current.dof.strength; f.uVignette.value = current.vignette; f.uExposure.value = current.exposure; f.uSaturation.value = current.saturation;
     scene.background = new THREE.Color(current.background[1]);
@@ -121,6 +144,7 @@ export function createGlowRenderer({ renderer, scene, camera, look = GLOW_DEFAUL
       const previous = renderer.getRenderTarget();
       renderer.setRenderTarget(target); renderer.clear(); renderer.render(scene, camera);
       s.tDiffuse.value = target.texture; s.tDepth.value = target.depthTexture; s.uRes.value.set(size.x, size.y); s.uNear.value = camera.near; s.uFar.value = camera.far; s.uPx.value = px;
+      s.uLineW.value = Math.max(1.5, current.outline.width * size.y / 900); s.uHaloR.value = Math.max(2, current.halo.radius * size.y / 900);
       s.uAoRadius.value = Math.max(distance * current.ao.radius, 1e-5); s.uFogN.value = distance - 0.25 * R; s.uFogF.value = distance + 1.6 * R;
       renderer.setRenderTarget(shaded); shadeQuad.render(renderer);
       f.tColor.value = shaded.texture; f.tDepth.value = target.depthTexture; f.uRes.value.set(size.x, size.y); f.uNear.value = camera.near; f.uFar.value = camera.far; f.uPx.value = px;

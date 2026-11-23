@@ -55,11 +55,12 @@ test('backbone uses first model, chooses deterministic altLocs, centers and scal
   const rep = representations[0];
   assert.equal(rep.chainId, 'A');
   assert.equal(rep.label, 'Chain A');
-  const lines = rep.layers.find((layer) => layer.mode === 'lines');
-  assert.ok(lines);
-  assert.equal(lines.positions.length, 18, 'four consecutive backbone residues form three segments');
-  assert.ok(Math.abs(lines.positions[0] + 2.3) < 1e-12, 'coordinates are centered on non-water first-model bounds and scaled by 0.05');
-  assert.ok(Math.abs(lines.positions[3] + 2.1) < 1e-12, 'blank altLoc wins over alternate conformers');
+  const tube = rep.layers.find((layer) => layer.mode === 'triangles' && layer.role === 'cartoon');
+  assert.ok(tube && tube.normals.length === tube.positions.length, 'the backbone is a smooth 3D tube');
+  const points = rep.layers.find((layer) => layer.mode === 'points');
+  assert.equal(points.positions.length, 12, 'four backbone residues, one pick point each');
+  assert.ok(Math.abs(points.positions[0] + 2.3) < 1e-12, 'coordinates are centered on non-water first-model bounds and scaled by 0.05');
+  assert.ok(Math.abs(points.positions[3] + 2.1) < 1e-12, 'blank altLoc wins over alternate conformers');
   const ligand = rep.layers.find((layer) => layer.color === '#e58a3a');
   assert.ok(Math.abs(ligand.positions[0] - 2.25) < 1e-12);
   assert.deepEqual(ligand.positions.slice(1), [0, 0], 'non-water ligand is one heavy-atom centroid marker');
@@ -71,7 +72,7 @@ test('cartoon builds valid ribbon triangles and conveys deposited helix and shee
   const representations = buildRepresentations(fixture(), { style: 'cartoon' });
   const rep = representations[0];
   const ribbons = rep.layers.filter((layer) => layer.mode === 'triangles');
-  assert.deepEqual(new Set(ribbons.map((layer) => layer.color)), new Set(['#d47770', '#607f91', '#d6a94f']));
+  assert.deepEqual(new Set(ribbons.map((layer) => layer.color)), new Set(['#d47770', '#d6a94f']), 'the helix residues in the helix colour, the strand residues in the strand colour');
   assert.ok(ribbons.every((layer) => layer.positions.length >= 9));
   assert.ok(rep.layers.some((layer) => layer.mode === 'points' && layer.color === '#e58a3a'));
   validateLayers(representations);
@@ -117,11 +118,11 @@ test('nucleic-acid style chains use phosphate P atoms when CA is absent', () => 
     atom({ name: 'P', residueName: 'C', position: [6, 0, 0], authChainId: 'N', labelChainId: 'L', authSeqId: '2', labelSeqId: '2', serial: 2 }),
   ] };
   const representation = buildRepresentations(model)[0];
-  const line = representation.layers.find((layer) => layer.mode === 'lines');
+  const tube = representation.layers.find((layer) => layer.mode === 'triangles'), points = representation.layers.find((layer) => layer.mode === 'points');
   assert.equal(representation.chainId, 'N');
-  assert.ok(line);
-  assert.equal(line.positions.length, 6);
-  assert.ok(Math.abs(line.positions[3] - 0.15) < 1e-12);
+  assert.ok(tube, 'the phosphates carry the tube');
+  assert.equal(points.positions.length, 6);
+  assert.ok(Math.abs(points.positions[3] - 0.15) < 1e-12);
 });
 
 test('selectStructure supports auth and label identifiers and combines filters', () => {
@@ -167,20 +168,24 @@ const seqOf = (a) => Number(a.authSeqId);
 const drawn = (model, style, look) => buildRepresentations(model, { style, look })[0].layers.filter((layer) => layer.mode !== 'points');
 const count = (layers, mode) => layers.filter((l) => l.mode === mode).reduce((n, l) => n + (mode === 'triangles' ? l.positions.length / 9 : mode === 'lines' ? l.positions.length / 6 : l.positions.length / 3), 0);
 const RED = '#e05a4a';
+const xs = (layers) => layers.flatMap((l) => { const out = []; for (let i = 0; i < l.positions.length; i += 3) out.push(l.positions[i]); return out; });
+const at = (seq) => ((seq - 1) * 3.8 - 9.5) * 0.05;   // where residue `seq` of chain() is drawn (centred on the chain, 0.05 per angstrom)
 
 test('a colour for some residues splits the cartoon, the backbone and the blob by colour and pins the coloured layers; the rest keeps its own colour', () => {
   const look = { colorOf: (a) => (seqOf(a) >= 4 ? RED : undefined) };   // a segment takes the colour of the residue it ends at: segments ending at 4, 5, 6 are red
   const plain = drawn(chain(), 'cartoon'), cartoon = drawn(chain(), 'cartoon', look);
-  assert.equal(count(plain, 'triangles'), 10); assert.equal(count(cartoon, 'triangles'), 10, 'the same ribbon, only coloured differently');
-  const red = cartoon.find((l) => l.color === RED); assert.ok(red.pinned); assert.equal(red.positions.length / 9, 6, 'three segments, two triangles each');
+  assert.ok(count(plain, 'triangles') > 0); assert.equal(count(cartoon, 'triangles'), count(plain, 'triangles'), 'the same ribbon, only coloured differently');
+  const red = cartoon.find((l) => l.color === RED); assert.ok(red.pinned);
+  assert.ok(Math.min(...xs([red])) > at(3) && Math.min(...xs([red])) < at(4), 'red starts between residues 3 and 4 and runs to the end');
   assert.ok(cartoon.some((l) => l.color !== RED && !l.pinned), 'the other residues keep the default colour and are not pinned');
-  const lines = drawn(chain(), 'backbone', look); assert.equal(count(lines, 'lines'), 5); assert.equal(lines.find((l) => l.color === RED).positions.length / 6, 3);
+  const tube = drawn(chain(), 'backbone', look); assert.equal(count(tube, 'lines'), 0, 'the backbone is a tube, not lines'); assert.ok(tube.find((l) => l.color === RED)?.pinned);
   const blob = drawn(chain(), 'blob', look); assert.equal(count(blob, 'spheres'), 6); assert.equal(blob.find((l) => l.color === RED).positions.length / 3, 3, 'residues 4, 5, 6');
 });
 
 test('a hidden part is neither drawn nor pickable, and a segment touching a hidden residue is not drawn', () => {
   const look = { styleOf: (a) => (seqOf(a) === 3 || seqOf(a) === 4 ? 'hidden' : undefined) };
-  const cartoon = drawn(chain(), 'cartoon', look); assert.equal(count(cartoon, 'triangles'), 4, 'segments 1-2 and 5-6 remain; 2-3, 3-4 and 4-5 touch a hidden residue');
+  const cartoon = drawn(chain(), 'cartoon', look); assert.ok(count(cartoon, 'triangles') > 0, 'residues 1-2 and 5-6 are drawn');
+  assert.ok(xs(cartoon.filter((l) => l.mode === 'triangles')).every((x) => x < at(3) - 0.02 || x > at(4) + 0.02), 'nothing is drawn at the hidden residues 3 and 4');
   const [group] = buildRepresentations(chain(), { style: 'cartoon', look }), points = group.layers.findIndex((l) => l.mode === 'points');
   assert.equal(group.layers[points].positions.length / 3, 4, 'two residues are gone from the markers'); assert.deepEqual(group.pointTargets[points].map((t) => seqOf(t.atom)), [1, 2, 5, 6], 'and from what can be picked');
   assert.equal(count(drawn(chain(), 'blob', look), 'spheres'), 4);
@@ -188,8 +193,8 @@ test('a hidden part is neither drawn nor pickable, and a segment touching a hidd
 
 test('a part can be drawn in another style than the rest: a blob pocket inside a cartoon, a backbone tail', () => {
   const mixed = drawn(chain(), 'cartoon', { styleOf: (a) => (seqOf(a) >= 5 ? 'blob' : seqOf(a) === 1 ? 'backbone' : undefined) });
-  assert.equal(count(mixed, 'spheres'), 2, 'residues 5 and 6 as spheres'); assert.equal(count(mixed, 'triangles'), 6, 'segments ending at 2, 3 and 4 stay ribbon (3 segments)');
-  assert.equal(count(mixed, 'lines'), 0, 'the backbone residue has no segment of its own (a segment takes the style of the residue it ends at)');
+  assert.equal(count(mixed, 'spheres'), 2, 'residues 5 and 6 as spheres'); assert.ok(count(mixed, 'triangles') > 0, 'residues 1-4 are one tube (backbone at 1, cartoon after)');
+  assert.ok(Math.max(...xs(mixed.filter((l) => l.mode === 'triangles'))) < at(5), 'the tube stops before the blob residues'); assert.equal(count(mixed, 'lines'), 0);
 });
 
 test('surface and functional ignore the per-residue look, and without a look nothing changes', () => {
@@ -207,11 +212,11 @@ function backboneChain(count = 3) {   // N, CA, C, O per residue with real bond 
   }
   return { atoms };
 }
-test('sticks draw the bonds of the chosen residues (and the peptide bond between neighbours), tinted by element, over an unchanged cartoon', () => {
+test('sticks draw the bonds of the chosen residues (and the peptide bond between neighbours), tinted by element; those residues are drawn as atoms, not ribbon', () => {
   const look = { styleOf: (a) => (seqOf(a) <= 2 ? 'sticks' : undefined) };
-  const plain = drawn(backboneChain(), 'cartoon'), withSticks = drawn(backboneChain(), 'cartoon', look);
-  assert.equal(count(withSticks, 'triangles'), count(plain, 'triangles'), 'the cartoon is still drawn');
-  const sticks = withSticks.filter((l) => l.role === 'sticks'); assert.ok(sticks.length && sticks.every((l) => l.mode === 'lines' && l.pinned));
+  const plain = drawn(backboneChain(5), 'cartoon'), withSticks = drawn(backboneChain(5), 'cartoon', look);
+  assert.ok(count(withSticks, 'triangles') > 0 && count(withSticks, 'triangles') < count(plain, 'triangles'), 'the rest is still cartoon');
+  const sticks = withSticks.filter((l) => l.role === 'sticks'); assert.ok(sticks.length && sticks.every((l) => l.mode === 'cylinders' && l.pinned && l.radius > 0));
   assert.ok(sticks.some((l) => l.color === 'e05a4a') && sticks.some((l) => l.color === '4e79d6'), 'oxygen and nitrogen have their own tints');
   const segments = sticks.reduce((n, l) => n + l.positions.length / 6, 0);   // each bond is two half-bonds; per residue N-CA, CA-C, C-O = 3 bonds; plus C(1)-N(2) = 1 bond: 7 bonds, 14 half-bonds
   assert.equal(segments, 14);

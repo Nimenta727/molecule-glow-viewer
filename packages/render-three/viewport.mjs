@@ -20,6 +20,7 @@ function isVisible(object) {
   return true;
 }
 
+const CYLINDER = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true), UP = new THREE.Vector3(0, 1, 0);
 function* renderables(asset, layers) {
   if (asset.kind === 'primitive') {
     const geometry = asset.shape === 'sphere' ? new THREE.SphereGeometry(0.5, 32, 20) : new THREE.BoxGeometry(1, 1, 1);
@@ -27,7 +28,7 @@ function* renderables(asset, layers) {
     return;
   }
   if (!layers) throw new Error(`Missing geometry: ${asset.id}`);
-  for (const { mode, positions, color: given, pointSize, pointTargets, radius, radii, ink, conformations, role, faded } of layers) {
+  for (const { mode, positions, color: given, pointSize, pointTargets, radius, radii, ink, conformations, role, faded, normals } of layers) {
     const color = typeof given === 'string' && /^[0-9a-f]{6}$/i.test(given) ? `#${given}` : given;   // a colour written without the leading # (the element tints of the sticks) is still a colour
     if (mode === 'spheres') {
       const geometry = new THREE.SphereGeometry(1, 12, 8);
@@ -54,6 +55,16 @@ function* renderables(asset, layers) {
         };
       }
       continue;
+    }
+    if (mode === 'cylinders') {   // bonds drawn as real sticks: one open cylinder per segment (positions: a and b of each segment, 6 numbers), shaded like the rest of the molecule
+      const count = positions.length / 6, mesh = new THREE.InstancedMesh(CYLINDER, new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.0 }), count);
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), mid = new THREE.Vector3(), dir = new THREE.Vector3(), q = new THREE.Quaternion(), scale = new THREE.Vector3(), m = new THREE.Matrix4();
+      for (let i = 0; i < count; i++) {
+        a.fromArray(positions, i * 6); b.fromArray(positions, i * 6 + 3); mid.addVectors(a, b).multiplyScalar(0.5); dir.subVectors(b, a);
+        const length = dir.length(); q.setFromUnitVectors(UP, length > 1e-9 ? dir.divideScalar(length) : UP);
+        m.compose(mid, q, scale.set(radius, Math.max(length, 1e-6), radius)); mesh.setMatrixAt(i, m);
+      }
+      mesh.userData.role = role; yield mesh; continue;
     }
     let geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -89,8 +100,9 @@ function* renderables(asset, layers) {
         geometry.dispose();
         geometry = joined;
       }
-      geometry.computeVertexNormals();
-      const surface = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide }));
+      if (normals && !ink && normals.length === positions.length) geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));   // smooth shading from the geometry builder (the 3D cartoon)
+      else geometry.computeVertexNormals();
+      const surface = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color, side: THREE.DoubleSide, roughness: role === 'cartoon' ? 0.5 : 1 }));
       if (faded) surface.material.color.lerp(new THREE.Color('#d6d9e0'), 0.7);
       if (morphStates) surface.userData.conformation = { states: morphStates, normals: true };
       yield surface;
