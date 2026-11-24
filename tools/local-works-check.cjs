@@ -26,7 +26,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await page.click('#panel-tab-structure'); await page.check('#structure-enabled'); await page.waitForTimeout(1500);
   const status = () => page.evaluate(() => document.querySelector('#status')?.textContent);
   await page.setInputFiles('#file', FILE);
-  await page.waitForFunction(() => /本地/.test(document.querySelector('#status')?.textContent ?? ''), null, { timeout: 120000 });
+  await page.waitForFunction(() => /本地/.test(document.querySelector('#status')?.title ?? ''), null, { timeout: 120000 });   // the status keeps the file name; the tooltip says it was remembered
   console.log('status after open:', await status());
   await page.click('#workshop'); await page.waitForSelector('#workshop-tab-local', { timeout: 10000 }); await page.click('#workshop-tab-local'); await page.waitForTimeout(800);
   const names = await page.evaluate(() => [...document.querySelectorAll('.workshop-local-item h3')].map((n) => n.textContent)); console.log('local zone names:', JSON.stringify(names));
@@ -35,7 +35,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
   await page.screenshot({ path: OUT });
   await page.locator('.workshop-local-item button', { hasText: '导出' }).click(); await page.waitForTimeout(1500);
   const asked = await page.evaluate(() => window.__download); console.log('export file name asked for:', asked);
-  assert.ok(asked?.endsWith('.glow') && !/[0-9a-f]{8}-[0-9a-f]{4}/.test(asked) && asked.startsWith('T7'), 'named after the title, not the id');
+  assert.ok(asked?.endsWith('.glow') && !/[0-9a-f]{8}-[0-9a-f]{4}/.test(asked) && asked.startsWith(names[0].slice(0, 4)), 'named after the title, not the id');
   page.once('dialog', (d) => d.accept('我改的名字'));
   await page.locator('.workshop-local-item button', { hasText: '改名' }).click(); await page.waitForTimeout(800);
   console.log('after rename:', JSON.stringify(await page.evaluate(() => [...document.querySelectorAll('.workshop-local-item h3')].map((n) => n.textContent))));

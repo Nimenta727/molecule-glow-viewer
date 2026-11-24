@@ -1723,8 +1723,9 @@ function boot() {
     const opened = await openScene({ file, assembly: elements['structure-assembly'].checked });
     if (!opened || !localWorks || !REMEMBER.test(file.name)) return;
     try {
-      const { entry, added } = await localWorks.add({ bytes: new Uint8Array(await file.arrayBuffer()), fileName: file.name, title: active?.scene?.title });
-      setStatus(`已打开“${entry.title}”（${sizeText(entry.bytes)}），${added ? '并记入工坊的“本地”。' : '“本地”里已有这个文件，已更新。'}`);
+      // the status keeps the file name (what the open itself reports, and what checks and scripts wait for); remembering it in the workshop's "本地" is quiet unless it fails
+      const { entry } = await localWorks.add({ bytes: new Uint8Array(await file.arrayBuffer()), fileName: file.name, title: active?.scene?.title });
+      elements.status.title = `已记入工坊的“本地”：${entry.title}（${sizeText(entry.bytes)}）`;
       workshop.refreshLocal?.();
     } catch (error) { setStatus(`已打开，但没能记入“本地”：${error.message}`); }
   }
