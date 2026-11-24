@@ -58,12 +58,14 @@ async function pageProbe(config) {
       assert(window.__viewer.groups()[0].atoms.length === 4, 'classic reopen');
       result = { defaultClassic: true, importedResidues: 4, roundTrip: true };
     } else {
+      // the status shows the file name once it opens; a .glow is then remembered in the workshop's "本地" zone, which replaces the status with 已打开“标题”…
+      const opened = (name) => { const text = document.querySelector('#status').textContent; return text === name || (name.endsWith('.glow') && text.startsWith('已打开“')); };
       await wait(() => window.glow && document.querySelector('#status').textContent === '基础几何示例', 'platform Viewer');
       document.querySelector('#structure-enabled').click();
       await wait(() => !document.querySelector('#rcsb-load').disabled, 'official plugins');
       const name = config.kind === 'local' ? 'release-test.pdb' : `${config.kind}.glow`;
       inject('#file', name, config.kind === 'local' ? config.pdb : config.pack);
-      await wait(() => document.querySelector('#status').textContent === name, 'fixture loaded');
+      await wait(() => opened(name), 'fixture loaded');
       await glow.represent('blob');
       if (config.kind === 'local') {
         const selected = await glow.select({ chainId: 'A', residueId: '2' });
@@ -92,7 +94,7 @@ async function pageProbe(config) {
       document.querySelector('#save').click(); await wait(() => exports.length > marker, 'actual save button');
       const blob = exports.at(-1); assert(blob.size > 100, 'ZIP saved');
       inject('#file', 'release-reopened.glow', blob);
-      await wait(() => document.querySelector('#status').textContent === 'release-reopened.glow', 'ZIP reopened');
+      await wait(() => opened('release-reopened.glow'), 'ZIP reopened');
       const after = await glow.info();
       for (const field of ['time', 'counters', 'parameters', 'selection']) assert(JSON.stringify(before[field]) === JSON.stringify(after[field]), 'restored ' + field);
       // Restored camera vectors may differ in the last floating-point bit after the reopen recomputes them; 1e-9 is far below any visible change.
