@@ -15,7 +15,7 @@
 | 3 | 中 | **页面没有内容安全策略（CSP）**，桌面版对非缓存主机的 https 请求一律放行（`passThrough`） | `desktop/main.js` 的 `handleHttps`；各 `index.html` 无 CSP | 加 CSP（只许本地脚本和白名单主机）；`handleHttps` 改成白名单。沙箱、上下文隔离、导航白名单已在（`webPreferences`、`network-policy.cjs`） |
 | 4 | 中 | **浏览器检查不在 CI**：`tools/*-check.cjs` 共 29 个，CI 只跑单元测试、文档/副本/对照检查和发布冒烟 | `.github/workflows/platform.yml` | 至少把 `template-modes-check`（模板四种显示方式）、`viewer-view-panel-check`（查看页）、`local-works-check`（本地作品）、`button-sweep-check`（按钮巡检）放进 CI |
 | 5 | 中 | **真实显卡未验收**：卡通/价键/光影包/整颗病毒的帧率和观感全部只在 SwiftShader 软件渲染里看过 | 每一版发行说明“没有做到的”第一条 | 按 `docs/ACCEPTANCE_GPU_PROMPT.md` 在有独显的 Windows 上验收一次 |
-| 6 | 中 | **大结构贴着上限运行**：场景包上限 128 MB，T7 整体作品约 120 MB；单个资源上限 32 MiB；“整个细胞”模板在软件渲染下检查时浏览器崩溃 | `packages/schema/archive.mjs`；`tools/template-modes-check.cjs` 的结果 | T4（几百万原子）前先放宽格式上限；查清“整个细胞”在价键模式下的内存 |
+| 6 | 中 | **大结构贴着上限运行**：场景包上限 128 MB，T7 整体作品约 120 MB；单个资源上限 32 MiB。**“整个细胞：大肠杆菌”模板在软件渲染下打开 15 分钟仍未完成**（页面主线程一直满载）；用三维卡通改动之前的代码（提交 884fdff）对照，同样 15 分钟未完成，所以是原有问题，不是本版引入的 | `packages/schema/archive.mjs`；`tools/template-modes-check.cjs`；对照记录见 routine | T4（几百万原子）前先放宽格式上限；用性能分析找出“整个细胞”打开时的热点（主线程长时间被占用时连性能分析器都取不回结果，需要分段计时）；真实显卡上的表现未知 |
 | 7 | 中 | **两套实现并存**：经典 Viewer（`src/` 单文件，约 8100 行）是桌面版默认入口，新 Viewer/Studio 的新功能（查看页、三维卡通、相互作用、光影包、本地作品）经典版都没有 | `desktop/platform-shell.cjs` 的入口表 | 决定默认入口；用户多次反馈“功能找不到”，部分原因是打开的是经典版 |
 | 8 | 中 | **想看分子要先勾“启用官方结构插件”**：新 Viewer 打开结构前必须手动开启，否则面板几乎是空的 | 用户反馈；“查看”页已加提示 | 打开结构文件时直接询问一次并记住选择 |
 | 9 | 低 | **超大文件**：`apps/viewer-web/main.mjs` 2160 行、`packages/render-three/viewport.mjs` 1421 行，改动易互相影响 | 行数统计 | 按功能拆分（导入、查看页接线、工坊、命令适配） |
