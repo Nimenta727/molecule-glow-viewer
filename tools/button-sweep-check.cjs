@@ -40,7 +40,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
           const menu = b.closest('details'); if (menu && !menu.open) menu.open = true;   // a menu item: open its menu first
           return b.offsetParent ? 'yes' : 'hidden';
         }, button);
-        if (reachable !== 'yes') { report.push({ app, tab, button: key, result: `not reachable (${reachable})` }); continue; }
+        if (reachable !== 'yes') { seen.delete(key); if (tab === tabs[tabs.length - 1]) report.push({ app, tab, button: key, result: `not reachable (${reachable})` }); continue; }   // try again on the page it belongs to
         const before = await fingerprint(), errorsBefore = errors.length;
         const handle = button.id ? page.locator('#' + button.id) : page.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${button.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();   // exact text: "上" must not hit "上色"
         const clicked = await handle.click({ timeout: 4000 }).then(() => true, (e) => e.message.split('\n')[0]);
