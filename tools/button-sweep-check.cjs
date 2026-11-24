@@ -21,7 +21,8 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
       const cam = window.glow ? await window.glow.camera().catch(() => null) : window.studio ? await window.studio.camera().then((r) => r.camera, () => null) : null;
       const pressed = [...document.querySelectorAll('[aria-pressed],[aria-expanded],[aria-selected],[aria-checked]')].map((n) => n.getAttribute('aria-pressed') + n.getAttribute('aria-expanded') + n.getAttribute('aria-selected') + n.getAttribute('aria-checked')).join('');
       const open = [...document.querySelectorAll('dialog[open], details[open]')].length, hidden = [...document.querySelectorAll('[hidden]')].length;
-      return JSON.stringify([document.body.innerText.length, document.body.innerText.slice(-400), pressed, open, hidden, cam, document.querySelectorAll('canvas').length]);
+      const values = [...document.querySelectorAll('input, select, textarea')].map((n) => n.type === 'checkbox' || n.type === 'radio' ? String(n.checked) : n.value).join('|');
+      return JSON.stringify([document.body.innerText.length, document.body.innerText.slice(-400), pressed, open, hidden, cam, document.querySelectorAll('canvas').length, values, document.body.className]);
     });
     const tabs = await page.evaluate(() => [...document.querySelectorAll('[role=tab]')].filter((t) => t.offsetParent).map((t) => t.id).filter(Boolean));
     const seen = new Set();
@@ -31,6 +32,15 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
       for (const button of buttons) {
         const key = button.id || button.text; if (seen.has(key) || SKIP.test(button.text)) continue; seen.add(key);
         if (button.disabled) { report.push({ app, tab, button: key, result: 'disabled' }); continue; }
+        // the button may have been hidden by an earlier one (a collapsed panel, a closed menu): bring the panel back, open the menu it belongs to, or skip it
+        await page.evaluate(() => { if (document.body.classList.contains('panel-collapsed')) document.getElementById('panel-toggle')?.click(); });
+        const reachable = await page.evaluate(({ id, text }) => {
+          const b = id ? document.getElementById(id) : [...document.querySelectorAll('button')].find((n) => n.textContent.trim().slice(0, 24) === text);
+          if (!b) return 'gone';
+          const menu = b.closest('details'); if (menu && !menu.open) menu.open = true;   // a menu item: open its menu first
+          return b.offsetParent ? 'yes' : 'hidden';
+        }, button);
+        if (reachable !== 'yes') { report.push({ app, tab, button: key, result: `not reachable (${reachable})` }); continue; }
         const before = await fingerprint(), errorsBefore = errors.length;
         const handle = button.id ? page.locator('#' + button.id) : page.locator('button', { hasText: button.text }).first();
         const clicked = await handle.click({ timeout: 4000 }).then(() => true, (e) => e.message.split('\n')[0]);
