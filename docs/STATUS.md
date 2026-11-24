@@ -1,6 +1,6 @@
 # 项目现状：我们做到哪里了
 
-更新：2026-11-22（`main`，Desktop 0.13.0；发行记录见 [docs/releases](releases/desktop-v0.13.0.md)）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
+更新：2026-11-24（`main`，Desktop 0.13.0 已发布（含 T7 作品）；发行记录见 [docs/releases](releases/desktop-v0.13.0.md)）。本页是“进度一页纸”；编号与验收条件以 [ROADMAP](ROADMAP.md) 为准，细节在 [routine](routine/) 逐步记录里。
 
 ## 0.9.0 做了什么（2026-11-22）
 

@@ -14,3 +14,7 @@
 ## 下一步
 1. 发布成功后触发 `works-release.yml`（tag `desktop-v0.13.0`），把 T7 完整模型与部件作品挂到发行页并核对。
 2. 开始 T4：先放宽场景包/资源上限，再规划部件（5VF3 头部、EMD-6323 等）。
+
+## 结果（02:43）
+- desktop-release 运行 45312501805 全部通过（暂存与实际 EXE 回归、安全冒烟、数值对照），已发布 `desktop-v0.13.0`：EXE（76 MB）、Skill、验证包、清单与校验和。
+- works-release 运行 45313762546 通过：在 GitHub 上用公开 PDB 条目重新生成并附上 `t7-virion.glow`（118.5 MB）、`t7-capsid-gp10a.glow`、`t7-portal-tail.glow`、`t7-core-proteins.glow` 与各自预览图、`SHA256SUMS-works.txt`；抽查 `t7-capsid-gp10a.glow` 的 sha256 与校验文件一致。
