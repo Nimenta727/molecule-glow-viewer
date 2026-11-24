@@ -50,7 +50,8 @@ test('rules are applied in order and the later one wins; a scheme rule colours o
 test('the look reaches the drawing: the coloured residues of a real build are their own pinned layer', () => {
   const m = model(), look = lookFor(m, { colors: { residues: [{ expr: 'resi 4-6', color: '#e05a4a' }] }, styles: [{ expr: 'resi 1', style: 'hidden' }] });
   const [group] = buildRepresentations(m, { style: 'cartoon', look }); const red = group.layers.find((l) => l.color === '#e05a4a');
-  assert.ok(red && red.pinned && red.mode === 'triangles'); assert.equal(red.positions.length / 9, 6, 'segments ending at residues 4, 5, 6');
+  assert.ok(red && red.pinned && red.mode === 'triangles' && red.normals.length === red.positions.length, 'a pinned layer of smooth 3D cartoon');
+  const reds = (layer) => { let n = 0; for (let i = 0; i < layer.positions.length; i += 3) n++; return n; }; assert.ok(reds(red) > 0 && reds(red) < reds(group.layers.find((l) => l.mode === 'triangles' && l !== red)) + reds(red), 'the coloured stretch is only part of the chain');
   assert.equal(group.pointTargets[group.layers.findIndex((l) => l.mode === 'points')].length, 5, 'residue 1 is hidden and not pickable');
 });
 
@@ -58,7 +59,8 @@ test('style rules: validated, refused with the reason, capped', () => {
   const check = (expr) => residues(model(), expr).length;
   const { styles, note } = applyStyle([], 'chain A and resi 1-3', 'cartoon', { check }); assert.deepEqual(styles, [{ expr: 'chain A and resi 1-3', style: 'cartoon' }]); assert.match(note, /3 个残基.*卡通/);
   assert.throws(() => applyStyle([], 'resi 99', 'blob', { check }), (e) => e instanceof LookError && /没有选中任何残基/.test(e.message)); assert.throws(() => applyStyle([], 'resi 1', 'spaghetti', { check }), /样式应为/);
-  assert.match(applyStyle([], 'resi 1', 'sticks', { check }).note, /棍状/); assert.throws(() => applyStyle([], 'all', 'sticks', { check: () => 301 }), /最多 300 个残基/);
+  assert.match(applyStyle([], 'resi 1', 'sticks', { check }).note, /价键/); assert.throws(() => applyStyle([], 'all', 'sticks', { check: () => 100001 }), /最多 100000 个残基/);
+  assert.doesNotThrow(() => applyStyle([], 'all', 'sticks', { check: () => 5000 }), 'the bond model of a whole protein is allowed'); assert.throws(() => applyStyle([], 'all', 'ballstick', { check: () => 20001 }), /球棍.*最多 20000 个残基/);
   assert.throws(() => applyStyle([], 'banana', 'blob', { check }), /无法读取选择/ ); assert.throws(() => applyStyle(Array.from({ length: 64 }, () => ({ expr: 'all', style: 'blob' })), 'all', 'blob', { check }), /最多 64/);
   assert.deepEqual(validateStyles([{ expr: 'all', style: 'hidden' }]), [{ expr: 'all', style: 'hidden' }]); assert.deepEqual(validateStyles(undefined), []);
   assert.throws(() => validateStyles([{ expr: '', style: 'blob' }]), LookError); assert.throws(() => validateStyles([{ expr: 'all', style: 'x' }]), LookError); assert.throws(() => validateStyles('x'), LookError);

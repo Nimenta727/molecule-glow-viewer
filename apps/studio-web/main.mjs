@@ -34,6 +34,7 @@ import { buildStructureLayers, structureSources } from '../../plugins/structure/
 import { loadCatalog, workshopBase, bundledSources, fetchResource } from '../../plugins/workshop/catalog.mjs';
 import { createWorkshopDialog } from '../../plugins/workshop/dialog.mjs';
 import { createTemplateLibrary } from '../../plugins/templates/library.mjs';
+import { createLocalWorks, fileNameFor, sizeText, MAX_LOCAL_BYTES } from '../../plugins/workshop/local-works.mjs';
 import { shortcutFor, wireMenus } from './shortcuts.mjs';
 import { createLookPanel } from './look-panel.mjs';
 import { lookFor, validateStyles } from '../../plugins/structure/look.mjs';
@@ -223,8 +224,9 @@ onClick('pub-export', async () => {
   result.ok = !result.problems.some(({ level }) => level === 'error');
   renderCheck(result);
   if (!result.ok) { status('发布检查有错误，没有生成发布包。'); return; }
-  offerDownload(`${plan.scene.id}.glow`, await writeScenePackage(plan.scene, plan.resources), 'application/zip');
-  status('发布包已生成。');
+  const packed = await writeScenePackage(plan.scene, plan.resources);
+  offerDownload(fileNameFor(plan.scene.title || plan.scene.id), packed, 'application/zip');
+  status(`已导出发布包 ${fileNameFor(plan.scene.title || plan.scene.id)}（${sizeText(packed.byteLength)}）。`);
 });
 
 const host = createPluginHost({
@@ -798,8 +800,8 @@ onClick('export-scene', async () => {
   const current = session();
   const scene = current.getScene();
   const bytes = await writeScenePackage(scene, current.getResources());
-  offerDownload(`${scene.id}.glow`, bytes, 'application/zip');
-  status('场景包已生成。');
+  offerDownload(fileNameFor(scene.title || scene.id), bytes, 'application/zip');
+  status(`已导出 ${fileNameFor(scene.title || scene.id)}（${sizeText(bytes.byteLength)}）。`);
 });
 
 // A structure (a file, or bytes fetched from a resource) becomes a new work: the structure is its first resource.
@@ -864,8 +866,12 @@ function openInViewer(entry) {
   window.open(url, '_blank', 'noopener');
   return false;   // the dialog stays open
 }
+// the works opened or imported on this machine, listed in the workshop's 本地 zone (plugins/workshop/local-works.mjs)
+const localWorks = (() => { try { return createLocalWorks({ store: indexedDbStore({ name: 'glow-local-works' }) }); } catch { return null; } })();
 const templateLibrary = (() => { try { return createTemplateLibrary({ store: indexedDbStore({ name: 'glow-templates' }) }); } catch { return null; } })();   // the person's own protein templates, on this machine
 const workshop = createWorkshopDialog(document, {
+  ...(localWorks ? { local: { library: localWorks, importFile: () => { navigationEditor.assertSaved(); ui['package-file'].click(); },
+    open: async (entry, bytes) => { navigationEditor.assertSaved(); await importPackageBytes(bytes, entry.fileName); return `已打开“${entry.title}”。`; } } } : {}),
   ...(templateLibrary ? { templates: { library: templateLibrary,
     loadRcsb: async (code) => { const { createRcsbSource } = await import('../../plugins/rcsb/index.mjs'); rcsbSource ??= createRcsbSource(); return rcsbSource.load(code, {}); },
     actions: [{ label: '用此模板新建作品', title: '这份原文件成为新作品的第一个资源（先核对哈希）', run: async (entry) => {
@@ -891,15 +897,26 @@ const workshop = createWorkshopDialog(document, {
 onClick('workshop', () => workshop.open().catch((error) => status(`无法打开工坊。 ${error.message}`)));
 
 watchFile('package-file', async (file) => {
-  const ticket = ++loading;
-  if (file.size > 128 * 1024 * 1024) throw new Error('场景包超过 128 MiB。');
+  if (file.size > MAX_LOCAL_BYTES) throw new Error(`${file.name} 有 ${sizeText(file.size)}，超过 ${MAX_LOCAL_BYTES / 1048576} MB 的上限，不能导入。`);
+  if (!/\.glow$/i.test(file.name)) throw new Error(`请选择 .glow 场景包（Viewer 的“保存”或 Studio 的“导出场景”写出的文件）；${file.name} 不是。`);
+  if (file.size > 8 * 1048576) status(`正在读取 ${file.name}（${sizeText(file.size)}）…大文件需要一会儿，请稍等。`);
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('请选择 .glow 场景包（Viewer 的“保存”导出）。旧版 v1 文本包请先在 Viewer 中打开并保存。');
+  const title = await importPackageBytes(bytes, file.name);
+  if (!localWorks || title == null) return;
+  try {
+    const { entry, added } = await localWorks.add({ bytes, fileName: file.name, title });
+    status(`已导入“${entry.title}”（${sizeText(entry.bytes)}），${added ? '并记入工坊的“本地”。' : '“本地”里已有这个文件，已更新。'}`);
+    workshop.refreshLocal?.();
+  } catch (error) { status(`已导入，但没能记入“本地”：${error.message}`); }
+});
+async function importPackageBytes(bytes, name) {
+  const ticket = ++loading;
+  if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error('这不是 .glow 场景包（文件内容不对）。旧版 v1 文本包请先在 Viewer 中打开并保存。');
   status('正在导入场景包…');
   const { scene: read, resources } = await readScenePackage(bytes);
   // A v2 package is brought to v3 with the default tool configuration of its declared mechanism; a v3 work keeps its own.
   const { scene: work } = await upgradeSceneToV3(read, resources, { tools: toolEntriesForScene(read) });
-  if (ticket !== loading) return;
+  if (ticket !== loading) return null;
   navigationEditor.assertSaved();
   const id = sessions.has(work.id) ? makeId(work.id) : work.id;
   const next = createStudioSession({ ...work, id }, resources);
@@ -910,8 +927,9 @@ watchFile('package-file', async (file) => {
   editingPose = false;
   markDirty();
   refresh({ resetCamera: true, resetTime: true });
-  status(`已导入场景包 ${file.name}。`);
-});
+  status(`已导入场景包 ${name}。`);
+  return work.title ?? name;
+}
 
 async function openProjectBytes(bytes, ticket) {
   const decoded = await decodeProject(bytes);

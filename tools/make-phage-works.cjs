@@ -1,5 +1,5 @@
 // Makes the bacteriophage T7 static works with the Studio command interface only (window.studio).
-//   t7-virion-cutaway   the assembled virion from `tools/build-phage-model.py` (head shell 3J7X + portal-tail 9JYZ + core 9JYY + genome spool), cut open side-on
+//   t7-virion           the whole virion from `tools/build-phage-model.py` (head shell 3J7X as 60 hexons + 11 pentons, portal-tail 9JYZ, core 9JYY, genome spool): 3D cartoon, coloured by part, ready to take apart
 //   t7-capsid-gp10a     the major capsid protein gp10A, the 7-chain asymmetric unit of the mature capsid (3J7X)
 //   t7-portal-tail      the portal-tail complex of the mature phage (9JYZ)
 //   t7-core-proteins    the internal core proteins of the mature phage (9JYY)
@@ -39,21 +39,30 @@ setTimeout(() => { console.error('the builder hung'); process.exit(1); }, 330000
     await call('camera', { position: [t[0] + d, t[1], t[2]], target: t });
   };
 
-  await work('t7-virion-cutaway', async (call, page) => {
-    const text = fs.readFileSync(path.join(DIR, 'out/t7-virion-model.cif'), 'utf8');
-    const info = await call('import', { name: 't7-virion-model.cif', text }), chains = info.structures[0].chains, sel = (l) => 'chain ' + l.join(',');
-    const tail = chains.filter((c) => c[0] === 'T'), core = chains.filter((c) => c[0] === 'C'), shell = chains.filter((c) => /^H\d\d$/.test(c)), dna = chains.filter((c) => /^G\d$/.test(c));
-    await call('title', '噬菌体 T7 病毒颗粒（静态示意装配）：剖开的头部、核酸、内部核心与尾部');
-    await call('part', 'all', false);
-    const a = await call('surface', sel(shell), 'plain', '#5f7fc9', { inflate: 1.6 }), b = await call('surface', sel(tail), 'plain', '#e8b04a', { inflate: 0.6 }), c = await call('surface', sel(core), 'plain', '#3fbf9f', { inflate: 0.6 });
-    await call('show', sel(dna), 'backbone'); await call('part', sel(dna), true); await call('color', sel(dna), '#e8472f');
-    await call('lookPack', 'glow.cell-dark', { recolor: false });
-    await sideOn(call, 'all'); await call('clip', { depth: 0 });
-    await call('note', '蓝色：头部衣壳（415 个主衣壳蛋白 gp10A，T=7 二十面体；来自成熟衣壳 PDB 3J7X 的 7 条链，按 60 个二十面体对称操作展开，门户顶点处 5 个拷贝省去）。金色：门户-尾部复合体（9JYZ：门户 gp8、衔接蛋白 gp11、喷嘴 gp12、尾丝 gp17 等）。绿色：内部核心蛋白（9JYY：gp14、gp15、gp16 与 gp6.7）。红色：基因组 DNA 的骨架轨迹（39,937 bp）。');
-    await call('note', '【实验结构】衣壳、门户-尾部、核心三部分的原子坐标均来自已发表的冷冻电镜结构，原样使用，未改动坐标。 【示意/假设】三部分之间的相对位置（核心放进头部、头部相对门户的距离）、DNA 的缠绕方式都是作图时的假设：核心的位置按“不碰撞且与门户相接”扫描选定，DNA 画成绕核心的同轴盘绕线轴（线轴模型），具体缠绕并非测得；序列没有表示。表面是高斯分子表面，不是严格的溶剂排除面。');
-    await call('note', `来源：${PAPERS.head}；${PAPERS.tail}；${PAPERS.old}。门户-尾部和核心的两个结构来自同一份 2025 年成熟噬菌体工作。已知：头壳 gp10A 共 415 个拷贝；核心由 gp14、gp15（8 聚体环）与 gp16（4 聚体环）堆叠于门户之上（文献描述，8/4 重对称的归属在原文中有不确定之处）。`);
-    await call('note', `本画面剖开面按镜头方向取过场景中心，只是为了看内部；剖面本身没有物理意义。表面三角面：头 ${a.surface.triangles}，尾 ${b.surface.triangles}，核心 ${c.surface.triangles}。`);
-    await call('publication', { ...AUTHOR, topic: 'local-system', description: '噬菌体 T7 成熟病毒颗粒的静态示意装配：由已发表的冷冻电镜结构拼成，剖开显示核酸线轴与内部核心，位置关系为示意。', tags: ['噬菌体', 'T7', '病毒', '冷冻电镜', '示意装配'] });
+  await work('t7-virion', async (call) => {
+    // the whole virion as one static model: every part in the 3D cartoon, coloured by what it is, and each capsomer, tail protein, core protein and genome strand its own chain,
+    // so the Viewer's 拆装 (take apart) moves them out one by one
+    const text = fs.readFileSync(path.join(DIR, 'out/t7-virion-model.cif'), 'utf8'), parts = JSON.parse(fs.readFileSync(path.join(DIR, 'out/t7-virion-parts.json'), 'utf8'));
+    const chainsOf = (pattern) => Object.entries(parts).filter(([name]) => pattern.test(name)).flatMap(([, chains]) => chains), sel = (list) => 'chain ' + list.join(',');
+    await call('import', { name: 't7-virion-model.cif', text });
+    await call('title', '噬菌体 T7 完整病毒颗粒（静态整体模型，可拆解）');
+    await call('show', 'all', 'cartoon');
+    const COLORS = [
+      [/hexon subunit/, '#5b8fd9'], [/penton subunit/, '#8a6fd8'],
+      [/Portal protein/, '#e8b04a'], [/gp11/, '#3fbf9f'], [/gp12/, '#e0703a'], [/Tail fiber/, '#d65a5a'], [/Protein 6\.7 \[9JYZ\]|Protein 7\.3/, '#b25fd0'],
+      [/gp14/, '#2f8f6f'], [/gp15/, '#58c79a'], [/gp16/, '#9bd46a'], [/Protein 6\.7 \[9JYY\]/, '#7fbf5f'],
+      [/Genome DNA/, '#e8472f'],
+      [/DRAWN/, '#efb3c4'],   // the drawn middle of the fibres is told apart from the experimental parts by a pale colour
+    ];
+    for (const [pattern, colour] of COLORS) { const chains = chainsOf(pattern); if (chains.length) await call('color', sel(chains), colour); }
+    await call('lookPack', 'paper.clean-white', { recolor: false });
+    await sideOn(call, 'all');
+    const count = (pattern) => chainsOf(pattern).length;
+    await call('note', `整体结构：头部衣壳由主衣壳蛋白 gp10A 组成（${count(/hexon/)} 个六聚体，蓝；${count(/penton/)} 个五聚体，紫；共 415 个亚基，T=7；门户所在的顶点没有五聚体）。尾部（9JYZ）：门户 gp8（金）、衔接蛋白 gp11（青绿）、喷嘴 gp12（橙）、gp6.7 与 gp7.3（紫红）；6 根尾丝 gp17，每根三条链：靠尾部的一段（红，9JYZ 冷冻电镜）、中段（浅粉，画出来的示意）、末端（红，4A0T 晶体结构）。头部里面：内部核心（9JYY）gp14、gp15、gp16、gp6.7（深浅绿），以及盘绕的基因组 DNA（红，39,937 bp，两条链）。`);
+    await call('note', '拆解：在 Viewer 打开后，到“查看”页下方的“拆装”点“拆开”，每个衣壳粒、每个尾部蛋白、核心蛋白和两条 DNA 链各是一块，会沿着离开中心的方向移开；可以逐块移出、放回，也可以看两块之间的接触面。');
+    await call('note', '【实验结构】衣壳（3J7X，成熟噬菌体衣壳，3.6 Å，只用了 Cα）、门户-尾部（9JYZ，2.7 Å）、核心（9JYY，3.0 Å）的坐标都来自已发表的冷冻电镜结构，原样使用。【示意/假设】三部分之间的相对位置（核心放进头部的位置、头部相对门户的距离）和 DNA 的缠绕方式（同轴线轴）是作图时的假设，不是实验测得；DNA 只画了磷酸骨架（每个核苷酸一个点），没有序列。衣壳只有 Cα，所以衣壳不能显示价键模型。尾丝中段（第 144–370 号残基）没有任何实验或预测结构（AlphaFold 数据库不收录病毒蛋白，这里也无法运行预测），是按尾丝的长度和折角画出的三股示意链；尾丝末端（4A0T）的位置和朝向也是示意。');
+    await call('note', `来源：${PAPERS.head}；${PAPERS.tail}；${PAPERS.old}；尾丝末端：Garcia-Doval C., van Raaij M. J.，PNAS 2012（PDB 4A0T）。`);
+    await call('publication', { ...AUTHOR, topic: 'local-system', description: '噬菌体 T7 完整病毒颗粒的静态整体模型：衣壳按六聚体、五聚体分块，尾部、核心和基因组 DNA 各自成块，可在 Viewer 里逐块拆开；部件之间的位置是示意。', tags: ['噬菌体', 'T7', '病毒', '拆解', '整体模型'] });
   });
 
   await work('t7-capsid-gp10a', async (call) => {

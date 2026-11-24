@@ -2,6 +2,8 @@ import { createLigandNeighborhood, createPresetCore, functionalLayers, matchesPa
 import { densitySurface } from './density-surface.mjs';
 import { bondsByDistance } from './chemical-component.mjs';
 
+import { ribbonLayers } from './cartoon-mesh.mjs';
+
 export const PRESENTATION_METERS_PER_ANGSTROM = 0.05;
 const WATER_NAMES = new Set(['HOH', 'WAT', 'DOD', 'H2O']);
 const BACKBONE_COLORS = { default: '#607f91', helix: '#d47770', sheet: '#d6a94f' };
@@ -232,10 +234,10 @@ function backboneLayers(markers, centered, look = {}, defaultStyle = 'backbone')
   return [...byColor].map(([color, points]) => (color ? { mode: 'lines', positions: flat(points), color, pinned: true } : { mode: 'lines', positions: flat(points), color: BACKBONE_COLORS.default }));
 }
 
-const ELEMENT_TINT = { N: '4e79d6', O: 'e05a4a', S: 'e0b83a', P: 'e58a3a' };
+const ELEMENT_TINT = { N: '4e79d6', O: 'e05a4a', S: 'e0b83a', P: 'e58a3a' };   // written without # like the other look colours; the viewport adds it
 /**
  * Atom-level sticks for the residues the author set to 'sticks' (drawn on top of the cartoon): every heavy atom of the residue, bonds by covalent distance, plus the peptide bond to the next residue.
- * One `lines` layer per colour (carbon takes the residue's colour; N, O, S, P their usual tints). Hydrogens are left out. The number of residues is limited by the look rules (MAX_STICK_RESIDUES).
+ * One `cylinders` layer per colour (carbon takes the residue's colour; N, O, S, P their usual tints). Hydrogens are left out. The number of residues is limited by the look rules (MAX_STICK_RESIDUES).
  */
 function stickLayers(ordered, model, centered, look, defaultStyle) {
   const byColor = new Map(), balls = new Map(), add = (color, a, b) => { if (!byColor.has(color)) byColor.set(color, []); byColor.get(color).push(centered.point(a), centered.point(b)); };
@@ -255,8 +257,10 @@ function stickLayers(ordered, model, centered, look, defaultStyle) {
     }
     previous = items?.length ? { residue, items } : null;
   }
-  return [...byColor].map(([color, points]) => ({ mode: 'lines', positions: flat(points), color, pinned: true, role: 'sticks' }))
-    .concat([...balls].map(([color, points]) => ({ mode: 'spheres', positions: flat(points), color, radius: 0.4 * PRESENTATION_METERS_PER_ANGSTROM, pinned: true, role: 'balls' })));   // atom balls of 0.4 A (not van der Waals radii)
+  // bonds are cylinders (0.2 A for the bond model, 0.12 A between the balls of ball-and-stick); balls are 0.38 A (a drawing size, not a van der Waals radius)
+  const stickRadius = (balls.size ? 0.12 : 0.2) * PRESENTATION_METERS_PER_ANGSTROM;
+  return [...byColor].map(([color, points]) => ({ mode: 'cylinders', positions: flat(points), color, radius: stickRadius, pinned: true, role: 'sticks' }))
+    .concat([...balls].map(([color, points]) => ({ mode: 'spheres', positions: flat(points), color, radius: 0.38 * PRESENTATION_METERS_PER_ANGSTROM, pinned: true, role: 'balls' })));
 }
 
 /**
@@ -265,7 +269,7 @@ function stickLayers(ordered, model, centered, look, defaultStyle) {
  * Blank alternate locations win; otherwise altLoc A wins, then the alphabetically first ID. No occupancy-based science is inferred.
  * Cartoon colors are only visual hints for deposited helix and sheet ranges (red and gold); they are not calculated predictions.
  */
-export function buildRepresentations(model, { style = 'backbone', functionalRules, look = {} } = {}) {
+export function buildRepresentations(model, { style = 'backbone', functionalRules, look = {}, detail = 'full' } = {}) {
   if (!['backbone', 'cartoon', 'blob', 'functional', 'surface'].includes(style)) throw new TypeError(`Unsupported representation style: ${style}`);
   const chosen = selectCoordinateAtoms(model);
   const centered = centerAndScale(chosen);
@@ -308,11 +312,15 @@ export function buildRepresentations(model, { style = 'backbone', functionalRule
     // every residue-level style can show every other for the residues the author gave one (a blob for a ligand pocket inside a cartoon)
     const hasLook = residueLevel && (look.styleOf || look.colorOf);
     const drawn = (wanted) => (hasLook ? true : style === wanted);
-    if (drawn('cartoon')) layers.push(...cartoonLayers(markers, ranges, centered, appearance, style));
-    if (drawn('backbone')) {
-      if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
-      else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
-    }
+    // cartoon and backbone are real 3D geometry: a smooth curve swept with a ribbon (helix, strand with arrow) or a round tube (coil, backbone) — see cartoon-mesh.mjs
+    // detail 'preview' (the geometry stored in a scene package as a fallback picture) keeps the light flat ribbon and lines: the full 3D geometry of a large complex would not fit in a package
+    if (detail === 'preview') {
+      if (drawn('cartoon')) layers.push(...cartoonLayers(markers, ranges, centered, appearance, style));
+      if (drawn('backbone')) {
+        if (hasLook) layers.push(...backboneLayers(markers, centered, appearance, style));
+        else { const positions = linePositions(markers, centered); if (positions.length) layers.push({ mode: 'lines', positions, color: BACKBONE_COLORS.default }); }
+      }
+    } else if (drawn('cartoon') || drawn('backbone')) layers.push(...ribbonLayers(markers, ranges, centered, appearance, style === 'backbone' ? 'backbone' : style === 'cartoon' ? 'cartoon' : style, { rangeTypeFor, residueGap, colors: BACKBONE_COLORS, quality: chosen.length > 200000 ? 'minimal' : chosen.length > 60000 ? 'coarse' : 'fine' }));
     if (hasLook && look.styleOf) layers.push(...stickLayers(ordered, model, centered, appearance, style));
     if (drawn('blob') && markers.length) {
       const base = BLOB_COLORS[groupIndex % BLOB_COLORS.length], radius = 2.1 * PRESENTATION_METERS_PER_ANGSTROM;

@@ -35,7 +35,7 @@ export function buildPieces(model) {
     piece.chain = first.chain;
     piece.nucleic = piece.residues.some((r) => r.nucleic);
     piece.centre = centroid(piece.residues.map((r) => r.position));
-    piece.radius = Math.max(...piece.residues.map((r) => distance(r.position, piece.centre)));
+    piece.radius = piece.residues.reduce((m, r) => Math.max(m, distance(r.position, piece.centre)), 0);   // a loop, not a spread: a genome strand has tens of thousands of residues
     piece.ligands = [];
   });
   // small molecules travel with the nearest piece within 7 Å of the ligand centre
@@ -54,7 +54,7 @@ export function buildPieces(model) {
   }
   const all = pieces.flatMap((p) => p.residues.map((r) => r.position));
   const centre = all.length ? centroid(all) : [0, 0, 0];
-  return { pieces, centre, radius: all.length ? Math.max(...all.map((p) => distance(p, centre))) : 0 };
+  return { pieces, centre, radius: all.reduce((m, p) => Math.max(m, distance(p, centre)), 0) };
 }
 
 /** `piece.groupKey` (and `chainGroupKey(ligand.atom)`) is the key scene nodes carry as `chainKey`.

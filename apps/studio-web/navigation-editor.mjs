@@ -115,9 +115,11 @@ export function createNavigationEditor(container, { getSelection, getTime, save 
     title.id = 'view-title';
     const target = field(form, '目标对象', liveSelect(() => [['', '请选择目标对象'], ...nodeOptions()], view?.nodeId ?? getSelection() ?? ''));
     target.id = 'view-target';
+    const pickNote = document.createElement('span'); pickNote.className = 'tool-note'; pickNote.setAttribute('role', 'status');
     form.append(button('使用场景树所选对象', () => {
-      if (getSelection()) { target.value = getSelection(); markDirty(); }
-    }));
+      if (getSelection()) { target.value = getSelection(); markDirty(); pickNote.textContent = ''; }
+      else pickNote.textContent = '场景树里还没有选中对象：先在左边的场景树里点一个对象，再按这个按钮。';   // the button used to do nothing at all without a selection
+    }), pickNote);
     const parentOptions = views.filter((candidate) => PARENTS[mode].includes(candidate.mode))
       .map(({ id, mode, title }) => [id, `${MODES[mode]} · ${title}`]);
     const parents = rootView ? null : field(form, mode === 'mechanism' ? '进入来源（可多选）' : '进入来源',

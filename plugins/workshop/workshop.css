@@ -54,3 +54,7 @@ dialog.workshop::backdrop { background: rgba(31, 39, 51, 0.35); }
 .workshop-form-row input[type=text], .workshop-form-row select { flex: 1 1 11rem; min-width: 0; }
 .workshop-template-form textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .workshop-danger { color: #a3322b; }
+
+/* the 本地 zone: the import button and its hint sit on one line above the list of local works */
+.workshop-local-form { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin: 0.4rem 0 0.5rem; }
+.workshop-local-form button { white-space: normal; }

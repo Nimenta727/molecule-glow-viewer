@@ -177,7 +177,7 @@ async function loadScene(cfg) {
     rebuildMeshes(); rebuildLigands(); rebuildMembranes(); applyCut();
     if (cfg.auto) cfg.caption = autoCaption(cfg);
     const cap = cfg.caption || (P && P.caption) || '', lead = cfg.lead || (P && P.lead) || leadOf(cap);
-    $('caption').innerHTML = (cfg.linkNote ? `<span class="lnote">${esc(cfg.linkNote)}</span>` : '') + (cap ? `<span class="lead">${lead}</span>${cap !== lead ? `<span class="ct">${cap}</span><span class="more">展开说明 ▾</span>` : ''}<span class="cnt" id="cnt"></span>` : '');
+    $('caption').innerHTML = (cfg.linkNote ? `<span class="lnote">${esc(cfg.linkNote)}</span>` : '') + (cap ? `<span class="lead">${esc(lead)}</span>${cap !== lead ? `<span class="ct">${esc(cap)}</span><span class="more">展开说明 ▾</span>` : ''}<span class="cnt" id="cnt"></span>` : '');
     $('caption').classList.remove('open'); requestAnimationFrame(() => { const ct = $('caption').querySelector('.ct'); $('caption').classList.toggle('clamped', !!ct && ct.scrollHeight > ct.clientHeight + 2); });
     $('tId').textContent = (cfg.states ? cfg.states.join(' ⇄ ') : main.id) + ((cfg.components || []).length ? ' + ' + cfg.components.map(c => c.id).join(' + ') : '');
     $('tName').textContent = cfg.name || niceTitle(main.title); $('aboutBtn').style.display = cfg.auto ? '' : 'none';

@@ -4,7 +4,8 @@
  * Nothing here draws or changes a structure by itself: every button calls one command (so the validation and the error messages are the ones of the command), and a command's error is shown in the panel.
  * `api.run(name, args)` is the Viewer's command queue; `viewport` is the render viewport (navigation only); `chains()` lists the chain ids of the open structure.
  */
-const STYLES = [['cartoon', '卡通'], ['backbone', '主链'], ['blob', '团块'], ['sticks', '棍状（键）'], ['ballstick', '球棍'], ['hidden', '隐藏']];
+const STYLES = [['cartoon', '卡通'], ['backbone', '主链'], ['blob', '团块'], ['sticks', '价键'], ['ballstick', '球棍'], ['hidden', '隐藏']];
+const FORCES = [[['hbond'], '氢键'], [['salt'], '盐桥'], [['hydrophobic'], '疏水作用'], [['hbond', 'salt', 'hydrophobic'], '全部作用力']];
 const COLORS = [['chain', '按链'], ['rainbow', '彩虹'], ['secondary', '二级结构'], ['hydrophobicity', '疏水性'], ['charge', '电荷'], ['bfactor', 'B 因子'], ['entity', '默认']];
 const SURFACES = [['plain', '单色表面'], ['hydrophobicity', '疏水表面'], ['electrostatic', '静电表面（简化）']];
 const VIEWS = [['front', '正面'], ['back', '背面'], ['left', '左'], ['right', '右'], ['top', '上'], ['bottom', '下']];
@@ -22,6 +23,12 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
   const run = async (name, args, done) => {
     try { const result = await api.run(name, args); say(done ?? result?.note ?? '已完成。'); return result; } catch (error) { say(error.message, true); return null; }
   };
+  /** Shows which option of a group is in effect: the pressed button of a group stays highlighted until another one of the group (or its "reset") is chosen. */
+  const press = (group, chosen) => { for (const node of group.querySelectorAll('button[data-choice]')) node.setAttribute('aria-pressed', String(node === chosen)); };
+  const choice = (group, label, work, props = {}) => {
+    const node = button(label, async () => { const result = await work(); if (result) press(group, node); }, { 'data-choice': '', 'aria-pressed': 'false', ...props });
+    group.append(node); return node;
+  };
 
   // ---- what to act on ----
   const scope = make('select', { id: 'view-scope', 'aria-label': '作用对象' }), custom = make('input', { type: 'text', id: 'view-scope-custom', placeholder: '或写选择，如 chain A and resi 10-50', 'aria-label': '选择表达式' });
@@ -33,15 +40,20 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
   }
   const row = (...nodes) => make('div', { class: 'view-row' }, ...nodes);
   const title = (text) => make('h4', { class: 'view-title', text });
-  const styleButtons = row(...STYLES.map(([id, label]) => button(label, () => run('show', [target(), id], `${label}：${target()}`), { 'data-style': id })), button('恢复默认', () => run('show', ['reset'], '已恢复默认表示。')));
-  const colorButtons = row(...COLORS.map(([id, label]) => button(label, () => run('color', id === 'entity' ? 'entity' : (['chain', 'rainbow'].includes(id) ? id : [target(), id]), `${label}`), { 'data-color': id })));
+  const styleButtons = row();
+  for (const [id, label] of STYLES) choice(styleButtons, label, () => run('show', [target(), id], `${label}：${target()}`), { 'data-style': id });
+  styleButtons.append(button('恢复默认', async () => { if (await run('show', ['reset'], '已恢复默认表示。')) press(styleButtons, null); }));
+  const colorButtons = row();
+  for (const [id, label] of COLORS) choice(colorButtons, label, () => run('color', id === 'entity' ? 'entity' : (['chain', 'rainbow'].includes(id) ? id : [target(), id]), `${label}`), { 'data-color': id });
   const swatch = make('input', { type: 'color', value: '#e05a4a', 'aria-label': '自选颜色' });
-  const swatchButton = button('上色', () => run('color', [target(), swatch.value], `把 ${target()} 涂成 ${swatch.value}`));
-  const surfaceButtons = row(...SURFACES.map(([id, label]) => button(label, () => run('surface', [target(), id], `${label}：${target()}`), { 'data-surface': id })), button('清除表面', () => run('surface', 'clear', '已清除表面。')));
+  const swatchButton = button('上色', async () => { if (await run('color', [target(), swatch.value], `把 ${target()} 涂成 ${swatch.value}`)) press(colorButtons, null); });
+  const surfaceButtons = row();
+  for (const [id, label] of SURFACES) choice(surfaceButtons, label, () => run('surface', [target(), id], `${label}：${target()}`), { 'data-surface': id });
+  surfaceButtons.append(button('清除表面', async () => { if (await run('surface', 'clear', '已清除表面。')) press(surfaceButtons, null); }));
 
   // ---- subunits ----
   const list = make('div', { class: 'view-chains', role: 'list' });
-  const hiddenChains = new Set();
+  const hiddenChains = new Set(); let isolated = null;
   async function setChain(id, visible) {
     const result = await run('show', [`chain ${id}`, visible ? 'cartoon' : 'hidden'], visible ? `显示链 ${id}` : `隐藏链 ${id}`);
     if (result) { if (visible) hiddenChains.delete(id); else hiddenChains.add(id); }
@@ -53,20 +65,23 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     list.replaceChildren(...(ids.length ? ids : []).map((id) => {
       const box = make('input', { type: 'checkbox', 'aria-label': `显示链 ${id}` }); box.checked = !hiddenChains.has(id);
       box.addEventListener('change', async () => { if (!(await setChain(id, box.checked))) box.checked = !box.checked; });
-      const only = button('只看它', async () => { for (const other of ids) await setChain(other, other === id); refreshChains(); }, { title: `隐藏其他所有链，只留链 ${id}` });
+      const only = button('只看它', async () => { for (const other of ids) await setChain(other, other === id); isolated = id; refreshChains(); }, { title: `隐藏其他所有链，只留链 ${id}`, 'aria-pressed': String(isolated === id) });
       return make('div', { class: 'view-chain', role: 'listitem' }, make('label', {}, box, make('span', { text: ` 链 ${id}` })),
         button('选中', () => run('select', `chain ${id}`, `已选中链 ${id}`)), button('聚焦', () => run('camera', { focus: `chain ${id}` }, `镜头对准链 ${id}`)), only);
     }));
     if (!ids.length) list.append(make('p', { class: 'view-hint', text: '打开结构后，这里列出每条链。' }));
   }
-  const allButtons = row(button('全部显示', async () => { await run('show', ['all', 'cartoon'], '全部显示'); hiddenChains.clear(); refreshChains(); }), button('取消选择', () => run('select', 'none', '已取消选择')));
+  const allButtons = row(button('全部显示', async () => { await run('show', ['all', 'cartoon'], '全部显示'); hiddenChains.clear(); isolated = null; refreshChains(); }), button('取消选择', () => run('select', 'none', '已取消选择')));
 
   // ---- look packs (plugin: 光影包; the command refuses with the way back when the plugin is switched off) ----
   const packRow = row();
   async function fillPacks() {
     try {
       const result = await api.run('lookPack', undefined);
-      packRow.replaceChildren(...(result.packs ?? []).map((pack) => button(pack.name, () => run('lookPack', pack.id, `光影：${pack.name}。${pack.summary ?? ''}`), { title: pack.summary ?? '', 'data-pack': pack.id })), button('默认墨线', () => run('lookPack', 'none', '已回到默认墨线风格。')));
+      packRow.replaceChildren();
+      for (const pack of result.packs ?? []) choice(packRow, pack.name, () => run('lookPack', pack.id, `光影：${pack.name}。${pack.summary ?? ''}`), { title: pack.summary ?? '', 'data-pack': pack.id });
+      choice(packRow, '默认墨线', () => run('lookPack', 'none', '已回到默认墨线风格。'), { 'data-pack': 'none' });
+      press(packRow, packRow.querySelector(`[data-pack="${result.current ?? 'none'}"]`));   // the pack the work opened with is shown as chosen
     } catch (error) { packRow.replaceChildren(make('span', { class: 'view-hint', text: error.message })); }
   }
 
@@ -89,13 +104,14 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
   });
 
   // ---- bond details (plugin: 氢键与价键细节): the ball-and-stick and bond models of a small part, with hydrogen-bond and salt-bridge lines ----
-  const detailMessage = make('p', { class: 'view-hint', text: '原子级别的细节一次最多画 300 个残基：先把“作用对象”选成一条链，或写一段选择（如 chain A and resi 50-120），或用上面的“周边残基”看一个口袋。' });
-  const detailButtons = row(
-    button('球棍模型', () => run('show', [target(), 'ballstick'], `球棍模型：${target()}（原子球＋键线）`)),
-    button('价键模型', () => run('show', [target(), 'sticks'], `价键模型：${target()}（按共价距离连的键，按元素着色）`)),
-    button('画氢键和盐桥线', async () => { const result = await run('hbonds', { part: target() }); if (result) report.textContent = `${result.part}：氢键 ${result.counts.hbond} 条、盐桥 ${result.counts.salt} 条（画出 ${result.lines} 条）。${result.nearest.slice(0, 3).map((p) => `${p.a} ⋯ ${p.b} ${p.distance} Å`).join('；')}${result.nearest.length ? '。' : ''}只用距离，无角度，是筛查不是结论。`; }),
-    button('清除键线', () => run('hbonds', 'clear', '已清除键线。')),
-  );
+  const detailMessage = make('p', { class: 'view-hint', text: '相互作用画成虚线圆管，连在两个原子之间（氢键蓝、盐桥粉、疏水绿），两端的残基自动显示为价键。整条蛋白的作用力很多，最多画最近的 200 条；看一处时把“作用对象”选成一条链、一段或一个口袋（周边残基）。' });
+  const detailButtons = row();
+  for (const [kinds, label] of FORCES) choice(detailButtons, label, async () => {
+    const result = await run('hbonds', { part: target(), kinds, limit: 200 });
+    if (result) report.textContent = `${result.part}：氢键 ${result.counts.hbond}、盐桥 ${result.counts.salt}、疏水作用 ${result.counts.hydrophobic}（画出 ${result.lines} 条，两端 ${result.shownAs} 个残基显示为价键）。${result.nearest.slice(0, 3).map((p) => `${p.a} ⋯ ${p.b} ${p.distance} Å`).join('；')}${result.nearest.length ? '。' : ''}只用重原子距离，无角度，是筛查不是结论。`;
+    return result;
+  });
+  detailButtons.append(button('清除作用力', async () => { if (await run('hbonds', 'clear', '已清除作用力的线。')) press(detailButtons, null); }));
 
   // ---- text labels (plugin: 文字标签) ----
   const labelText = field('view-label-text', '标签文字（如 催化残基）', '', { maxlength: '60' });
@@ -110,7 +126,7 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
     title('作用对象'), row(scope), row(custom),
     title('显示方式'), styleButtons,
     title('颜色'), colorButtons, row(swatch, swatchButton),
-    title('原子细节：球棍、价键、氢键（插件）'), detailButtons, detailMessage,
+    title('相互作用力：氢键、盐桥、疏水（插件）'), detailButtons, detailMessage,
     title('分子表面'), surfaceButtons,
     title('光影（插件：光影包）'), packRow,
     title('周边残基（插件）'), row(centre), row(make('label', {}, '半径 ', radius, ' Å'), nbButton),
@@ -126,8 +142,8 @@ export function createViewPanel({ root, navRoot, api, viewport, chains, document
   const step = 0.08, turn = Math.PI / 12;
   const arrow = (label, fn, name) => button(label, fn, { 'aria-label': name, class: 'view-arrow' });
   const mode = make('div', { class: 'view-modes', role: 'radiogroup', 'aria-label': '鼠标左键的作用' });
-  function setMode(id) { try { viewport.setNavigationMode(id); } catch (error) { say(error.message, true); return; } for (const node of mode.children) node.setAttribute('aria-checked', String(node.dataset.mode === id)); }
-  for (const [id, label] of MODES) mode.append(button(label, () => setMode(id), { role: 'radio', 'data-mode': id, 'aria-checked': String(id === 'rotate') }));
+  function setMode(id) { try { viewport.setNavigationMode(id); } catch (error) { say(error.message, true); return; } for (const node of mode.children) { node.setAttribute('aria-checked', String(node.dataset.mode === id)); node.setAttribute('aria-pressed', String(node.dataset.mode === id)); } }
+  for (const [id, label] of MODES) mode.append(button(label, () => setMode(id), { role: 'radio', 'data-mode': id, 'aria-checked': String(id === 'rotate'), 'aria-pressed': String(id === 'rotate') }));
   const centreOnSelection = () => run('camera', { focus: target() }, `镜头对准 ${target()}（同时拉近）`);
   navRoot.replaceChildren(
     title('鼠标左键'), mode,

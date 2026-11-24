@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { drawAnnotations, clearAnnotations, ANNOTATION_LINES, ANNOTATION_TEXTS } from '../annotation-draw.mjs';
 
-const fakeViewport = () => { const calls = {}; return { calls, setOverlayLines: (tag, items, opts) => { calls[tag] = { items, opts }; }, setParticleCloud: (tag, items, opts) => { calls[tag] = { items, opts }; } }; };
+const fakeViewport = () => { const calls = {}; return { calls, setOverlayLines: (tag, items, opts) => { calls[tag] = { items, opts }; }, setOverlayMesh: (tag, mesh, opts) => { calls[tag] = { mesh, opts }; }, setParticleCloud: (tag, items, opts) => { calls[tag] = { items, opts }; } }; };
 
 test('nothing to draw clears both layers and reports no problems', () => {
   const viewport = fakeViewport();

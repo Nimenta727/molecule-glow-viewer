@@ -9,8 +9,8 @@ import { rangeTypeFor } from './representation.mjs';
  * per-residue questions the representation asks (`colorOf(atom)`, `styleOf(atom)`); the representation does the drawing (representation.mjs, `look`).
  */
 export const LOOK_STYLES = Object.freeze(['cartoon', 'backbone', 'blob', 'sticks', 'ballstick', 'hidden']);
-export const STYLE_LABELS = Object.freeze({ cartoon: '卡通', backbone: '主链', blob: '团块', sticks: '棍状（原子，叠在卡通上）', ballstick: '球棍（原子球加键线，叠在卡通上）', hidden: '隐藏' });
-export const MAX_STICK_RESIDUES = 300;   // atom-level drawing is heavy: only a pocket or a few segments, not a whole protein
+export const STYLE_LABELS = Object.freeze({ cartoon: '卡通', backbone: '主链', blob: '团块', sticks: '价键（按原子的棍状模型）', ballstick: '球棍（原子球加键）', hidden: '隐藏' });
+export const MAX_STICK_RESIDUES = 100000, MAX_BALL_RESIDUES = 20000;   // atom-level drawing: the bond model of a whole protein (or a small ribosome) as instanced cylinders; ball-and-stick adds a sphere per atom, so it is held lower
 export const PROPERTY_SCHEMES = Object.freeze({ bfactor: 'B 因子（柔性）', hydrophobicity: '疏水性', charge: '电荷', secondary: '二级结构', rainbow: '彩虹（N→C）' });
 export const MAX_STYLE_RULES = 64, MAX_EXPRESSION = 400, BANDS = 12;
 
@@ -47,7 +47,7 @@ export function propertyColors(model, residues, scheme) {
     for (const r of residues) { if (r.nucleic) continue; out.set(key(r), SECONDARY[rangeTypeFor(r.atom, ranges)] ?? SECONDARY.default); }
   } else if (scheme === 'bfactor') {
     const values = residues.map((r) => [r, r.atom.bFactor]).filter(([, b]) => Number.isFinite(b) && b >= 0);
-    if (values.length) { const lo = Math.min(...values.map(([, b]) => b)), hi = Math.max(...values.map(([, b]) => b)); for (const [r, b] of values) out.set(key(r), spectrum(hi > lo ? (b - lo) / (hi - lo) : 0)); }
+    if (values.length) { let lo = Infinity, hi = -Infinity; for (const [, b] of values) { if (b < lo) lo = b; if (b > hi) hi = b; } for (const [r, b] of values) out.set(key(r), spectrum(hi > lo ? (b - lo) / (hi - lo) : 0)); }
   } else {   // rainbow: position along each chain, N to C
     const byChain = new Map(); for (const r of residues) { if (!byChain.has(r.asym)) byChain.set(r.asym, []); byChain.get(r.asym).push(r); }
     for (const chain of byChain.values()) { chain.sort((a, b) => a.labelSeq - b.labelSeq || a.authSeq - b.authSeq); chain.forEach((r, i) => out.set(key(r), spectrum(chain.length > 1 ? i / (chain.length - 1) : 0))); }
@@ -75,7 +75,8 @@ export function applyStyle(styles, target, style, { check } = {}) {
   if (expr.length > MAX_EXPRESSION) throw new LookError(`选择表达式太长（最多 ${MAX_EXPRESSION} 个字符）。`);
   let found; try { found = check ? check(expr) : undefined; } catch (error) { throw new LookError(`无法读取选择“${expr}”：${error.message}`); }
   if (found === 0) throw new LookError(`选择“${expr}”没有选中任何残基。`);
-  if ((style === 'sticks' || style === 'ballstick') && found > MAX_STICK_RESIDUES) throw new LookError(`棍状是逐原子绘制，一次最多 ${MAX_STICK_RESIDUES} 个残基（这次选中 ${found} 个）：请缩小选择，例如 within 5 of ligands。`);
+  const cap = style === 'ballstick' ? MAX_BALL_RESIDUES : MAX_STICK_RESIDUES;
+  if ((style === 'sticks' || style === 'ballstick') && found > cap) throw new LookError(`${style === 'ballstick' ? '球棍' : '价键（棍状）'}是逐原子绘制，一次最多 ${cap} 个残基（这次选中 ${found} 个）：请先选一条链或一段，例如 chain A。`);
   if (styles.length >= MAX_STYLE_RULES) throw new LookError(`最多 ${MAX_STYLE_RULES} 条样式规则：先清除一些再来。`);
   return { styles: [...styles, { expr, style }], note: `${found ?? '所选'} 个残基（${expr}）画成“${STYLE_LABELS[style]}”。` };
 }

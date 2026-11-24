@@ -291,10 +291,12 @@ export function createViewerCommands(host) {
       if (/^clear$/i.test(String(value))) { host.setBonds([]); return { lines: 0, note: '已清除键线。' }; }
       const spec = typeof value === 'string' ? { part: value } : value;
       if (!object(spec) || typeof spec.part !== 'string' || !spec.part.trim()) throw new Error('hbonds 需要 {part, salt?, limit?}：part 是选择表达式（建议是一小段或一处口袋，如 "within 6 of ligands"）。');
-      if (Object.keys(spec).some((key) => !['part', 'salt', 'limit'].includes(key))) throw new Error('hbonds 只接受 part、salt、limit。');
+      if (Object.keys(spec).some((key) => !['part', 'salt', 'limit', 'kinds', 'sticks'].includes(key))) throw new Error('hbonds 只接受 part、kinds、limit、sticks（salt 为旧写法）。');
+      const KINDS = ['hbond', 'salt', 'hydrophobic'];
+      if (spec.kinds != null && (!Array.isArray(spec.kinds) || !spec.kinds.length || spec.kinds.some((k) => !KINDS.includes(k)))) throw new Error('kinds 应为 hbond、salt、hydrophobic 中的一个或几个，如 ["hbond","salt"]。');
       const limit = spec.limit == null ? 120 : finite(spec.limit, 1, 200, 'limit'), part = spec.part.trim();
       let found; try { found = interactionsBetween(current.model, part, part, { within: true }); } catch (error) { throw new Error(error.message); }
-      const wanted = spec.salt === false ? ['hbond'] : ['hbond', 'salt'], seen = new Set(), pairs = [];
+      const wanted = spec.kinds ?? (spec.salt === false ? ['hbond'] : ['hbond', 'salt']), seen = new Set(), pairs = [];
       const where = (r) => `${r.asym && r.asym.includes('_') ? 'asym ' + r.asym : 'chain ' + r.chain} and resi ${r.authSeq}${r.insertion || ''}`;
       for (const i of found.interactions) {
         if (!wanted.includes(i.type)) continue;
@@ -303,9 +305,23 @@ export function createViewerCommands(host) {
       }
       const lines = pairs.slice(0, limit).map((i) => ({ a: { expr: where(i.a), atom: i.atomA }, b: { expr: where(i.b), atom: i.atomB }, type: i.type }));
       host.setBonds(lines);
-      const counts = { hbond: 0, salt: 0 }; for (const i of pairs) counts[i.type]++;
+      // the residues at the two ends are shown as the bond model, so every line ends at an atom that is drawn (a line between two cartoon ribbons would point at nothing)
+      let shownAs = 0;
+      if (spec.sticks !== false && lines.length) {
+        const byChain = new Map();
+        for (const i of pairs.slice(0, limit)) for (const r of [i.a, i.b]) { const key = r.asym && r.asym.includes('_') ? `asym ${r.asym}` : `chain ${r.chain}`; if (!byChain.has(key)) byChain.set(key, new Set()); byChain.get(key).add(`${r.authSeq}${r.insertion || ''}`); }
+        let styles = host.styleState();
+        for (const [chain, ids] of byChain) {
+          let chunk = [];
+          const flush = () => { if (!chunk.length) return; try { styles = applyStyle(styles, `${chain} and resi ${chunk.join(',')}`, 'sticks', { check: host.colorCheck }).styles; shownAs += chunk.length; } catch { /* too many rules: the lines are still drawn */ } chunk = []; };
+          for (const id of ids) { if (`${chain} and resi ${[...chunk, id].join(',')}`.length > 380) flush(); chunk.push(id); }
+          flush();
+        }
+        host.setStyles(styles);
+      }
+      const counts = { hbond: 0, salt: 0, hydrophobic: 0 }; for (const i of pairs) counts[i.type]++;
       return { part, lines: lines.length, found: pairs.length, counts, nearest: pairs.slice(0, 5).map((i) => ({ a: `${i.a.resn} ${i.a.chain}:${i.a.authSeq} ${i.atomA}`, b: `${i.b.resn} ${i.b.chain}:${i.b.authSeq} ${i.atomB}`, type: i.type, distance: +i.distance.toFixed(2) })),
-        note: pairs.length > lines.length ? `共 ${pairs.length} 条，只画最近的 ${lines.length} 条。` : '氢键蓝线、盐桥粉线；用 hbonds("clear") 清除。',
+        shownAs, note: `${pairs.length > lines.length ? `共 ${pairs.length} 条，只画最近的 ${lines.length} 条；` : ''}氢键蓝、盐桥粉、疏水绿的虚线连在原子之间；两端的 ${shownAs} 个残基已显示为价键；用 hbonds("clear") 清除线、show("reset") 恢复样式。`,
         limits: ['只用重原子距离（氢键 2.4–3.5 Å，盐桥 ≤ 4.0 Å），结构里通常没有氢原子，所以没有角度判据：是筛查，不是结论；相邻残基之间的主链作用被跳过。'] };
     },
     label(value) {
