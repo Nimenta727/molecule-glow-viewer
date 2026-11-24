@@ -28,7 +28,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
     const seen = new Set();
     for (const tab of [null, ...tabs]) {
       if (tab) { await page.click('#' + tab).catch(() => {}); await page.waitForTimeout(300); }
-      const buttons = await page.evaluate(() => [...document.querySelectorAll('button')].map((b, i) => ({ i, id: b.id, text: b.textContent.trim().slice(0, 24), visible: Boolean(b.offsetParent) && getComputedStyle(b).visibility !== 'hidden', disabled: b.disabled })).filter((b) => b.visible));
+      const buttons = await page.evaluate((onTab) => [...document.querySelectorAll('button')].map((b, i) => ({ i, id: b.id, text: b.textContent.trim().slice(0, 24), tab: b.getAttribute('role') === 'tab', visible: Boolean(b.offsetParent) && getComputedStyle(b).visibility !== 'hidden', disabled: b.disabled })).filter((b) => b.visible && !(b.tab && !onTab)), Boolean(tab));   // tabs are visited by the outer loop, not clicked in passing (that would hide the page being swept)
       for (const button of buttons) {
         const key = button.id || button.text; if (seen.has(key) || SKIP.test(button.text)) continue; seen.add(key);
         if (button.disabled) { report.push({ app, tab, button: key, result: 'disabled' }); continue; }
@@ -42,7 +42,7 @@ const TYPES = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/ja
         }, button);
         if (reachable !== 'yes') { report.push({ app, tab, button: key, result: `not reachable (${reachable})` }); continue; }
         const before = await fingerprint(), errorsBefore = errors.length;
-        const handle = button.id ? page.locator('#' + button.id) : page.locator('button', { hasText: button.text }).first();
+        const handle = button.id ? page.locator('#' + button.id) : page.locator('button:visible').filter({ hasText: new RegExp(`^\\s*${button.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).first();   // exact text: "上" must not hit "上色"
         const clicked = await handle.click({ timeout: 4000 }).then(() => true, (e) => e.message.split('\n')[0]);
         await page.waitForTimeout(900);
         const after = await fingerprint();
